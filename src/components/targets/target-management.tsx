@@ -601,5 +601,5 @@ function sumAllocations(allocations: TargetAllocation[], customerId: string, yea
 }
 
 function getCustomerTarget(customer: Customer) {
-  return getFinancialCustomerMetric(customer.name, "revenueTarget") || customer.revenue;
+  return customer.revenue || getFinancialCustomerMetric(customer.name, "revenueTarget");
 }

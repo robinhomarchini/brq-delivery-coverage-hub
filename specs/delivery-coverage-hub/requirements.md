@@ -70,9 +70,20 @@ experiência do usuário até nova definição de modelo.
   única grade, Pessoa + Ano + Cliente + Meta Hunter + Meta Renovação/Ampliação.
   Essa tela grava na tabela normalizada `revenue_target_allocations` e alimenta
   as demais visões de metas, dashboards e consolidações.
+- A tela "Metas por Pessoa" deve excluir pessoas com perfil Executivo ou Diretor
+  do lançamento direto de metas. Robinson, Ane Knust e CA aparecem apenas por
+  consolidação derivada dos subordinados.
+- Ao selecionar uma pessoa em "Metas por Pessoa", a tela deve carregar
+  automaticamente os clientes já vinculados à pessoa e os clientes com meta já
+  existente para aquela pessoa/ano, permitindo incluir clientes adicionais para
+  lançamento de meta quando necessário.
 - A soma das metas das pessoas por Cliente + Ano deve bater com a meta total do
   cliente. A aplicação e o banco devem impedir que a soma ultrapasse a meta do
   cliente e destacar pendências até o fechamento exato.
+- Se uma edição em "Metas por Pessoa" ultrapassar a meta atual do cliente, o
+  sistema deve solicitar confirmação para aumentar a meta do cliente pelo
+  excedente, identificando se o acréscimo veio de Hunter, Renovação + Ampliação
+  ou ambos.
 - Diretores não recebem meta duplicada por cliente; Ane Knust e CA consolidam as
   metas dos managers subordinados. A meta total de Hunters é a soma de todas as
   alocações do tipo Hunter, incluindo pessoas com perfil Hunter e qualquer outra

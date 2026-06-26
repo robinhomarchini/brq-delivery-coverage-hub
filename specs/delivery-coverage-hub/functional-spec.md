@@ -121,6 +121,13 @@ Metas por Pessoa é a tela operacional principal para associar metas: o usuário
 seleciona uma pessoa e um ano, escolhe o cliente na grade e informa os valores
 de Meta Hunter e Meta Renovação + Ampliação para aquele Cliente + Pessoa + Ano.
 Ambas as telas usam `revenue_target_allocations` como fonte única de verdade.
+Na tela Metas por Pessoa, pessoas com papel Executivo ou Diretor não aparecem
+para lançamento direto, pois Robinson, Ane Knust e CA são consolidações
+derivadas dos subordinados. Ao selecionar uma pessoa, a grade deve carregar
+automaticamente os clientes já associados a ela no cadastro de Pessoas e também
+clientes com meta já lançada para a pessoa no ano selecionado. O usuário pode
+incluir clientes adicionais apenas para associação de meta, sem alterar
+automaticamente a cobertura de Delivery da pessoa.
 
 O Dashboard Executivo também apresenta uma visão financeira resumida dos clientes
 Financial, com Receita Atual, Meta Prevista, Receita Hunter, Receita
@@ -162,6 +169,8 @@ Campos da associação de Metas por Pessoa:
 - Meta Hunter.
 - Meta Renovação + Ampliação.
 - Total associado.
+- Origem do vínculo na tela: cliente associado, meta existente ou incluído na
+  edição atual.
 - Status de conciliação do cliente.
 
 Regras do cadastro de Metas:
@@ -175,6 +184,12 @@ Regras do cadastro de Metas:
 - A tela deve destacar clientes reconciliados, pendentes e acima da meta. O
   salvamento não deve permitir que a soma das pessoas ultrapasse a meta total do
   cliente.
+- Na tela Metas por Pessoa, quando uma alteração fizer a soma das metas das
+  pessoas ultrapassar a meta atual do cliente, o sistema deve perguntar se o
+  usuário deseja aumentar a meta do cliente pelo excedente. Se confirmado, a
+  meta total do cliente é elevada antes de gravar a nova meta da pessoa; a
+  mensagem deve indicar se o acréscimo veio de Hunter, Renovação + Ampliação ou
+  ambos.
 - Hunter é usado somente para atribuição/reporting de metas e não transforma a
   pessoa em responsável de Delivery do cliente.
 - Renovação + Ampliação representa o crescimento e manutenção das squads

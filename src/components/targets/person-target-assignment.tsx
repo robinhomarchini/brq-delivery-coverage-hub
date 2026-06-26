@@ -1,6 +1,6 @@
 "use client";
 
-import { Save, Target, UserRound } from "lucide-react";
+import { Plus, Save, Target, UserRound } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { Customer, TargetAllocation, TargetAllocationType } from "@/data/mockData";
 import { PageHeader } from "@/components/shared/page-header";
@@ -20,23 +20,54 @@ const currentYear = 2026;
 type DraftAmounts = Record<string, { hunter: string; farmerRenewal: string }>;
 
 export function PersonTargetAssignment() {
-  const { people, customers, targetAllocations, saveTargetAllocation, deleteTargetAllocation } = useDeliveryStore();
+  const { people, customers, targetAllocations, saveCustomer, saveTargetAllocation, deleteTargetAllocation } = useDeliveryStore();
   const activePeople = useMemo(() => people.filter((person) => person.active), [people]);
+  const assignablePeople = useMemo(() =>
+    activePeople.filter((person) => person.roleType !== "Executive" && person.roleType !== "Director"),
+    [activePeople],
+  );
   const years = useMemo(
     () => Array.from(new Set([currentYear, ...targetAllocations.map((allocation) => allocation.year)])).sort((a, b) => b - a),
     [targetAllocations],
   );
-  const [personId, setPersonId] = useState(activePeople[0]?.id ?? "");
+  const [personId, setPersonId] = useState("");
   const [year, setYear] = useState(currentYear);
   const [drafts, setDrafts] = useState<DraftAmounts>({});
+  const [extraCustomerIds, setExtraCustomerIds] = useState<string[]>([]);
+  const [customerToAdd, setCustomerToAdd] = useState("");
   const [savingCustomerId, setSavingCustomerId] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
-  const selectedPerson = activePeople.find((person) => person.id === personId);
+  const effectivePersonId = assignablePeople.some((person) => person.id === personId)
+    ? personId
+    : assignablePeople[0]?.id ?? "";
+  const selectedPerson = assignablePeople.find((person) => person.id === effectivePersonId);
+  const visibleCustomerIds = useMemo(
+    () => buildVisibleCustomerIds(selectedPerson?.clientIds ?? [], targetAllocations, effectivePersonId, year, extraCustomerIds),
+    [effectivePersonId, extraCustomerIds, selectedPerson?.clientIds, targetAllocations, year],
+  );
+  const visibleCustomers = useMemo(
+    () => customers.filter((customer) => visibleCustomerIds.has(customer.id)),
+    [customers, visibleCustomerIds],
+  );
+  const availableCustomersToAdd = useMemo(
+    () => customers.filter((customer) => !visibleCustomerIds.has(customer.id)),
+    [customers, visibleCustomerIds],
+  );
+  const effectiveCustomerToAdd = availableCustomersToAdd.some((customer) => customer.id === customerToAdd)
+    ? customerToAdd
+    : availableCustomersToAdd[0]?.id ?? "";
   const rows = useMemo(
-    () => customers.map((customer) => buildRow(customer, personId, year, targetAllocations, drafts[customer.id])),
-    [customers, drafts, personId, targetAllocations, year],
+    () => visibleCustomers.map((customer) => buildRow(
+      customer,
+      effectivePersonId,
+      year,
+      targetAllocations,
+      drafts[customer.id],
+      getRowSource(customer.id, selectedPerson?.clientIds ?? [], targetAllocations, effectivePersonId, year, extraCustomerIds),
+    )),
+    [drafts, effectivePersonId, extraCustomerIds, selectedPerson?.clientIds, targetAllocations, visibleCustomers, year],
   );
   const totals = useMemo(() => rows.reduce((summary, row) => ({
     hunter: summary.hunter + row.hunterAmount,
@@ -55,31 +86,46 @@ export function PersonTargetAssignment() {
   }
 
   async function saveCustomerTargets(row: PersonTargetRow) {
-    if (!personId) {
+    if (!effectivePersonId) {
       setErrorMessage("Selecione uma pessoa antes de salvar.");
       return;
     }
 
     const nextHunterAmount = parseAmount(drafts[row.customerId]?.hunter ?? row.hunterInput);
     const nextFarmerRenewalAmount = parseAmount(drafts[row.customerId]?.farmerRenewal ?? row.farmerRenewalInput);
-    const currentOtherPeopleTotal = sumOtherPeopleAllocations(targetAllocations, row.customerId, personId, year);
+    const currentOtherPeopleTotal = sumOtherPeopleAllocations(targetAllocations, row.customerId, effectivePersonId, year);
     const nextCustomerTotal = currentOtherPeopleTotal + nextHunterAmount + nextFarmerRenewalAmount;
+    const overAmount = nextCustomerTotal - row.customerTarget;
 
-    if (nextCustomerTotal > row.customerTarget + 0.01) {
-      setErrorMessage(`Não foi possível salvar. A soma das metas das pessoas para ${row.customerName} ficaria acima da meta do cliente (${formatCurrency(row.customerTarget)}).`);
-      return;
+    if (overAmount > 0.01) {
+      const increaseType = getIncreaseType({
+        currentHunterAmount: row.hunterAllocation?.amount ?? 0,
+        nextHunterAmount,
+        currentFarmerRenewalAmount: row.farmerRenewalAllocation?.amount ?? 0,
+        nextFarmerRenewalAmount,
+      });
+      const confirmed = window.confirm(
+        `A soma das metas das pessoas em ${row.customerName} ficará ${formatCurrency(overAmount)} acima da meta atual do cliente.\n\nDeseja aumentar a meta do cliente para ${formatCurrency(nextCustomerTotal)}? Origem do acréscimo: ${increaseType}.`,
+      );
+      if (!confirmed) return;
     }
 
     try {
       setSavingCustomerId(row.customerId);
       setErrorMessage("");
+      if (overAmount > 0.01) {
+        await saveCustomer({
+          ...row.customer,
+          revenue: nextCustomerTotal,
+        });
+      }
       await persistRowTargets({
         targets: [
           {
             existing: row.hunterAllocation,
             amount: nextHunterAmount,
             customerId: row.customerId,
-            personId,
+            personId: effectivePersonId,
             year,
             type: "hunter",
           },
@@ -87,7 +133,7 @@ export function PersonTargetAssignment() {
             existing: row.farmerRenewalAllocation,
             amount: nextFarmerRenewalAmount,
             customerId: row.customerId,
-            personId,
+            personId: effectivePersonId,
             year,
             type: "farmer_renewal",
           },
@@ -100,7 +146,9 @@ export function PersonTargetAssignment() {
         delete next[row.customerId];
         return next;
       });
-      setSuccessMessage(`Metas de ${selectedPerson?.name ?? "pessoa"} em ${row.customerName} salvas.`);
+      setSuccessMessage(overAmount > 0.01
+        ? `Metas salvas e meta do cliente ${row.customerName} aumentada para ${formatCurrency(nextCustomerTotal)}.`
+        : `Metas de ${selectedPerson?.name ?? "pessoa"} em ${row.customerName} salvas.`);
       window.setTimeout(() => setSuccessMessage(""), 3500);
     } catch (error) {
       setErrorMessage(getFormErrorMessage(error));
@@ -114,7 +162,7 @@ export function PersonTargetAssignment() {
       <PageHeader
         eyebrow="BU Financial"
         title="Metas por Pessoa"
-        description="Associe metas por pessoa, cliente e ano. Informe separadamente Meta Hunter e Meta Renovação + Ampliação; as demais telas consolidam a partir daqui."
+        description="Associe metas por pessoa lançável, cliente e ano. Robinson, Ane e CA consolidam subordinados e não recebem metas diretas nesta tela."
       />
 
       {successMessage && <SuccessNotice message={successMessage} floating />}
@@ -123,26 +171,55 @@ export function PersonTargetAssignment() {
       <Card className="mb-5 grid gap-4 p-5 shadow-sm lg:grid-cols-[2fr_1fr_1fr_1fr]">
         <label>
           <span className="mb-1.5 block text-sm font-semibold text-slate-700">Pessoa</span>
-          <Select value={personId} onChange={(event) => {
+          <Select value={effectivePersonId} onChange={(event) => {
             setPersonId(event.target.value);
             setDrafts({});
+            setExtraCustomerIds([]);
           }}>
-            {activePeople.map((person) => (
+            {assignablePeople.map((person) => (
               <option key={person.id} value={person.id}>{person.name} · {person.roleType}</option>
             ))}
           </Select>
+          <span className="mt-1 block text-xs text-slate-400">Executivo e Diretores aparecem apenas nas consolidações.</span>
         </label>
         <label>
           <span className="mb-1.5 block text-sm font-semibold text-slate-700">Ano</span>
           <Select value={String(year)} onChange={(event) => {
             setYear(Number(event.target.value));
             setDrafts({});
+            setExtraCustomerIds([]);
           }}>
             {years.map((item) => <option key={item} value={item}>{item}</option>)}
           </Select>
         </label>
         <Summary label="Meta Hunter" value={formatCurrency(totals.hunter)} />
         <Summary label="Renovação + Ampliação" value={formatCurrency(totals.farmerRenewal)} />
+      </Card>
+
+      <Card className="mb-5 grid gap-3 p-5 shadow-sm lg:grid-cols-[1fr_auto]">
+        <label>
+          <span className="mb-1.5 block text-sm font-semibold text-slate-700">Incluir cliente para meta</span>
+          <Select value={effectiveCustomerToAdd} onChange={(event) => setCustomerToAdd(event.target.value)} disabled={!availableCustomersToAdd.length}>
+            {!availableCustomersToAdd.length && <option value="">Todos os clientes já estão na grade</option>}
+            {availableCustomersToAdd.map((customer) => (
+              <option key={customer.id} value={customer.id}>{customer.name}</option>
+            ))}
+          </Select>
+        </label>
+        <div className="flex items-end">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={!effectiveCustomerToAdd}
+            onClick={() => {
+              if (!effectiveCustomerToAdd) return;
+              setExtraCustomerIds((current) => current.includes(effectiveCustomerToAdd) ? current : [...current, effectiveCustomerToAdd]);
+            }}
+          >
+            <Plus className="h-4 w-4" />
+            Incluir cliente
+          </Button>
+        </div>
       </Card>
 
       <Card className="overflow-hidden shadow-sm">
@@ -153,7 +230,7 @@ export function PersonTargetAssignment() {
             </div>
             <div>
               <h2 className="text-base font-bold text-slate-900">{selectedPerson?.name ?? "Pessoa não selecionada"}</h2>
-              <p className="text-xs text-slate-500">Edite os valores por cliente e salve a linha correspondente.</p>
+              <p className="text-xs text-slate-500">A grade começa com clientes associados na tela Pessoas e metas já existentes no ano. Inclua novos clientes quando necessário.</p>
             </div>
           </div>
         </div>
@@ -162,6 +239,7 @@ export function PersonTargetAssignment() {
             <TableHeader>
               <TableRow>
                 <TableHead>Cliente</TableHead>
+                <TableHead>Origem</TableHead>
                 <TableHead>Meta do Cliente</TableHead>
                 <TableHead>Já associado a outras pessoas</TableHead>
                 <TableHead>Meta Hunter</TableHead>
@@ -178,6 +256,7 @@ export function PersonTargetAssignment() {
                     <p className="font-semibold text-slate-900">{row.customerName}</p>
                     <p className="text-xs text-slate-500">{row.industry}</p>
                   </TableCell>
+                  <TableCell><SourceBadge source={row.source} /></TableCell>
                   <TableCell>{formatCurrency(row.customerTarget)}</TableCell>
                   <TableCell>{formatCurrency(row.otherPeopleTotal)}</TableCell>
                   <TableCell>
@@ -220,6 +299,11 @@ export function PersonTargetAssignment() {
               ))}
             </TableBody>
           </Table>
+          {!rows.length && (
+            <div className="p-8 text-center text-sm text-slate-500">
+              Esta pessoa ainda não possui clientes associados nem metas lançadas neste ano. Use “Incluir cliente para meta” para começar.
+            </div>
+          )}
         </div>
       </Card>
     </>
@@ -228,6 +312,7 @@ export function PersonTargetAssignment() {
 
 type PersonTargetRow = ReturnType<typeof buildRow>;
 type ClientStatus = "ok" | "pending" | "over";
+type RowSource = "assigned" | "existing_target" | "added";
 
 function Summary({ label, value }: { label: string; value: string }) {
   return (
@@ -247,7 +332,20 @@ function ClientStatusBadge({ status }: { status: ClientStatus }) {
   return <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Pendente</Badge>;
 }
 
-function buildRow(customer: Customer, personId: string, year: number, allocations: TargetAllocation[], draft?: { hunter: string; farmerRenewal: string }) {
+function SourceBadge({ source }: { source: RowSource }) {
+  if (source === "assigned") return <Badge className="bg-sky-100 text-sky-800 hover:bg-sky-100">Cliente associado</Badge>;
+  if (source === "existing_target") return <Badge className="bg-purple-100 text-brq-purple hover:bg-purple-100">Meta existente</Badge>;
+  return <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100">Incluído agora</Badge>;
+}
+
+function buildRow(
+  customer: Customer,
+  personId: string,
+  year: number,
+  allocations: TargetAllocation[],
+  draft: { hunter: string; farmerRenewal: string } | undefined,
+  source: RowSource,
+) {
   const hunterAllocation = findAllocation(allocations, customer.id, personId, year, "hunter");
   const farmerRenewalAllocation = findAllocation(allocations, customer.id, personId, year, "farmer_renewal");
   const hunterAmount = parseAmount(draft?.hunter ?? getInputValue(hunterAllocation?.amount ?? 0));
@@ -258,6 +356,7 @@ function buildRow(customer: Customer, personId: string, year: number, allocation
 
   return {
     customerId: customer.id,
+    customer,
     customerName: customer.name,
     industry: customer.industry,
     customerTarget,
@@ -270,6 +369,7 @@ function buildRow(customer: Customer, personId: string, year: number, allocation
     farmerRenewalInput: getInputValue(farmerRenewalAllocation?.amount ?? 0),
     personTotal: hunterAmount + farmerRenewalAmount,
     clientStatus: getClientStatus(customerTarget, clientTotal),
+    source,
   };
 }
 
@@ -360,6 +460,38 @@ function sumOtherPeopleAllocations(allocations: TargetAllocation[], customerId: 
     .reduce((total, allocation) => total + allocation.amount, 0);
 }
 
+function buildVisibleCustomerIds(
+  assignedCustomerIds: string[],
+  allocations: TargetAllocation[],
+  personId: string,
+  year: number,
+  extraCustomerIds: string[],
+) {
+  return new Set([
+    ...assignedCustomerIds,
+    ...allocations
+      .filter((allocation) => allocation.personId === personId && allocation.year === year)
+      .map((allocation) => allocation.customerId),
+    ...extraCustomerIds,
+  ]);
+}
+
+function getRowSource(
+  customerId: string,
+  assignedCustomerIds: string[],
+  allocations: TargetAllocation[],
+  personId: string,
+  year: number,
+  extraCustomerIds: string[],
+): RowSource {
+  if (assignedCustomerIds.includes(customerId)) return "assigned";
+  if (allocations.some((allocation) => allocation.customerId === customerId && allocation.personId === personId && allocation.year === year)) {
+    return "existing_target";
+  }
+  if (extraCustomerIds.includes(customerId)) return "added";
+  return "added";
+}
+
 function getClientStatus(target: number, allocated: number): ClientStatus {
   if (Math.abs(target - allocated) <= 0.01) return "ok";
   if (allocated > target) return "over";
@@ -367,7 +499,7 @@ function getClientStatus(target: number, allocated: number): ClientStatus {
 }
 
 function getCustomerTarget(customer: Customer) {
-  return getFinancialCustomerMetric(customer.name, "revenueTarget") || customer.revenue;
+  return customer.revenue || getFinancialCustomerMetric(customer.name, "revenueTarget");
 }
 
 function getInputValue(value: number) {
@@ -382,4 +514,23 @@ function parseAmount(value: string) {
 function getFormErrorMessage(error: unknown) {
   if (error instanceof Error && error.message) return error.message;
   return "Não foi possível salvar a associação de metas. Verifique permissões, valores e conexão.";
+}
+
+function getIncreaseType({
+  currentHunterAmount,
+  nextHunterAmount,
+  currentFarmerRenewalAmount,
+  nextFarmerRenewalAmount,
+}: {
+  currentHunterAmount: number;
+  nextHunterAmount: number;
+  currentFarmerRenewalAmount: number;
+  nextFarmerRenewalAmount: number;
+}) {
+  const hunterDelta = nextHunterAmount - currentHunterAmount;
+  const farmerRenewalDelta = nextFarmerRenewalAmount - currentFarmerRenewalAmount;
+  if (hunterDelta > 0.01 && farmerRenewalDelta > 0.01) return "Hunter e Renovação + Ampliação";
+  if (hunterDelta > 0.01) return "Hunter";
+  if (farmerRenewalDelta > 0.01) return "Renovação + Ampliação";
+  return "redistribuição de metas";
 }
