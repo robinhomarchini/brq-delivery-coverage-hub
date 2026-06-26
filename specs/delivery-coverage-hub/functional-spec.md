@@ -3,8 +3,9 @@
 ## Navegação
 
 Sidebar com Dashboard Executivo, Organograma, Pessoas, Clientes, Portfólio de
-Clientes, Metas, Assuntos, Mapa de Cobertura e Configurações. O item Assuntos
-fica visível como pausado/desabilitado até nova definição do modelo.
+Clientes, Metas, Metas por Pessoa, Assuntos, Mapa de Cobertura e Configurações.
+O item Assuntos fica visível como pausado/desabilitado até nova definição do
+modelo.
 
 ## Fluxos CRUD
 
@@ -115,6 +116,12 @@ financeiras por Cliente, Pessoa, Tipo de Meta e Ano. Essa é a fonte de verdade
 para metas editáveis manualmente. Os valores agregados da planilha permanecem
 como referência analítica importada.
 
+A rota Metas funciona como visão de conciliação e consolidação executiva. A rota
+Metas por Pessoa é a tela operacional principal para associar metas: o usuário
+seleciona uma pessoa e um ano, escolhe o cliente na grade e informa os valores
+de Meta Hunter e Meta Renovação + Ampliação para aquele Cliente + Pessoa + Ano.
+Ambas as telas usam `revenue_target_allocations` como fonte única de verdade.
+
 O Dashboard Executivo também apresenta uma visão financeira resumida dos clientes
 Financial, com Receita Atual, Meta Prevista, Receita Hunter, Receita
 Delivery/Farmer, ranking de clientes por meta, abertura por Diretor e abertura
@@ -146,6 +153,16 @@ Campos do cadastro de Metas:
 - Ano.
 - Valor da Meta.
 - Observações.
+
+Campos da associação de Metas por Pessoa:
+
+- Pessoa.
+- Ano.
+- Cliente.
+- Meta Hunter.
+- Meta Renovação + Ampliação.
+- Total associado.
+- Status de conciliação do cliente.
 
 Regras do cadastro de Metas:
 

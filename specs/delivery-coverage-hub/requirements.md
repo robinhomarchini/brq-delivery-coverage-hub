@@ -66,6 +66,10 @@ experiência do usuário até nova definição de modelo.
 - A tela de Metas deve exibir uma visão anual por pessoa, somando a meta Hunter,
   a meta de Renovação + Ampliação e a meta total de cada colaborador no ano
   selecionado.
+- Deve existir uma tela operacional "Metas por Pessoa" para associar, em uma
+  única grade, Pessoa + Ano + Cliente + Meta Hunter + Meta Renovação/Ampliação.
+  Essa tela grava na tabela normalizada `revenue_target_allocations` e alimenta
+  as demais visões de metas, dashboards e consolidações.
 - A soma das metas das pessoas por Cliente + Ano deve bater com a meta total do
   cliente. A aplicação e o banco devem impedir que a soma ultrapasse a meta do
   cliente e destacar pendências até o fechamento exato.

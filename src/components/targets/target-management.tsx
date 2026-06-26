@@ -1,6 +1,7 @@
 "use client";
 
 import { Pencil, Plus, Target, Trash2, UserRound } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Customer, Person, TargetAllocation, TargetAllocationType } from "@/data/mockData";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -140,9 +141,9 @@ export function TargetManagement() {
     <>
       <PageHeader
         eyebrow="BU Financial"
-        title="Metas por cliente e pessoa"
-        description="Cadastre metas anuais Hunter e Renovação + Ampliação separadas por cliente e pessoa. Hunter é atribuição de reporting; ownership de Delivery continua nos clientes e managers."
-        actions={<Button onClick={() => openForm()}><Plus className="h-4 w-4" /> Nova meta</Button>}
+        title="Conciliação de Metas"
+        description="Acompanhe se as metas associadas por pessoa fecham com a meta total de cada cliente. Para editar em grade, use Metas por Pessoa."
+        actions={<Button asChild><Link href="/metas-pessoas"><Plus className="h-4 w-4" /> Associar por pessoa</Link></Button>}
       />
 
       {successMessage && <SuccessNotice message={successMessage} floating />}

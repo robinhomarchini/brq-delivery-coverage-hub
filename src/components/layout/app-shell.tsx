@@ -28,6 +28,7 @@ const navigation = [
   { href: "/clientes", label: "Clientes", icon: Building2 },
   { href: "/portfolio-clientes", label: "Portfólio de Clientes", icon: ChartNoAxesCombined },
   { href: "/metas", label: "Metas", icon: Target },
+  { href: "/metas-pessoas", label: "Metas por Pessoa", icon: Target },
   { href: "/assuntos", label: "Assuntos", icon: Target, disabled: true },
   { href: "/mapa-cobertura", label: "Mapa de Cobertura", icon: Map },
   { href: "/configuracoes", label: "Configurações", icon: Settings },
