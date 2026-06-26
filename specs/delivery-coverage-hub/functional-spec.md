@@ -3,9 +3,9 @@
 ## Navegação
 
 Sidebar com Dashboard Executivo, Organograma, Pessoas, Clientes, Portfólio de
-Clientes, Metas, Metas por Pessoa, Assuntos, Mapa de Cobertura e Configurações.
-O item Assuntos fica visível como pausado/desabilitado até nova definição do
-modelo.
+Clientes, Metas, Metas por Pessoa, Relatório de Metas, Assuntos, Mapa de
+Cobertura, Configurações e Ajuda. O item Assuntos fica visível como
+pausado/desabilitado até nova definição do modelo.
 
 ## Fluxos CRUD
 
@@ -128,6 +128,23 @@ automaticamente os clientes já associados a ela no cadastro de Pessoas e també
 clientes com meta já lançada para a pessoa no ano selecionado. O usuário pode
 incluir clientes adicionais apenas para associação de meta, sem alterar
 automaticamente a cobertura de Delivery da pessoa.
+Perfis Staff também não aparecem para lançamento direto. Renan responde
+diretamente a Robinson e não deve carregar meta própria.
+
+A rota Metas possui um Assistente de Metas acionável. Ele apresenta clientes sem
+valor de meta, clientes sem manager, clientes sem hunter associado quando existe
+meta Hunter esperada e divergências entre soma das pessoas e meta total do
+cliente. Achados relacionados ao cliente navegam para a tela Clientes com o
+cliente em edição. Achados relacionados à associação de metas navegam para
+Metas por Pessoa com cliente e ano pré-selecionados.
+
+A rota Relatório de Metas apresenta visão por pessoa e ano, com Meta Hunter,
+Meta Renovação + Ampliação, Meta Total, quantidade de clientes e lista resumida
+de clientes. Cada pessoa do relatório deve navegar para Metas por Pessoa com a
+pessoa e o ano pré-selecionados.
+
+A rota Ajuda deve disponibilizar um guia rápido simples em PDF, publicado como
+link estático, com instruções de uso para homologadores.
 
 O Dashboard Executivo também apresenta uma visão financeira resumida dos clientes
 Financial, com Receita Atual, Meta Prevista, Receita Hunter, Receita

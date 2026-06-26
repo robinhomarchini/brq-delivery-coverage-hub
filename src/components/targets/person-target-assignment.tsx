@@ -20,20 +20,21 @@ const currentYear = 2026;
 type DraftAmounts = Record<string, { hunter: string; farmerRenewal: string }>;
 
 export function PersonTargetAssignment() {
+  const initialParams = useMemo(() => getInitialTargetParams(), []);
   const { people, customers, targetAllocations, saveCustomer, saveTargetAllocation, deleteTargetAllocation } = useDeliveryStore();
   const activePeople = useMemo(() => people.filter((person) => person.active), [people]);
   const assignablePeople = useMemo(() =>
-    activePeople.filter((person) => person.roleType !== "Executive" && person.roleType !== "Director"),
+    activePeople.filter((person) => person.roleType !== "Executive" && person.roleType !== "Director" && person.roleType !== "Staff"),
     [activePeople],
   );
   const years = useMemo(
     () => Array.from(new Set([currentYear, ...targetAllocations.map((allocation) => allocation.year)])).sort((a, b) => b - a),
     [targetAllocations],
   );
-  const [personId, setPersonId] = useState("");
-  const [year, setYear] = useState(currentYear);
+  const [personId, setPersonId] = useState(initialParams.personId);
+  const [year, setYear] = useState(initialParams.year ?? currentYear);
   const [drafts, setDrafts] = useState<DraftAmounts>({});
-  const [extraCustomerIds, setExtraCustomerIds] = useState<string[]>([]);
+  const [extraCustomerIds, setExtraCustomerIds] = useState<string[]>(initialParams.customerId ? [initialParams.customerId] : []);
   const [customerToAdd, setCustomerToAdd] = useState("");
   const [savingCustomerId, setSavingCustomerId] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
@@ -514,6 +515,17 @@ function parseAmount(value: string) {
 function getFormErrorMessage(error: unknown) {
   if (error instanceof Error && error.message) return error.message;
   return "Não foi possível salvar a associação de metas. Verifique permissões, valores e conexão.";
+}
+
+function getInitialTargetParams() {
+  if (typeof window === "undefined") return { customerId: "", personId: "", year: undefined as number | undefined };
+  const params = new URLSearchParams(window.location.search);
+  const year = Number(params.get("year"));
+  return {
+    customerId: params.get("customerId") ?? "",
+    personId: params.get("personId") ?? "",
+    year: Number.isFinite(year) && year >= 2020 && year <= 2100 ? year : undefined,
+  };
 }
 
 function getIncreaseType({

@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Plus, Target, Trash2, UserRound } from "lucide-react";
+import { Bot, Pencil, Plus, Target, Trash2, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Customer, Person, TargetAllocation, TargetAllocationType } from "@/data/mockData";
@@ -35,12 +35,22 @@ export function TargetManagement() {
   const [successMessage, setSuccessMessage] = useState("");
   const [formError, setFormError] = useState("");
   const [focusAmountOnOpen, setFocusAmountOnOpen] = useState(false);
+  const [assistantOpen, setAssistantOpen] = useState(false);
   const amountInputRef = useRef<HTMLInputElement>(null);
 
   const activePeople = useMemo(() => people.filter((person) => person.active), [people]);
-  const years = useMemo(() => Array.from(new Set([currentYear, ...targetAllocations.map((item) => item.year)])).sort((a, b) => b - a), [targetAllocations]);
+  const targetAssignablePeople = useMemo(
+    () => activePeople.filter((person) => person.roleType !== "Executive" && person.roleType !== "Director" && person.roleType !== "Staff"),
+    [activePeople],
+  );
+  const targetAssignablePersonIds = useMemo(() => new Set(targetAssignablePeople.map((person) => person.id)), [targetAssignablePeople]);
+  const targetAssignableAllocations = useMemo(
+    () => targetAllocations.filter((allocation) => targetAssignablePersonIds.has(allocation.personId)),
+    [targetAllocations, targetAssignablePersonIds],
+  );
+  const years = useMemo(() => Array.from(new Set([currentYear, ...targetAssignableAllocations.map((item) => item.year)])).sort((a, b) => b - a), [targetAssignableAllocations]);
 
-  const filtered = useMemo(() => targetAllocations.filter((allocation) => {
+  const filtered = useMemo(() => targetAssignableAllocations.filter((allocation) => {
     const customer = customers.find((item) => item.id === allocation.customerId);
     const person = people.find((item) => item.id === allocation.personId);
     const query = search.toLowerCase();
@@ -49,20 +59,24 @@ export function TargetManagement() {
       && (!personId || allocation.personId === personId)
       && (!type || allocation.type === type)
       && (!year || allocation.year === Number(year));
-  }), [customerId, customers, people, personId, search, targetAllocations, type, year]);
+  }), [customerId, customers, people, personId, search, targetAssignableAllocations, type, year]);
 
   const totals = useMemo(() => filtered.reduce((summary, allocation) => ({
     hunter: summary.hunter + (allocation.type === "hunter" ? allocation.amount : 0),
     farmerRenewal: summary.farmerRenewal + (allocation.type === "farmer_renewal" ? allocation.amount : 0),
   }), { hunter: 0, farmerRenewal: 0 }), [filtered]);
-  const reconciliation = useMemo(() => buildReconciliation(customers, targetAllocations, Number(year) || currentYear), [customers, targetAllocations, year]);
+  const reconciliation = useMemo(() => buildReconciliation(customers, targetAssignableAllocations, Number(year) || currentYear), [customers, targetAssignableAllocations, year]);
   const personYearSummary = useMemo(
-    () => buildPersonYearSummary(activePeople, customers, targetAllocations, Number(year) || currentYear),
-    [activePeople, customers, targetAllocations, year],
+    () => buildPersonYearSummary(targetAssignablePeople, customers, targetAssignableAllocations, Number(year) || currentYear),
+    [customers, targetAssignableAllocations, targetAssignablePeople, year],
   );
   const hierarchySummary = useMemo(
-    () => buildHierarchySummary(activePeople, targetAllocations, Number(year) || currentYear),
-    [activePeople, targetAllocations, year],
+    () => buildHierarchySummary(activePeople, targetAssignableAllocations, Number(year) || currentYear),
+    [activePeople, targetAssignableAllocations, year],
+  );
+  const assistant = useMemo(
+    () => buildTargetAssistant(customers, targetAssignableAllocations, Number(year) || currentYear),
+    [customers, targetAssignableAllocations, year],
   );
   const reconciledCount = reconciliation.filter((item) => item.status === "ok").length;
   const pendingCount = reconciliation.filter((item) => item.status === "pending").length;
@@ -98,7 +112,7 @@ export function TargetManagement() {
       notes: String(formData.get("notes") ?? ""),
     };
 
-    const duplicate = targetAllocations.find((allocation) =>
+    const duplicate = targetAssignableAllocations.find((allocation) =>
       allocation.id !== draft.id
       && allocation.customerId === draft.customerId
       && allocation.personId === draft.personId
@@ -111,9 +125,9 @@ export function TargetManagement() {
       return;
     }
 
-    const nextAllocations = targetAllocations.some((allocation) => allocation.id === draft.id)
-      ? targetAllocations.map((allocation) => (allocation.id === draft.id ? draft : allocation))
-      : [...targetAllocations, draft];
+    const nextAllocations = targetAssignableAllocations.some((allocation) => allocation.id === draft.id)
+      ? targetAssignableAllocations.map((allocation) => (allocation.id === draft.id ? draft : allocation))
+      : [...targetAssignableAllocations, draft];
     const customer = customers.find((item) => item.id === draft.customerId);
     const target = customer ? getCustomerTarget(customer) : 0;
     const allocated = sumAllocations(nextAllocations, draft.customerId, draft.year);
@@ -143,7 +157,15 @@ export function TargetManagement() {
         eyebrow="BU Financial"
         title="Conciliação de Metas"
         description="Acompanhe se as metas associadas por pessoa fecham com a meta total de cada cliente. Para editar em grade, use Metas por Pessoa."
-        actions={<Button asChild><Link href="/metas-pessoas"><Plus className="h-4 w-4" /> Associar por pessoa</Link></Button>}
+        actions={(
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => setAssistantOpen((current) => !current)}>
+              <Bot className="h-4 w-4" />
+              Assistente de metas
+            </Button>
+            <Button asChild><Link href="/metas-pessoas"><Plus className="h-4 w-4" /> Associar por pessoa</Link></Button>
+          </div>
+        )}
       />
 
       {successMessage && <SuccessNotice message={successMessage} floating />}
@@ -154,6 +176,8 @@ export function TargetManagement() {
         <Summary label="Meta Renovação + Ampliação" value={formatCurrency(totals.farmerRenewal)} tone="blue" />
         <Summary label="Meta Total" value={formatCurrency(totals.hunter + totals.farmerRenewal)} tone="dark" />
       </section>
+
+      {assistantOpen && <TargetAssistantPanel assistant={assistant} />}
 
       <Card className="mb-5 overflow-hidden shadow-sm">
         <div className="border-b bg-white p-5">
@@ -286,7 +310,7 @@ export function TargetManagement() {
         </Select>
         <Select value={personId} onChange={(event) => setPersonId(event.target.value)}>
           <option value="">Todas as pessoas</option>
-          {activePeople.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}
+          {targetAssignablePeople.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}
         </Select>
         <Select value={type} onChange={(event) => setType(event.target.value)}>
           <option value="">Todos os tipos</option>
@@ -372,8 +396,8 @@ export function TargetManagement() {
               </Select>
             </Field>
             <Field label="Pessoa">
-              <Select name="personId" defaultValue={editing?.personId ?? activePeople[0]?.id} required>
-                {activePeople.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}
+              <Select name="personId" defaultValue={editing?.personId ?? targetAssignablePeople[0]?.id} required>
+                {targetAssignablePeople.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}
               </Select>
             </Field>
             <Field label="Tipo de meta">
@@ -418,6 +442,111 @@ function Summary({ label, value, tone }: { label: string; value: string; tone: "
         <p className="mt-1 text-2xl font-black text-slate-900">{value}</p>
       </div>
     </Card>
+  );
+}
+
+function TargetAssistantPanel({ assistant }: { assistant: TargetAssistant }) {
+  return (
+    <Card className="mb-5 overflow-hidden border-purple-100 bg-purple-50/30 shadow-sm">
+      <div className="flex flex-col gap-3 border-b border-purple-100 bg-white p-5 md:flex-row md:items-center md:justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-sm font-bold text-brq-purple">
+            <Bot className="h-4 w-4" />
+            Assistente de metas
+          </div>
+          <p className="mt-1 text-sm text-slate-600">
+            Check-up automático do ano selecionado: meta do cliente, responsáveis, hunter e conciliação das pessoas.
+          </p>
+        </div>
+        <Badge className={assistant.totalIssues ? "bg-amber-100 text-amber-800 hover:bg-amber-100" : "bg-emerald-100 text-emerald-800 hover:bg-emerald-100"}>
+          {assistant.totalIssues ? `${assistant.totalIssues} ponto(s) de atenção` : "Sem pendências críticas"}
+        </Badge>
+      </div>
+      <div className="grid gap-4 p-5 xl:grid-cols-2">
+        <AssistantIssueList
+          title="Clientes sem valor de meta"
+          description="Clientes cuja meta total está zerada ou ausente."
+          issues={assistant.missingTargetValue}
+          emptyMessage="Todos os clientes têm meta total."
+          actionLabel="Ajustar cliente"
+          getHref={(issue) => `/clientes?customerId=${encodeURIComponent(issue.customerId)}`}
+        />
+        <AssistantIssueList
+          title="Clientes sem manager"
+          description="Clientes sem manager de Delivery associado na governança."
+          issues={assistant.missingManagers}
+          emptyMessage="Todos os clientes têm manager associado."
+          actionLabel="Ajustar cliente"
+          getHref={(issue) => `/clientes?customerId=${encodeURIComponent(issue.customerId)}`}
+        />
+        <AssistantIssueList
+          title="Clientes sem hunter associado"
+          description="Clientes com meta Hunter esperada, mas sem meta Hunter atribuída a pessoa lançável."
+          issues={assistant.missingHunters}
+          emptyMessage="Todos os clientes com meta Hunter têm associação lançável."
+          actionLabel="Associar meta"
+          getHref={(issue) => `/metas-pessoas?customerId=${encodeURIComponent(issue.customerId)}&year=${assistant.year}`}
+        />
+        <AssistantIssueList
+          title="Conciliação cliente x pessoas"
+          description="Clientes em que a soma das metas das pessoas não bate com a meta total."
+          issues={assistant.reconciliationIssues}
+          emptyMessage="A soma das pessoas bate com todos os clientes."
+          actionLabel="Associar meta"
+          getHref={(issue) => `/metas-pessoas?customerId=${encodeURIComponent(issue.customerId)}&year=${assistant.year}`}
+        />
+      </div>
+      <div className="border-t border-purple-100 bg-white px-5 py-4 text-xs text-slate-500">
+        Renan e demais perfis Executivo, Diretor ou Staff não entram como pessoas lançáveis. Robinson, Ane e CA aparecem por consolidação derivada dos subordinados.
+      </div>
+    </Card>
+  );
+}
+
+function AssistantIssueList({
+  title,
+  description,
+  issues,
+  emptyMessage,
+  actionLabel,
+  getHref,
+}: {
+  title: string;
+  description: string;
+  issues: TargetAssistantIssue[];
+  emptyMessage: string;
+  actionLabel: string;
+  getHref: (issue: TargetAssistantIssue) => string;
+}) {
+  return (
+    <div className="rounded-2xl border bg-white p-4">
+      <div className="mb-3 flex items-start justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-bold text-slate-900">{title}</h3>
+          <p className="mt-1 text-xs text-slate-500">{description}</p>
+        </div>
+        <Badge className={issues.length ? "bg-amber-100 text-amber-800 hover:bg-amber-100" : "bg-emerald-100 text-emerald-800 hover:bg-emerald-100"}>
+          {issues.length}
+        </Badge>
+      </div>
+      {issues.length ? (
+        <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
+          {issues.map((issue) => (
+            <div key={`${issue.customerId}-${issue.detail}`} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+              <p className="text-sm font-semibold text-slate-900">{issue.customerName}</p>
+              <p className="mt-1 text-xs text-slate-600">{issue.detail}</p>
+              <Button asChild size="sm" variant="outline" className="mt-3">
+                <Link href={getHref(issue)}>{actionLabel}</Link>
+              </Button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-3 text-sm font-medium text-emerald-700">
+          {emptyMessage}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -470,6 +599,81 @@ function buildReconciliation(customers: Customer[], allocations: TargetAllocatio
       status: getReconciliationStatus(target, allocated),
     };
   });
+}
+
+type TargetAssistantIssue = {
+  customerId: string;
+  customerName: string;
+  detail: string;
+};
+
+type TargetAssistant = {
+  year: number;
+  missingTargetValue: TargetAssistantIssue[];
+  missingManagers: TargetAssistantIssue[];
+  missingHunters: TargetAssistantIssue[];
+  reconciliationIssues: TargetAssistantIssue[];
+  totalIssues: number;
+};
+
+function buildTargetAssistant(customers: Customer[], allocations: TargetAllocation[], year: number): TargetAssistant {
+  const missingTargetValue: TargetAssistantIssue[] = [];
+  const missingManagers: TargetAssistantIssue[] = [];
+  const missingHunters: TargetAssistantIssue[] = [];
+  const reconciliationIssues: TargetAssistantIssue[] = [];
+
+  for (const customer of customers) {
+    const target = getCustomerTarget(customer);
+    const allocated = sumAllocations(allocations, customer.id, year);
+    const hunterExpected = getFinancialCustomerMetric(customer.name, "hunterRevenue");
+    const hunterAllocated = allocations
+      .filter((allocation) => allocation.customerId === customer.id && allocation.year === year && allocation.type === "hunter")
+      .reduce((total, allocation) => total + allocation.amount, 0);
+    const difference = target - allocated;
+
+    if (target <= 0.01) {
+      missingTargetValue.push({
+        customerId: customer.id,
+        customerName: customer.name,
+        detail: "Meta total do cliente está zerada ou ausente.",
+      });
+    }
+
+    if (!customer.managerResponsibleIds.length) {
+      missingManagers.push({
+        customerId: customer.id,
+        customerName: customer.name,
+        detail: "Cliente não possui manager de Delivery associado.",
+      });
+    }
+
+    if (hunterExpected > 0.01 && hunterAllocated <= 0.01) {
+      missingHunters.push({
+        customerId: customer.id,
+        customerName: customer.name,
+        detail: `Meta Hunter esperada: ${formatCurrency(hunterExpected)}. Nenhuma meta Hunter foi atribuída a pessoa lançável.`,
+      });
+    }
+
+    if (target > 0.01 && Math.abs(difference) > 0.01) {
+      reconciliationIssues.push({
+        customerId: customer.id,
+        customerName: customer.name,
+        detail: difference > 0
+          ? `Faltam ${formatCurrency(difference)} para a soma das pessoas bater com a meta do cliente.`
+          : `A soma das pessoas está ${formatCurrency(Math.abs(difference))} acima da meta do cliente.`,
+      });
+    }
+  }
+
+  return {
+    year,
+    missingTargetValue,
+    missingManagers,
+    missingHunters,
+    reconciliationIssues,
+    totalIssues: missingTargetValue.length + missingManagers.length + missingHunters.length + reconciliationIssues.length,
+  };
 }
 
 function buildPersonYearSummary(people: Person[], customers: Customer[], allocations: TargetAllocation[], year: number) {

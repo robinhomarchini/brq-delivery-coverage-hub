@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import {
   Building2,
   ChartNoAxesCombined,
+  CircleHelp,
+  ClipboardList,
   GitBranch,
   LayoutDashboard,
   Map,
@@ -29,9 +31,11 @@ const navigation = [
   { href: "/portfolio-clientes", label: "Portfólio de Clientes", icon: ChartNoAxesCombined },
   { href: "/metas", label: "Metas", icon: Target },
   { href: "/metas-pessoas", label: "Metas por Pessoa", icon: Target },
+  { href: "/relatorio-metas", label: "Relatório de Metas", icon: ClipboardList },
   { href: "/assuntos", label: "Assuntos", icon: Target, disabled: true },
   { href: "/mapa-cobertura", label: "Mapa de Cobertura", icon: Map },
   { href: "/configuracoes", label: "Configurações", icon: Settings },
+  { href: "/ajuda", label: "Ajuda", icon: CircleHelp },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {

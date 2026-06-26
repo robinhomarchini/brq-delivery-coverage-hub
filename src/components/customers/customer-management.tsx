@@ -24,20 +24,25 @@ const itauManagerIds = ["bruno", "orion", "fernanda", "bonfim"];
 const anaManagerIds = ["ana"];
 
 export function CustomerManagement() {
+  const initialCustomerId = useMemo(() => getInitialCustomerId(), []);
   const { customers, people, saveCustomer, deleteCustomer } = useDeliveryStore();
-  const [search, setSearch] = useState("");
+  const initialCustomer = customers.find((customer) => customer.id === initialCustomerId);
+  const [search, setSearch] = useState(initialCustomer?.name ?? "");
   const [director, setDirector] = useState("");
   const [manager, setManager] = useState("");
   const [strategic, setStrategic] = useState("");
   const [editing, setEditing] = useState<Customer | null>(null);
-  const [open, setOpen] = useState(false);
-  const [formName, setFormName] = useState("");
-  const [formDirectorId, setFormDirectorId] = useState("ane");
-  const [formManagerIds, setFormManagerIds] = useState<string[]>(anaManagerIds);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [dismissInitialOpen, setDismissInitialOpen] = useState(false);
+  const [formName, setFormName] = useState(initialCustomer?.name ?? "");
+  const [formDirectorId, setFormDirectorId] = useState(initialCustomer?.directorResponsibleId ?? "ane");
+  const [formManagerIds, setFormManagerIds] = useState<string[]>(initialCustomer?.managerResponsibleIds ?? anaManagerIds);
   const [successMessage, setSuccessMessage] = useState("");
   const [formError, setFormError] = useState("");
   const directors = people.filter((person) => financialDirectorIds.includes(person.id));
   const managers = people.filter((person) => deliveryManagerIds.includes(person.id));
+  const linkedEditing = editing ?? (!dismissInitialOpen ? initialCustomer ?? null : null);
+  const open = manualOpen || Boolean(linkedEditing && !dismissInitialOpen);
 
   const filtered = useMemo(() => customers.filter((customer) => {
     const query = search.toLowerCase();
@@ -57,7 +62,8 @@ export function CustomerManagement() {
     setFormDirectorId(item?.directorResponsibleId ?? defaults.directorResponsibleId);
     setFormManagerIds(item?.managerResponsibleIds ?? defaults.managerResponsibleIds);
     setFormError("");
-    setOpen(true);
+    setManualOpen(true);
+    setDismissInitialOpen(false);
   }
 
   function applyCustomerRules(name: string) {
@@ -75,7 +81,7 @@ export function CustomerManagement() {
     try {
       setFormError("");
       await saveCustomer({
-      id: editing?.id ?? makeId("customer"),
+      id: linkedEditing?.id ?? makeId("customer"),
       name: customerName,
       industry: String(formData.get("industry")),
       directorResponsibleId: String(formData.get("directorResponsibleId") || defaults.directorResponsibleId),
@@ -84,7 +90,8 @@ export function CustomerManagement() {
       margin: Number(formData.get("margin")),
       strategicAccount: formData.get("strategicAccount") === "true",
       });
-      setOpen(false);
+      setManualOpen(false);
+      setDismissInitialOpen(true);
       setSuccessMessage(`Cliente ${customerName} salvo com sucesso.`);
       window.setTimeout(() => setSuccessMessage(""), 4000);
     } catch (error) {
@@ -145,12 +152,18 @@ export function CustomerManagement() {
         {!filtered.length && <EmptyState />}
       </Card>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={(nextOpen) => {
+        setManualOpen(nextOpen);
+        if (!nextOpen) {
+          setEditing(null);
+          setDismissInitialOpen(true);
+        }
+      }}>
         <DialogContent className="max-w-5xl">
-          <DialogHeader><DialogTitle>{editing ? "Editar cliente" : "Novo cliente"}</DialogTitle><DialogDescription>Cadastre a conta e seus indicadores executivos.</DialogDescription></DialogHeader>
+          <DialogHeader><DialogTitle>{linkedEditing ? "Editar cliente" : "Novo cliente"}</DialogTitle><DialogDescription>Cadastre a conta e seus indicadores executivos.</DialogDescription></DialogHeader>
           <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-2">
             <Field label="Nome do cliente"><Input name="name" value={formName} onChange={(event) => setFormName(event.target.value)} onBlur={(event) => applyCustomerRules(event.target.value)} maxLength={160} required /></Field>
-            <Field label="Indústria"><Input name="industry" defaultValue={editing?.industry ?? "Financial Services"} maxLength={120} required /></Field>
+            <Field label="Indústria"><Input name="industry" defaultValue={linkedEditing?.industry ?? "Financial Services"} maxLength={120} required /></Field>
             <Field label="Diretor responsável"><Select name="directorResponsibleId" value={formDirectorId} onChange={(event) => setFormDirectorId(event.target.value)} required><option value="">Selecione</option>{directors.map((item) => <option key={item.id} value={item.id}>{displayDirectorName(item.name)}</option>)}</Select></Field>
             <Field label="Managers responsáveis" className="md:col-span-2">
               <DualListSelector
@@ -170,10 +183,13 @@ export function CustomerManagement() {
               />
               <span className="mt-1 block text-xs text-slate-400">Mova um ou mais managers para a lista de selecionados. A regra automática apenas sugere o padrão inicial.</span>
             </Field>
-            <Field label="Conta estratégica"><Select name="strategicAccount" defaultValue={String(editing?.strategicAccount ?? true)}><option value="true">Sim</option><option value="false">Não</option></Select></Field>
-            <Field label="Receita (R$)"><Input name="revenue" type="number" min="0" step="1000" defaultValue={editing?.revenue} required /></Field>
-            <Field label="Margem (%)"><Input name="margin" type="number" min="0" max="100" step="0.1" defaultValue={editing?.margin} required /></Field>
-            <div className="flex justify-end gap-2 md:col-span-2"><Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button><Button type="submit">Salvar cliente</Button></div>
+            <Field label="Conta estratégica"><Select name="strategicAccount" defaultValue={String(linkedEditing?.strategicAccount ?? true)}><option value="true">Sim</option><option value="false">Não</option></Select></Field>
+            <Field label="Receita (R$)"><Input name="revenue" type="number" min="0" step="1000" defaultValue={linkedEditing?.revenue} required /></Field>
+            <Field label="Margem (%)"><Input name="margin" type="number" min="0" max="100" step="0.1" defaultValue={linkedEditing?.margin} required /></Field>
+            <div className="flex justify-end gap-2 md:col-span-2"><Button type="button" variant="outline" onClick={() => {
+              setManualOpen(false);
+              setDismissInitialOpen(true);
+            }}>Cancelar</Button><Button type="submit">Salvar cliente</Button></div>
           </form>
         </DialogContent>
       </Dialog>
@@ -211,4 +227,9 @@ function normalizeName(value: string) {
 
 function displayDirectorName(name: string) {
   return name.startsWith("Ane Knust") ? "Ane Knust" : name;
+}
+
+function getInitialCustomerId() {
+  if (typeof window === "undefined") return "";
+  return new URLSearchParams(window.location.search).get("customerId") ?? "";
 }

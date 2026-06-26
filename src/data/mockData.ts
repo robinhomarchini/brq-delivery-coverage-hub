@@ -240,7 +240,6 @@ export const people: Person[] = [
 ];
 
 export const targetAllocations: TargetAllocation[] = customers.flatMap((customer) => {
-  const hunter = getFinancialCustomerMetric(customer.name, "hunterRevenue");
   const farmerRenewal = getFinancialCustomerMetric(customer.name, "deliveryFarmerRevenue");
 
   const managerAllocations = customer.managerResponsibleIds.map((personId, index) => ({
@@ -253,17 +252,5 @@ export const targetAllocations: TargetAllocation[] = customers.flatMap((customer
     notes: "Carga inicial importada da planilha Financial BU.",
   }));
 
-  const hunterAllocation = hunter > 0
-    ? [{
-        id: `target-${customer.id}-renan-hunter-2026`,
-        customerId: customer.id,
-        personId: "renan",
-        type: "hunter" as const,
-        year: 2026,
-        amount: hunter,
-        notes: "Atribuição Hunter provisória para reporting; não altera ownership de Delivery.",
-      }]
-    : [];
-
-  return [...managerAllocations, ...hunterAllocation];
+  return managerAllocations;
 });

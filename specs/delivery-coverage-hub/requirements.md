@@ -73,6 +73,8 @@ experiência do usuário até nova definição de modelo.
 - A tela "Metas por Pessoa" deve excluir pessoas com perfil Executivo ou Diretor
   do lançamento direto de metas. Robinson, Ane Knust e CA aparecem apenas por
   consolidação derivada dos subordinados.
+- A tela "Metas por Pessoa" também deve excluir Staff de lançamento direto de
+  metas. Renan responde diretamente a Robinson e não deve carregar meta própria.
 - Ao selecionar uma pessoa em "Metas por Pessoa", a tela deve carregar
   automaticamente os clientes já vinculados à pessoa e os clientes com meta já
   existente para aquela pessoa/ano, permitindo incluir clientes adicionais para
@@ -84,6 +86,14 @@ experiência do usuário até nova definição de modelo.
   sistema deve solicitar confirmação para aumentar a meta do cliente pelo
   excedente, identificando se o acréscimo veio de Hunter, Renovação + Ampliação
   ou ambos.
+- Deve existir um Assistente de Metas acionável que aponte clientes sem meta,
+  sem manager, sem hunter associado quando houver meta Hunter esperada e clientes
+  cuja soma das pessoas não bate com a meta total. Cada achado deve navegar para
+  a tela de correção apropriada.
+- Deve existir um Relatório de Pessoas e Metas com visão por pessoa, ano, Meta
+  Hunter, Meta Renovação + Ampliação, Meta Total e clientes associados.
+- Deve existir uma página Ajuda com link para um guia rápido em PDF para
+  homologadores.
 - Diretores não recebem meta duplicada por cliente; Ane Knust e CA consolidam as
   metas dos managers subordinados. A meta total de Hunters é a soma de todas as
   alocações do tipo Hunter, incluindo pessoas com perfil Hunter e qualquer outra
