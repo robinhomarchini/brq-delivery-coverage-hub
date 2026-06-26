@@ -198,7 +198,14 @@ export function TargetManagement() {
             </TableHeader>
             <TableBody>
               {personYearSummary.map((item) => (
-                <TableRow key={item.personId}>
+                <TableRow
+                  key={item.personId}
+                  className="cursor-pointer"
+                  title="Dê duplo clique para ajustar as metas da pessoa"
+                  onDoubleClick={() => {
+                    window.location.href = `/metas-pessoas?personId=${encodeURIComponent(item.personId)}&year=${encodeURIComponent(year)}`;
+                  }}
+                >
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <div className="grid h-8 w-8 place-items-center rounded-full bg-purple-50 text-brq-purple">
@@ -288,7 +295,14 @@ export function TargetManagement() {
             </TableHeader>
             <TableBody>
               {reconciliation.map((item) => (
-                <TableRow key={item.customerId}>
+                <TableRow
+                  key={item.customerId}
+                  className="cursor-pointer"
+                  title="Dê duplo clique para editar o cliente"
+                  onDoubleClick={() => {
+                    window.location.href = `/clientes?customerId=${encodeURIComponent(item.customerId)}`;
+                  }}
+                >
                   <TableCell className="font-semibold text-slate-900">{item.customerName}</TableCell>
                   <TableCell>{formatCurrency(item.target)}</TableCell>
                   <TableCell>{formatCurrency(item.allocated)}</TableCell>
@@ -358,7 +372,7 @@ export function TargetManagement() {
                   <TableCell>{allocation.year}</TableCell>
                   <TableCell className="font-bold text-slate-950">{formatCurrency(allocation.amount)}</TableCell>
                   <TableCell className="max-w-xs truncate text-slate-500">{allocation.notes || "—"}</TableCell>
-                  <TableCell>
+                  <TableCell onDoubleClick={(event) => event.stopPropagation()}>
                     <div className="flex justify-end gap-1">
                       <Button variant="ghost" size="icon" onClick={() => openForm(allocation)}><Pencil className="h-4 w-4" /></Button>
                       <Button

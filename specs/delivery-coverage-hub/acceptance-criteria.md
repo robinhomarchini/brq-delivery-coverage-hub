@@ -15,6 +15,8 @@
 - O cargo de direção de Delivery aparece como "Diretor de Delivery", sem
   variação de gênero.
 - CRUD atualiza tabelas, KPIs, gráficos e cobertura.
+- Nas tabelas editáveis, duplo clique na linha abre o formulário de edição ou a
+  tela operacional de ajuste daquele item.
 - O mapa apresenta Diretor → Manager → Cliente.
 - A carga inicial de clientes contém todos os clientes-fonte da planilha:
   AGIBANK, ALELO, ASA INVESTMENTS, ASSOCIAÇÃO OPEN FINANCE, B3, B3 IP,

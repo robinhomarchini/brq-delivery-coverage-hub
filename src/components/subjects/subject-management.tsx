@@ -81,13 +81,18 @@ export function SubjectManagement() {
             </TableRow></TableHeader>
             <TableBody>
               {filtered.map((subject) => (
-                <TableRow key={subject.id}>
+                <TableRow
+                  key={subject.id}
+                  className="cursor-pointer"
+                  title="Dê duplo clique para editar o assunto"
+                  onDoubleClick={() => openForm(subject)}
+                >
                   <TableCell><div className="flex items-center gap-3"><div className="grid h-9 w-9 place-items-center rounded-xl bg-purple-50 text-brq-purple"><Tags className="h-4 w-4" /></div><div><p className="font-semibold">{subject.name}</p><p className="max-w-96 truncate text-xs text-slate-400">{subject.description}</p></div></div></TableCell>
                   <TableCell>{customers.find((item) => item.id === subject.customerId)?.name ?? "—"}</TableCell>
                   <TableCell>{people.find((item) => item.id === subject.ownerPersonId)?.name ?? "Sem owner"}</TableCell>
                   <TableCell><StatusBadge status={subject.status} /></TableCell>
                   <TableCell><Badge variant={subject.strategic ? "default" : "secondary"}>{subject.strategic ? "Sim" : "Não"}</Badge></TableCell>
-                  <TableCell><div className="flex justify-end gap-1">
+                  <TableCell onDoubleClick={(event) => event.stopPropagation()}><div className="flex justify-end gap-1">
                     <Button variant="ghost" size="icon" onClick={() => openForm(subject)}><Pencil className="h-4 w-4" /></Button>
                     <Button variant="ghost" size="icon" className="text-red-600" onClick={() => {
                       if (window.confirm(`Excluir o assunto ${subject.name}?`)) void deleteSubject(subject.id).catch(() => undefined);

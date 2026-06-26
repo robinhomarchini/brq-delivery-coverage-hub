@@ -11,6 +11,8 @@ pausado/desabilitado até nova definição do modelo.
 
 Cada tela de gestão apresenta busca/filtros, tabela responsiva e modal de cadastro
 ou edição. Exclusões exigem confirmação do navegador.
+Nas tabelas/listas editáveis, um duplo clique na linha abre a edição do item ou
+leva diretamente para a tela operacional de ajuste correspondente.
 
 ## Clientes BU Financial
 

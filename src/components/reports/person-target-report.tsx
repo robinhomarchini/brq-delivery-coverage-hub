@@ -92,7 +92,14 @@ export function PersonTargetReport() {
             </TableHeader>
             <TableBody>
               {filteredRows.map((row) => (
-                <TableRow key={row.personId}>
+                <TableRow
+                  key={row.personId}
+                  className="cursor-pointer"
+                  title="Dê duplo clique para ajustar as metas da pessoa"
+                  onDoubleClick={() => {
+                    window.location.href = `/metas-pessoas?personId=${encodeURIComponent(row.personId)}&year=${encodeURIComponent(year)}`;
+                  }}
+                >
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <div className="grid h-9 w-9 place-items-center rounded-full bg-purple-50 text-brq-purple">

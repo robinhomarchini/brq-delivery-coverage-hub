@@ -157,7 +157,12 @@ export function PeopleManagement() {
             </TableHeader>
             <TableBody>
               {filtered.map((person) => (
-                <TableRow key={person.id}>
+                <TableRow
+                  key={person.id}
+                  className="cursor-pointer"
+                  title="Dê duplo clique para editar a pessoa"
+                  onDoubleClick={() => openForm(person)}
+                >
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <PersonAvatar name={person.name} />
@@ -172,7 +177,7 @@ export function PeopleManagement() {
                     <p className="max-w-64 truncate text-xs text-slate-400">{person.clientIds.length} cliente(s)</p>
                   </TableCell>
                   <TableCell><Badge variant={person.active ? "success" : "secondary"}>{person.active ? "Ativo" : "Inativo"}</Badge></TableCell>
-                  <TableCell>
+                  <TableCell onDoubleClick={(event) => event.stopPropagation()}>
                     <div className="flex justify-end gap-1">
                       <Button variant="ghost" size="icon" onClick={() => openForm(person)} aria-label={`Editar ${person.name}`}><Pencil className="h-4 w-4" /></Button>
                       <Button variant="ghost" size="icon" className="text-red-600" onClick={() => {

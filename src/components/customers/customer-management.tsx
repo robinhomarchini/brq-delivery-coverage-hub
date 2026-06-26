@@ -132,13 +132,18 @@ export function CustomerManagement() {
             </TableRow></TableHeader>
             <TableBody>
               {filtered.map((customer) => (
-                <TableRow key={customer.id}>
+                <TableRow
+                  key={customer.id}
+                  className="cursor-pointer"
+                  title="Dê duplo clique para editar o cliente"
+                  onDoubleClick={() => openForm(customer)}
+                >
                   <TableCell><div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-xl bg-purple-50 text-brq-purple"><Building2 className="h-5 w-5" /></div><div><p className="font-semibold">{customer.name}</p><p className="text-xs text-slate-400">{customer.industry}</p></div></div></TableCell>
                   <TableCell><p>{customer.managerResponsibleIds.map((id) => people.find((item) => item.id === id)?.name ?? id).join(", ")}</p><p className="text-xs text-slate-400">{people.find((item) => item.id === customer.directorResponsibleId)?.name}</p></TableCell>
                   <TableCell className="font-semibold">{formatCurrency(customer.revenue)}</TableCell>
                   <TableCell><span className={customer.margin < 18 ? "font-semibold text-amber-600" : "text-emerald-700"}>{customer.margin.toFixed(1).replace(".", ",")}%</span></TableCell>
                   <TableCell>{customer.strategicAccount ? <Badge><Star className="mr-1 h-3 w-3 fill-current" /> Sim</Badge> : <Badge variant="secondary">Não</Badge>}</TableCell>
-                  <TableCell><div className="flex justify-end gap-1">
+                  <TableCell onDoubleClick={(event) => event.stopPropagation()}><div className="flex justify-end gap-1">
                     <Button variant="ghost" size="icon" onClick={() => openForm(customer)}><Pencil className="h-4 w-4" /></Button>
                     <Button variant="ghost" size="icon" className="text-red-600" onClick={() => {
                       if (window.confirm(`Excluir o cliente ${customer.name}?`)) void deleteCustomer(customer.id).catch(() => undefined);
