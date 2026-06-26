@@ -1,0 +1,55 @@
+{
+  "name": "BRQ Delivery Coverage Hub",
+  "description": "Aplicacao executiva para gerir e visualizar a cobertura da organizacao de Delivery da BRQ.",
+  "project_type": "web_app",
+  "language": "pt-BR",
+  "default_agents": [
+    "arquiteto",
+    "executor",
+    "frontend",
+    "qa",
+    "observabilidade",
+    "documentador"
+  ],
+  "entrypoints": {
+    "application": "src/app/layout.tsx",
+    "mock_data": "src/data/mockData.ts",
+    "feature_spec": "specs/delivery-coverage-hub/requirements.md"
+  },
+  "important_paths": [
+    "src/app",
+    "src/components",
+    "src/data",
+    "src/lib/repositories",
+    "specs/delivery-coverage-hub"
+  ],
+  "routines": {
+    "before_change": [
+      "arquiteto",
+      "qa"
+    ],
+    "after_change": [
+      "qa",
+      "documentador"
+    ],
+    "frontend_change": [
+      "frontend",
+      "qa"
+    ],
+    "new_project_bootstrap": [
+      "arquiteto",
+      "executor",
+      "frontend",
+      "qa",
+      "observabilidade",
+      "documentador"
+    ]
+  },
+  "evolution_policy": {
+    "record_learning_in": ".codex/learning-log.md",
+    "record_decisions_in": ".codex/decisions.md",
+    "promote_learning_to_agent_when": "A regra se repetir, prevenir falha real ou virar padrao confirmado pelo usuario.",
+    "do_not_silently_rewrite_agents": true
+  }
+}
+

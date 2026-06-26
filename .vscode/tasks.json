@@ -1,0 +1,68 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "dev",
+      "type": "shell",
+      "command": "npm run dev",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "lint",
+      "type": "shell",
+      "command": "npm run lint",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "typecheck",
+      "type": "shell",
+      "command": "npm run typecheck",
+      "group": "test",
+      "problemMatcher": "$tsc"
+    },
+    {
+      "label": "build",
+      "type": "shell",
+      "command": "npm run build",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "deploy:vercel:prod",
+      "type": "shell",
+      "command": "npx vercel deploy --prod --yes",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "vercel:env:list",
+      "type": "shell",
+      "command": "npx vercel env ls",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "supabase:login",
+      "type": "shell",
+      "command": "npx supabase login",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "supabase:link",
+      "type": "shell",
+      "command": "npx supabase link --project-ref ttuvykiohikejxioxvhn",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "supabase:migrations:list",
+      "type": "shell",
+      "command": "npx supabase migration list --linked",
+      "group": "build",
+      "problemMatcher": []
+    }
+  ]
+}
