@@ -60,9 +60,20 @@ experiência do usuário até nova definição de modelo.
 - O plano de receita suporta Receita Atual, Meta Prevista, Receita Hunter e
   Receita Delivery/Farmer. Hunters são usados somente para atribuição de meta e
   reporting; não entram como owners da governança de Delivery.
-- Metas editáveis devem ser separadas em Hunter e Farmer/Renovação, vinculadas
-  a uma pessoa e a um cliente, sem duplicidade para Cliente + Pessoa + Tipo +
-  Ano.
+- Metas editáveis devem ser separadas em Hunter e Renovação + Ampliação,
+  vinculadas a uma pessoa, cliente e ano, sem duplicidade para Cliente + Pessoa
+  + Tipo + Ano.
+- A tela de Metas deve exibir uma visão anual por pessoa, somando a meta Hunter,
+  a meta de Renovação + Ampliação e a meta total de cada colaborador no ano
+  selecionado.
+- A soma das metas das pessoas por Cliente + Ano deve bater com a meta total do
+  cliente. A aplicação e o banco devem impedir que a soma ultrapasse a meta do
+  cliente e destacar pendências até o fechamento exato.
+- Diretores não recebem meta duplicada por cliente; Ane Knust e CA consolidam as
+  metas dos managers subordinados. A meta total de Hunters é a soma de todas as
+  alocações do tipo Hunter, incluindo pessoas com perfil Hunter e qualquer outra
+  pessoa que eventualmente tenha meta Hunter declarada. Robinson consolida todas
+  as metas da estrutura, incluindo managers e metas Hunter.
 - Dashboards executivos do portfólio devem permitir leitura por Diretor, Manager
   e Cluster de Cliente.
 - A planilha Financial BU é a fonte dos valores importados. Quando a origem não

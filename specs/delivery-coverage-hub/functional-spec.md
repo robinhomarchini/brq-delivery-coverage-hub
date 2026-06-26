@@ -142,7 +142,7 @@ Campos do cadastro de Metas:
 
 - Cliente.
 - Pessoa.
-- Tipo de Meta: Hunter ou Farmer/Renovação.
+- Tipo de Meta: Hunter ou Renovação + Ampliação.
 - Ano.
 - Valor da Meta.
 - Observações.
@@ -160,7 +160,20 @@ Regras do cadastro de Metas:
   cliente.
 - Hunter é usado somente para atribuição/reporting de metas e não transforma a
   pessoa em responsável de Delivery do cliente.
-- Farmer/Renovação representa renovação e ampliação das squads existentes.
+- Renovação + Ampliação representa o crescimento e manutenção das squads
+  existentes, trabalho de Farmer e Delivery Manager.
+- A tela deve exibir uma visão anual por pessoa, com Meta Hunter, Meta Renovação
+  + Ampliação, Meta Total, quantidade de clientes atendidos e status de
+  cobertura no ano selecionado.
+- A tela deve exibir uma consolidação hierárquica anual:
+  - Robinson consolida todos os managers e hunters da estrutura.
+  - Ane Knust consolida somente os managers abaixo dela.
+  - CA consolida somente os managers abaixo dele.
+  - Hunters aparecem em grupo próprio, sem entrar como responsáveis de Delivery.
+    Esse grupo soma toda alocação do tipo Hunter, inclusive quando a pessoa não
+    tiver perfil Hunter.
+- Metas de diretores são derivadas dos subordinados e não devem ser gravadas
+  como metas duplicadas na tabela de alocações.
 - O cadastro de Pessoas suporta os perfis Delivery, Farmer + Delivery, Hunter,
   Farmer e Hunter + Farmer. Apenas Delivery e Farmer + Delivery são marcados
   automaticamente como `isManager` para fins de governança Delivery; os demais

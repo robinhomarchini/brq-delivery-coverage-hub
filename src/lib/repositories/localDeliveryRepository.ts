@@ -76,6 +76,7 @@ export class LocalDeliveryRepository implements DeliveryRepository {
   async saveTargetAllocation(allocation: TargetAllocation) {
     allocation = validateTargetAllocation(allocation);
     ensureUniqueTargetAllocation(this.data.targetAllocations, allocation);
+    ensureCustomerTargetNotExceeded(this.data.customers, this.data.targetAllocations, allocation);
     this.data.targetAllocations = upsert(this.data.targetAllocations, allocation);
     return structuredClone(allocation);
   }
@@ -103,6 +104,22 @@ function ensureUniqueTargetAllocation(items: TargetAllocation[], allocation: Tar
 
   if (duplicate) {
     throw new Error("Já existe uma meta para este cliente, pessoa, tipo e ano.");
+  }
+}
+
+function ensureCustomerTargetNotExceeded(customers: Customer[], items: TargetAllocation[], allocation: TargetAllocation) {
+  const customer = customers.find((item) => item.id === allocation.customerId);
+  const customerTarget = customer?.revenue ?? 0;
+  const allocated = items
+    .filter((item) =>
+      item.id !== allocation.id
+      && item.customerId === allocation.customerId
+      && item.year === allocation.year
+    )
+    .reduce((total, item) => total + item.amount, 0) + allocation.amount;
+
+  if (customerTarget > 0 && allocated > customerTarget + 0.01) {
+    throw new Error(`A soma das metas das pessoas ultrapassa a meta total do cliente (${customerTarget}).`);
   }
 }
 
