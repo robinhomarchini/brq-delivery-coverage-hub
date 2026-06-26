@@ -185,6 +185,10 @@ Campos da associação de Metas por Pessoa:
 - Pessoa.
 - Ano.
 - Cliente.
+- Meta Hunter do Cliente.
+- Meta Renovação + Ampliação do Cliente.
+- Já associado a outras pessoas, separado por Hunter e Renovação + Ampliação.
+- Gap após edição, separado por Hunter e Renovação + Ampliação.
 - Meta Hunter.
 - Meta Renovação + Ampliação.
 - Total associado.
@@ -203,6 +207,9 @@ Regras do cadastro de Metas:
 - A tela deve destacar clientes reconciliados, pendentes e acima da meta. O
   salvamento não deve permitir que a soma das pessoas ultrapasse a meta total do
   cliente.
+- A tela Metas por Pessoa deve quebrar a meta do cliente, o valor já associado
+  a outras pessoas e o gap após edição em Hunter e Renovação + Ampliação, para
+  deixar claro onde falta ou sobra meta.
 - Na tela Metas por Pessoa, quando uma alteração fizer a soma das metas das
   pessoas ultrapassar a meta atual do cliente, o sistema deve perguntar se o
   usuário deseja aumentar a meta do cliente pelo excedente. Se confirmado, a

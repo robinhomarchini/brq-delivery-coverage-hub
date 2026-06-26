@@ -236,13 +236,14 @@ export function PersonTargetAssignment() {
           </div>
         </div>
         <div className="overflow-x-auto">
-          <Table className="min-w-[1120px]">
+          <Table className="min-w-[1320px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Cliente</TableHead>
                 <TableHead>Origem</TableHead>
                 <TableHead>Meta do Cliente</TableHead>
                 <TableHead>Já associado a outras pessoas</TableHead>
+                <TableHead>Gap após edição</TableHead>
                 <TableHead>Meta Hunter</TableHead>
                 <TableHead>Meta Renovação + Ampliação</TableHead>
                 <TableHead>Total da Pessoa</TableHead>
@@ -258,8 +259,27 @@ export function PersonTargetAssignment() {
                     <p className="text-xs text-slate-500">{row.industry}</p>
                   </TableCell>
                   <TableCell><SourceBadge source={row.source} /></TableCell>
-                  <TableCell>{formatCurrency(row.customerTarget)}</TableCell>
-                  <TableCell>{formatCurrency(row.otherPeopleTotal)}</TableCell>
+                  <TableCell>
+                    <TargetBreakdown
+                      hunter={row.customerHunterTarget}
+                      farmerRenewal={row.customerFarmerRenewalTarget}
+                      total={row.customerTarget}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <TargetBreakdown
+                      hunter={row.otherPeopleHunterTotal}
+                      farmerRenewal={row.otherPeopleFarmerRenewalTotal}
+                      total={row.otherPeopleTotal}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <TargetGapBreakdown
+                      hunter={row.hunterGap}
+                      farmerRenewal={row.farmerRenewalGap}
+                      total={row.customerTarget - row.clientTotal}
+                    />
+                  </TableCell>
                   <TableCell>
                     <Input
                       type="number"
@@ -339,6 +359,43 @@ function SourceBadge({ source }: { source: RowSource }) {
   return <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100">Incluído agora</Badge>;
 }
 
+function TargetBreakdown({ hunter, farmerRenewal, total }: { hunter: number; farmerRenewal: number; total: number }) {
+  return (
+    <div className="min-w-40 space-y-1 text-xs">
+      <BreakdownLine label="Hunter" value={hunter} />
+      <BreakdownLine label="Renov. + Ampl." value={farmerRenewal} />
+      <div className="border-t pt-1 font-bold text-slate-950">{formatCurrency(total)}</div>
+    </div>
+  );
+}
+
+function TargetGapBreakdown({ hunter, farmerRenewal, total }: { hunter: number; farmerRenewal: number; total: number }) {
+  return (
+    <div className="min-w-40 space-y-1 text-xs">
+      <BreakdownLine label="Hunter" value={hunter} tone={getGapTone(hunter)} />
+      <BreakdownLine label="Renov. + Ampl." value={farmerRenewal} tone={getGapTone(farmerRenewal)} />
+      <div className={`border-t pt-1 font-bold ${getGapClassName(total)}`}>{formatCurrency(total)}</div>
+    </div>
+  );
+}
+
+function BreakdownLine({ label, value, tone = "neutral" }: { label: string; value: number; tone?: "neutral" | "ok" | "pending" | "over" }) {
+  const toneClassName = tone === "ok"
+    ? "text-emerald-700"
+    : tone === "pending"
+      ? "text-amber-700"
+      : tone === "over"
+        ? "text-red-700"
+        : "text-slate-700";
+
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="text-slate-500">{label}</span>
+      <span className={`font-semibold ${toneClassName}`}>{formatCurrency(value)}</span>
+    </div>
+  );
+}
+
 function buildRow(
   customer: Customer,
   personId: string,
@@ -351,9 +408,14 @@ function buildRow(
   const farmerRenewalAllocation = findAllocation(allocations, customer.id, personId, year, "farmer_renewal");
   const hunterAmount = parseAmount(draft?.hunter ?? getInputValue(hunterAllocation?.amount ?? 0));
   const farmerRenewalAmount = parseAmount(draft?.farmerRenewal ?? getInputValue(farmerRenewalAllocation?.amount ?? 0));
-  const otherPeopleTotal = sumOtherPeopleAllocations(allocations, customer.id, personId, year);
+  const targetBreakdown = getCustomerTargetBreakdown(customer, allocations, year);
+  const otherPeopleHunterTotal = sumOtherPeopleAllocations(allocations, customer.id, personId, year, "hunter");
+  const otherPeopleFarmerRenewalTotal = sumOtherPeopleAllocations(allocations, customer.id, personId, year, "farmer_renewal");
+  const otherPeopleTotal = otherPeopleHunterTotal + otherPeopleFarmerRenewalTotal;
   const customerTarget = getCustomerTarget(customer);
-  const clientTotal = otherPeopleTotal + hunterAmount + farmerRenewalAmount;
+  const clientHunterTotal = otherPeopleHunterTotal + hunterAmount;
+  const clientFarmerRenewalTotal = otherPeopleFarmerRenewalTotal + farmerRenewalAmount;
+  const clientTotal = clientHunterTotal + clientFarmerRenewalTotal;
 
   return {
     customerId: customer.id,
@@ -361,7 +423,16 @@ function buildRow(
     customerName: customer.name,
     industry: customer.industry,
     customerTarget,
+    customerHunterTarget: targetBreakdown.hunter,
+    customerFarmerRenewalTarget: targetBreakdown.farmerRenewal,
+    otherPeopleHunterTotal,
+    otherPeopleFarmerRenewalTotal,
     otherPeopleTotal,
+    clientHunterTotal,
+    clientFarmerRenewalTotal,
+    clientTotal,
+    hunterGap: targetBreakdown.hunter - clientHunterTotal,
+    farmerRenewalGap: targetBreakdown.farmerRenewal - clientFarmerRenewalTotal,
     hunterAllocation,
     farmerRenewalAllocation,
     hunterAmount,
@@ -369,7 +440,7 @@ function buildRow(
     hunterInput: getInputValue(hunterAllocation?.amount ?? 0),
     farmerRenewalInput: getInputValue(farmerRenewalAllocation?.amount ?? 0),
     personTotal: hunterAmount + farmerRenewalAmount,
-    clientStatus: getClientStatus(customerTarget, clientTotal),
+    clientStatus: getClientStatus(targetBreakdown.hunter, clientHunterTotal, targetBreakdown.farmerRenewal, clientFarmerRenewalTotal),
     source,
   };
 }
@@ -455,9 +526,20 @@ async function persistRowTargets({
   }
 }
 
-function sumOtherPeopleAllocations(allocations: TargetAllocation[], customerId: string, personId: string, year: number) {
+function sumOtherPeopleAllocations(
+  allocations: TargetAllocation[],
+  customerId: string,
+  personId: string,
+  year: number,
+  type?: TargetAllocationType,
+) {
   return allocations
-    .filter((allocation) => allocation.customerId === customerId && allocation.personId !== personId && allocation.year === year)
+    .filter((allocation) =>
+      allocation.customerId === customerId
+      && allocation.personId !== personId
+      && allocation.year === year
+      && (!type || allocation.type === type)
+    )
     .reduce((total, allocation) => total + allocation.amount, 0);
 }
 
@@ -493,14 +575,76 @@ function getRowSource(
   return "added";
 }
 
-function getClientStatus(target: number, allocated: number): ClientStatus {
-  if (Math.abs(target - allocated) <= 0.01) return "ok";
-  if (allocated > target) return "over";
+function getClientStatus(hunterTarget: number, hunterAllocated: number, farmerRenewalTarget: number, farmerRenewalAllocated: number): ClientStatus {
+  if (hunterAllocated > hunterTarget + 0.01 || farmerRenewalAllocated > farmerRenewalTarget + 0.01) return "over";
+  if (Math.abs(hunterTarget - hunterAllocated) <= 0.01 && Math.abs(farmerRenewalTarget - farmerRenewalAllocated) <= 0.01) return "ok";
   return "pending";
 }
 
 function getCustomerTarget(customer: Customer) {
   return customer.revenue || getFinancialCustomerMetric(customer.name, "revenueTarget");
+}
+
+function getCustomerTargetBreakdown(customer: Customer, allocations: TargetAllocation[], year: number) {
+  const customerTarget = getCustomerTarget(customer);
+  const importedHunter = getFinancialCustomerMetric(customer.name, "hunterRevenue");
+  const importedFarmerRenewal = getFinancialCustomerMetric(customer.name, "deliveryFarmerRevenue");
+  const importedTotal = importedHunter + importedFarmerRenewal;
+
+  if (customerTarget <= 0) return { hunter: 0, farmerRenewal: 0 };
+  if (importedTotal <= 0) return { hunter: 0, farmerRenewal: customerTarget };
+
+  const difference = customerTarget - importedTotal;
+  if (Math.abs(difference) <= 0.01) {
+    return { hunter: importedHunter, farmerRenewal: importedFarmerRenewal };
+  }
+
+  if (difference < -0.01) {
+    const ratio = customerTarget / importedTotal;
+    const hunter = roundCurrency(importedHunter * ratio);
+    return { hunter, farmerRenewal: roundCurrency(customerTarget - hunter) };
+  }
+
+  const allocatedHunter = sumCustomerAllocations(allocations, customer.id, year, "hunter");
+  const allocatedFarmerRenewal = sumCustomerAllocations(allocations, customer.id, year, "farmer_renewal");
+  const hunterOverImported = Math.max(0, allocatedHunter - importedHunter);
+  const farmerRenewalOverImported = Math.max(0, allocatedFarmerRenewal - importedFarmerRenewal);
+  const overImportedTotal = hunterOverImported + farmerRenewalOverImported;
+
+  if (overImportedTotal > 0.01) {
+    const hunterIncrease = roundCurrency(difference * (hunterOverImported / overImportedTotal));
+    return {
+      hunter: importedHunter + hunterIncrease,
+      farmerRenewal: roundCurrency(customerTarget - importedHunter - hunterIncrease),
+    };
+  }
+
+  const hunterRatio = importedHunter / importedTotal;
+  const hunter = roundCurrency(importedHunter + difference * hunterRatio);
+  return { hunter, farmerRenewal: roundCurrency(customerTarget - hunter) };
+}
+
+function sumCustomerAllocations(allocations: TargetAllocation[], customerId: string, year: number, type: TargetAllocationType) {
+  return allocations
+    .filter((allocation) => allocation.customerId === customerId && allocation.year === year && allocation.type === type)
+    .reduce((total, allocation) => total + allocation.amount, 0);
+}
+
+function getGapTone(value: number) {
+  if (value < -0.01) return "over";
+  if (value > 0.01) return "pending";
+  return "ok";
+}
+
+function getGapClassName(value: number) {
+  const tone = getGapTone(value);
+  if (tone === "over") return "text-red-700";
+  if (tone === "pending") return "text-amber-700";
+  return "text-emerald-700";
+}
+
+function roundCurrency(value: number) {
+  return Math.round(value * 100) / 100;
 }
 
 function getInputValue(value: number) {

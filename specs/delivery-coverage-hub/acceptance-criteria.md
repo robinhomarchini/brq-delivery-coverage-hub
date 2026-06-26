@@ -85,6 +85,8 @@
   Tipo de Meta + Ano.
 - A tela de Metas mostra a conciliação entre meta total do cliente e soma das
   metas das pessoas.
+- A tela Metas por Pessoa mostra Meta do Cliente, Já associado a outras pessoas
+  e Gap após edição quebrados em Hunter e Renovação + Ampliação.
 - A tela de Metas bloqueia salvamento quando a soma das pessoas ultrapassa a
   meta total do cliente.
 - Ao salvar uma meta com sucesso, a tela exibe mensagem flutuante de
