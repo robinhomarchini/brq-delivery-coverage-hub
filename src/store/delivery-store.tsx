@@ -4,6 +4,8 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { areas as initialAreas, customers as initialCustomers, people as initialPeople, subjects as initialSubjects, targetAllocations as initialTargetAllocations } from "@/data/mockData";
 import type { Area, Customer, Person, Subject, TargetAllocation } from "@/data/mockData";
 import { createSupabaseDeliveryRepository, localDeliveryRepository } from "@/lib/repositories";
+import type { DeliveryRepository, PersonCustomerTargetsInput } from "@/lib/repositories";
+import { isSupabaseConfigured } from "@/lib/supabase/client";
 
 interface DeliveryStoreValue {
   people: Person[];
@@ -22,21 +24,23 @@ interface DeliveryStoreValue {
   deleteSubject: (id: string) => Promise<void>;
   saveTargetAllocation: (allocation: TargetAllocation) => Promise<void>;
   deleteTargetAllocation: (id: string) => Promise<void>;
+  savePersonCustomerTargets: (input: PersonCustomerTargetsInput) => Promise<void>;
 }
 
 const DeliveryStoreContext = createContext<DeliveryStoreValue | null>(null);
 
 export function DeliveryStoreProvider({ children }: { children: React.ReactNode }) {
-  const [people, setPeople] = useState<Person[]>(initialPeople);
-  const [customers, setCustomers] = useState<Customer[]>(initialCustomers);
-  const [subjects, setSubjects] = useState<Subject[]>(initialSubjects);
-  const [areas, setAreas] = useState<Area[]>(initialAreas);
-  const [targetAllocations, setTargetAllocations] = useState<TargetAllocation[]>(initialTargetAllocations);
+  const productionWithoutSupabase = process.env.NODE_ENV === "production" && !isSupabaseConfigured();
+  const [people, setPeople] = useState<Person[]>(productionWithoutSupabase ? [] : initialPeople);
+  const [customers, setCustomers] = useState<Customer[]>(productionWithoutSupabase ? [] : initialCustomers);
+  const [subjects, setSubjects] = useState<Subject[]>(productionWithoutSupabase ? [] : initialSubjects);
+  const [areas, setAreas] = useState<Area[]>(productionWithoutSupabase ? [] : initialAreas);
+  const [targetAllocations, setTargetAllocations] = useState<TargetAllocation[]>(productionWithoutSupabase ? [] : initialTargetAllocations);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const repository = useMemo(
-    () => createSupabaseDeliveryRepository() ?? localDeliveryRepository,
-    [],
+    () => createSupabaseDeliveryRepository() ?? (productionWithoutSupabase ? unavailableProductionRepository : localDeliveryRepository),
+    [productionWithoutSupabase],
   );
 
   useEffect(() => {
@@ -166,6 +170,21 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         throw new Error(message);
       }
     },
+    savePersonCustomerTargets: async (input) => {
+      try {
+        const data = await repository.savePersonCustomerTargets(input);
+        setPeople(data.people);
+        setCustomers(data.customers);
+        setSubjects(data.subjects);
+        setAreas(data.areas);
+        setTargetAllocations(data.targetAllocations);
+        setError("");
+      } catch (error) {
+        const message = `Não foi possível salvar as metas da pessoa. ${getErrorMessage(error)}`;
+        setError(message);
+        throw new Error(message);
+      }
+    },
   }), [areas, customers, error, loading, people, repository, subjects, targetAllocations]);
 
   return <DeliveryStoreContext.Provider value={value}>{children}</DeliveryStoreContext.Provider>;
@@ -197,3 +216,38 @@ function getErrorMessage(error: unknown) {
   if (message) return message;
   return "Verifique os dados, permissões e conexão.";
 }
+
+const productionConfigurationError = "Supabase não está configurado para produção. Configure NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY na Vercel antes de usar a aplicação.";
+
+const unavailableProductionRepository: DeliveryRepository = {
+  async getAll() {
+    throw new Error(productionConfigurationError);
+  },
+  async savePerson() {
+    throw new Error(productionConfigurationError);
+  },
+  async deletePerson() {
+    throw new Error(productionConfigurationError);
+  },
+  async saveCustomer() {
+    throw new Error(productionConfigurationError);
+  },
+  async deleteCustomer() {
+    throw new Error(productionConfigurationError);
+  },
+  async saveSubject() {
+    throw new Error(productionConfigurationError);
+  },
+  async deleteSubject() {
+    throw new Error(productionConfigurationError);
+  },
+  async saveTargetAllocation() {
+    throw new Error(productionConfigurationError);
+  },
+  async deleteTargetAllocation() {
+    throw new Error(productionConfigurationError);
+  },
+  async savePersonCustomerTargets() {
+    throw new Error(productionConfigurationError);
+  },
+};

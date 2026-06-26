@@ -44,6 +44,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const current = navigation.find((item) => item.href === pathname) ?? navigation[0];
   const client = getSupabaseBrowserClient();
   const { error, clearError } = useDeliveryStore();
+  const dataStatus = client
+    ? { label: "Dados persistidos", className: "bg-emerald-500" }
+    : process.env.NODE_ENV === "production"
+      ? { label: "Configuração pendente", className: "bg-amber-500" }
+      : { label: "Dados demonstrativos", className: "bg-emerald-500" };
 
   return (
     <div className="min-h-screen">
@@ -124,8 +129,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
           <div className="hidden items-center gap-2 text-xs text-slate-400 sm:flex">
-            <span className="h-2 w-2 rounded-full bg-emerald-500" />
-            Dados demonstrativos
+            <span className={`h-2 w-2 rounded-full ${dataStatus.className}`} />
+            {dataStatus.label}
           </div>
         </header>
         <main className="mx-auto min-h-[calc(100vh-3.5rem)] max-w-[1680px] p-4 sm:p-6">

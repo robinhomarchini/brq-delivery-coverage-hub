@@ -21,7 +21,7 @@ type DraftAmounts = Record<string, { hunter: string; farmerRenewal: string }>;
 
 export function PersonTargetAssignment() {
   const initialParams = useMemo(() => getInitialTargetParams(), []);
-  const { people, customers, targetAllocations, saveCustomer, saveTargetAllocation, deleteTargetAllocation } = useDeliveryStore();
+  const { people, customers, targetAllocations, savePersonCustomerTargets } = useDeliveryStore();
   const activePeople = useMemo(() => people.filter((person) => person.active), [people]);
   const assignablePeople = useMemo(() =>
     activePeople.filter((person) => person.roleType !== "Executive" && person.roleType !== "Director" && person.roleType !== "Staff"),
@@ -114,33 +114,14 @@ export function PersonTargetAssignment() {
     try {
       setSavingCustomerId(row.customerId);
       setErrorMessage("");
-      if (overAmount > 0.01) {
-        await saveCustomer({
-          ...row.customer,
-          revenue: nextCustomerTotal,
-        });
-      }
-      await persistRowTargets({
-        targets: [
-          {
-            existing: row.hunterAllocation,
-            amount: nextHunterAmount,
-            customerId: row.customerId,
-            personId: effectivePersonId,
-            year,
-            type: "hunter",
-          },
-          {
-            existing: row.farmerRenewalAllocation,
-            amount: nextFarmerRenewalAmount,
-            customerId: row.customerId,
-            personId: effectivePersonId,
-            year,
-            type: "farmer_renewal",
-          },
-        ],
-        saveTargetAllocation,
-        deleteTargetAllocation,
+      await savePersonCustomerTargets({
+        customerId: row.customerId,
+        personId: effectivePersonId,
+        year,
+        hunterAmount: nextHunterAmount,
+        farmerRenewalAmount: nextFarmerRenewalAmount,
+        increaseCustomerTarget: overAmount > 0.01,
+        notes: "Meta associada pela tela Metas por Pessoa.",
       });
       setDrafts((current) => {
         const next = { ...current };
@@ -458,72 +439,6 @@ function findAllocation(
     && allocation.year === year
     && allocation.type === type
   );
-}
-
-async function persistTypeTarget({
-  existing,
-  amount,
-  customerId,
-  personId,
-  year,
-  type,
-  saveTargetAllocation,
-  deleteTargetAllocation,
-}: {
-  existing?: TargetAllocation;
-  amount: number;
-  customerId: string;
-  personId: string;
-  year: number;
-  type: TargetAllocationType;
-  saveTargetAllocation: (allocation: TargetAllocation) => Promise<void>;
-  deleteTargetAllocation: (id: string) => Promise<void>;
-}) {
-  if (amount <= 0) {
-    if (existing) await deleteTargetAllocation(existing.id);
-    return;
-  }
-
-  await saveTargetAllocation({
-    id: existing?.id ?? `target-${customerId}-${personId}-${type.replace("_", "-")}-${year}`,
-    customerId,
-    personId,
-    type,
-    year,
-    amount,
-    notes: "Meta associada pela tela Metas por Pessoa.",
-  });
-}
-
-async function persistRowTargets({
-  targets,
-  saveTargetAllocation,
-  deleteTargetAllocation,
-}: {
-  targets: Array<{
-    existing?: TargetAllocation;
-    amount: number;
-    customerId: string;
-    personId: string;
-    year: number;
-    type: TargetAllocationType;
-  }>;
-  saveTargetAllocation: (allocation: TargetAllocation) => Promise<void>;
-  deleteTargetAllocation: (id: string) => Promise<void>;
-}) {
-  const orderedTargets = [...targets].sort((left, right) => {
-    const leftDelta = left.amount - (left.existing?.amount ?? 0);
-    const rightDelta = right.amount - (right.existing?.amount ?? 0);
-    return leftDelta - rightDelta;
-  });
-
-  for (const target of orderedTargets) {
-    await persistTypeTarget({
-      ...target,
-      saveTargetAllocation,
-      deleteTargetAllocation,
-    });
-  }
 }
 
 function sumOtherPeopleAllocations(

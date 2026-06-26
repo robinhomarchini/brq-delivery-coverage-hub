@@ -10,6 +10,7 @@ import {
   type TargetAllocationType,
 } from "@/data/mockData";
 import type { DeliveryData, DeliveryRepository } from "./types";
+import type { PersonCustomerTargetsInput } from "./types";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { validateCustomer, validatePerson, validateSubject, validateTargetAllocation } from "@/lib/validation";
 import {
@@ -90,10 +91,13 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
 
   async savePerson(person: Person) {
     const validated = validatePerson(person);
-    await this.assertHunterAssignmentsAvailable(validated);
-    const { error } = await this.client.from("people").upsert(toPersonRow(validated));
-    if (error) throw error;
-    await this.replacePersonAssignments(validated.id, validated.clientIds);
+    const savedWithRpc = await this.trySavePersonWithRpc(validated);
+    if (!savedWithRpc) {
+      await this.assertHunterAssignmentsAvailable(validated);
+      const { error } = await this.client.from("people").upsert(toPersonRow(validated));
+      if (error) throw error;
+      await this.replacePersonAssignments(validated.id, validated.clientIds);
+    }
     return this.fetchAll();
   }
 
@@ -104,9 +108,12 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
 
   async saveCustomer(customer: Customer) {
     const validated = validateCustomer(customer);
-    const { error } = await this.client.from("customers").upsert(toCustomerRow(validated));
-    if (error) throw error;
-    await this.replaceCustomerManagerAssignments(validated.id, validated.managerResponsibleIds);
+    const savedWithRpc = await this.trySaveCustomerWithRpc(validated);
+    if (!savedWithRpc) {
+      const { error } = await this.client.from("customers").upsert(toCustomerRow(validated));
+      if (error) throw error;
+      await this.replaceCustomerManagerAssignments(validated.id, validated.managerResponsibleIds);
+    }
     return this.fetchAll();
   }
 
@@ -137,6 +144,14 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
   async deleteTargetAllocation(id: string) {
     const { error } = await this.client.from("revenue_target_allocations").delete().eq("id", id);
     if (error) throw error;
+  }
+
+  async savePersonCustomerTargets(input: PersonCustomerTargetsInput) {
+    const savedWithRpc = await this.trySavePersonCustomerTargetsWithRpc(input);
+    if (!savedWithRpc) {
+      await this.savePersonCustomerTargetsWithFallback(input);
+    }
+    return this.fetchAll();
   }
 
   private async fetchAll(): Promise<DeliveryData> {
@@ -185,6 +200,29 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
     if (insertError) throw insertError;
   }
 
+  private async trySavePersonWithRpc(person: Person) {
+    const { error } = await this.client.rpc("save_person_with_assignments", {
+      p_id: person.id,
+      p_name: person.name,
+      p_email: person.email ?? null,
+      p_job_title: person.jobTitle,
+      p_director_id: person.directorId ?? null,
+      p_manager_id: person.managerId ?? null,
+      p_role_type: person.roleType,
+      p_area_id: person.areaId ?? null,
+      p_photo_url: person.photoUrl ?? null,
+      p_notes: person.notes ?? null,
+      p_active: person.active,
+      p_is_manager: person.isManager,
+      p_hierarchy_level: person.hierarchyLevel,
+      p_customer_ids: person.clientIds,
+    });
+
+    if (!error) return true;
+    if (isMissingRpcError(error)) return false;
+    throw error;
+  }
+
   private async assertHunterAssignmentsAvailable(person: Person) {
     if (!isHunterRole(person.roleType) || !person.clientIds.length) return;
 
@@ -222,6 +260,113 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
       .from("person_customer_assignments")
       .insert(managerIds.map((personId) => ({ person_id: personId, customer_id: customerId })));
     if (insertError) throw insertError;
+  }
+
+  private async trySaveCustomerWithRpc(customer: Customer) {
+    const { error } = await this.client.rpc("save_customer_with_managers", {
+      p_id: customer.id,
+      p_name: customer.name,
+      p_industry: customer.industry,
+      p_director_responsible_id: customer.directorResponsibleId,
+      p_manager_responsible_ids: customer.managerResponsibleIds,
+      p_revenue: customer.revenue,
+      p_margin: customer.margin,
+      p_strategic_account: customer.strategicAccount,
+    });
+
+    if (!error) return true;
+    if (isMissingRpcError(error)) return false;
+    throw error;
+  }
+
+  private async trySavePersonCustomerTargetsWithRpc(input: PersonCustomerTargetsInput) {
+    const { error } = await this.client.rpc("save_person_customer_targets", {
+      p_customer_id: input.customerId,
+      p_person_id: input.personId,
+      p_target_year: input.year,
+      p_hunter_amount: sanitizeAmount(input.hunterAmount),
+      p_farmer_renewal_amount: sanitizeAmount(input.farmerRenewalAmount),
+      p_increase_customer_target: input.increaseCustomerTarget,
+      p_notes: input.notes ?? "Meta associada pela tela Metas por Pessoa.",
+    });
+
+    if (!error) return true;
+    if (isMissingRpcError(error)) return false;
+    throw error;
+  }
+
+  private async savePersonCustomerTargetsWithFallback(input: PersonCustomerTargetsInput) {
+    const [customerResult, allocationsResult, personResult] = await Promise.all([
+      this.client.from("customers").select("*").eq("id", input.customerId).single(),
+      this.client.from("revenue_target_allocations").select("*").eq("customer_id", input.customerId).eq("target_year", input.year),
+      this.client.from("people").select("id, role_type").eq("id", input.personId).single(),
+    ]);
+
+    const error = customerResult.error ?? allocationsResult.error ?? personResult.error;
+    if (error) throw error;
+
+    const personRole = (personResult.data as { role_type: RoleType }).role_type;
+    if (personRole === "Executive" || personRole === "Director" || personRole === "Staff") {
+      throw new Error("Executivo, Diretor e Staff não recebem meta direta.");
+    }
+
+    const customer = fromCustomerRow(customerResult.data as CustomerRow);
+    const allocations = (allocationsResult.data as TargetAllocationRow[]).map(fromTargetAllocationRow);
+    const nextHunterAmount = sanitizeAmount(input.hunterAmount);
+    const nextFarmerRenewalAmount = sanitizeAmount(input.farmerRenewalAmount);
+    const otherPeopleTotal = allocations
+      .filter((allocation) => allocation.personId !== input.personId)
+      .reduce((total, allocation) => total + allocation.amount, 0);
+    const nextCustomerTotal = otherPeopleTotal + nextHunterAmount + nextFarmerRenewalAmount;
+
+    if (customer.revenue > 0 && nextCustomerTotal > customer.revenue + 0.01) {
+      if (!input.increaseCustomerTarget) {
+        throw new Error(`A soma das metas das pessoas ultrapassa a meta total do cliente (${customer.revenue}).`);
+      }
+      const { error: customerError } = await this.client
+        .from("customers")
+        .update({ revenue: nextCustomerTotal })
+        .eq("id", input.customerId);
+      if (customerError) throw customerError;
+    }
+
+    await this.persistTypeTargetWithFallback(input, "hunter", nextHunterAmount, allocations);
+    await this.persistTypeTargetWithFallback(input, "farmer_renewal", nextFarmerRenewalAmount, allocations);
+  }
+
+  private async persistTypeTargetWithFallback(
+    input: PersonCustomerTargetsInput,
+    type: TargetAllocationType,
+    amount: number,
+    allocations: TargetAllocation[],
+  ) {
+    const existing = allocations.find((allocation) =>
+      allocation.customerId === input.customerId
+      && allocation.personId === input.personId
+      && allocation.type === type
+      && allocation.year === input.year
+    );
+
+    if (amount <= 0) {
+      if (existing) {
+        const { error } = await this.client.from("revenue_target_allocations").delete().eq("id", existing.id);
+        if (error) throw error;
+      }
+      return;
+    }
+
+    const allocation = validateTargetAllocation({
+      id: existing?.id ?? `target-${input.customerId}-${input.personId}-${type.replace("_", "-")}-${input.year}`,
+      customerId: input.customerId,
+      personId: input.personId,
+      type,
+      year: input.year,
+      amount,
+      notes: input.notes ?? "Meta associada pela tela Metas por Pessoa.",
+    });
+
+    const { error } = await this.client.from("revenue_target_allocations").upsert(toTargetAllocationRow(allocation));
+    if (error) throw error;
   }
 
 }
@@ -355,4 +500,17 @@ function fromTargetAllocationRow(row: TargetAllocationRow): TargetAllocation {
     amount: Number(row.amount),
     notes: row.notes ?? undefined,
   };
+}
+
+function isMissingRpcError(error: { code?: string; message?: string }) {
+  const message = error.message?.toLowerCase() ?? "";
+  return error.code === "PGRST202"
+    || error.code === "42883"
+    || message.includes("could not find the function")
+    || message.includes("function public.")
+    || message.includes("does not exist");
+}
+
+function sanitizeAmount(value: number) {
+  return Number.isFinite(value) && value > 0 ? value : 0;
 }

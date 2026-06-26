@@ -1,6 +1,6 @@
 import { areas, customers, people, subjects, targetAllocations } from "@/data/mockData";
 import type { Customer, Person, Subject, TargetAllocation } from "@/data/mockData";
-import type { DeliveryData, DeliveryRepository } from "./types";
+import type { DeliveryData, DeliveryRepository, PersonCustomerTargetsInput } from "./types";
 import { validateCustomer, validatePerson, validateSubject, validateTargetAllocation } from "@/lib/validation";
 import {
   applyCoverageAssignments,
@@ -84,6 +84,63 @@ export class LocalDeliveryRepository implements DeliveryRepository {
   async deleteTargetAllocation(id: string) {
     this.data.targetAllocations = this.data.targetAllocations.filter((item) => item.id !== id);
   }
+
+  async savePersonCustomerTargets(input: PersonCustomerTargetsInput) {
+    const person = this.data.people.find((item) => item.id === input.personId);
+    if (!person) throw new Error("Pessoa não encontrada para a meta.");
+    if (person.roleType === "Executive" || person.roleType === "Director" || person.roleType === "Staff") {
+      throw new Error("Executivo, Diretor e Staff não recebem meta direta.");
+    }
+
+    const customer = this.data.customers.find((item) => item.id === input.customerId);
+    if (!customer) throw new Error("Cliente não encontrado para a meta.");
+
+    const nextHunterAmount = sanitizeAmount(input.hunterAmount);
+    const nextFarmerRenewalAmount = sanitizeAmount(input.farmerRenewalAmount);
+    const otherPeopleTotal = this.data.targetAllocations
+      .filter((item) => item.customerId === input.customerId && item.year === input.year && item.personId !== input.personId)
+      .reduce((total, item) => total + item.amount, 0);
+    const nextCustomerTotal = otherPeopleTotal + nextHunterAmount + nextFarmerRenewalAmount;
+
+    if (customer.revenue > 0 && nextCustomerTotal > customer.revenue + 0.01) {
+      if (!input.increaseCustomerTarget) {
+        throw new Error(`A soma das metas das pessoas ultrapassa a meta total do cliente (${customer.revenue}).`);
+      }
+      this.data.customers = this.data.customers.map((item) =>
+        item.id === input.customerId ? { ...item, revenue: nextCustomerTotal } : item
+      );
+    }
+
+    this.replaceTargetAmount(input, "hunter", nextHunterAmount);
+    this.replaceTargetAmount(input, "farmer_renewal", nextFarmerRenewalAmount);
+    return this.getAll();
+  }
+
+  private replaceTargetAmount(input: PersonCustomerTargetsInput, type: "hunter" | "farmer_renewal", amount: number) {
+    const existing = this.data.targetAllocations.find((item) =>
+      item.customerId === input.customerId
+      && item.personId === input.personId
+      && item.type === type
+      && item.year === input.year
+    );
+
+    if (amount <= 0) {
+      if (existing) {
+        this.data.targetAllocations = this.data.targetAllocations.filter((item) => item.id !== existing.id);
+      }
+      return;
+    }
+
+    this.data.targetAllocations = upsert(this.data.targetAllocations, validateTargetAllocation({
+      id: existing?.id ?? `target-${input.customerId}-${input.personId}-${type.replace("_", "-")}-${input.year}`,
+      customerId: input.customerId,
+      personId: input.personId,
+      type,
+      year: input.year,
+      amount,
+      notes: input.notes ?? "Meta associada pela tela Metas por Pessoa.",
+    }));
+  }
 }
 
 function upsert<T extends { id: string }>(items: T[], item: T) {
@@ -135,6 +192,10 @@ function ensureHunterAssignmentsAvailable(people: Person[], assignments: Coverag
   if (conflicts.length) {
     throw new Error(`Cliente(s) já associado(s) a outro Hunter: ${Array.from(new Set(conflicts.map((item) => item.customerId))).join(", ")}.`);
   }
+}
+
+function sanitizeAmount(value: number) {
+  return Number.isFinite(value) && value > 0 ? value : 0;
 }
 
 export const localDeliveryRepository = new LocalDeliveryRepository();

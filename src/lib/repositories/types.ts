@@ -1,5 +1,15 @@
 import type { Area, Customer, Person, Subject, TargetAllocation } from "@/data/mockData";
 
+export interface PersonCustomerTargetsInput {
+  customerId: string;
+  personId: string;
+  year: number;
+  hunterAmount: number;
+  farmerRenewalAmount: number;
+  increaseCustomerTarget: boolean;
+  notes?: string;
+}
+
 export interface DeliveryData {
   people: Person[];
   customers: Customer[];
@@ -18,4 +28,5 @@ export interface DeliveryRepository {
   deleteSubject(id: string): Promise<void>;
   saveTargetAllocation(allocation: TargetAllocation): Promise<TargetAllocation>;
   deleteTargetAllocation(id: string): Promise<void>;
+  savePersonCustomerTargets(input: PersonCustomerTargetsInput): Promise<DeliveryData>;
 }

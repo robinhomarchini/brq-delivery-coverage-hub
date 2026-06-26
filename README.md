@@ -41,7 +41,11 @@ O app usa Supabase quando `.env.local` possui as credenciais públicas. Nesse mo
 o acesso exige autenticação com e-mail `@brq.com` e o banco aplica RLS. Sem
 configuração Supabase, o adaptador local funciona como fallback de desenvolvimento.
 
-O esquema e o hardening estão em `supabase/migrations/`. Consulte também
-`docs/SECURITY.md`.
+O esquema e o hardening estão em `supabase/migrations/`. A migration
+`20260626202500_architecture_hardening_rpc_audit.sql` adiciona RPCs
+transacionais e auditoria nas tabelas normalizadas.
+
+Em produção, a aplicação não deve cair para mock local sem Supabase configurado.
+Consulte `docs/SECURITY.md` e `docs/PRODUCTION_READINESS.md`.
 
 Consulte `docs/ARCHITECTURE.md` e `specs/delivery-coverage-hub/`.
