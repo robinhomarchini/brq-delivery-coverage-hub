@@ -33,6 +33,79 @@ $$;
 
 grant execute on function public.can_write_delivery_hardening() to authenticated;
 
+create or replace function public.ensure_single_hunter_assignment()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  assigned_role text;
+  conflicting_person_id text;
+begin
+  select role_type
+    into assigned_role
+  from public.people
+  where id = new.person_id;
+
+  if assigned_role not in ('Hunter', 'Hunter + Farmer') then
+    return new;
+  end if;
+
+  select assignment.person_id
+    into conflicting_person_id
+  from public.person_customer_assignments assignment
+  join public.people p on p.id = assignment.person_id
+  where assignment.customer_id = new.customer_id
+    and assignment.person_id <> new.person_id
+    and p.role_type in ('Hunter', 'Hunter + Farmer')
+  limit 1;
+
+  if conflicting_person_id is not null then
+    raise exception 'Cliente % já está associado a outro Hunter (%).', new.customer_id, conflicting_person_id
+      using errcode = '23505';
+  end if;
+
+  return new;
+end;
+$$;
+
+create or replace function public.ensure_person_hunter_assignment_consistency()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  conflicting_customer_id text;
+begin
+  if new.role_type not in ('Hunter', 'Hunter + Farmer') then
+    return new;
+  end if;
+
+  select own.customer_id
+    into conflicting_customer_id
+  from public.person_customer_assignments own
+  join public.person_customer_assignments other
+    on other.customer_id = own.customer_id
+   and other.person_id <> own.person_id
+  join public.people other_person on other_person.id = other.person_id
+  where own.person_id = new.id
+    and other_person.role_type in ('Hunter', 'Hunter + Farmer')
+  limit 1;
+
+  if conflicting_customer_id is not null then
+    raise exception 'Cliente % já está associado a outro Hunter.', conflicting_customer_id
+      using errcode = '23505';
+  end if;
+
+  return new;
+end;
+$$;
+
+grant execute on function public.ensure_single_hunter_assignment() to authenticated;
+grant execute on function public.ensure_person_hunter_assignment_consistency() to authenticated;
+
 do $$
 begin
   if to_regprocedure('public.audit_delivery_change()') is not null then
@@ -49,6 +122,20 @@ begin
         after insert or update or delete on public.revenue_target_allocations
         for each row execute function public.audit_delivery_change();
     end if;
+  end if;
+
+  if to_regclass('public.person_customer_assignments') is not null then
+    drop trigger if exists person_customer_assignments_single_hunter on public.person_customer_assignments;
+    create trigger person_customer_assignments_single_hunter
+      before insert or update of person_id, customer_id on public.person_customer_assignments
+      for each row execute function public.ensure_single_hunter_assignment();
+  end if;
+
+  if to_regclass('public.people') is not null then
+    drop trigger if exists people_hunter_assignment_consistency on public.people;
+    create trigger people_hunter_assignment_consistency
+      before update of role_type on public.people
+      for each row execute function public.ensure_person_hunter_assignment_consistency();
   end if;
 end $$;
 
@@ -83,6 +170,9 @@ begin
     raise exception 'Tipo de atuação inválido: %', p_role_type
       using errcode = '23514';
   end if;
+
+  delete from public.person_customer_assignments
+  where person_id = p_id;
 
   insert into public.people (
     id,
@@ -134,9 +224,6 @@ begin
       is_manager = excluded.is_manager,
       hierarchy_level = excluded.hierarchy_level,
       updated_at = now();
-
-  delete from public.person_customer_assignments
-  where person_id = p_id;
 
   insert into public.person_customer_assignments(person_id, customer_id, source)
   select p_id, customer_id, 'rpc_person_save'
@@ -404,6 +491,11 @@ select
   event_object_table
 from information_schema.triggers
 where event_object_schema = 'public'
-  and event_object_table in ('person_customer_assignments', 'revenue_target_allocations')
-  and trigger_name in ('person_customer_assignments_audit', 'revenue_target_allocations_audit')
+  and event_object_table in ('person_customer_assignments', 'revenue_target_allocations', 'people')
+  and trigger_name in (
+    'person_customer_assignments_audit',
+    'revenue_target_allocations_audit',
+    'person_customer_assignments_single_hunter',
+    'people_hunter_assignment_consistency'
+  )
 order by event_object_table, trigger_name;

@@ -34,6 +34,14 @@ Adicionar RPCs:
 A RPC de metas usa lock transacional por cliente/ano para evitar corrida entre
 duas edições simultâneas.
 
+## Constraints e triggers
+
+- `person_customer_assignments` permanece a fonte de verdade da cobertura.
+- A migration de hardening adiciona trigger para impedir que um mesmo cliente
+  seja associado a mais de uma pessoa com papel Hunter/Hunter + Farmer.
+- A tabela `people` também valida mudanças de `role_type` para evitar que uma
+  pessoa vire Hunter mantendo assignments que conflitam com outro Hunter.
+
 ## Segurança
 
 - RPCs verificam permissão de edição por helper central.

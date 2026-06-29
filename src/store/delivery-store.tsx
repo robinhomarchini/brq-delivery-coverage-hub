@@ -55,7 +55,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setTargetAllocations(data.targetAllocations);
         setError("");
       })
-      .catch(() => setError("Não foi possível carregar os dados persistidos. Nenhuma alteração será considerada salva."))
+      .catch((error) => setError(`Não foi possível carregar os dados persistidos. Nenhuma alteração será considerada salva. ${getErrorMessage(error)}`))
       .finally(() => setLoading(false));
     return () => {
       active = false;

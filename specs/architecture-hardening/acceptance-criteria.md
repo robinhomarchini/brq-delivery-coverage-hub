@@ -7,6 +7,8 @@
   transacional.
 - Quando a migration estiver aplicada, metas Hunter e Renovação + Ampliação de
   uma linha da tela Metas por Pessoa são salvas por RPC transacional.
+- Quando a migration estiver aplicada, a tabela normalizada Pessoa ↔ Cliente
+  bloqueia associação de um mesmo cliente a dois Hunters/Hunter + Farmer.
 - A migration adiciona auditoria às tabelas normalizadas de cobertura e metas.
 - Produção sem Supabase configurado mostra erro explícito em vez de abrir mock.
 - Specs e docs indicam o caminho para BFF completo e RLS viewer/editor/admin.

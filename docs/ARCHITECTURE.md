@@ -36,6 +36,10 @@ aplicada:
 - `save_person_customer_targets`: salva Hunter/Renovação de uma pessoa em um
   cliente/ano com lock por cliente/ano.
 
+O banco também protege a regra de exclusividade Hunter na fonte de verdade
+`person_customer_assignments`: um cliente não pode ficar associado a duas pessoas
+com papel Hunter/Hunter + Farmer.
+
 Enquanto a migration não estiver aplicada, o adaptador Supabase preserva fallback
 compatível para não interromper homologação, mas o caminho recomendado é aplicar
 a RPC.

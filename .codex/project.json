@@ -7,6 +7,8 @@
     "arquiteto",
     "executor",
     "frontend",
+    "database",
+    "security",
     "qa",
     "observabilidade",
     "documentador"
@@ -21,7 +23,12 @@
     "src/components",
     "src/data",
     "src/lib/repositories",
-    "specs/delivery-coverage-hub"
+    "supabase/migrations",
+    "specs/delivery-coverage-hub",
+    "specs/architecture-hardening",
+    "docs/ARCHITECTURE.md",
+    "docs/SECURITY.md",
+    "docs/PRODUCTION_READINESS.md"
   ],
   "routines": {
     "before_change": [
@@ -36,10 +43,31 @@
       "frontend",
       "qa"
     ],
+    "database_change": [
+      "database",
+      "security",
+      "qa",
+      "documentador"
+    ],
+    "security_change": [
+      "security",
+      "database",
+      "qa",
+      "documentador"
+    ],
+    "production_change": [
+      "arquiteto",
+      "security",
+      "observabilidade",
+      "qa",
+      "documentador"
+    ],
     "new_project_bootstrap": [
       "arquiteto",
       "executor",
       "frontend",
+      "database",
+      "security",
       "qa",
       "observabilidade",
       "documentador"

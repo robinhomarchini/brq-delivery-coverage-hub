@@ -41,3 +41,21 @@ Observação:
 - as policies atuais permitem CRUD anônimo apenas para viabilizar o protótipo;
 - antes do uso corporativo, autenticação e RLS restritivo são obrigatórios.
 
+## 2026-06-29 - Hardening por RPC transacional antes do BFF completo
+
+Operacoes criticas passam a usar RPCs Postgres transacionais como primeiro
+hardening: Pessoa + clientes, Cliente + managers e Metas por Pessoa.
+
+Motivo:
+- reduzir risco de escrita parcial ainda no modelo client-side com Supabase;
+- manter compatibilidade de homologacao enquanto o BFF/Server Actions nao vira
+  boundary principal;
+- centralizar regras criticas no banco, incluindo exclusividade Hunter na tabela
+  normalizada `person_customer_assignments`.
+
+Observacao:
+- o target arquitetural continua sendo mover leituras e escritas criticas para
+  BFF/API Routes ou Server Actions;
+- mudancas futuras em migrations, RLS, RPCs ou constraints devem acionar os
+  agentes `database`, `security`, `qa` e `documentador`.
+
