@@ -24,6 +24,12 @@ Meta Renovação + Ampliação e Meta Total, sempre formatada em reais. A meta t
 continua sendo o campo editável do cliente; a quebra Hunter/Renovação é derivada
 proporcionalmente da carga Financial BU para evitar duplicidade de fonte de
 verdade.
+No modal de edição, a composição da meta também deve mostrar a distribuição por
+pessoa no ano corrente, separando Hunter, Renovação + Ampliação e Total por
+pessoa. Quando parte da meta ainda não estiver alocada, a tela deve exibir uma
+linha "Em aberto sem pessoa alocada"; quando houver alocação acima da meta do
+cliente, a tela deve indicar o excedente e oferecer atalho para revisão em Metas
+por Pessoa.
 
 A carga inicial de clientes deve conter todos os nomes da coluna Cliente da
 planilha Financial BU:

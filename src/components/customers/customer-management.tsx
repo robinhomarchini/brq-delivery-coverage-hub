@@ -41,6 +41,31 @@ interface CustomerAllocationWarningData {
   people: Pick<Person, "id" | "name" | "jobTitle" | "roleType">[];
 }
 
+interface CustomerAllocationCompositionData {
+  customerId: string;
+  year: number;
+  rows: CustomerAllocationPersonRow[];
+  allocatedHunter: number;
+  allocatedFarmerRenewal: number;
+  allocatedTotal: number;
+  openHunter: number;
+  openFarmerRenewal: number;
+  openTotal: number;
+  overHunter: number;
+  overFarmerRenewal: number;
+  overTotal: number;
+}
+
+interface CustomerAllocationPersonRow {
+  personId: string;
+  personName: string;
+  jobTitle: string;
+  roleType: string;
+  hunter: number;
+  farmerRenewal: number;
+  total: number;
+}
+
 export function CustomerManagement() {
   const initialCustomerId = useMemo(() => getInitialCustomerId(), []);
   const { customers, people, targetAllocations, saveCustomer, deleteCustomer } = useDeliveryStore();
@@ -90,6 +115,20 @@ export function CustomerManagement() {
     margin: linkedEditing?.margin ?? 0,
     strategicAccount: linkedEditing?.strategicAccount ?? true,
   });
+  const allocationComposition = linkedEditing
+    ? getCustomerAllocationComposition(
+      {
+        ...linkedEditing,
+        name: formName || linkedEditing.name,
+        managerResponsibleIds: formManagerIds,
+        revenue: parseAmount(formRevenue),
+      },
+      people,
+      targetAllocations,
+      currentYear,
+      formBreakdown,
+    )
+    : null;
   const allocationWarning = linkedEditing
     ? getCustomerAllocationWarning(
       {
@@ -255,8 +294,9 @@ export function CustomerManagement() {
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 md:col-span-2">
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Composição da meta</p>
               <TargetBreakdownView breakdown={formBreakdown} compact />
+              {allocationComposition && <CustomerAllocationCompositionView composition={allocationComposition} />}
               <p className="mt-2 text-xs text-slate-500">
-                A quebra Hunter / Renovação + Ampliação vem da carga Financial BU e acompanha proporcionalmente a meta total do cliente.
+                A quebra Hunter / Renovação + Ampliação vem da carga Financial BU; a distribuição por pessoa vem de Metas por Pessoa.
               </p>
             </div>
             {allocationWarning && <CustomerAllocationWarning warning={allocationWarning} />}
@@ -298,6 +338,105 @@ function MoneyLine({ label, value, strong = false }: { label: string; value: num
     <div className={`flex items-center justify-between gap-3 ${strong ? "border-t border-slate-200 pt-1 font-bold text-slate-950" : "text-slate-600"}`}>
       <span className="text-xs uppercase tracking-wide text-slate-400">{label}</span>
       <span>{formatCurrency(value)}</span>
+    </div>
+  );
+}
+
+function CustomerAllocationCompositionView({ composition }: { composition: CustomerAllocationCompositionData }) {
+  const hasOpenAmount = composition.openTotal > 0.01;
+  const hasOverAmount = composition.overTotal > 0.01;
+
+  return (
+    <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Distribuição por pessoa · {composition.year}</p>
+          <p className="text-sm text-slate-500">
+            Alocado: <span className="font-semibold text-slate-800">{formatCurrency(composition.allocatedTotal)}</span>
+            {hasOpenAmount && <> · Em aberto: <span className="font-semibold text-amber-700">{formatCurrency(composition.openTotal)}</span></>}
+            {hasOverAmount && <> · Acima da meta: <span className="font-semibold text-red-700">{formatCurrency(composition.overTotal)}</span></>}
+          </p>
+        </div>
+        <Button asChild variant="outline" size="sm">
+          <Link href={`/metas-pessoas?customerId=${encodeURIComponent(composition.customerId)}&year=${composition.year}`}>
+            Ajustar metas
+          </Link>
+        </Button>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[720px] text-left text-sm">
+          <thead className="bg-slate-50 text-xs uppercase tracking-wider text-slate-400">
+            <tr>
+              <th className="px-4 py-2 font-semibold">Pessoa</th>
+              <th className="px-4 py-2 font-semibold">Perfil</th>
+              <th className="px-4 py-2 text-right font-semibold">Hunter</th>
+              <th className="px-4 py-2 text-right font-semibold">Renov. + Ampl.</th>
+              <th className="px-4 py-2 text-right font-semibold">Total</th>
+              <th className="px-4 py-2 text-right font-semibold">Ação</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {composition.rows.map((row) => (
+              <tr key={row.personId}>
+                <td className="px-4 py-3">
+                  <p className="font-semibold text-slate-900">{row.personName}</p>
+                  <p className="text-xs text-slate-400">{row.jobTitle}</p>
+                </td>
+                <td className="px-4 py-3 text-slate-500">{row.roleType}</td>
+                <td className="px-4 py-3 text-right">{formatCurrency(row.hunter)}</td>
+                <td className="px-4 py-3 text-right">{formatCurrency(row.farmerRenewal)}</td>
+                <td className="px-4 py-3 text-right font-bold text-slate-950">{formatCurrency(row.total)}</td>
+                <td className="px-4 py-3 text-right">
+                  <Link className="font-semibold text-brq-purple hover:underline" href={`/metas-pessoas?personId=${encodeURIComponent(row.personId)}&customerId=${encodeURIComponent(composition.customerId)}&year=${composition.year}`}>
+                    Editar
+                  </Link>
+                </td>
+              </tr>
+            ))}
+            {hasOpenAmount && (
+              <tr className="bg-amber-50/70">
+                <td className="px-4 py-3">
+                  <p className="font-semibold text-amber-900">Em aberto sem pessoa alocada</p>
+                  <p className="text-xs text-amber-700">Distribua este saldo em Metas por Pessoa.</p>
+                </td>
+                <td className="px-4 py-3 text-amber-700">Pendente</td>
+                <td className="px-4 py-3 text-right font-semibold text-amber-800">{formatCurrency(composition.openHunter)}</td>
+                <td className="px-4 py-3 text-right font-semibold text-amber-800">{formatCurrency(composition.openFarmerRenewal)}</td>
+                <td className="px-4 py-3 text-right font-bold text-amber-900">{formatCurrency(composition.openTotal)}</td>
+                <td className="px-4 py-3 text-right">
+                  <Link className="font-semibold text-amber-800 hover:underline" href={`/metas-pessoas?customerId=${encodeURIComponent(composition.customerId)}&year=${composition.year}`}>
+                    Alocar
+                  </Link>
+                </td>
+              </tr>
+            )}
+            {hasOverAmount && (
+              <tr className="bg-red-50/70">
+                <td className="px-4 py-3">
+                  <p className="font-semibold text-red-900">Acima da meta do cliente</p>
+                  <p className="text-xs text-red-700">Revise a meta total ou reduza a distribuição por pessoa.</p>
+                </td>
+                <td className="px-4 py-3 text-red-700">Excedente</td>
+                <td className="px-4 py-3 text-right font-semibold text-red-800">{formatCurrency(composition.overHunter)}</td>
+                <td className="px-4 py-3 text-right font-semibold text-red-800">{formatCurrency(composition.overFarmerRenewal)}</td>
+                <td className="px-4 py-3 text-right font-bold text-red-900">{formatCurrency(composition.overTotal)}</td>
+                <td className="px-4 py-3 text-right">
+                  <Link className="font-semibold text-red-800 hover:underline" href={`/metas-pessoas?customerId=${encodeURIComponent(composition.customerId)}&year=${composition.year}`}>
+                    Revisar
+                  </Link>
+                </td>
+              </tr>
+            )}
+            {!composition.rows.length && !hasOpenAmount && !hasOverAmount && (
+              <tr>
+                <td className="px-4 py-4 text-slate-500" colSpan={6}>
+                  Ainda não há meta associada a pessoas para este cliente no ano selecionado.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -396,6 +535,73 @@ function getCustomerAllocationWarning(
     }));
 
   return { customerId: customer.id, year, target, allocated, gap, people: involvedPeople };
+}
+
+function getCustomerAllocationComposition(
+  customer: Customer,
+  people: Person[],
+  allocations: TargetAllocation[],
+  year: number,
+  targetBreakdown: CustomerTargetBreakdown,
+): CustomerAllocationCompositionData {
+  const peopleById = new Map(people.map((person) => [person.id, person]));
+  const rowsByPerson = new Map<string, CustomerAllocationPersonRow>();
+
+  allocations
+    .filter((allocation) => allocation.customerId === customer.id && allocation.year === year)
+    .forEach((allocation) => {
+      const person = peopleById.get(allocation.personId);
+      const current = rowsByPerson.get(allocation.personId) ?? {
+        personId: allocation.personId,
+        personName: person?.name ?? allocation.personId,
+        jobTitle: person?.jobTitle ?? "Pessoa não encontrada",
+        roleType: person?.roleType ?? "Sem perfil",
+        hunter: 0,
+        farmerRenewal: 0,
+        total: 0,
+      };
+
+      if (allocation.type === "hunter") {
+        current.hunter += allocation.amount;
+      } else {
+        current.farmerRenewal += allocation.amount;
+      }
+      current.total = current.hunter + current.farmerRenewal;
+      rowsByPerson.set(allocation.personId, current);
+    });
+
+  const rows = Array.from(rowsByPerson.values())
+    .map((row) => ({
+      ...row,
+      hunter: roundCurrency(row.hunter),
+      farmerRenewal: roundCurrency(row.farmerRenewal),
+      total: roundCurrency(row.total),
+    }))
+    .sort((first, second) => second.total - first.total || first.personName.localeCompare(second.personName));
+  const allocatedHunter = roundCurrency(rows.reduce((total, row) => total + row.hunter, 0));
+  const allocatedFarmerRenewal = roundCurrency(rows.reduce((total, row) => total + row.farmerRenewal, 0));
+  const allocatedTotal = roundCurrency(allocatedHunter + allocatedFarmerRenewal);
+  const hunterGap = roundCurrency(targetBreakdown.hunter - allocatedHunter);
+  const farmerRenewalGap = roundCurrency(targetBreakdown.farmerRenewal - allocatedFarmerRenewal);
+  const openHunter = Math.max(0, hunterGap);
+  const openFarmerRenewal = Math.max(0, farmerRenewalGap);
+  const overHunter = Math.max(0, roundCurrency(-hunterGap));
+  const overFarmerRenewal = Math.max(0, roundCurrency(-farmerRenewalGap));
+
+  return {
+    customerId: customer.id,
+    year,
+    rows,
+    allocatedHunter,
+    allocatedFarmerRenewal,
+    allocatedTotal,
+    openHunter,
+    openFarmerRenewal,
+    openTotal: roundCurrency(openHunter + openFarmerRenewal),
+    overHunter,
+    overFarmerRenewal,
+    overTotal: roundCurrency(overHunter + overFarmerRenewal),
+  };
 }
 
 function getInputValue(value: number) {
