@@ -18,6 +18,7 @@ import { getFinancialCustomerMetric } from "@/lib/financial-customers";
 const currentYear = 2026;
 
 type DraftAmounts = Record<string, { hunter: string; farmerRenewal: string }>;
+type AllocationField = "hunter" | "farmerRenewal";
 
 export function PersonTargetAssignment() {
   const initialParams = useMemo(() => getInitialTargetParams(), []);
@@ -96,6 +97,49 @@ export function PersonTargetAssignment() {
 
     const nextHunterAmount = parseAmount(drafts[row.customerId]?.hunter ?? row.hunterInput);
     const nextFarmerRenewalAmount = parseAmount(drafts[row.customerId]?.farmerRenewal ?? row.farmerRenewalInput);
+    await persistCustomerTargets(row, nextHunterAmount, nextFarmerRenewalAmount);
+  }
+
+  async function quickAllocateCustomerTarget(row: PersonTargetRow, field: AllocationField) {
+    if (!effectivePersonId || !selectedPerson) {
+      setErrorMessage("Selecione uma pessoa antes de alocar a meta.");
+      return;
+    }
+
+    const label = field === "hunter" ? "Hunter" : "Renovação + Ampliação";
+    const availableAmount = roundCurrency(Math.max(0, field === "hunter"
+      ? row.customerHunterTarget - row.otherPeopleHunterTotal
+      : row.customerFarmerRenewalTarget - row.otherPeopleFarmerRenewalTotal));
+
+    if (availableAmount <= 0.01) {
+      setErrorMessage(`Não há saldo disponível de ${label} para ${row.customerName}. Revise as pessoas já associadas antes de realocar.`);
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Alocar ${formatCurrency(availableAmount)} como meta ${label} para ${selectedPerson.name} em ${row.customerName}?\n\nA alteração será salva imediatamente para ${year}.`,
+    );
+    if (!confirmed) return;
+
+    await persistCustomerTargets(
+      row,
+      field === "hunter" ? availableAmount : row.hunterAmount,
+      field === "farmerRenewal" ? availableAmount : row.farmerRenewalAmount,
+      `Meta ${label} de ${selectedPerson.name} em ${row.customerName} alocada com sucesso.`,
+    );
+  }
+
+  async function persistCustomerTargets(
+    row: PersonTargetRow,
+    nextHunterAmount: number,
+    nextFarmerRenewalAmount: number,
+    successText?: string,
+  ) {
+    if (!effectivePersonId) {
+      setErrorMessage("Selecione uma pessoa antes de salvar.");
+      return;
+    }
+
     const currentOtherPeopleTotal = sumOtherPeopleAllocations(targetAllocations, row.customerId, effectivePersonId, year);
     const nextCustomerTotal = currentOtherPeopleTotal + nextHunterAmount + nextFarmerRenewalAmount;
     const overAmount = nextCustomerTotal - row.customerTarget;
@@ -132,7 +176,7 @@ export function PersonTargetAssignment() {
       });
       setSuccessMessage(overAmount > 0.01
         ? `Metas salvas e meta do cliente ${row.customerName} aumentada para ${formatCurrency(nextCustomerTotal)}.`
-        : `Metas de ${selectedPerson?.name ?? "pessoa"} em ${row.customerName} salvas.`);
+        : successText ?? `Metas de ${selectedPerson?.name ?? "pessoa"} em ${row.customerName} salvas.`);
       window.setTimeout(() => setSuccessMessage(""), 3500);
     } catch (error) {
       setErrorMessage(getFormErrorMessage(error));
@@ -251,6 +295,14 @@ export function PersonTargetAssignment() {
                       hunter={row.customerHunterTarget}
                       farmerRenewal={row.customerFarmerRenewalTarget}
                       total={row.customerTarget}
+                      hunterAction={{
+                        onClick: () => quickAllocateCustomerTarget(row, "hunter"),
+                        title: `Clique para alocar o saldo Hunter em ${selectedPerson?.name ?? "pessoa selecionada"}`,
+                      }}
+                      farmerRenewalAction={{
+                        onClick: () => quickAllocateCustomerTarget(row, "farmerRenewal"),
+                        title: `Clique para alocar o saldo de Renovação + Ampliação em ${selectedPerson?.name ?? "pessoa selecionada"}`,
+                      }}
                     />
                   </TableCell>
                   <TableCell>
@@ -325,6 +377,10 @@ type TargetPerson = {
   amount: number;
   isDraft: boolean;
 };
+type BreakdownLineAction = {
+  onClick: () => void;
+  title: string;
+};
 
 function Summary({ label, value }: { label: string; value: string }) {
   return (
@@ -350,11 +406,23 @@ function SourceBadge({ source }: { source: RowSource }) {
   return <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100">Incluído agora</Badge>;
 }
 
-function TargetBreakdown({ hunter, farmerRenewal, total }: { hunter: number; farmerRenewal: number; total: number }) {
+function TargetBreakdown({
+  hunter,
+  farmerRenewal,
+  total,
+  hunterAction,
+  farmerRenewalAction,
+}: {
+  hunter: number;
+  farmerRenewal: number;
+  total: number;
+  hunterAction?: BreakdownLineAction;
+  farmerRenewalAction?: BreakdownLineAction;
+}) {
   return (
     <div className="min-w-40 space-y-1 text-xs">
-      <BreakdownLine label="Hunter" value={hunter} />
-      <BreakdownLine label="Renov. + Ampl." value={farmerRenewal} />
+      <BreakdownLine label="Hunter" value={hunter} action={hunterAction} />
+      <BreakdownLine label="Renov. + Ampl." value={farmerRenewal} action={farmerRenewalAction} />
       <div className="border-t pt-1 font-bold text-slate-950">{formatCurrency(total)}</div>
     </div>
   );
@@ -404,7 +472,17 @@ function TargetPeopleGroup({ label, people, emptyLabel, tone }: { label: string;
   );
 }
 
-function BreakdownLine({ label, value, tone = "neutral" }: { label: string; value: number; tone?: "neutral" | "ok" | "pending" | "over" }) {
+function BreakdownLine({
+  label,
+  value,
+  tone = "neutral",
+  action,
+}: {
+  label: string;
+  value: number;
+  tone?: "neutral" | "ok" | "pending" | "over";
+  action?: BreakdownLineAction;
+}) {
   const toneClassName = tone === "ok"
     ? "text-emerald-700"
     : tone === "pending"
@@ -416,7 +494,18 @@ function BreakdownLine({ label, value, tone = "neutral" }: { label: string; valu
   return (
     <div className="flex items-center justify-between gap-3">
       <span className="text-slate-500">{label}</span>
-      <span className={`font-semibold ${toneClassName}`}>{formatCurrency(value)}</span>
+      {action ? (
+        <button
+          type="button"
+          onClick={action.onClick}
+          title={action.title}
+          className={`rounded-md px-1 text-right font-semibold underline decoration-dotted underline-offset-4 transition hover:bg-purple-50 hover:text-brq-purple focus:outline-none focus:ring-2 focus:ring-purple-100 ${toneClassName}`}
+        >
+          {formatCurrency(value)}
+        </button>
+      ) : (
+        <span className={`font-semibold ${toneClassName}`}>{formatCurrency(value)}</span>
+      )}
     </div>
   );
 }

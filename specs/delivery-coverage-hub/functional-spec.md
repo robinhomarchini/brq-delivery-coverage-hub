@@ -53,6 +53,14 @@ Na listagem principal de Clientes, a coluna de governança deve exibir apenas o
 diretor responsável pelo cliente, como CA ou Ane Knust. Managers e pessoas que
 compõem as metas devem ficar nas colunas seguintes, evitando duplicidade visual.
 
+Na tela Metas por Pessoa, os valores de Hunter e Renovação + Ampliação exibidos
+na coluna "Meta do Cliente" devem funcionar como atalhos de alocação. Ao clicar
+em um valor, o sistema deve pedir confirmação e, se houver saldo disponível não
+alocado a outras pessoas para aquele tipo, salvar imediatamente a meta daquele
+tipo para a pessoa selecionada no ano corrente da tela. Se não houver saldo
+disponível, deve exibir uma mensagem clara orientando revisar as pessoas já
+associadas.
+
 As telas executivas podem exibir clientes agrupados em clusters financeiros,
 desde que o cadastro operacional preserve os clientes individuais como fonte de
 verdade. O agrupamento deve ser uma camada derivada/analítica: metas, pessoas e
