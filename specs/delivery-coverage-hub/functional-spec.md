@@ -18,7 +18,12 @@ leva diretamente para a tela operacional de ajuste correspondente.
 
 A tela de Clientes usa os clientes-fonte da planilha Financial BU como base
 operacional. O formulário de novo cliente exibe Nome do cliente, Indústria,
-Diretor responsável, Managers responsáveis, Conta estratégica, Receita e Margem.
+Diretor responsável, Managers responsáveis, Conta estratégica, Meta total e
+Margem. A listagem e o formulário exibem a composição financeira em Meta Hunter,
+Meta Renovação + Ampliação e Meta Total, sempre formatada em reais. A meta total
+continua sendo o campo editável do cliente; a quebra Hunter/Renovação é derivada
+proporcionalmente da carga Financial BU para evitar duplicidade de fonte de
+verdade.
 
 A carga inicial de clientes deve conter todos os nomes da coluna Cliente da
 planilha Financial BU:
@@ -87,6 +92,10 @@ selecionados sem depender de Ctrl/Cmd. Um duplo clique sobre um manager deve
 movê-lo imediatamente para a outra lista. Ao salvar com sucesso, a tela deve
 exibir uma mensagem de confirmação flutuante. Erros de salvamento devem aparecer
 em aviso flutuante, sem alterar o layout do formulário ou exigir scroll.
+Quando a Meta Total editada no cliente ficar acima da soma já distribuída em
+Metas por Pessoa no ano corrente, o formulário deve exibir um alerta com o gap,
+a lista de pessoas/gerentes envolvidos no cliente e atalhos para abrir a tela
+Metas por Pessoa com cliente e pessoa pré-selecionados.
 
 ## Pessoas
 
