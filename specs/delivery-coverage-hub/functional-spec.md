@@ -30,6 +30,10 @@ pessoa. Quando parte da meta ainda não estiver alocada, a tela deve exibir uma
 linha "Em aberto sem pessoa alocada"; quando houver alocação acima da meta do
 cliente, a tela deve indicar o excedente e oferecer atalho para revisão em Metas
 por Pessoa.
+A listagem principal de Clientes também deve exibir, por cliente e ano corrente,
+quais pessoas compõem a meta Hunter e quais pessoas compõem a meta Renovação +
+Ampliação/Farmer, com os valores alocados por pessoa, derivados de
+`revenue_target_allocations`.
 
 A carga inicial de clientes deve conter todos os nomes da coluna Cliente da
 planilha Financial BU:

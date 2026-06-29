@@ -66,6 +66,13 @@ interface CustomerAllocationPersonRow {
   total: number;
 }
 
+interface CustomerTargetPerson {
+  personId: string;
+  name: string;
+  roleType: string;
+  amount: number;
+}
+
 export function CustomerManagement() {
   const initialCustomerId = useMemo(() => getInitialCustomerId(), []);
   const { customers, people, targetAllocations, saveCustomer, deleteCustomer } = useDeliveryStore();
@@ -223,11 +230,12 @@ export function CustomerManagement() {
           <Table>
             <TableHeader><TableRow>
               <TableHead>Cliente</TableHead><TableHead>Responsáveis</TableHead>
-              <TableHead>Metas</TableHead><TableHead>Margem</TableHead><TableHead>Estratégica</TableHead><TableHead className="text-right">Ações</TableHead>
+              <TableHead>Hunters / Farmers</TableHead><TableHead>Metas</TableHead><TableHead>Margem</TableHead><TableHead>Estratégica</TableHead><TableHead className="text-right">Ações</TableHead>
             </TableRow></TableHeader>
             <TableBody>
               {filtered.map((customer) => {
                 const breakdown = getCustomerTargetBreakdown(customer);
+                const targetPeople = getCustomerTargetPeople(customer, people, targetAllocations, currentYear);
                 return (
                   <TableRow
                     key={customer.id}
@@ -237,6 +245,7 @@ export function CustomerManagement() {
                   >
                     <TableCell><div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-xl bg-purple-50 text-brq-purple"><Building2 className="h-5 w-5" /></div><div><p className="font-semibold">{customer.name}</p><p className="text-xs text-slate-400">{customer.industry}</p></div></div></TableCell>
                     <TableCell><p>{customer.managerResponsibleIds.map((id) => people.find((item) => item.id === id)?.name ?? id).join(", ")}</p><p className="text-xs text-slate-400">{people.find((item) => item.id === customer.directorResponsibleId)?.name}</p></TableCell>
+                    <TableCell><CustomerTargetPeopleView hunterPeople={targetPeople.hunterPeople} farmerRenewalPeople={targetPeople.farmerRenewalPeople} /></TableCell>
                     <TableCell><TargetBreakdownView breakdown={breakdown} /></TableCell>
                     <TableCell><span className={customer.margin < 18 ? "font-semibold text-amber-600" : "text-emerald-700"}>{customer.margin.toFixed(1).replace(".", ",")}%</span></TableCell>
                     <TableCell>{customer.strategicAccount ? <Badge><Star className="mr-1 h-3 w-3 fill-current" /> Sim</Badge> : <Badge variant="secondary">Não</Badge>}</TableCell>
@@ -338,6 +347,55 @@ function MoneyLine({ label, value, strong = false }: { label: string; value: num
     <div className={`flex items-center justify-between gap-3 ${strong ? "border-t border-slate-200 pt-1 font-bold text-slate-950" : "text-slate-600"}`}>
       <span className="text-xs uppercase tracking-wide text-slate-400">{label}</span>
       <span>{formatCurrency(value)}</span>
+    </div>
+  );
+}
+
+function CustomerTargetPeopleView({
+  hunterPeople,
+  farmerRenewalPeople,
+}: {
+  hunterPeople: CustomerTargetPerson[];
+  farmerRenewalPeople: CustomerTargetPerson[];
+}) {
+  return (
+    <div className="min-w-60 space-y-2 text-xs">
+      <CustomerTargetPeopleGroup label="Hunters" people={hunterPeople} emptyLabel="Sem hunter" tone="orange" />
+      <CustomerTargetPeopleGroup label="Farmers / Delivery" people={farmerRenewalPeople} emptyLabel="Sem farmer/delivery" tone="purple" />
+    </div>
+  );
+}
+
+function CustomerTargetPeopleGroup({
+  label,
+  people,
+  emptyLabel,
+  tone,
+}: {
+  label: string;
+  people: CustomerTargetPerson[];
+  emptyLabel: string;
+  tone: "orange" | "purple";
+}) {
+  const toneClassName = tone === "orange"
+    ? "bg-orange-50 text-orange-800"
+    : "bg-purple-50 text-brq-purple";
+
+  return (
+    <div>
+      <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">{label}</p>
+      {people.length ? (
+        <div className="flex max-w-80 flex-wrap gap-1.5">
+          {people.map((person) => (
+            <span key={`${label}-${person.personId}`} className={`rounded-full px-2 py-1 font-semibold ${toneClassName}`} title={`${person.name} · ${formatCurrency(person.amount)}`}>
+              {person.name}
+              <span className="ml-1 opacity-70">{formatCurrency(person.amount)}</span>
+            </span>
+          ))}
+        </div>
+      ) : (
+        <span className="text-slate-400">{emptyLabel}</span>
+      )}
     </div>
   );
 }
@@ -602,6 +660,43 @@ function getCustomerAllocationComposition(
     overFarmerRenewal,
     overTotal: roundCurrency(overHunter + overFarmerRenewal),
   };
+}
+
+function getCustomerTargetPeople(customer: Customer, people: Person[], allocations: TargetAllocation[], year: number) {
+  return {
+    hunterPeople: getCustomerTargetPeopleByType(customer, people, allocations, year, "hunter"),
+    farmerRenewalPeople: getCustomerTargetPeopleByType(customer, people, allocations, year, "farmer_renewal"),
+  };
+}
+
+function getCustomerTargetPeopleByType(
+  customer: Customer,
+  people: Person[],
+  allocations: TargetAllocation[],
+  year: number,
+  type: "hunter" | "farmer_renewal",
+) {
+  const peopleById = new Map(people.map((person) => [person.id, person]));
+  const totalsByPerson = new Map<string, CustomerTargetPerson>();
+
+  allocations
+    .filter((allocation) => allocation.customerId === customer.id && allocation.year === year && allocation.type === type)
+    .forEach((allocation) => {
+      const person = peopleById.get(allocation.personId);
+      const current = totalsByPerson.get(allocation.personId) ?? {
+        personId: allocation.personId,
+        name: person?.name ?? allocation.personId,
+        roleType: person?.roleType ?? "Sem perfil",
+        amount: 0,
+      };
+      current.amount += allocation.amount;
+      totalsByPerson.set(allocation.personId, current);
+    });
+
+  return Array.from(totalsByPerson.values())
+    .filter((person) => person.amount > 0.01)
+    .map((person) => ({ ...person, amount: roundCurrency(person.amount) }))
+    .sort((first, second) => second.amount - first.amount || first.name.localeCompare(second.name));
 }
 
 function getInputValue(value: number) {
