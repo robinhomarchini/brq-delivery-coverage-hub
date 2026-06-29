@@ -1,7 +1,7 @@
 "use client";
 
 import { Plus, Save, Target, UserRound } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type InputHTMLAttributes } from "react";
 import type { Customer, TargetAllocation, TargetAllocationType } from "@/data/mockData";
 import { PageHeader } from "@/components/shared/page-header";
 import { ErrorNotice, SuccessNotice } from "@/components/shared/success-notice";
@@ -42,7 +42,7 @@ export function PersonTargetAssignment() {
 
   const effectivePersonId = assignablePeople.some((person) => person.id === personId)
     ? personId
-    : assignablePeople[0]?.id ?? "";
+    : "";
   const selectedPerson = assignablePeople.find((person) => person.id === effectivePersonId);
   const visibleCustomerIds = useMemo(
     () => buildVisibleCustomerIds(selectedPerson?.clientIds ?? [], targetAllocations, effectivePersonId, year, extraCustomerIds),
@@ -53,8 +53,8 @@ export function PersonTargetAssignment() {
     [customers, visibleCustomerIds],
   );
   const availableCustomersToAdd = useMemo(
-    () => customers.filter((customer) => !visibleCustomerIds.has(customer.id)),
-    [customers, visibleCustomerIds],
+    () => effectivePersonId ? customers.filter((customer) => !visibleCustomerIds.has(customer.id)) : [],
+    [customers, effectivePersonId, visibleCustomerIds],
   );
   const effectiveCustomerToAdd = availableCustomersToAdd.some((customer) => customer.id === customerToAdd)
     ? customerToAdd
@@ -156,20 +156,21 @@ export function PersonTargetAssignment() {
           <Select value={effectivePersonId} onChange={(event) => {
             setPersonId(event.target.value);
             setDrafts({});
-            setExtraCustomerIds([]);
+            setExtraCustomerIds(initialParams.customerId ? [initialParams.customerId] : []);
           }}>
+            <option value="">Selecione uma pessoa</option>
             {assignablePeople.map((person) => (
               <option key={person.id} value={person.id}>{person.name} · {person.roleType}</option>
             ))}
           </Select>
-          <span className="mt-1 block text-xs text-slate-400">Executivo e Diretores aparecem apenas nas consolidações.</span>
+          <span className="mt-1 block text-xs text-slate-400">Escolha uma pessoa lançável. Executivo, Diretores e Staff aparecem apenas nas consolidações.</span>
         </label>
         <label>
           <span className="mb-1.5 block text-sm font-semibold text-slate-700">Ano</span>
           <Select value={String(year)} onChange={(event) => {
             setYear(Number(event.target.value));
             setDrafts({});
-            setExtraCustomerIds([]);
+            setExtraCustomerIds(initialParams.customerId ? [initialParams.customerId] : []);
           }}>
             {years.map((item) => <option key={item} value={item}>{item}</option>)}
           </Select>
@@ -181,8 +182,10 @@ export function PersonTargetAssignment() {
       <Card className="mb-5 grid gap-3 p-5 shadow-sm lg:grid-cols-[1fr_auto]">
         <label>
           <span className="mb-1.5 block text-sm font-semibold text-slate-700">Incluir cliente para meta</span>
-          <Select value={effectiveCustomerToAdd} onChange={(event) => setCustomerToAdd(event.target.value)} disabled={!availableCustomersToAdd.length}>
-            {!availableCustomersToAdd.length && <option value="">Todos os clientes já estão na grade</option>}
+          <Select value={effectiveCustomerToAdd} onChange={(event) => setCustomerToAdd(event.target.value)} disabled={!effectivePersonId || !availableCustomersToAdd.length}>
+            {!effectivePersonId
+              ? <option value="">Selecione uma pessoa primeiro</option>
+              : !availableCustomersToAdd.length && <option value="">Todos os clientes já estão na grade</option>}
             {availableCustomersToAdd.map((customer) => (
               <option key={customer.id} value={customer.id}>{customer.name}</option>
             ))}
@@ -192,7 +195,7 @@ export function PersonTargetAssignment() {
           <Button
             type="button"
             variant="outline"
-            disabled={!effectiveCustomerToAdd}
+            disabled={!effectivePersonId || !effectiveCustomerToAdd}
             onClick={() => {
               if (!effectiveCustomerToAdd) return;
               setExtraCustomerIds((current) => current.includes(effectiveCustomerToAdd) ? current : [...current, effectiveCustomerToAdd]);
@@ -217,7 +220,7 @@ export function PersonTargetAssignment() {
           </div>
         </div>
         <div className="overflow-x-auto">
-          <Table className="min-w-[1320px]">
+          <Table className="min-w-[1540px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Cliente</TableHead>
@@ -262,24 +265,16 @@ export function PersonTargetAssignment() {
                     />
                   </TableCell>
                   <TableCell>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
+                    <MoneyInput
                       value={drafts[row.customerId]?.hunter ?? row.hunterInput}
                       onChange={(event) => updateDraft(row.customerId, "hunter", event.target.value)}
-                      onDoubleClick={(event) => event.currentTarget.select()}
                       aria-label={`Meta Hunter para ${row.customerName}`}
                     />
                   </TableCell>
                   <TableCell>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
+                    <MoneyInput
                       value={drafts[row.customerId]?.farmerRenewal ?? row.farmerRenewalInput}
                       onChange={(event) => updateDraft(row.customerId, "farmerRenewal", event.target.value)}
-                      onDoubleClick={(event) => event.currentTarget.select()}
                       aria-label={`Meta Renovação + Ampliação para ${row.customerName}`}
                     />
                   </TableCell>
@@ -303,7 +298,9 @@ export function PersonTargetAssignment() {
           </Table>
           {!rows.length && (
             <div className="p-8 text-center text-sm text-slate-500">
-              Esta pessoa ainda não possui clientes associados nem metas lançadas neste ano. Use “Incluir cliente para meta” para começar.
+              {effectivePersonId
+                ? "Esta pessoa ainda não possui clientes associados nem metas lançadas neste ano. Use “Incluir cliente para meta” para começar."
+                : "Selecione uma pessoa para carregar os clientes associados e lançar metas."}
             </div>
           )}
         </div>
@@ -373,6 +370,23 @@ function BreakdownLine({ label, value, tone = "neutral" }: { label: string; valu
     <div className="flex items-center justify-between gap-3">
       <span className="text-slate-500">{label}</span>
       <span className={`font-semibold ${toneClassName}`}>{formatCurrency(value)}</span>
+    </div>
+  );
+}
+
+function MoneyInput(props: InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <div className="flex min-w-[180px] items-center rounded-2xl border bg-white px-3 focus-within:ring-2 focus-within:ring-purple-100">
+      <span className="mr-2 text-sm font-semibold text-slate-400">R$</span>
+      <Input
+        {...props}
+        type="text"
+        inputMode="decimal"
+        autoComplete="off"
+        className="h-12 border-0 px-0 text-right text-base font-semibold tabular-nums shadow-none outline-none focus:ring-0"
+        onFocus={(event) => event.currentTarget.select()}
+        onDoubleClick={(event) => event.currentTarget.select()}
+      />
     </div>
   );
 }
@@ -465,6 +479,7 @@ function buildVisibleCustomerIds(
   year: number,
   extraCustomerIds: string[],
 ) {
+  if (!personId) return new Set<string>();
   return new Set([
     ...assignedCustomerIds,
     ...allocations
@@ -563,12 +578,26 @@ function roundCurrency(value: number) {
 }
 
 function getInputValue(value: number) {
-  return value ? String(value) : "";
+  if (!value) return "";
+  return new Intl.NumberFormat("pt-BR", {
+    minimumFractionDigits: value % 1 === 0 ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(value);
 }
 
 function parseAmount(value: string) {
-  const parsed = Number(value || 0);
+  const sanitized = value.replace(/[^\d,.-]/g, "").trim();
+  const normalized = sanitized.includes(",")
+    ? sanitized.replace(/\./g, "").replace(",", ".")
+    : isThousandSeparatedAmount(sanitized)
+      ? sanitized.replace(/\./g, "")
+      : sanitized;
+  const parsed = Number(normalized || 0);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+}
+
+function isThousandSeparatedAmount(value: string) {
+  return /^\d{1,3}(\.\d{3})+$/.test(value);
 }
 
 function getFormErrorMessage(error: unknown) {

@@ -160,6 +160,12 @@ Meta Renovação + Ampliação, Meta Total, quantidade de clientes e lista resum
 de clientes. Cada pessoa do relatório deve navegar para Metas por Pessoa com a
 pessoa e o ano pré-selecionados.
 
+Na rota Metas por Pessoa, o combo Pessoa deve iniciar vazio quando não houver
+`personId` na URL, obrigando o usuário a escolher uma pessoa antes de carregar a
+grade ou incluir clientes. Os campos de Meta Hunter e Meta Renovação + Ampliação
+devem ser inputs monetários largos, com prefixo visual de R$, seleção automática
+ao focar e suporte a digitação em formato brasileiro, como `11.033.497,00`.
+
 A rota Ajuda deve disponibilizar um guia rápido simples em PDF, publicado como
 link estático, com instruções de uso para homologadores.
 
