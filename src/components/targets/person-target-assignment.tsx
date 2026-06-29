@@ -2,7 +2,7 @@
 
 import { Plus, Save, Target, UserRound } from "lucide-react";
 import { useMemo, useState, type InputHTMLAttributes } from "react";
-import type { Customer, TargetAllocation, TargetAllocationType } from "@/data/mockData";
+import type { Customer, Person, TargetAllocation, TargetAllocationType } from "@/data/mockData";
 import { PageHeader } from "@/components/shared/page-header";
 import { ErrorNotice, SuccessNotice } from "@/components/shared/success-notice";
 import { Badge } from "@/components/ui/badge";
@@ -66,9 +66,11 @@ export function PersonTargetAssignment() {
       year,
       targetAllocations,
       drafts[customer.id],
+      people,
+      selectedPerson,
       getRowSource(customer.id, selectedPerson?.clientIds ?? [], targetAllocations, effectivePersonId, year, extraCustomerIds),
     )),
-    [drafts, effectivePersonId, extraCustomerIds, selectedPerson?.clientIds, targetAllocations, visibleCustomers, year],
+    [drafts, effectivePersonId, extraCustomerIds, people, selectedPerson, targetAllocations, visibleCustomers, year],
   );
   const totals = useMemo(() => rows.reduce((summary, row) => ({
     hunter: summary.hunter + row.hunterAmount,
@@ -220,13 +222,14 @@ export function PersonTargetAssignment() {
           </div>
         </div>
         <div className="overflow-x-auto">
-          <Table className="min-w-[1540px]">
+          <Table className="min-w-[1760px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Cliente</TableHead>
                 <TableHead>Origem</TableHead>
                 <TableHead>Meta do Cliente</TableHead>
                 <TableHead>Já associado a outras pessoas</TableHead>
+                <TableHead>Hunters / Farmers</TableHead>
                 <TableHead>Gap após edição</TableHead>
                 <TableHead>Meta Hunter</TableHead>
                 <TableHead>Meta Renovação + Ampliação</TableHead>
@@ -256,6 +259,9 @@ export function PersonTargetAssignment() {
                       farmerRenewal={row.otherPeopleFarmerRenewalTotal}
                       total={row.otherPeopleTotal}
                     />
+                  </TableCell>
+                  <TableCell>
+                    <TargetPeopleSummary hunterPeople={row.hunterPeople} farmerRenewalPeople={row.farmerRenewalPeople} />
                   </TableCell>
                   <TableCell>
                     <TargetGapBreakdown
@@ -312,6 +318,13 @@ export function PersonTargetAssignment() {
 type PersonTargetRow = ReturnType<typeof buildRow>;
 type ClientStatus = "ok" | "pending" | "over";
 type RowSource = "assigned" | "existing_target" | "added";
+type TargetPerson = {
+  personId: string;
+  name: string;
+  roleType: string;
+  amount: number;
+  isDraft: boolean;
+};
 
 function Summary({ label, value }: { label: string; value: string }) {
   return (
@@ -357,6 +370,40 @@ function TargetGapBreakdown({ hunter, farmerRenewal, total }: { hunter: number; 
   );
 }
 
+function TargetPeopleSummary({ hunterPeople, farmerRenewalPeople }: { hunterPeople: TargetPerson[]; farmerRenewalPeople: TargetPerson[] }) {
+  return (
+    <div className="min-w-56 space-y-3 text-xs">
+      <TargetPeopleGroup label="Hunters" people={hunterPeople} emptyLabel="Sem hunter alocado" tone="orange" />
+      <TargetPeopleGroup label="Farmers / Delivery" people={farmerRenewalPeople} emptyLabel="Sem farmer/delivery alocado" tone="purple" />
+    </div>
+  );
+}
+
+function TargetPeopleGroup({ label, people, emptyLabel, tone }: { label: string; people: TargetPerson[]; emptyLabel: string; tone: "orange" | "purple" }) {
+  const toneClassName = tone === "orange"
+    ? "bg-orange-50 text-orange-800"
+    : "bg-purple-50 text-brq-purple";
+
+  return (
+    <div>
+      <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">{label}</p>
+      {people.length ? (
+        <div className="flex flex-wrap gap-1.5">
+          {people.map((person) => (
+            <span key={`${label}-${person.personId}`} className={`rounded-full px-2 py-1 font-semibold ${toneClassName}`} title={`${person.name} · ${formatCurrency(person.amount)}`}>
+              {person.name}
+              <span className="ml-1 opacity-70">{formatCurrency(person.amount)}</span>
+              {person.isDraft && <span className="ml-1 text-[10px] opacity-70">(edição)</span>}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <p className="text-slate-400">{emptyLabel}</p>
+      )}
+    </div>
+  );
+}
+
 function BreakdownLine({ label, value, tone = "neutral" }: { label: string; value: number; tone?: "neutral" | "ok" | "pending" | "over" }) {
   const toneClassName = tone === "ok"
     ? "text-emerald-700"
@@ -397,6 +444,8 @@ function buildRow(
   year: number,
   allocations: TargetAllocation[],
   draft: { hunter: string; farmerRenewal: string } | undefined,
+  people: Person[],
+  selectedPerson: Person | undefined,
   source: RowSource,
 ) {
   const hunterAllocation = findAllocation(allocations, customer.id, personId, year, "hunter");
@@ -411,6 +460,8 @@ function buildRow(
   const clientHunterTotal = otherPeopleHunterTotal + hunterAmount;
   const clientFarmerRenewalTotal = otherPeopleFarmerRenewalTotal + farmerRenewalAmount;
   const clientTotal = clientHunterTotal + clientFarmerRenewalTotal;
+  const hunterPeople = buildTargetPeople(allocations, people, customer.id, year, "hunter", selectedPerson, hunterAmount);
+  const farmerRenewalPeople = buildTargetPeople(allocations, people, customer.id, year, "farmer_renewal", selectedPerson, farmerRenewalAmount);
 
   return {
     customerId: customer.id,
@@ -432,12 +483,55 @@ function buildRow(
     farmerRenewalAllocation,
     hunterAmount,
     farmerRenewalAmount,
+    hunterPeople,
+    farmerRenewalPeople,
     hunterInput: getInputValue(hunterAllocation?.amount ?? 0),
     farmerRenewalInput: getInputValue(farmerRenewalAllocation?.amount ?? 0),
     personTotal: hunterAmount + farmerRenewalAmount,
     clientStatus: getClientStatus(targetBreakdown.hunter, clientHunterTotal, targetBreakdown.farmerRenewal, clientFarmerRenewalTotal),
     source,
   };
+}
+
+function buildTargetPeople(
+  allocations: TargetAllocation[],
+  people: Person[],
+  customerId: string,
+  year: number,
+  type: TargetAllocationType,
+  selectedPerson: Person | undefined,
+  selectedAmount: number,
+) {
+  const peopleById = new Map(people.map((person) => [person.id, person]));
+  const rowsByPerson = new Map<string, TargetPerson>();
+
+  allocations
+    .filter((allocation) => allocation.customerId === customerId && allocation.year === year && allocation.type === type)
+    .forEach((allocation) => {
+      const person = peopleById.get(allocation.personId);
+      const amount = selectedPerson?.id === allocation.personId ? selectedAmount : allocation.amount;
+      if (amount <= 0.01) return;
+      rowsByPerson.set(allocation.personId, {
+        personId: allocation.personId,
+        name: person?.name ?? allocation.personId,
+        roleType: person?.roleType ?? "Sem perfil",
+        amount,
+        isDraft: selectedPerson?.id === allocation.personId && Math.abs(selectedAmount - allocation.amount) > 0.01,
+      });
+    });
+
+  if (selectedPerson && selectedAmount > 0.01 && !rowsByPerson.has(selectedPerson.id)) {
+    rowsByPerson.set(selectedPerson.id, {
+      personId: selectedPerson.id,
+      name: selectedPerson.name,
+      roleType: selectedPerson.roleType,
+      amount: selectedAmount,
+      isDraft: true,
+    });
+  }
+
+  return Array.from(rowsByPerson.values())
+    .sort((first, second) => second.amount - first.amount || first.name.localeCompare(second.name));
 }
 
 function findAllocation(

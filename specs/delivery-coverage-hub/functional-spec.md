@@ -165,6 +165,10 @@ Na rota Metas por Pessoa, o combo Pessoa deve iniciar vazio quando não houver
 grade ou incluir clientes. Os campos de Meta Hunter e Meta Renovação + Ampliação
 devem ser inputs monetários largos, com prefixo visual de R$, seleção automática
 ao focar e suporte a digitação em formato brasileiro, como `11.033.497,00`.
+O grid também deve exibir, por cliente e ano, quais pessoas compõem a meta Hunter
+e quais pessoas compõem a meta Renovação + Ampliação/Farmer, incluindo valores
+por pessoa. Quando a pessoa selecionada tiver valor digitado ainda não salvo, a
+linha deve indicar que aquela composição está em edição.
 
 A rota Ajuda deve disponibilizar um guia rápido simples em PDF, publicado como
 link estático, com instruções de uso para homologadores.
