@@ -185,7 +185,7 @@ export function CustomerManagement() {
       name: customerName,
       industry: String(formData.get("industry")),
       directorResponsibleId: String(formData.get("directorResponsibleId") || defaults.directorResponsibleId),
-      managerResponsibleIds: validManagers.length ? validManagers : defaults.managerResponsibleIds,
+      managerResponsibleIds: validManagers,
       revenue: parseAmount(formRevenue),
       margin: Number(formData.get("margin")),
       strategicAccount: formData.get("strategicAccount") === "true",
@@ -297,7 +297,20 @@ export function CustomerManagement() {
             </Field>
             <Field label="Conta estratégica"><Select name="strategicAccount" defaultValue={String(linkedEditing?.strategicAccount ?? true)}><option value="true">Sim</option><option value="false">Não</option></Select></Field>
             <Field label="Meta total (R$)">
-              <Input name="revenue" type="number" min="0" step="1000" value={formRevenue} onChange={(event) => setFormRevenue(event.target.value)} required />
+              <div className="flex items-center rounded-xl border border-slate-200 bg-white px-3 focus-within:border-purple-400 focus-within:ring-2 focus-within:ring-purple-100">
+                <span className="mr-2 text-sm font-semibold text-slate-400">R$</span>
+                <Input
+                  name="revenue"
+                  type="text"
+                  inputMode="decimal"
+                  autoComplete="off"
+                  value={formRevenue}
+                  onChange={(event) => setFormRevenue(event.target.value)}
+                  onFocus={(event) => event.currentTarget.select()}
+                  className="h-10 border-0 px-0 text-right font-semibold tabular-nums focus:ring-0"
+                  required
+                />
+              </div>
               <span className="mt-1 block text-xs text-slate-500">{formatCurrency(parseAmount(formRevenue))}</span>
             </Field>
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 md:col-span-2">
@@ -401,8 +414,8 @@ function CustomerTargetPeopleGroup({
 }
 
 function CustomerAllocationCompositionView({ composition }: { composition: CustomerAllocationCompositionData }) {
-  const hasOpenAmount = composition.openTotal > 0.01;
-  const hasOverAmount = composition.overTotal > 0.01;
+  const hasOpenAmount = hasVisibleCurrencyAmount(composition.openTotal);
+  const hasOverAmount = hasVisibleCurrencyAmount(composition.overTotal);
 
   return (
     <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-white">
@@ -700,16 +713,34 @@ function getCustomerTargetPeopleByType(
 }
 
 function getInputValue(value: number) {
-  return Number.isFinite(value) && value > 0 ? String(Math.round(value)) : "";
+  if (!Number.isFinite(value) || value <= 0) return "";
+  return new Intl.NumberFormat("pt-BR", {
+    minimumFractionDigits: value % 1 === 0 ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(value);
 }
 
 function parseAmount(value: string) {
-  const amount = Number(value.replace(",", "."));
+  const sanitized = value.replace(/[^\d,.-]/g, "").trim();
+  const normalized = sanitized.includes(",")
+    ? sanitized.replace(/\./g, "").replace(",", ".")
+    : isThousandSeparatedAmount(sanitized)
+      ? sanitized.replace(/\./g, "")
+      : sanitized;
+  const amount = Number(normalized || 0);
   return Number.isFinite(amount) && amount > 0 ? amount : 0;
+}
+
+function isThousandSeparatedAmount(value: string) {
+  return /^\d{1,3}(\.\d{3})+$/.test(value);
 }
 
 function roundCurrency(value: number) {
   return Math.round(value * 100) / 100;
+}
+
+function hasVisibleCurrencyAmount(value: number) {
+  return Math.abs(Math.round(value)) >= 1;
 }
 
 function normalizeName(value: string) {

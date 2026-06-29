@@ -34,6 +34,22 @@ A listagem principal de Clientes também deve exibir, por cliente e ano corrente
 quais pessoas compõem a meta Hunter e quais pessoas compõem a meta Renovação +
 Ampliação/Farmer, com os valores alocados por pessoa, derivados de
 `revenue_target_allocations`.
+Linhas de saldo "Em aberto" ou "Acima da meta" só devem aparecer quando houver
+valor material visível em reais; diferenças residuais de centavos/arredondamento
+que aparecem como R$ 0 não devem gerar linhas no grid.
+
+O cadastro de cliente deve permitir zero, um ou vários managers responsáveis.
+As regras automáticas de CA/Ane/Ana/Bruno/Orion/Fernanda/Bonfim são sugestões de
+carga inicial e preenchimento rápido, mas não podem recolocar um manager removido
+manualmente no momento de salvar. Cliente sem manager é um caso válido de
+cobertura descoberta e deve ser tratado pelas telas de governança/assistente de
+metas, não bloqueado pelo formulário.
+
+As telas executivas podem exibir clientes agrupados em clusters financeiros,
+desde que o cadastro operacional preserve os clientes individuais como fonte de
+verdade. O agrupamento deve ser uma camada derivada/analítica: metas, pessoas e
+cobertura continuam gravadas nos clientes individuais, e as telas agrupadas
+somam os valores e pessoas dos clientes pertencentes ao grupo.
 
 A carga inicial de clientes deve conter todos os nomes da coluna Cliente da
 planilha Financial BU:

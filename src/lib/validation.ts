@@ -39,7 +39,7 @@ const customerSchema = z.object({
   name: safeText("Nome", 160),
   industry: safeText("Indústria", 120),
   directorResponsibleId: safeText("Diretor", 120),
-  managerResponsibleIds: z.array(safeText("Manager", 120)).min(1, "Selecione ao menos um manager.").max(20),
+  managerResponsibleIds: z.array(safeText("Manager", 120)).max(20),
   revenue: z.number().finite().min(0, "Receita não pode ser negativa.").max(999999999999),
   margin: z.number().finite().min(0, "Margem não pode ser negativa.").max(100, "Margem não pode exceder 100%."),
   strategicAccount: z.boolean(),
