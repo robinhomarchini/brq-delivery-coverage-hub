@@ -229,7 +229,7 @@ export function CustomerManagement() {
         <div className="overflow-x-auto">
           <Table>
             <TableHeader><TableRow>
-              <TableHead>Cliente</TableHead><TableHead>Responsáveis</TableHead>
+              <TableHead>Cliente</TableHead><TableHead>Diretor responsável</TableHead>
               <TableHead>Hunters / Farmers</TableHead><TableHead>Metas</TableHead><TableHead>Margem</TableHead><TableHead>Estratégica</TableHead><TableHead className="text-right">Ações</TableHead>
             </TableRow></TableHeader>
             <TableBody>
@@ -244,7 +244,10 @@ export function CustomerManagement() {
                     onDoubleClick={() => openForm(customer)}
                   >
                     <TableCell><div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-xl bg-purple-50 text-brq-purple"><Building2 className="h-5 w-5" /></div><div><p className="font-semibold">{customer.name}</p><p className="text-xs text-slate-400">{customer.industry}</p></div></div></TableCell>
-                    <TableCell><p>{customer.managerResponsibleIds.map((id) => people.find((item) => item.id === id)?.name ?? id).join(", ")}</p><p className="text-xs text-slate-400">{people.find((item) => item.id === customer.directorResponsibleId)?.name}</p></TableCell>
+                    <TableCell>
+                      <p>{displayDirectorName(people.find((item) => item.id === customer.directorResponsibleId)?.name ?? customer.directorResponsibleId)}</p>
+                      <p className="text-xs text-slate-400">Governança Delivery</p>
+                    </TableCell>
                     <TableCell><CustomerTargetPeopleView hunterPeople={targetPeople.hunterPeople} farmerRenewalPeople={targetPeople.farmerRenewalPeople} /></TableCell>
                     <TableCell><TargetBreakdownView breakdown={breakdown} /></TableCell>
                     <TableCell><span className={customer.margin < 18 ? "font-semibold text-amber-600" : "text-emerald-700"}>{customer.margin.toFixed(1).replace(".", ",")}%</span></TableCell>

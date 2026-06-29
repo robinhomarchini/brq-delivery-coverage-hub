@@ -45,6 +45,10 @@ manualmente no momento de salvar. Cliente sem manager é um caso válido de
 cobertura descoberta e deve ser tratado pelas telas de governança/assistente de
 metas, não bloqueado pelo formulário.
 
+Na listagem principal de Clientes, a coluna de governança deve exibir apenas o
+diretor responsável pelo cliente, como CA ou Ane Knust. Managers e pessoas que
+compõem as metas devem ficar nas colunas seguintes, evitando duplicidade visual.
+
 As telas executivas podem exibir clientes agrupados em clusters financeiros,
 desde que o cadastro operacional preserve os clientes individuais como fonte de
 verdade. O agrupamento deve ser uma camada derivada/analítica: metas, pessoas e
