@@ -37,6 +37,10 @@ Ampliação/Farmer, com os valores alocados por pessoa, derivados de
 Linhas de saldo "Em aberto" ou "Acima da meta" só devem aparecer quando houver
 valor material visível em reais; diferenças residuais de centavos/arredondamento
 que aparecem como R$ 0 não devem gerar linhas no grid.
+Essas linhas devem considerar o saldo líquido total do cliente. Se Hunter estiver
+abaixo da quebra sugerida e Renovação + Ampliação estiver acima no mesmo valor
+-- ou vice-versa -- e a soma das pessoas bater com a meta total do cliente, não
+deve existir linha de pendência nem de excedente.
 
 O cadastro de cliente deve permitir zero, um ou vários managers responsáveis.
 As regras automáticas de CA/Ane/Ana/Bruno/Orion/Fernanda/Bonfim são sugestões de

@@ -657,10 +657,11 @@ function getCustomerAllocationComposition(
   const allocatedTotal = roundCurrency(allocatedHunter + allocatedFarmerRenewal);
   const hunterGap = roundCurrency(targetBreakdown.hunter - allocatedHunter);
   const farmerRenewalGap = roundCurrency(targetBreakdown.farmerRenewal - allocatedFarmerRenewal);
-  const openHunter = Math.max(0, hunterGap);
-  const openFarmerRenewal = Math.max(0, farmerRenewalGap);
-  const overHunter = Math.max(0, roundCurrency(-hunterGap));
-  const overFarmerRenewal = Math.max(0, roundCurrency(-farmerRenewalGap));
+  const totalGap = roundCurrency(targetBreakdown.total - allocatedTotal);
+  const openTotal = Math.max(0, totalGap);
+  const overTotal = Math.max(0, roundCurrency(-totalGap));
+  const openSplit = splitFinancialGap(openTotal, Math.max(0, hunterGap), Math.max(0, farmerRenewalGap));
+  const overSplit = splitFinancialGap(overTotal, Math.max(0, -hunterGap), Math.max(0, -farmerRenewalGap));
 
   return {
     customerId: customer.id,
@@ -669,12 +670,12 @@ function getCustomerAllocationComposition(
     allocatedHunter,
     allocatedFarmerRenewal,
     allocatedTotal,
-    openHunter,
-    openFarmerRenewal,
-    openTotal: roundCurrency(openHunter + openFarmerRenewal),
-    overHunter,
-    overFarmerRenewal,
-    overTotal: roundCurrency(overHunter + overFarmerRenewal),
+    openHunter: openSplit.hunter,
+    openFarmerRenewal: openSplit.farmerRenewal,
+    openTotal,
+    overHunter: overSplit.hunter,
+    overFarmerRenewal: overSplit.farmerRenewal,
+    overTotal,
   };
 }
 
@@ -740,6 +741,21 @@ function isThousandSeparatedAmount(value: string) {
 
 function roundCurrency(value: number) {
   return Math.round(value * 100) / 100;
+}
+
+function splitFinancialGap(total: number, hunterCandidate: number, farmerRenewalCandidate: number) {
+  const visibleTotal = roundCurrency(total);
+  if (!hasVisibleCurrencyAmount(visibleTotal)) {
+    return { hunter: 0, farmerRenewal: 0 };
+  }
+
+  const candidateTotal = roundCurrency(hunterCandidate + farmerRenewalCandidate);
+  if (!hasVisibleCurrencyAmount(candidateTotal)) {
+    return { hunter: 0, farmerRenewal: visibleTotal };
+  }
+
+  const hunter = roundCurrency(visibleTotal * (hunterCandidate / candidateTotal));
+  return { hunter, farmerRenewal: roundCurrency(visibleTotal - hunter) };
 }
 
 function hasVisibleCurrencyAmount(value: number) {
