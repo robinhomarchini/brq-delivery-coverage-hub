@@ -54,6 +54,8 @@ const responsibleAliases: Record<string, string[]> = {
   ca: ["CA"],
 };
 
+const zeroMoneyTolerance = 0.01;
+
 export function parseTargetBaselineRows(rows: SpreadsheetCell[][]): TargetBaselineRow[] {
   if (!rows.length) throw new Error("A planilha está vazia.");
 
@@ -109,7 +111,7 @@ export function buildTargetBaselineComparisons(
     }
 
     const differences = buildDifferences(customer, importedHunter, importedFarmerRenewal, importedRevenue);
-    const importedTotalIsValid = Math.abs(sheetTotalDifference) <= 0.01;
+    const importedTotalIsValid = isSameDisplayedCurrency(row.totalTarget, importedRevenue);
     const hunterCheck = validateHunterConsistency(row, customer, people, targetAllocations, year);
 
     return {
@@ -171,7 +173,7 @@ function buildDifferences(customer: Customer, hunterTarget: number, farmerRenewa
       delta: revenue - roundCurrency(customer.hunterTarget + customer.farmerRenewalTarget),
     },
   ];
-  return candidates.filter((difference) => Math.abs(roundCurrency(difference.delta)) > 0.01);
+  return candidates.filter((difference) => !isSameDisplayedCurrency(difference.currentValue, difference.importedValue));
 }
 
 function validateHunterConsistency(
@@ -184,15 +186,15 @@ function validateHunterConsistency(
   const importedHunter = roundCurrency(row.hunterTarget);
   const responsiblePerson = findResponsiblePerson(row.responsibleCode, people);
   const hunterAllocations = targetAllocations
-    .filter((allocation) => allocation.customerId === customer.id && allocation.year === year && allocation.type === "hunter" && allocation.amount > 0)
+    .filter((allocation) => allocation.customerId === customer.id && allocation.year === year && allocation.type === "hunter" && allocation.amount > zeroMoneyTolerance)
     .map((allocation) => ({
       allocation,
       person: people.find((person) => person.id === allocation.personId),
     }));
   const allocatedHunterTotal = roundCurrency(hunterAllocations.reduce((total, item) => total + item.allocation.amount, 0));
 
-  if (importedHunter <= 0.01) {
-    if (allocatedHunterTotal > 0.01) {
+  if (importedHunter <= zeroMoneyTolerance) {
+    if (allocatedHunterTotal > zeroMoneyTolerance) {
       return {
         status: "warning" as const,
         message: `Planilha sem Hunter, mas há ${formatPersonNames(hunterAllocations)} com ${allocatedHunterTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })} alocado.`,
@@ -230,7 +232,7 @@ function validateHunterConsistency(
     };
   }
 
-  if (Math.abs(allocatedHunterTotal - importedHunter) > 0.01) {
+  if (!isSameDisplayedCurrency(allocatedHunterTotal, importedHunter)) {
     return {
       status: "warning" as const,
       message: `${responsiblePerson.name} está associado, mas Hunter alocado (${allocatedHunterTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}) difere da planilha.`,
@@ -289,4 +291,8 @@ function formatPersonNames(items: Array<{ person?: Person }>) {
 
 function roundCurrency(value: number) {
   return Math.round(value * 100) / 100;
+}
+
+function isSameDisplayedCurrency(left: number, right: number) {
+  return Math.round(left) === Math.round(right);
 }

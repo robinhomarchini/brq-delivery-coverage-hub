@@ -243,7 +243,7 @@ export function TargetBaselineImport() {
                       <MoneyCell value={comparison.customer ? comparison.customer.hunterTarget + comparison.customer.farmerRenewalTarget : 0} />
                       <TableCell>
                         <p className={cn("font-semibold", hasDifference(comparison, "revenue") && "text-brq-purple")}>{formatCurrency(comparison.row.totalTarget)}</p>
-                        {Math.abs(comparison.sheetTotalDifference) > 0.01 && (
+                        {hasVisibleCurrencyDifference(comparison.sheetTotalDifference) && (
                           <p className="mt-1 text-xs text-red-600">
                             Soma difere {formatCurrency(comparison.sheetTotalDifference)}
                           </p>
@@ -297,6 +297,10 @@ function canApplyComparison(comparison: TargetBaselineComparison) {
 
 function hasDifference(comparison: TargetBaselineComparison, field: "hunterTarget" | "farmerRenewalTarget" | "revenue") {
   return comparison.differences.some((difference) => difference.field === field);
+}
+
+function hasVisibleCurrencyDifference(value: number) {
+  return Math.round(Math.abs(value)) > 0;
 }
 
 function getImportErrorMessage(error: unknown) {
