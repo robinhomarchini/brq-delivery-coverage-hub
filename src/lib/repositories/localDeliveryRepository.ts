@@ -1,6 +1,6 @@
 import { areas, customers, people, subjects, targetAllocations } from "@/data/mockData";
 import type { Customer, Person, Subject, TargetAllocation } from "@/data/mockData";
-import type { DeliveryData, DeliveryRepository, PersonCustomerTargetsInput } from "./types";
+import type { DeliveryData, DeliveryRepository, PersonCustomerRemovalInput, PersonCustomerTargetsInput } from "./types";
 import { validateCustomer, validatePerson, validateSubject, validateTargetAllocation } from "@/lib/validation";
 import {
   applyCoverageAssignments,
@@ -136,6 +136,16 @@ export class LocalDeliveryRepository implements DeliveryRepository {
       }
     }
 
+    return this.getAll();
+  }
+
+  async removePersonCustomerTargets(input: PersonCustomerRemovalInput) {
+    this.assignments = this.assignments.filter((assignment) =>
+      assignment.personId !== input.personId || assignment.customerId !== input.customerId
+    );
+    this.data.targetAllocations = this.data.targetAllocations.filter((allocation) =>
+      allocation.personId !== input.personId || allocation.customerId !== input.customerId
+    );
     return this.getAll();
   }
 

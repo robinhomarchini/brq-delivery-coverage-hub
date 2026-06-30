@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Save, Target, UserRound } from "lucide-react";
+import { Plus, Save, Target, Trash2, UserRound } from "lucide-react";
 import { useMemo, useState, type InputHTMLAttributes } from "react";
 import type { Customer, Person, TargetAllocation, TargetAllocationType } from "@/data/mockData";
 import { PageHeader } from "@/components/shared/page-header";
@@ -23,7 +23,7 @@ type AllocationField = "hunter" | "farmerRenewal";
 
 export function PersonTargetAssignment() {
   const initialParams = useMemo(() => getInitialTargetParams(), []);
-  const { people, customers, targetAllocations, savePersonCustomerTargets } = useDeliveryStore();
+  const { people, customers, targetAllocations, savePersonCustomerTargets, removePersonCustomerTargets } = useDeliveryStore();
   const activePeople = useMemo(() => people.filter((person) => person.active), [people]);
   const assignablePeople = useMemo(() =>
     activePeople.filter((person) => isTargetAssignableRole(person.roleType)),
@@ -40,6 +40,7 @@ export function PersonTargetAssignment() {
   const [selectedCustomerId, setSelectedCustomerId] = useState(initialParams.customerId);
   const [customerToAdd, setCustomerToAdd] = useState("");
   const [savingCustomerId, setSavingCustomerId] = useState("");
+  const [removingCustomerId, setRemovingCustomerId] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -113,6 +114,42 @@ export function PersonTargetAssignment() {
     const nextHunterAmount = parseAmount(drafts[row.customerId]?.hunter ?? row.hunterInput);
     const nextFarmerRenewalAmount = parseAmount(drafts[row.customerId]?.farmerRenewal ?? row.farmerRenewalInput);
     await persistCustomerTargets(row, nextHunterAmount, nextFarmerRenewalAmount);
+  }
+
+  async function removeCustomerFromPerson(row: PersonTargetRow) {
+    if (!effectivePersonId || !selectedPerson) {
+      setErrorMessage("Selecione uma pessoa antes de remover o cliente.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Remover ${row.customerName} de ${selectedPerson.name}?\n\nO vínculo pessoa-cliente será removido e todas as metas dessa pessoa para este cliente serão zeradas.`,
+    );
+    if (!confirmed) return;
+
+    try {
+      setRemovingCustomerId(row.customerId);
+      setErrorMessage("");
+      await removePersonCustomerTargets({
+        customerId: row.customerId,
+        personId: effectivePersonId,
+      });
+      setDrafts((current) => {
+        const next = { ...current };
+        delete next[row.customerId];
+        return next;
+      });
+      setExtraCustomerIds((current) => current.filter((customerId) => customerId !== row.customerId));
+      if (selectedCustomerId === row.customerId) {
+        setSelectedCustomerId("");
+      }
+      setSuccessMessage(`${row.customerName} removido de ${selectedPerson.name}. Metas da pessoa para este cliente foram zeradas.`);
+      window.setTimeout(() => setSuccessMessage(""), 4000);
+    } catch (error) {
+      setErrorMessage(getFormErrorMessage(error));
+    } finally {
+      setRemovingCustomerId("");
+    }
   }
 
   async function quickAllocateCustomerTarget(row: PersonTargetRow, field: AllocationField) {
@@ -377,11 +414,21 @@ export function PersonTargetAssignment() {
                   <TableCell className="font-bold text-slate-950">{formatCurrency(row.personTotal)}</TableCell>
                   <TableCell><ClientStatusBadge status={row.clientStatus} /></TableCell>
                   <TableCell>
-                    <div className="flex justify-end">
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-red-700 hover:text-red-800"
+                        onClick={() => removeCustomerFromPerson(row)}
+                        disabled={savingCustomerId === row.customerId || removingCustomerId === row.customerId}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        {removingCustomerId === row.customerId ? "Removendo..." : "Remover"}
+                      </Button>
                       <Button
                         size="sm"
                         onClick={() => saveCustomerTargets(row)}
-                        disabled={savingCustomerId === row.customerId}
+                        disabled={savingCustomerId === row.customerId || removingCustomerId === row.customerId}
                       >
                         <Save className="h-4 w-4" />
                         {savingCustomerId === row.customerId ? "Salvando..." : "Salvar"}

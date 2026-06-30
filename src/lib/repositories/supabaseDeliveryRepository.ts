@@ -10,7 +10,7 @@ import {
   type TargetAllocationType,
 } from "@/data/mockData";
 import type { DeliveryData, DeliveryRepository } from "./types";
-import type { PersonCustomerTargetsInput } from "./types";
+import type { PersonCustomerRemovalInput, PersonCustomerTargetsInput } from "./types";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { validateCustomer, validatePerson, validateSubject, validateTargetAllocation } from "@/lib/validation";
 import {
@@ -150,6 +150,14 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
     const savedWithRpc = await this.trySavePersonCustomerTargetsWithRpc(input);
     if (!savedWithRpc) {
       await this.savePersonCustomerTargetsWithFallback(input);
+    }
+    return this.fetchAll();
+  }
+
+  async removePersonCustomerTargets(input: PersonCustomerRemovalInput) {
+    const removedWithRpc = await this.tryRemovePersonCustomerTargetsWithRpc(input);
+    if (!removedWithRpc) {
+      await this.removePersonCustomerTargetsWithFallback(input);
     }
     return this.fetchAll();
   }
@@ -308,6 +316,33 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
     if (!error) return true;
     if (isMissingRpcError(error)) return false;
     throw error;
+  }
+
+  private async tryRemovePersonCustomerTargetsWithRpc(input: PersonCustomerRemovalInput) {
+    const { error } = await this.client.rpc("remove_person_customer_targets", {
+      p_customer_id: input.customerId,
+      p_person_id: input.personId,
+    });
+
+    if (!error) return true;
+    if (isMissingRpcError(error)) return false;
+    throw error;
+  }
+
+  private async removePersonCustomerTargetsWithFallback(input: PersonCustomerRemovalInput) {
+    const { error: targetError } = await this.client
+      .from("revenue_target_allocations")
+      .delete()
+      .eq("customer_id", input.customerId)
+      .eq("person_id", input.personId);
+    if (targetError) throw targetError;
+
+    const { error: assignmentError } = await this.client
+      .from("person_customer_assignments")
+      .delete()
+      .eq("customer_id", input.customerId)
+      .eq("person_id", input.personId);
+    if (assignmentError) throw assignmentError;
   }
 
   private async savePersonCustomerTargetsWithFallback(input: PersonCustomerTargetsInput) {

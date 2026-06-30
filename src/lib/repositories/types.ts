@@ -10,6 +10,11 @@ export interface PersonCustomerTargetsInput {
   notes?: string;
 }
 
+export interface PersonCustomerRemovalInput {
+  customerId: string;
+  personId: string;
+}
+
 export interface DeliveryData {
   people: Person[];
   customers: Customer[];
@@ -29,4 +34,5 @@ export interface DeliveryRepository {
   saveTargetAllocation(allocation: TargetAllocation): Promise<TargetAllocation>;
   deleteTargetAllocation(id: string): Promise<void>;
   savePersonCustomerTargets(input: PersonCustomerTargetsInput): Promise<DeliveryData>;
+  removePersonCustomerTargets(input: PersonCustomerRemovalInput): Promise<DeliveryData>;
 }

@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { areas as initialAreas, customers as initialCustomers, people as initialPeople, subjects as initialSubjects, targetAllocations as initialTargetAllocations } from "@/data/mockData";
 import type { Area, Customer, Person, Subject, TargetAllocation } from "@/data/mockData";
 import { createSupabaseDeliveryRepository, localDeliveryRepository } from "@/lib/repositories";
-import type { DeliveryRepository, PersonCustomerTargetsInput } from "@/lib/repositories";
+import type { DeliveryRepository, PersonCustomerRemovalInput, PersonCustomerTargetsInput } from "@/lib/repositories";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 
 interface DeliveryStoreValue {
@@ -25,6 +25,7 @@ interface DeliveryStoreValue {
   saveTargetAllocation: (allocation: TargetAllocation) => Promise<void>;
   deleteTargetAllocation: (id: string) => Promise<void>;
   savePersonCustomerTargets: (input: PersonCustomerTargetsInput) => Promise<void>;
+  removePersonCustomerTargets: (input: PersonCustomerRemovalInput) => Promise<void>;
 }
 
 const DeliveryStoreContext = createContext<DeliveryStoreValue | null>(null);
@@ -185,6 +186,21 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         throw new Error(message);
       }
     },
+    removePersonCustomerTargets: async (input) => {
+      try {
+        const data = await repository.removePersonCustomerTargets(input);
+        setPeople(data.people);
+        setCustomers(data.customers);
+        setSubjects(data.subjects);
+        setAreas(data.areas);
+        setTargetAllocations(data.targetAllocations);
+        setError("");
+      } catch (error) {
+        const message = `Não foi possível remover o cliente da pessoa. ${getErrorMessage(error)}`;
+        setError(message);
+        throw new Error(message);
+      }
+    },
   }), [areas, customers, error, loading, people, repository, subjects, targetAllocations]);
 
   return <DeliveryStoreContext.Provider value={value}>{children}</DeliveryStoreContext.Provider>;
@@ -248,6 +264,9 @@ const unavailableProductionRepository: DeliveryRepository = {
     throw new Error(productionConfigurationError);
   },
   async savePersonCustomerTargets() {
+    throw new Error(productionConfigurationError);
+  },
+  async removePersonCustomerTargets() {
     throw new Error(productionConfigurationError);
   },
 };

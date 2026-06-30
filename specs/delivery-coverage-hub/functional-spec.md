@@ -81,6 +81,11 @@ alocado a outras pessoas para aquele tipo, salvar imediatamente a meta daquele
 tipo para a pessoa selecionada no ano corrente da tela. Se não houver saldo
 disponível, deve exibir uma mensagem clara orientando revisar as pessoas já
 associadas.
+Cada linha da tela Metas por Pessoa deve permitir remover explicitamente o
+cliente da pessoa selecionada. Essa ação deve pedir confirmação, remover o
+vínculo pessoa-cliente em `person_customer_assignments` e apagar/zerar as metas
+daquela pessoa para aquele cliente em `revenue_target_allocations`, evitando que
+o cliente continue reaparecendo por metas antigas ou associação residual.
 Essa tela deve suportar navegação contextual: links vindos da tela de Clientes
 devem abrir Metas por Pessoa com o cliente em foco já selecionado. O usuário
 então escolhe a pessoa lançável e edita diretamente aquele cliente, sem precisar
