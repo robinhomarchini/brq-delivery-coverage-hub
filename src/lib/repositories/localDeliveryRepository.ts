@@ -110,17 +110,32 @@ export class LocalDeliveryRepository implements DeliveryRepository {
 
     const nextHunterAmount = sanitizeAmount(input.hunterAmount);
     const nextFarmerRenewalAmount = sanitizeAmount(input.farmerRenewalAmount);
-    const otherPeopleTotal = this.data.targetAllocations
-      .filter((item) => item.customerId === input.customerId && item.year === input.year && item.personId !== input.personId)
+    const otherHunterTotal = this.data.targetAllocations
+      .filter((item) => item.customerId === input.customerId && item.year === input.year && item.personId !== input.personId && item.type === "hunter")
       .reduce((total, item) => total + item.amount, 0);
-    const nextCustomerTotal = otherPeopleTotal + nextHunterAmount + nextFarmerRenewalAmount;
+    const otherFarmerRenewalTotal = this.data.targetAllocations
+      .filter((item) => item.customerId === input.customerId && item.year === input.year && item.personId !== input.personId && item.type === "farmer_renewal")
+      .reduce((total, item) => total + item.amount, 0);
+    const nextHunterTotal = otherHunterTotal + nextHunterAmount;
+    const nextFarmerRenewalTotal = otherFarmerRenewalTotal + nextFarmerRenewalAmount;
+    const nextHunterTarget = Math.max(customer.hunterTarget, nextHunterTotal);
+    const nextFarmerRenewalTarget = Math.max(customer.farmerRenewalTarget, nextFarmerRenewalTotal);
+    const targetIncreaseRequired = nextHunterTotal > customer.hunterTarget + 0.01
+      || nextFarmerRenewalTotal > customer.farmerRenewalTarget + 0.01;
 
-    if (customer.revenue > 0 && nextCustomerTotal > customer.revenue + 0.01) {
+    if (targetIncreaseRequired) {
       if (!input.increaseCustomerTarget) {
-        throw new Error(`A soma das metas das pessoas ultrapassa a meta total do cliente (${customer.revenue}).`);
+        throw new Error(`A soma das metas das pessoas ultrapassa a meta do cliente (${customer.revenue}).`);
       }
       this.data.customers = this.data.customers.map((item) =>
-        item.id === input.customerId ? { ...item, revenue: nextCustomerTotal } : item
+        item.id === input.customerId
+          ? {
+            ...item,
+            hunterTarget: nextHunterTarget,
+            farmerRenewalTarget: nextFarmerRenewalTarget,
+            revenue: nextHunterTarget + nextFarmerRenewalTarget,
+          }
+          : item
       );
     }
 

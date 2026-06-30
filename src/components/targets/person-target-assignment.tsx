@@ -13,7 +13,6 @@ import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useDeliveryStore } from "@/store/delivery-store";
 import { formatCurrency } from "@/lib/utils";
-import { getFinancialCustomerMetric } from "@/lib/financial-customers";
 import { isTargetAssignableRole } from "@/lib/roles";
 
 const currentYear = 2026;
@@ -780,52 +779,16 @@ function getClientStatus(hunterTarget: number, hunterAllocated: number, farmerRe
 }
 
 function getCustomerTarget(customer: Customer) {
-  return customer.revenue || getFinancialCustomerMetric(customer.name, "revenueTarget");
+  return roundCurrency(customer.hunterTarget + customer.farmerRenewalTarget);
 }
 
 function getCustomerTargetBreakdown(customer: Customer, allocations: TargetAllocation[], year: number) {
-  const customerTarget = getCustomerTarget(customer);
-  const importedHunter = getFinancialCustomerMetric(customer.name, "hunterRevenue");
-  const importedFarmerRenewal = getFinancialCustomerMetric(customer.name, "deliveryFarmerRevenue");
-  const importedTotal = importedHunter + importedFarmerRenewal;
-
-  if (customerTarget <= 0) return { hunter: 0, farmerRenewal: 0 };
-  if (importedTotal <= 0) return { hunter: 0, farmerRenewal: customerTarget };
-
-  const difference = customerTarget - importedTotal;
-  if (Math.abs(difference) <= 0.01) {
-    return { hunter: importedHunter, farmerRenewal: importedFarmerRenewal };
-  }
-
-  if (difference < -0.01) {
-    const ratio = customerTarget / importedTotal;
-    const hunter = roundCurrency(importedHunter * ratio);
-    return { hunter, farmerRenewal: roundCurrency(customerTarget - hunter) };
-  }
-
-  const allocatedHunter = sumCustomerAllocations(allocations, customer.id, year, "hunter");
-  const allocatedFarmerRenewal = sumCustomerAllocations(allocations, customer.id, year, "farmer_renewal");
-  const hunterOverImported = Math.max(0, allocatedHunter - importedHunter);
-  const farmerRenewalOverImported = Math.max(0, allocatedFarmerRenewal - importedFarmerRenewal);
-  const overImportedTotal = hunterOverImported + farmerRenewalOverImported;
-
-  if (overImportedTotal > 0.01) {
-    const hunterIncrease = roundCurrency(difference * (hunterOverImported / overImportedTotal));
-    return {
-      hunter: importedHunter + hunterIncrease,
-      farmerRenewal: roundCurrency(customerTarget - importedHunter - hunterIncrease),
-    };
-  }
-
-  const hunterRatio = importedHunter / importedTotal;
-  const hunter = roundCurrency(importedHunter + difference * hunterRatio);
-  return { hunter, farmerRenewal: roundCurrency(customerTarget - hunter) };
-}
-
-function sumCustomerAllocations(allocations: TargetAllocation[], customerId: string, year: number, type: TargetAllocationType) {
-  return allocations
-    .filter((allocation) => allocation.customerId === customerId && allocation.year === year && allocation.type === type)
-    .reduce((total, allocation) => total + allocation.amount, 0);
+  void allocations;
+  void year;
+  return {
+    hunter: roundCurrency(customer.hunterTarget),
+    farmerRenewal: roundCurrency(customer.farmerRenewalTarget),
+  };
 }
 
 function getGapTone(value: number) {

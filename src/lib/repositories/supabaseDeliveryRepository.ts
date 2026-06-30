@@ -12,6 +12,7 @@ import {
 import type { DeliveryData, DeliveryRepository } from "./types";
 import type { PersonCustomerRemovalInput, PersonCustomerTargetsInput } from "./types";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { getFinancialCustomerMetric } from "@/lib/financial-customers";
 import { validateCustomer, validatePerson, validateSubject, validateTargetAllocation } from "@/lib/validation";
 import {
   applyCoverageAssignments,
@@ -52,6 +53,8 @@ type CustomerRow = {
   manager_responsible_id: string | null;
   manager_responsible_ids?: string[] | null;
   territory_id: string | null;
+  hunter_target?: number | string | null;
+  farmer_renewal_target?: number | string | null;
   revenue: number | string;
   margin: number | string;
   strategic_account: boolean;
@@ -108,12 +111,9 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
 
   async saveCustomer(customer: Customer) {
     const validated = validateCustomer(customer);
-    const savedWithRpc = await this.trySaveCustomerWithRpc(validated);
-    if (!savedWithRpc) {
-      const { error } = await this.client.from("customers").upsert(toCustomerRow(validated));
-      if (error) throw error;
-      await this.replaceCustomerManagerAssignments(validated.id, validated.managerResponsibleIds);
-    }
+    const { error } = await this.client.from("customers").upsert(toCustomerRow(validated));
+    if (error) throw error;
+    await this.replaceCustomerManagerAssignments(validated.id, validated.managerResponsibleIds);
     return this.fetchAll();
   }
 
@@ -303,19 +303,8 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
   }
 
   private async trySavePersonCustomerTargetsWithRpc(input: PersonCustomerTargetsInput) {
-    const { error } = await this.client.rpc("save_person_customer_targets", {
-      p_customer_id: input.customerId,
-      p_person_id: input.personId,
-      p_target_year: input.year,
-      p_hunter_amount: sanitizeAmount(input.hunterAmount),
-      p_farmer_renewal_amount: sanitizeAmount(input.farmerRenewalAmount),
-      p_increase_customer_target: input.increaseCustomerTarget,
-      p_notes: input.notes ?? "Meta associada pela tela Metas por Pessoa.",
-    });
-
-    if (!error) return true;
-    if (isMissingRpcError(error)) return false;
-    throw error;
+    void input;
+    return false;
   }
 
   private async tryRemovePersonCustomerTargetsWithRpc(input: PersonCustomerRemovalInput) {
@@ -364,18 +353,30 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
     const allocations = (allocationsResult.data as TargetAllocationRow[]).map(fromTargetAllocationRow);
     const nextHunterAmount = sanitizeAmount(input.hunterAmount);
     const nextFarmerRenewalAmount = sanitizeAmount(input.farmerRenewalAmount);
-    const otherPeopleTotal = allocations
-      .filter((allocation) => allocation.personId !== input.personId)
+    const otherHunterTotal = allocations
+      .filter((allocation) => allocation.personId !== input.personId && allocation.type === "hunter")
       .reduce((total, allocation) => total + allocation.amount, 0);
-    const nextCustomerTotal = otherPeopleTotal + nextHunterAmount + nextFarmerRenewalAmount;
+    const otherFarmerRenewalTotal = allocations
+      .filter((allocation) => allocation.personId !== input.personId && allocation.type === "farmer_renewal")
+      .reduce((total, allocation) => total + allocation.amount, 0);
+    const nextHunterTotal = otherHunterTotal + nextHunterAmount;
+    const nextFarmerRenewalTotal = otherFarmerRenewalTotal + nextFarmerRenewalAmount;
+    const nextHunterTarget = Math.max(customer.hunterTarget, nextHunterTotal);
+    const nextFarmerRenewalTarget = Math.max(customer.farmerRenewalTarget, nextFarmerRenewalTotal);
+    const targetIncreaseRequired = nextHunterTotal > customer.hunterTarget + 0.01
+      || nextFarmerRenewalTotal > customer.farmerRenewalTarget + 0.01;
 
-    if (customer.revenue > 0 && nextCustomerTotal > customer.revenue + 0.01) {
+    if (targetIncreaseRequired) {
       if (!input.increaseCustomerTarget) {
-        throw new Error(`A soma das metas das pessoas ultrapassa a meta total do cliente (${customer.revenue}).`);
+        throw new Error(`A soma das metas das pessoas ultrapassa a meta do cliente (${customer.revenue}).`);
       }
       const { error: customerError } = await this.client
         .from("customers")
-        .update({ revenue: nextCustomerTotal })
+        .update({
+          hunter_target: nextHunterTarget,
+          farmer_renewal_target: nextFarmerRenewalTarget,
+          revenue: nextHunterTarget + nextFarmerRenewalTarget,
+        })
         .eq("id", input.customerId);
       if (customerError) throw customerError;
     }
@@ -499,6 +500,8 @@ function toCustomerRow(customer: Customer): CustomerRow {
     manager_responsible_id: null,
     manager_responsible_ids: [],
     territory_id: null,
+    hunter_target: customer.hunterTarget,
+    farmer_renewal_target: customer.farmerRenewalTarget,
     revenue: customer.revenue,
     margin: customer.margin,
     strategic_account: customer.strategicAccount,
@@ -506,16 +509,37 @@ function toCustomerRow(customer: Customer): CustomerRow {
 }
 
 function fromCustomerRow(row: CustomerRow): Customer {
+  const revenue = Number(row.revenue);
+  const targetDefaults = getCustomerTargetDefaults(row.name, revenue);
+  const hunterTarget = row.hunter_target == null ? targetDefaults.hunter : Number(row.hunter_target);
+  const farmerRenewalTarget = row.farmer_renewal_target == null ? targetDefaults.farmerRenewal : Number(row.farmer_renewal_target);
+
   return {
     id: row.id,
     name: row.name,
     industry: row.industry,
     directorResponsibleId: row.director_responsible_id,
     managerResponsibleIds: row.manager_responsible_ids ?? (row.manager_responsible_id ? [row.manager_responsible_id] : []),
-    revenue: Number(row.revenue),
+    hunterTarget,
+    farmerRenewalTarget,
+    revenue: roundCurrency(hunterTarget + farmerRenewalTarget),
     margin: Number(row.margin),
     strategicAccount: row.strategic_account,
   };
+}
+
+function getCustomerTargetDefaults(name: string, revenue: number) {
+  const importedHunter = getFinancialCustomerMetric(name, "hunterRevenue");
+  const importedFarmerRenewal = getFinancialCustomerMetric(name, "deliveryFarmerRevenue");
+  const importedTotal = importedHunter + importedFarmerRenewal;
+  if (revenue <= 0) return { hunter: 0, farmerRenewal: 0 };
+  if (importedTotal <= 0) return { hunter: 0, farmerRenewal: revenue };
+  const hunter = roundCurrency(revenue * (importedHunter / importedTotal));
+  return { hunter, farmerRenewal: roundCurrency(revenue - hunter) };
+}
+
+function roundCurrency(value: number) {
+  return Math.round(value * 100) / 100;
 }
 
 function fromAssignmentRow(row: AssignmentRow): CoverageAssignment {

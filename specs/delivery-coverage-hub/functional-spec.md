@@ -18,14 +18,13 @@ leva diretamente para a tela operacional de ajuste correspondente.
 
 A tela de Clientes usa os clientes-fonte da planilha Financial BU como base
 operacional. O formulário de novo cliente exibe Nome do cliente, Indústria,
-Diretor responsável, Managers responsáveis, Conta estratégica, Meta total e
-Margem. A listagem e o formulário exibem a composição financeira em Meta Hunter,
-Meta Renovação + Ampliação e Meta Total, sempre formatada em reais. A meta total
-continua sendo o campo editável do cliente. Quando já houver metas por pessoa no
-ano corrente, a quebra Hunter/Renovação deve ser derivada de
-`revenue_target_allocations`, que é a fonte operacional de distribuição. A carga
-Financial BU pode sugerir a quebra inicial apenas enquanto não existir
-distribuição operacional cadastrada para o cliente/ano.
+Diretor responsável, Managers responsáveis, Conta estratégica, Meta Hunter, Meta
+Renovação + Ampliação, Meta Total calculada e Margem. A listagem e o formulário
+exibem a composição financeira em Meta Hunter, Meta Renovação + Ampliação e Meta
+Total, sempre formatada em reais. A tela de Clientes é a base da meta do
+cliente: Meta Total é calculada por Meta Hunter + Meta Renovação + Ampliação. A
+carga Financial BU pode sugerir a quebra inicial, mas após edição os campos do
+cadastro do cliente são a fonte de verdade para as demais telas.
 No modal de edição, a composição da meta também deve mostrar a distribuição por
 pessoa no ano corrente, separando Hunter, Renovação + Ampliação e Total por
 pessoa. Quando parte da meta ainda não estiver alocada, a tela deve exibir uma
@@ -75,12 +74,13 @@ diretor responsável pelo cliente, como CA ou Ane Knust. Managers e pessoas que
 compõem as metas devem ficar nas colunas seguintes, evitando duplicidade visual.
 
 Na tela Metas por Pessoa, os valores de Hunter e Renovação + Ampliação exibidos
-na coluna "Meta do Cliente" devem funcionar como atalhos de alocação. Ao clicar
-em um valor, o sistema deve pedir confirmação e, se houver saldo disponível não
-alocado a outras pessoas para aquele tipo, salvar imediatamente a meta daquele
-tipo para a pessoa selecionada no ano corrente da tela. Se não houver saldo
-disponível, deve exibir uma mensagem clara orientando revisar as pessoas já
-associadas.
+na coluna "Meta do Cliente" devem vir diretamente da base do cliente
+(`customers.hunter_target` e `customers.farmer_renewal_target`). Esses valores
+funcionam como atalhos de alocação. Ao clicar em um valor, o sistema deve pedir
+confirmação e, se houver saldo disponível não alocado a outras pessoas para
+aquele tipo, salvar imediatamente a meta daquele tipo para a pessoa selecionada
+no ano corrente da tela. Se não houver saldo disponível, deve exibir uma mensagem
+clara orientando revisar as pessoas já associadas.
 Cada linha da tela Metas por Pessoa deve permitir remover explicitamente o
 cliente da pessoa selecionada. Essa ação deve pedir confirmação, remover o
 vínculo pessoa-cliente em `person_customer_assignments` e apagar/zerar as metas

@@ -47,6 +47,8 @@ export interface Customer {
   industry: string;
   directorResponsibleId: string;
   managerResponsibleIds: string[];
+  hunterTarget: number;
+  farmerRenewalTarget: number;
   revenue: number;
   margin: number;
   strategicAccount: boolean;
@@ -86,6 +88,8 @@ export const customers: Customer[] = financialSourceCustomerNames.map((name) => 
   name,
   industry: "Financial Services",
   ...getFinancialCustomerGovernance(name),
+  hunterTarget: getFinancialCustomerMetric(name, "hunterRevenue"),
+  farmerRenewalTarget: getFinancialCustomerMetric(name, "deliveryFarmerRevenue"),
   revenue: getFinancialCustomerMetric(name, "revenueTarget"),
   margin: 22.5,
   strategicAccount: true,

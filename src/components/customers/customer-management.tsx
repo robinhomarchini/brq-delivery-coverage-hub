@@ -84,7 +84,8 @@ export function CustomerManagement() {
   const [formName, setFormName] = useState(initialCustomer?.name ?? "");
   const [formDirectorId, setFormDirectorId] = useState(initialCustomer?.directorResponsibleId ?? "");
   const [formManagerIds, setFormManagerIds] = useState<string[]>(initialCustomer?.managerResponsibleIds ?? []);
-  const [formRevenue, setFormRevenue] = useState(getInputValue(initialCustomer?.revenue ?? getFinancialCustomerMetric(initialCustomer?.name ?? "", "revenueTarget")));
+  const [formHunterTarget, setFormHunterTarget] = useState(getInputValue(initialCustomer?.hunterTarget ?? getFinancialCustomerMetric(initialCustomer?.name ?? "", "hunterRevenue")));
+  const [formFarmerRenewalTarget, setFormFarmerRenewalTarget] = useState(getInputValue(initialCustomer?.farmerRenewalTarget ?? getFinancialCustomerMetric(initialCustomer?.name ?? "", "deliveryFarmerRevenue")));
   const [successMessage, setSuccessMessage] = useState("");
   const [formError, setFormError] = useState("");
   const directors = useMemo(() => people
@@ -106,9 +107,12 @@ export function CustomerManagement() {
       && (!manager || customer.managerResponsibleIds.includes(manager))
       && (!strategic || String(customer.strategicAccount) === strategic);
   }), [customers, director, manager, search, strategic]);
+  const formHunterAmount = parseAmount(formHunterTarget);
+  const formFarmerRenewalAmount = parseAmount(formFarmerRenewalTarget);
+  const formRevenue = roundCurrency(formHunterAmount + formFarmerRenewalAmount);
 
   const targetTotals = filtered.reduce((totals, customer) => {
-    const breakdown = getCustomerTargetBreakdown(customer, targetAllocations, currentYear);
+    const breakdown = getCustomerTargetBreakdown(customer);
     return {
       hunter: totals.hunter + breakdown.hunter,
       farmerRenewal: totals.farmerRenewal + breakdown.farmerRenewal,
@@ -122,17 +126,21 @@ export function CustomerManagement() {
     industry: linkedEditing?.industry ?? "Financial Services",
     directorResponsibleId: formDirectorId,
     managerResponsibleIds: formManagerIds,
-    revenue: parseAmount(formRevenue),
+    hunterTarget: formHunterAmount,
+    farmerRenewalTarget: formFarmerRenewalAmount,
+    revenue: formRevenue,
     margin: linkedEditing?.margin ?? 0,
     strategicAccount: linkedEditing?.strategicAccount ?? true,
-  }, targetAllocations, currentYear);
+  });
   const allocationComposition = linkedEditing
     ? getCustomerAllocationComposition(
       {
         ...linkedEditing,
         name: formName || linkedEditing.name,
         managerResponsibleIds: formManagerIds,
-        revenue: parseAmount(formRevenue),
+        hunterTarget: formHunterAmount,
+        farmerRenewalTarget: formFarmerRenewalAmount,
+        revenue: formRevenue,
       },
       people,
       targetAllocations,
@@ -146,7 +154,9 @@ export function CustomerManagement() {
         ...linkedEditing,
         name: formName || linkedEditing.name,
         managerResponsibleIds: formManagerIds,
-        revenue: parseAmount(formRevenue),
+        hunterTarget: formHunterAmount,
+        farmerRenewalTarget: formFarmerRenewalAmount,
+        revenue: formRevenue,
       },
       people,
       targetAllocations,
@@ -160,7 +170,8 @@ export function CustomerManagement() {
     setFormName(item?.name ?? "");
     setFormDirectorId(item?.directorResponsibleId ?? defaults.directorResponsibleId);
     setFormManagerIds(item?.managerResponsibleIds ?? defaults.managerResponsibleIds);
-    setFormRevenue(getInputValue(item?.revenue ?? getFinancialCustomerMetric(item?.name ?? "", "revenueTarget")));
+    setFormHunterTarget(getInputValue(item?.hunterTarget ?? getFinancialCustomerMetric(item?.name ?? "", "hunterRevenue")));
+    setFormFarmerRenewalTarget(getInputValue(item?.farmerRenewalTarget ?? getFinancialCustomerMetric(item?.name ?? "", "deliveryFarmerRevenue")));
     setFormError("");
     setManualOpen(true);
     setDismissInitialOpen(false);
@@ -171,9 +182,9 @@ export function CustomerManagement() {
     const defaults = getCustomerDefaults(name, directors, managers);
     setFormDirectorId(defaults.directorResponsibleId);
     setFormManagerIds(defaults.managerResponsibleIds);
-    const importedTarget = getFinancialCustomerMetric(name, "revenueTarget");
-    if (!linkedEditing && importedTarget > 0) {
-      setFormRevenue(getInputValue(importedTarget));
+    if (!linkedEditing) {
+      setFormHunterTarget(getInputValue(getFinancialCustomerMetric(name, "hunterRevenue")));
+      setFormFarmerRenewalTarget(getInputValue(getFinancialCustomerMetric(name, "deliveryFarmerRevenue")));
     }
   }
 
@@ -191,7 +202,9 @@ export function CustomerManagement() {
       industry: String(formData.get("industry")),
       directorResponsibleId: String(formData.get("directorResponsibleId") || defaults.directorResponsibleId),
       managerResponsibleIds: validManagers,
-      revenue: parseAmount(formRevenue),
+      hunterTarget: formHunterAmount,
+      farmerRenewalTarget: formFarmerRenewalAmount,
+      revenue: formRevenue,
       margin: Number(formData.get("margin")),
       strategicAccount: formData.get("strategicAccount") === "true",
       });
@@ -239,7 +252,7 @@ export function CustomerManagement() {
             </TableRow></TableHeader>
             <TableBody>
               {filtered.map((customer) => {
-                const breakdown = getCustomerTargetBreakdown(customer, targetAllocations, currentYear);
+                const breakdown = getCustomerTargetBreakdown(customer);
                 const targetPeople = getCustomerTargetPeople(customer, people, targetAllocations, currentYear);
                 return (
                   <TableRow
@@ -304,29 +317,51 @@ export function CustomerManagement() {
               <span className="mt-1 block text-xs text-slate-400">Mova um ou mais managers para a lista de selecionados. A regra automática apenas sugere o padrão inicial.</span>
             </Field>
             <Field label="Conta estratégica"><Select name="strategicAccount" defaultValue={String(linkedEditing?.strategicAccount ?? true)}><option value="true">Sim</option><option value="false">Não</option></Select></Field>
-            <Field label="Meta total (R$)">
+            <Field label="Meta Hunter (R$)">
               <div className="flex items-center rounded-xl border border-slate-200 bg-white px-3 focus-within:border-purple-400 focus-within:ring-2 focus-within:ring-purple-100">
                 <span className="mr-2 text-sm font-semibold text-slate-400">R$</span>
                 <Input
-                  name="revenue"
+                  name="hunterTarget"
                   type="text"
                   inputMode="decimal"
                   autoComplete="off"
-                  value={formRevenue}
-                  onChange={(event) => setFormRevenue(event.target.value)}
+                  value={formHunterTarget}
+                  onChange={(event) => setFormHunterTarget(event.target.value)}
                   onFocus={(event) => event.currentTarget.select()}
                   className="h-10 border-0 px-0 text-right font-semibold tabular-nums focus:ring-0"
                   required
                 />
               </div>
-              <span className="mt-1 block text-xs text-slate-500">{formatCurrency(parseAmount(formRevenue))}</span>
+              <span className="mt-1 block text-xs text-slate-500">{formatCurrency(formHunterAmount)}</span>
             </Field>
+            <Field label="Meta Renovação + Ampliação (R$)">
+              <div className="flex items-center rounded-xl border border-slate-200 bg-white px-3 focus-within:border-purple-400 focus-within:ring-2 focus-within:ring-purple-100">
+                <span className="mr-2 text-sm font-semibold text-slate-400">R$</span>
+                <Input
+                  name="farmerRenewalTarget"
+                  type="text"
+                  inputMode="decimal"
+                  autoComplete="off"
+                  value={formFarmerRenewalTarget}
+                  onChange={(event) => setFormFarmerRenewalTarget(event.target.value)}
+                  onFocus={(event) => event.currentTarget.select()}
+                  className="h-10 border-0 px-0 text-right font-semibold tabular-nums focus:ring-0"
+                  required
+                />
+              </div>
+              <span className="mt-1 block text-xs text-slate-500">{formatCurrency(formFarmerRenewalAmount)}</span>
+            </Field>
+            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Meta total</p>
+              <p className="mt-2 text-2xl font-black text-slate-950">{formatCurrency(formRevenue)}</p>
+              <p className="mt-1 text-xs text-slate-500">Calculada por Hunter + Renovação + Ampliação.</p>
+            </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 md:col-span-2">
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Composição da meta</p>
               <TargetBreakdownView breakdown={formBreakdown} compact />
               {allocationComposition && <CustomerAllocationCompositionView composition={allocationComposition} />}
               <p className="mt-2 text-xs text-slate-500">
-                Quando houver metas por pessoa, a quebra Hunter / Renovação + Ampliação vem de Metas por Pessoa. A carga Financial BU é usada apenas como referência inicial.
+                A tela de Cliente é a base da meta. Metas por Pessoa distribui estes valores entre os responsáveis.
               </p>
             </div>
             {allocationWarning && <CustomerAllocationWarning warning={allocationWarning} />}
@@ -578,63 +613,15 @@ function findPersonIdsByName(people: Person[], names: string[]) {
     .map((person) => person.id);
 }
 
-function getCustomerTargetBreakdown(customer: Customer, allocations: TargetAllocation[], year: number): CustomerTargetBreakdown {
-  const customerTarget = getCustomerTarget(customer);
-  const allocatedBreakdown = getAllocatedCustomerTargetBreakdown(customer, allocations, year);
-  if (customerTarget <= 0) return { hunter: 0, farmerRenewal: 0, total: 0 };
-
-  if (allocatedBreakdown.total > 0.01) {
-    if (Math.abs(customerTarget - allocatedBreakdown.total) <= 0.01) {
-      return {
-        hunter: allocatedBreakdown.hunter,
-        farmerRenewal: allocatedBreakdown.farmerRenewal,
-        total: customerTarget,
-      };
-    }
-
-    const hunterRatio = allocatedBreakdown.hunter / allocatedBreakdown.total;
-    const hunter = roundCurrency(customerTarget * hunterRatio);
-    return {
-      hunter,
-      farmerRenewal: roundCurrency(customerTarget - hunter),
-      total: customerTarget,
-    };
-  }
-
-  const importedHunter = getFinancialCustomerMetric(customer.name, "hunterRevenue");
-  const importedFarmerRenewal = getFinancialCustomerMetric(customer.name, "deliveryFarmerRevenue");
-  const importedTotal = importedHunter + importedFarmerRenewal;
-
-  if (importedTotal <= 0) return { hunter: 0, farmerRenewal: customerTarget, total: customerTarget };
-
-  const ratio = customerTarget / importedTotal;
-  const hunter = roundCurrency(importedHunter * ratio);
-  const farmerRenewal = roundCurrency(customerTarget - hunter);
-  return { hunter, farmerRenewal, total: roundCurrency(hunter + farmerRenewal) };
-}
-
-function getAllocatedCustomerTargetBreakdown(
-  customer: Customer,
-  allocations: TargetAllocation[],
-  year: number,
-): CustomerTargetBreakdown {
-  const customerAllocations = allocations.filter((allocation) =>
-    allocation.customerId === customer.id
-    && allocation.year === year
-    && allocation.amount > 0
-  );
-  const hunter = roundCurrency(customerAllocations
-    .filter((allocation) => allocation.type === "hunter")
-    .reduce((sum, allocation) => sum + allocation.amount, 0));
-  const farmerRenewal = roundCurrency(customerAllocations
-    .filter((allocation) => allocation.type === "farmer_renewal")
-    .reduce((sum, allocation) => sum + allocation.amount, 0));
-
+function getCustomerTargetBreakdown(customer: Customer): CustomerTargetBreakdown {
+  const hunter = roundCurrency(customer.hunterTarget);
+  const farmerRenewal = roundCurrency(customer.farmerRenewalTarget);
   return { hunter, farmerRenewal, total: roundCurrency(hunter + farmerRenewal) };
 }
 
 function getCustomerTarget(customer: Customer) {
-  return Number.isFinite(customer.revenue) ? customer.revenue : getFinancialCustomerMetric(customer.name, "revenueTarget");
+  const breakdown = getCustomerTargetBreakdown(customer);
+  return breakdown.total;
 }
 
 function getCustomerAllocationWarning(
