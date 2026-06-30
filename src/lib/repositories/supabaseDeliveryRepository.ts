@@ -248,17 +248,8 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
       .map((row) => row.id);
 
     if (currentManagerIds.length) {
-      const { data: assignmentData, error: assignmentError } = await this.client
-        .from("person_customer_assignments")
-        .select("person_id")
-        .eq("customer_id", customerId)
-        .in("person_id", currentManagerIds);
-      if (assignmentError) throw assignmentError;
-
       const nextManagerIds = new Set(managerIds);
-      const removedManagerIds = (assignmentData as AssignmentRow[])
-        .map((assignment) => assignment.person_id)
-        .filter((personId) => !nextManagerIds.has(personId));
+      const removedManagerIds = currentManagerIds.filter((personId) => !nextManagerIds.has(personId));
 
       if (removedManagerIds.length) {
         const { error: deleteTargetError } = await this.client

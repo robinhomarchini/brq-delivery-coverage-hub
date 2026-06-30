@@ -51,9 +51,7 @@ export class LocalDeliveryRepository implements DeliveryRepository {
       .filter((person) => isCustomerManagerProfile(person.roleType, person.isManager))
       .map((person) => person.id));
     const nextManagerIds = new Set(customer.managerResponsibleIds);
-    const removedManagerIds = new Set(this.assignments
-      .filter((assignment) => assignment.customerId === customer.id && managerIds.has(assignment.personId) && !nextManagerIds.has(assignment.personId))
-      .map((assignment) => assignment.personId));
+    const removedManagerIds = new Set(Array.from(managerIds).filter((personId) => !nextManagerIds.has(personId)));
 
     if (removedManagerIds.size) {
       this.data.targetAllocations = this.data.targetAllocations.filter((allocation) =>
