@@ -347,6 +347,27 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
 
     await this.persistTypeTargetWithFallback(input, "hunter", nextHunterAmount, allocations);
     await this.persistTypeTargetWithFallback(input, "farmer_renewal", nextFarmerRenewalAmount, allocations);
+
+    if (isCustomerManagerProfile(personRole, true) && nextFarmerRenewalAmount > 0) {
+      const { error: assignmentError } = await this.client
+        .from("person_customer_assignments")
+        .upsert({
+          person_id: input.personId,
+          customer_id: input.customerId,
+          source: "rpc_target_save",
+        });
+      if (assignmentError) throw assignmentError;
+    }
+
+    if (nextFarmerRenewalAmount <= 0) {
+      const { error: assignmentDeleteError } = await this.client
+        .from("person_customer_assignments")
+        .delete()
+        .eq("person_id", input.personId)
+        .eq("customer_id", input.customerId)
+        .eq("source", "rpc_target_save");
+      if (assignmentDeleteError) throw assignmentDeleteError;
+    }
   }
 
   private async persistTypeTargetWithFallback(

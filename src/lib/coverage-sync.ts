@@ -1,4 +1,5 @@
 import type { Customer, Person } from "@/data/mockData";
+import { isCustomerManagerProfile } from "@/lib/roles";
 
 export type CoverageAssignment = {
   personId: string;
@@ -30,7 +31,9 @@ export function applyCoverageAssignments(
 ) {
   const customerIdsByPerson = new Map<string, string[]>();
   const managerIdsByCustomer = new Map<string, string[]>();
-  const managerIds = new Set(people.filter((person) => person.isManager).map((person) => person.id));
+  const managerIds = new Set(people
+    .filter((person) => isCustomerManagerProfile(person.roleType, person.isManager))
+    .map((person) => person.id));
 
   for (const assignment of assignments) {
     customerIdsByPerson.set(assignment.personId, [

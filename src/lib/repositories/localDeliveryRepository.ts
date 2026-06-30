@@ -126,6 +126,16 @@ export class LocalDeliveryRepository implements DeliveryRepository {
 
     this.replaceTargetAmount(input, "hunter", nextHunterAmount);
     this.replaceTargetAmount(input, "farmer_renewal", nextFarmerRenewalAmount);
+
+    if (person.isManager && isCustomerManagerProfile(person.roleType, person.isManager) && nextFarmerRenewalAmount > 0) {
+      const hasAssignment = this.assignments.some((assignment) =>
+        assignment.personId === input.personId && assignment.customerId === input.customerId
+      );
+      if (!hasAssignment) {
+        this.assignments = [...this.assignments, { personId: input.personId, customerId: input.customerId }];
+      }
+    }
+
     return this.getAll();
   }
 

@@ -85,7 +85,7 @@ export function CustomerManagement() {
   const [dismissInitialOpen, setDismissInitialOpen] = useState(false);
   const [formName, setFormName] = useState(initialCustomer?.name ?? "");
   const [formDirectorId, setFormDirectorId] = useState(initialCustomer?.directorResponsibleId ?? "ane");
-  const [formManagerIds, setFormManagerIds] = useState<string[]>(initialCustomer?.managerResponsibleIds ?? anaManagerIds);
+  const [formManagerIds, setFormManagerIds] = useState<string[]>(initialCustomer?.managerResponsibleIds ?? []);
   const [formRevenue, setFormRevenue] = useState(getInputValue(initialCustomer?.revenue ?? getFinancialCustomerMetric(initialCustomer?.name ?? "", "revenueTarget")));
   const [successMessage, setSuccessMessage] = useState("");
   const [formError, setFormError] = useState("");
@@ -169,6 +169,7 @@ export function CustomerManagement() {
   }
 
   function applyCustomerRules(name: string) {
+    if (linkedEditing) return;
     const defaults = getCustomerDefaults(name);
     setFormDirectorId(defaults.directorResponsibleId);
     setFormManagerIds(defaults.managerResponsibleIds);

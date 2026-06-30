@@ -57,6 +57,17 @@ Ampliação desse manager para o cliente devem ser removidas na mesma transaçã
 salvamento, mantendo a meta total do cliente e exibindo o saldo como pendente
 sem pessoa alocada.
 
+Ao salvar uma meta de Renovação + Ampliação positiva em Metas por Pessoa para uma
+pessoa que é manager operacional, o sistema deve garantir a associação
+manager-cliente em `person_customer_assignments`, com origem de sincronização de
+meta. Metas Hunter não criam vínculo de manager de Delivery. Se a meta de
+Renovação + Ampliação for zerada, apenas o vínculo criado pela tela de metas pode
+ser removido; vínculos manuais da tela de Clientes devem ser preservados.
+Defaults automáticos de diretor/manager podem preencher apenas novos clientes.
+Durante edição de um cliente existente, blur, hidratação, troca de foco ou
+reabertura da modal não podem reaplicar defaults nem restaurar Ana Braz ou outro
+manager removido manualmente.
+
 Na listagem principal de Clientes, a coluna de governança deve exibir apenas o
 diretor responsável pelo cliente, como CA ou Ane Knust. Managers e pessoas que
 compõem as metas devem ficar nas colunas seguintes, evitando duplicidade visual.
