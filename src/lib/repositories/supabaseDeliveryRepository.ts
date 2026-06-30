@@ -13,6 +13,7 @@ import {
 import type { DeliveryData, DeliveryRepository } from "./types";
 import type { PersonCustomerRemovalInput, PersonCustomerTargetsInput } from "./types";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { buildAreaUsages } from "@/lib/area-usage";
 import { getFinancialCustomerMetric } from "@/lib/financial-customers";
 import { validateArea, validateCustomer, validatePerson, validateSubject, validateTargetAllocation } from "@/lib/validation";
 import {
@@ -94,6 +95,11 @@ type CustomerTargetRow = {
   revenue: number | string;
 };
 
+type TerritoryAreaRow = {
+  id: string;
+  area_id: string | null;
+};
+
 export class SupabaseDeliveryRepository implements DeliveryRepository {
   constructor(private readonly client: SupabaseClient) {}
 
@@ -109,6 +115,12 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
   }
 
   async deleteArea(id: string) {
+    const { error: territoryError } = await this.client
+      .from("territories")
+      .update({ area_id: null })
+      .eq("area_id", id);
+    if (territoryError && !isMissingTableError(territoryError)) throw territoryError;
+
     const { error } = await this.client.from("areas").delete().eq("id", id);
     if (error) throw error;
     return this.fetchAll();
@@ -192,7 +204,7 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
   }
 
   private async fetchAll(): Promise<DeliveryData> {
-    const [areasResult, peopleResult, customersResult, customerTargetsResult, subjectsResult, assignmentsResult, targetAllocationsResult] = await Promise.all([
+    const [areasResult, peopleResult, customersResult, customerTargetsResult, subjectsResult, assignmentsResult, targetAllocationsResult, territoriesResult] = await Promise.all([
       this.client.from("areas").select("*").order("name"),
       this.client.from("people").select("*").order("hierarchy_level").order("name"),
       this.client.from("customers").select("*").order("name"),
@@ -200,6 +212,7 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
       this.client.from("subjects").select("*").order("name"),
       this.client.from("person_customer_assignments").select("person_id, customer_id"),
       this.client.from("revenue_target_allocations").select("*").order("target_year", { ascending: false }).order("customer_id"),
+      this.client.from("territories").select("id, area_id"),
     ]);
 
     const error = areasResult.error ?? peopleResult.error ?? customersResult.error ?? subjectsResult.error;
@@ -214,6 +227,9 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
       ? buildAssignmentsFromCoverage(people, customers)
       : (assignmentsResult.data as AssignmentRow[]).map(fromAssignmentRow);
     const coverage = applyCoverageAssignments(people, customers, assignments);
+    const territoryRefs = territoriesResult.error
+      ? []
+      : (territoriesResult.data as TerritoryAreaRow[]).map((row) => ({ areaId: row.area_id }));
 
     return {
       areas: (areasResult.data as AreaRow[]).map(fromAreaRow),
@@ -221,6 +237,7 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
       customers: coverage.customers,
       customerTargets,
       subjects: (subjectsResult.data as SubjectRow[]).map(fromSubjectRow),
+      areaUsages: buildAreaUsages(coverage.people, territoryRefs),
       targetAllocations: targetAllocationsResult.error
         ? []
         : (targetAllocationsResult.data as TargetAllocationRow[]).map(fromTargetAllocationRow),
@@ -662,6 +679,13 @@ function getCustomerTargetDefaults(name: string, revenue: number) {
 
 function roundCurrency(value: number) {
   return Math.round(value * 100) / 100;
+}
+
+function isMissingTableError(error: unknown) {
+  return typeof error === "object"
+    && error !== null
+    && "code" in error
+    && error.code === "42P01";
 }
 
 function fromAssignmentRow(row: AssignmentRow): CoverageAssignment {

@@ -3,7 +3,10 @@
 - **Pessoa:** integrante da organização, conectado a um diretor, área e carteira.
 - **Cliente:** conta atendida, com responsáveis e indicadores.
 - **Assunto:** frente de atuação vinculada a um cliente e a um owner.
-- **Área:** agrupamento organizacional usado em filtros e cobertura.
+- **Área / Studio:** agrupamento organizacional usado em filtros, cobertura,
+  organograma e distribuição operacional. Pessoas e territórios podem ficar sem
+  Área / Studio; excluir uma área não apaga registros dependentes, apenas remove
+  essa classificação.
 - **Tipo de atuação:** Executivo, Diretor, Delivery, Farmer + Delivery, Hunter,
   Farmer, Hunter + Farmer ou Staff.
 - **Perfis comerciais:** Hunter, Farmer e Hunter + Farmer existem para cadastro,

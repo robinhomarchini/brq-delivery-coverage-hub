@@ -2,6 +2,7 @@ import { areas, customers, customerTargets, people, subjects, targetAllocations 
 import type { Area, Customer, Person, Subject, TargetAllocation } from "@/data/mockData";
 import type { DeliveryData, DeliveryRepository, PersonCustomerRemovalInput, PersonCustomerTargetsInput } from "./types";
 import { validateArea, validateCustomer, validatePerson, validateSubject, validateTargetAllocation } from "@/lib/validation";
+import { buildAreaUsages } from "@/lib/area-usage";
 import {
   applyCoverageAssignments,
   buildAssignmentsFromCoverage,
@@ -16,16 +17,19 @@ export class LocalDeliveryRepository implements DeliveryRepository {
     customerTargets: structuredClone(customerTargets),
     subjects: structuredClone(subjects),
     areas: structuredClone(areas),
+    areaUsages: buildAreaUsages(people),
     targetAllocations: structuredClone(targetAllocations),
   };
   private assignments: CoverageAssignment[] = buildAssignmentsFromCoverage(this.data.people, this.data.customers);
 
   async getAll() {
     const coverage = applyCoverageAssignments(this.data.people, this.data.customers, this.assignments);
+    const areaUsages = buildAreaUsages(coverage.people);
     return structuredClone({
       ...this.data,
       people: coverage.people,
       customers: coverage.customers,
+      areaUsages,
     });
   }
 

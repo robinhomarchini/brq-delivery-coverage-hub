@@ -14,24 +14,16 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useDeliveryStore } from "@/store/delivery-store";
+import { getAreaUsage, getAreaUsageTotal } from "@/lib/area-usage";
 import { makeId } from "@/lib/utils";
 
 export function AreaStudioManagement() {
-  const { areas, people, saveArea, deleteArea } = useDeliveryStore();
+  const { areas, areaUsages, people, saveArea, deleteArea } = useDeliveryStore();
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState<Area | null>(null);
   const [open, setOpen] = useState(false);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
-
-  const peopleCountByArea = useMemo(() => {
-    const counts = new Map<string, number>();
-    people.forEach((person) => {
-      if (!person.areaId) return;
-      counts.set(person.areaId, (counts.get(person.areaId) ?? 0) + 1);
-    });
-    return counts;
-  }, [people]);
 
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -67,9 +59,10 @@ export function AreaStudioManagement() {
   }
 
   async function handleDelete(area: Area) {
-    const count = peopleCountByArea.get(area.id) ?? 0;
-    const message = count
-      ? `Excluir ${area.name}? ${count} pessoa(s) ficarão sem área/studio definido.`
+    const usage = getAreaUsage(areaUsages, area.id);
+    const totalUsage = getAreaUsageTotal(usage);
+    const message = totalUsage
+      ? `Excluir ${area.name}? ${usage.peopleCount} pessoa(s) e ${usage.territoryCount} território(s) ficarão sem área/studio definido.`
       : `Excluir ${area.name}?`;
     if (!window.confirm(message)) return;
 
@@ -96,7 +89,7 @@ export function AreaStudioManagement() {
 
       <section className="mb-5 grid gap-4 md:grid-cols-3">
         <Summary label="Áreas/Studios" value={String(areas.length)} />
-        <Summary label="Pessoas associadas" value={String(people.filter((person) => person.areaId).length)} />
+        <Summary label="Pessoas associadas" value={String(areaUsages.reduce((total, usage) => total + usage.peopleCount, 0))} />
         <Summary label="Sem área definida" value={String(people.filter((person) => !person.areaId).length)} />
       </section>
 
@@ -110,6 +103,7 @@ export function AreaStudioManagement() {
                 <TableHead>Área / Studio</TableHead>
                 <TableHead>Descrição</TableHead>
                 <TableHead>Pessoas</TableHead>
+                <TableHead>Territórios</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -133,7 +127,8 @@ export function AreaStudioManagement() {
                     </div>
                   </TableCell>
                   <TableCell className="max-w-xl text-sm text-slate-600">{area.description || "—"}</TableCell>
-                  <TableCell>{peopleCountByArea.get(area.id) ?? 0}</TableCell>
+                  <TableCell>{getAreaUsage(areaUsages, area.id).peopleCount}</TableCell>
+                  <TableCell>{getAreaUsage(areaUsages, area.id).territoryCount}</TableCell>
                   <TableCell onDoubleClick={(event) => event.stopPropagation()}>
                     <div className="flex justify-end gap-1">
                       <Button variant="ghost" size="icon" onClick={() => openForm(area)}><Pencil className="h-4 w-4" /></Button>

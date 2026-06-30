@@ -1,5 +1,11 @@
 import type { Area, Customer, CustomerTarget, Person, Subject, TargetAllocation } from "@/data/mockData";
 
+export interface AreaUsage {
+  areaId: string;
+  peopleCount: number;
+  territoryCount: number;
+}
+
 export interface PersonCustomerTargetsInput {
   customerId: string;
   personId: string;
@@ -21,6 +27,7 @@ export interface DeliveryData {
   customerTargets: CustomerTarget[];
   subjects: Subject[];
   areas: Area[];
+  areaUsages: AreaUsage[];
   targetAllocations: TargetAllocation[];
 }
 

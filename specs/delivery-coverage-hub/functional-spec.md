@@ -228,6 +228,10 @@ Renovação + Ampliação pode ser distribuída entre managers, farmers/delivery
 pessoas dos Studios, desde que o perfil permita meta direta. O cadastro
 Áreas / Studios não cria metas; apenas classifica pessoas para análise,
 organograma e distribuição operacional.
+Excluir uma Área / Studio remove apenas a classificação dos registros
+dependentes. Pessoas e territórios vinculados devem ficar sem área definida, e a
+tela deve mostrar a contagem de vínculos antes da exclusão para evitar erro
+técnico de chave estrangeira.
 Na tela Metas por Pessoa, pessoas com papel Executivo ou Diretor não aparecem
 para lançamento direto, pois Robinson, Ane Knust e CA são consolidações
 derivadas dos subordinados. Ao selecionar uma pessoa, a grade deve carregar

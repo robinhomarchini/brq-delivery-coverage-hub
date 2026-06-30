@@ -1,3 +1,3 @@
-export type { DeliveryData, DeliveryRepository, PersonCustomerRemovalInput, PersonCustomerTargetsInput } from "./types";
+export type { AreaUsage, DeliveryData, DeliveryRepository, PersonCustomerRemovalInput, PersonCustomerTargetsInput } from "./types";
 export { localDeliveryRepository } from "./localDeliveryRepository";
 export { createSupabaseDeliveryRepository, SupabaseDeliveryRepository } from "./supabaseDeliveryRepository";

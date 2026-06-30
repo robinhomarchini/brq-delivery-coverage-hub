@@ -4,8 +4,9 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { areas as initialAreas, customers as initialCustomers, customerTargets as initialCustomerTargets, people as initialPeople, subjects as initialSubjects, targetAllocations as initialTargetAllocations } from "@/data/mockData";
 import type { Area, Customer, CustomerTarget, Person, Subject, TargetAllocation } from "@/data/mockData";
 import { createSupabaseDeliveryRepository, localDeliveryRepository } from "@/lib/repositories";
-import type { DeliveryRepository, PersonCustomerRemovalInput, PersonCustomerTargetsInput } from "@/lib/repositories";
+import type { AreaUsage, DeliveryRepository, PersonCustomerRemovalInput, PersonCustomerTargetsInput } from "@/lib/repositories";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
+import { buildAreaUsages } from "@/lib/area-usage";
 
 interface DeliveryStoreValue {
   people: Person[];
@@ -13,6 +14,7 @@ interface DeliveryStoreValue {
   customerTargets: CustomerTarget[];
   subjects: Subject[];
   areas: Area[];
+  areaUsages: AreaUsage[];
   targetAllocations: TargetAllocation[];
   loading: boolean;
   error: string;
@@ -41,6 +43,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
   const [customerTargets, setCustomerTargets] = useState<CustomerTarget[]>(productionWithoutSupabase ? [] : initialCustomerTargets);
   const [subjects, setSubjects] = useState<Subject[]>(productionWithoutSupabase ? [] : initialSubjects);
   const [areas, setAreas] = useState<Area[]>(productionWithoutSupabase ? [] : initialAreas);
+  const [areaUsages, setAreaUsages] = useState<AreaUsage[]>(productionWithoutSupabase ? [] : buildAreaUsages(initialPeople));
   const [targetAllocations, setTargetAllocations] = useState<TargetAllocation[]>(productionWithoutSupabase ? [] : initialTargetAllocations);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -59,6 +62,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setCustomerTargets(data.customerTargets);
         setSubjects(data.subjects);
         setAreas(data.areas);
+        setAreaUsages(data.areaUsages);
         setTargetAllocations(data.targetAllocations);
         setError("");
       })
@@ -75,6 +79,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
     customerTargets,
     subjects,
     areas,
+    areaUsages,
     targetAllocations,
     loading,
     error,
@@ -87,6 +92,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setCustomerTargets(data.customerTargets);
         setSubjects(data.subjects);
         setAreas(data.areas);
+        setAreaUsages(data.areaUsages);
         setTargetAllocations(data.targetAllocations);
         setError("");
       } catch (error) {
@@ -103,6 +109,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setCustomerTargets(data.customerTargets);
         setSubjects(data.subjects);
         setAreas(data.areas);
+        setAreaUsages(data.areaUsages);
         setTargetAllocations(data.targetAllocations);
         setError("");
       } catch (error) {
@@ -119,6 +126,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setCustomerTargets(data.customerTargets);
         setSubjects(data.subjects);
         setAreas(data.areas);
+        setAreaUsages(data.areaUsages);
         setTargetAllocations(data.targetAllocations);
         setError("");
       } catch (error) {
@@ -147,6 +155,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setCustomerTargets(data.customerTargets);
         setSubjects(data.subjects);
         setAreas(data.areas);
+        setAreaUsages(data.areaUsages);
         setTargetAllocations(data.targetAllocations);
         setError("");
       } catch (error) {
@@ -163,6 +172,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setCustomerTargets(data.customerTargets);
         setSubjects(data.subjects);
         setAreas(data.areas);
+        setAreaUsages(data.areaUsages);
         setTargetAllocations(data.targetAllocations);
         setError("");
       } catch (error) {
@@ -236,6 +246,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setCustomerTargets(data.customerTargets);
         setSubjects(data.subjects);
         setAreas(data.areas);
+        setAreaUsages(data.areaUsages);
         setTargetAllocations(data.targetAllocations);
         setError("");
       } catch (error) {
@@ -252,6 +263,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setCustomerTargets(data.customerTargets);
         setSubjects(data.subjects);
         setAreas(data.areas);
+        setAreaUsages(data.areaUsages);
         setTargetAllocations(data.targetAllocations);
         setError("");
       } catch (error) {
@@ -260,7 +272,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         throw new Error(message);
       }
     },
-  }), [areas, customerTargets, customers, error, loading, people, repository, subjects, targetAllocations]);
+  }), [areaUsages, areas, customerTargets, customers, error, loading, people, repository, subjects, targetAllocations]);
 
   return <DeliveryStoreContext.Provider value={value}>{children}</DeliveryStoreContext.Provider>;
 }
@@ -287,6 +299,9 @@ function getErrorMessage(error: unknown) {
       : "";
   if (message.toLowerCase().includes("row-level security policy")) {
     return "Seu usuário ainda não tem permissão de edição no Supabase. Execute a correção de RLS no SQL Editor do projeto.";
+  }
+  if (message.toLowerCase().includes("foreign key constraint")) {
+    return "Este registro ainda está vinculado a outros dados. Reclassifique ou desvincule os itens dependentes antes de excluir.";
   }
   if (message) return message;
   return "Verifique os dados, permissões e conexão.";
