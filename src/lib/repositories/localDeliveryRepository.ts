@@ -1,7 +1,7 @@
 import { areas, customers, customerTargets, people, subjects, targetAllocations } from "@/data/mockData";
-import type { Customer, Person, Subject, TargetAllocation } from "@/data/mockData";
+import type { Area, Customer, Person, Subject, TargetAllocation } from "@/data/mockData";
 import type { DeliveryData, DeliveryRepository, PersonCustomerRemovalInput, PersonCustomerTargetsInput } from "./types";
-import { validateCustomer, validatePerson, validateSubject, validateTargetAllocation } from "@/lib/validation";
+import { validateArea, validateCustomer, validatePerson, validateSubject, validateTargetAllocation } from "@/lib/validation";
 import {
   applyCoverageAssignments,
   buildAssignmentsFromCoverage,
@@ -27,6 +27,21 @@ export class LocalDeliveryRepository implements DeliveryRepository {
       people: coverage.people,
       customers: coverage.customers,
     });
+  }
+
+  async saveArea(area: Area) {
+    area = validateArea(area);
+    this.data.areas = upsert(this.data.areas, area)
+      .sort((first, second) => first.name.localeCompare(second.name));
+    return this.getAll();
+  }
+
+  async deleteArea(id: string) {
+    this.data.areas = this.data.areas.filter((item) => item.id !== id);
+    this.data.people = this.data.people.map((person) =>
+      person.areaId === id ? { ...person, areaId: undefined } : person
+    );
+    return this.getAll();
   }
 
   async savePerson(person: Person) {

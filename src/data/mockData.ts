@@ -86,6 +86,12 @@ export interface TargetAllocation {
 
 export const areas: Area[] = [
   { id: "area-financial", name: "Serviços Financeiros", description: "Bancos, seguros e meios de pagamento." },
+  { id: "area-aliancas", name: "Alianças", description: "Parcerias, alianças estratégicas e ecossistema." },
+  { id: "area-px", name: "PX", description: "People Experience e práticas de experiência." },
+  { id: "area-mobile", name: "Mobile", description: "Produtos e soluções mobile." },
+  { id: "area-ba", name: "BA", description: "Business Analysis e discovery funcional." },
+  { id: "area-ia", name: "IA", description: "Inteligência Artificial, automação e agentes." },
+  { id: "area-dados", name: "Dados", description: "Dados, analytics, engenharia e governança." },
   { id: "area-industry", name: "Indústria & Varejo", description: "Indústria, consumo, varejo e logística." },
   { id: "area-digital", name: "Digital & Growth", description: "Novos negócios, tecnologia e plataformas digitais." },
   { id: "area-corporate", name: "Estratégia & Operações", description: "Gestão executiva, operações e pré-vendas." },

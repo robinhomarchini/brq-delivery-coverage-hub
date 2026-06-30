@@ -14,7 +14,7 @@ import type { DeliveryData, DeliveryRepository } from "./types";
 import type { PersonCustomerRemovalInput, PersonCustomerTargetsInput } from "./types";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { getFinancialCustomerMetric } from "@/lib/financial-customers";
-import { validateCustomer, validatePerson, validateSubject, validateTargetAllocation } from "@/lib/validation";
+import { validateArea, validateCustomer, validatePerson, validateSubject, validateTargetAllocation } from "@/lib/validation";
 import {
   applyCoverageAssignments,
   buildAssignmentsFromCoverage,
@@ -98,6 +98,19 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
   constructor(private readonly client: SupabaseClient) {}
 
   async getAll(): Promise<DeliveryData> {
+    return this.fetchAll();
+  }
+
+  async saveArea(area: Area) {
+    const validated = validateArea(area);
+    const { error } = await this.client.from("areas").upsert(toAreaRow(validated));
+    if (error) throw error;
+    return this.fetchAll();
+  }
+
+  async deleteArea(id: string) {
+    const { error } = await this.client.from("areas").delete().eq("id", id);
+    if (error) throw error;
     return this.fetchAll();
   }
 
@@ -516,6 +529,10 @@ export function createSupabaseDeliveryRepository() {
 
 function fromAreaRow(row: AreaRow): Area {
   return row;
+}
+
+function toAreaRow(area: Area): AreaRow {
+  return area;
 }
 
 function toPersonRow(person: Person): PersonRow {

@@ -26,6 +26,8 @@ export interface DeliveryData {
 
 export interface DeliveryRepository {
   getAll(): Promise<DeliveryData>;
+  saveArea(area: Area): Promise<DeliveryData>;
+  deleteArea(id: string): Promise<DeliveryData>;
   savePerson(person: Person): Promise<DeliveryData>;
   deletePerson(id: string): Promise<void>;
   saveCustomer(customer: Customer, targetYear?: number): Promise<DeliveryData>;

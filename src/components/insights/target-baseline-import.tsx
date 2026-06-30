@@ -237,12 +237,12 @@ export function TargetBaselineImport() {
                       </TableCell>
                       <TableCell><StatusBadge comparison={comparison} /></TableCell>
                       <MoneyCell value={comparison.customer?.hunterTarget ?? 0} />
-                      <MoneyCell value={comparison.row.hunterTarget} highlight={hasDifference(comparison, "hunterTarget")} />
+                      <MoneyCell value={comparison.effectiveHunterTarget} highlight={hasDifference(comparison, "hunterTarget")} />
                       <MoneyCell value={comparison.customer?.farmerRenewalTarget ?? 0} />
-                      <MoneyCell value={comparison.row.farmerRenewalTarget} highlight={hasDifference(comparison, "farmerRenewalTarget")} />
+                      <MoneyCell value={comparison.effectiveFarmerRenewalTarget} highlight={hasDifference(comparison, "farmerRenewalTarget")} />
                       <MoneyCell value={comparison.customer ? comparison.customer.hunterTarget + comparison.customer.farmerRenewalTarget : 0} />
                       <TableCell>
-                        <p className={cn("font-semibold", hasDifference(comparison, "revenue") && "text-brq-purple")}>{formatCurrency(comparison.row.totalTarget)}</p>
+                        <p className={cn("font-semibold", hasDifference(comparison, "revenue") && "text-brq-purple")}>{formatCurrency(comparison.effectiveRevenue)}</p>
                         {hasVisibleCurrencyDifference(comparison.sheetTotalDifference) && (
                           <p className="mt-1 text-xs text-red-600">
                             Soma difere {formatCurrency(comparison.sheetTotalDifference)}

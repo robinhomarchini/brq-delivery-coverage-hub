@@ -75,7 +75,7 @@ type CustomerCoverageStatus = "ok" | "issue" | "empty";
 
 export function CustomerManagement() {
   const initialCustomerId = useMemo(() => getInitialCustomerId(), []);
-  const { customers, customerTargets, people, targetAllocations, saveCustomer, deleteCustomer } = useDeliveryStore();
+  const { customers, customerTargets, people, targetAllocations, savePerson, saveCustomer, deleteCustomer } = useDeliveryStore();
   const [year, setYear] = useState(currentYear);
   const years = useMemo(() => getAvailableTargetYears(customerTargets, currentYear), [customerTargets]);
   const yearCustomers = useMemo(() => applyCustomerTargetsForYear(customers, customerTargets, year), [customerTargets, customers, year]);
@@ -90,6 +90,7 @@ export function CustomerManagement() {
   const [formName, setFormName] = useState(initialCustomer?.name ?? "");
   const [formDirectorId, setFormDirectorId] = useState(initialCustomer?.directorResponsibleId ?? "");
   const [formManagerIds, setFormManagerIds] = useState<string[]>(initialCustomer?.managerResponsibleIds ?? []);
+  const [formHunterId, setFormHunterId] = useState(getPrimaryHunterIdForCustomer(initialCustomer?.id ?? "", people));
   const [formHunterTarget, setFormHunterTarget] = useState(getInputValue(initialCustomer?.hunterTarget ?? getFinancialCustomerMetric(initialCustomer?.name ?? "", "hunterRevenue")));
   const [formFarmerRenewalTarget, setFormFarmerRenewalTarget] = useState(getInputValue(initialCustomer?.farmerRenewalTarget ?? getFinancialCustomerMetric(initialCustomer?.name ?? "", "deliveryFarmerRevenue")));
   const [successMessage, setSuccessMessage] = useState("");
@@ -100,6 +101,10 @@ export function CustomerManagement() {
   [people]);
   const managers = useMemo(() => people
     .filter((person) => person.active && isCustomerManagerProfile(person.roleType, person.isManager))
+    .sort((first, second) => first.name.localeCompare(second.name)),
+  [people]);
+  const hunters = useMemo(() => people
+    .filter((person) => person.active && isHunterRole(person.roleType))
     .sort((first, second) => first.name.localeCompare(second.name)),
   [people]);
   const managerIds = useMemo(() => new Set(managers.map((person) => person.id)), [managers]);
@@ -176,6 +181,7 @@ export function CustomerManagement() {
     setFormName(item?.name ?? "");
     setFormDirectorId(item?.directorResponsibleId ?? defaults.directorResponsibleId);
     setFormManagerIds(item?.managerResponsibleIds ?? defaults.managerResponsibleIds);
+    setFormHunterId(getPrimaryHunterIdForCustomer(item?.id ?? "", people));
     setFormHunterTarget(getInputValue(item?.hunterTarget ?? getFinancialCustomerMetric(item?.name ?? "", "hunterRevenue")));
     setFormFarmerRenewalTarget(getInputValue(item?.farmerRenewalTarget ?? getFinancialCustomerMetric(item?.name ?? "", "deliveryFarmerRevenue")));
     setFormError("");
@@ -200,26 +206,47 @@ export function CustomerManagement() {
     const customerName = String(formData.get("name"));
     const defaults = getCustomerDefaults(customerName, directors);
     const validManagers = formManagerIds.filter((id) => managerIds.has(id));
+    const customerId = linkedEditing?.id ?? makeId("customer");
     try {
       setFormError("");
       await saveCustomer({
-      id: linkedEditing?.id ?? makeId("customer"),
-      name: customerName,
-      industry: String(formData.get("industry")),
-      directorResponsibleId: String(formData.get("directorResponsibleId") || defaults.directorResponsibleId),
-      managerResponsibleIds: validManagers,
-      hunterTarget: formHunterAmount,
-      farmerRenewalTarget: formFarmerRenewalAmount,
-      revenue: formRevenue,
-      margin: Number(formData.get("margin")),
-      strategicAccount: formData.get("strategicAccount") === "true",
+        id: customerId,
+        name: customerName,
+        industry: String(formData.get("industry")),
+        directorResponsibleId: String(formData.get("directorResponsibleId") || defaults.directorResponsibleId),
+        managerResponsibleIds: validManagers,
+        hunterTarget: formHunterAmount,
+        farmerRenewalTarget: formFarmerRenewalAmount,
+        revenue: formRevenue,
+        margin: Number(formData.get("margin")),
+        strategicAccount: formData.get("strategicAccount") === "true",
       }, year);
+      await syncCustomerHunterAssignment(customerId);
       setManualOpen(false);
       setDismissInitialOpen(true);
       setSuccessMessage(`Cliente ${customerName} salvo com sucesso.`);
       window.setTimeout(() => setSuccessMessage(""), 4000);
     } catch (error) {
       setFormError(getFormErrorMessage(error));
+    }
+  }
+
+  async function syncCustomerHunterAssignment(customerId: string) {
+    const currentHunters = hunters.filter((person) => person.clientIds.includes(customerId));
+    const selectedHunter = hunters.find((person) => person.id === formHunterId);
+
+    for (const person of currentHunters.filter((item) => item.id !== formHunterId)) {
+      await savePerson({
+        ...person,
+        clientIds: person.clientIds.filter((clientId) => clientId !== customerId),
+      });
+    }
+
+    if (selectedHunter && !selectedHunter.clientIds.includes(customerId)) {
+      await savePerson({
+        ...selectedHunter,
+        clientIds: [...selectedHunter.clientIds, customerId],
+      });
     }
   }
 
@@ -323,6 +350,15 @@ export function CustomerManagement() {
                 emptySelectedMessage="Nenhum manager selecionado."
               />
               <span className="mt-1 block text-xs text-slate-400">Mova um ou mais managers para a lista de selecionados. Nenhuma pessoa é incluída por padrão.</span>
+            </Field>
+            <Field label="Hunter responsável">
+              <Select value={formHunterId} onChange={(event) => setFormHunterId(event.target.value)}>
+                <option value="">Sem Hunter responsável</option>
+                {hunters.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+              </Select>
+              <span className="mt-1 block text-xs text-slate-400">
+                O vínculo do Hunter é cadastral. O valor por pessoa/ano continua em Metas por Pessoa.
+              </span>
             </Field>
             <Field label="Conta estratégica"><Select name="strategicAccount" defaultValue={String(linkedEditing?.strategicAccount ?? true)}><option value="true">Sim</option><option value="false">Não</option></Select></Field>
             <Field label={`Meta Hunter ${currentYear} (R$)`}>
@@ -644,6 +680,13 @@ function findPersonIdsByName(people: Person[], names: string[]) {
   return people
     .filter((person) => normalizedNames.some((name) => normalizeName(person.name).includes(name)))
     .map((person) => person.id);
+}
+
+function getPrimaryHunterIdForCustomer(customerId: string, people: Person[]) {
+  if (!customerId) return "";
+  return people
+    .filter((person) => person.active && isHunterRole(person.roleType) && person.clientIds.includes(customerId))
+    .sort((first, second) => first.name.localeCompare(second.name))[0]?.id ?? "";
 }
 
 function getCustomerTargetBreakdown(customer: Customer): CustomerTargetBreakdown {

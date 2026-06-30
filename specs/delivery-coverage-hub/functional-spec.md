@@ -2,10 +2,10 @@
 
 ## Navegação
 
-Sidebar com Dashboard Executivo, Organograma, Pessoas, Clientes, Portfólio de
-Clientes, Metas, Metas por Pessoa, Relatório de Metas, Insights, Assuntos, Mapa
-de Cobertura, Configurações e Ajuda. O item Assuntos fica visível como
-pausado/desabilitado até nova definição do modelo.
+Sidebar com Dashboard Executivo, Organograma, Pessoas, Áreas / Studios,
+Clientes, Portfólio de Clientes, Metas, Metas por Pessoa, Relatório de Metas,
+Insights, Assuntos, Mapa de Cobertura, Configurações e Ajuda. O item Assuntos
+fica visível como pausado/desabilitado até nova definição do modelo.
 Ao navegar pelo menu ou mudar a rota/query, telas contextuais devem ser
 remontadas para fechar modais, limpar filtros temporários e evitar que uma tela
 como Clientes reabra presa no último cliente consultado.
@@ -21,13 +21,18 @@ leva diretamente para a tela operacional de ajuste correspondente.
 
 A tela de Clientes usa os clientes-fonte da planilha Financial BU como base
 operacional. O formulário de novo cliente exibe Nome do cliente, Indústria,
-Diretor responsável, Managers responsáveis, Conta estratégica, Meta Hunter, Meta
-Renovação + Ampliação, Meta Total calculada e Margem. A listagem e o formulário
+Diretor responsável, Managers responsáveis, Hunter responsável, Conta
+estratégica, Meta Hunter, Meta Renovação + Ampliação, Meta Total calculada e
+Margem. A listagem e o formulário
 exibem a composição financeira em Meta Hunter, Meta Renovação + Ampliação e Meta
 Total, sempre formatada em reais. A tela de Clientes é a base da meta do
 cliente: Meta Total é calculada por Meta Hunter + Meta Renovação + Ampliação. A
 carga Financial BU pode sugerir a quebra inicial, mas após edição os campos do
 cadastro do cliente são a fonte de verdade para as demais telas.
+Managers responsáveis representam governança Delivery da conta. O Hunter
+responsável representa vínculo cadastral/comercial. Áreas / Studios classificam
+pessoas e podem apoiar a execução, mas não substituem o manager responsável do
+cliente.
 No modal de edição, a composição da meta também deve mostrar a distribuição por
 pessoa no ano corrente, separando Hunter, Renovação + Ampliação e Total por
 pessoa. Quando parte da meta ainda não estiver alocada, a tela deve exibir uma
@@ -67,6 +72,10 @@ manager-cliente em `person_customer_assignments`, com origem de sincronização 
 meta. Metas Hunter não criam vínculo de manager de Delivery. Se a meta de
 Renovação + Ampliação for zerada, apenas o vínculo criado pela tela de metas pode
 ser removido; vínculos manuais da tela de Clientes devem ser preservados.
+Metas de Renovação + Ampliação também podem ser distribuídas para pessoas de
+Áreas / Studios quando essas pessoas tiverem perfil apto a receber meta direta.
+Nesse caso, o Studio é classificação operacional da pessoa e a alocação continua
+em `revenue_target_allocations`.
 Defaults automáticos de diretor/manager podem preencher apenas novos clientes.
 Durante edição de um cliente existente, blur, hidratação, troca de foco ou
 reabertura da modal não podem reaplicar defaults nem restaurar Ana Braz ou outro
@@ -212,6 +221,10 @@ Metas por Pessoa é a tela operacional principal para associar metas: o usuário
 seleciona uma pessoa e um ano, escolhe o cliente na grade e informa os valores
 de Meta Hunter e Meta Renovação + Ampliação para aquele Cliente + Pessoa + Ano.
 Ambas as telas usam `revenue_target_allocations` como fonte única de verdade.
+Renovação + Ampliação pode ser distribuída entre managers, farmers/delivery e
+pessoas dos Studios, desde que o perfil permita meta direta. O cadastro
+Áreas / Studios não cria metas; apenas classifica pessoas para análise,
+organograma e distribuição operacional.
 Na tela Metas por Pessoa, pessoas com papel Executivo ou Diretor não aparecem
 para lançamento direto, pois Robinson, Ane Knust e CA são consolidações
 derivadas dos subordinados. Ao selecionar uma pessoa, a grade deve carregar
@@ -257,6 +270,10 @@ compara cliente a cliente contra `customer_target_years` do ano selecionado e
 valida se o responsável Hunter da planilha está consistente com as pessoas e
 metas Hunter cadastradas. As divergências aparecem em uma grade com checkbox por
 cliente. Só os itens marcados pelo usuário atualizam a base canônica anual.
+A importação deve respeitar as colunas financeiras da planilha: `Target RL
+Hunter` compara com Meta Hunter e `Target RL Farmer` compara com Renovação +
+Ampliação. O campo `resp` identifica o responsável informado na planilha para
+análise, mas não reclassifica automaticamente valores entre Hunter e Renovação.
 
 A rota Ajuda deve disponibilizar um guia rápido simples em PDF, publicado como
 link estático, com instruções de uso para homologadores.

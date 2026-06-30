@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Customer, Person, Subject, TargetAllocation } from "@/data/mockData";
+import type { Area, Customer, Person, Subject, TargetAllocation } from "@/data/mockData";
 
 const safeText = (label: string, max: number) =>
   z.string().trim().min(1, `${label} é obrigatório.`).max(max, `${label} excede ${max} caracteres.`);
@@ -32,6 +32,12 @@ const personSchema = z.object({
   active: z.boolean(),
   isManager: z.boolean(),
   hierarchyLevel: z.union([z.literal(1), z.literal(2), z.literal(3)]),
+});
+
+const areaSchema = z.object({
+  id: safeText("Identificador", 120),
+  name: safeText("Nome", 120),
+  description: z.string().trim().max(500, "Descrição excede 500 caracteres."),
 });
 
 const customerSchema = z.object({
@@ -69,6 +75,10 @@ const targetAllocationSchema = z.object({
 
 export function validatePerson(value: Person) {
   return parse(personSchema, value);
+}
+
+export function validateArea(value: Area) {
+  return parse(areaSchema, value);
 }
 
 export function validateCustomer(value: Customer) {

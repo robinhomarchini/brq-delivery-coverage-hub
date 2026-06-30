@@ -17,6 +17,8 @@ interface DeliveryStoreValue {
   loading: boolean;
   error: string;
   clearError: () => void;
+  saveArea: (area: Area) => Promise<void>;
+  deleteArea: (id: string) => Promise<void>;
   savePerson: (person: Person) => Promise<void>;
   deletePerson: (id: string) => Promise<void>;
   saveCustomer: (customer: Customer, targetYear?: number) => Promise<void>;
@@ -77,6 +79,38 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
     loading,
     error,
     clearError: () => setError(""),
+    saveArea: async (area) => {
+      try {
+        const data = await repository.saveArea(area);
+        setPeople(data.people);
+        setCustomers(data.customers);
+        setCustomerTargets(data.customerTargets);
+        setSubjects(data.subjects);
+        setAreas(data.areas);
+        setTargetAllocations(data.targetAllocations);
+        setError("");
+      } catch (error) {
+        const message = `Não foi possível salvar a área/studio. ${getErrorMessage(error)}`;
+        setError(message);
+        throw new Error(message);
+      }
+    },
+    deleteArea: async (id) => {
+      try {
+        const data = await repository.deleteArea(id);
+        setPeople(data.people);
+        setCustomers(data.customers);
+        setCustomerTargets(data.customerTargets);
+        setSubjects(data.subjects);
+        setAreas(data.areas);
+        setTargetAllocations(data.targetAllocations);
+        setError("");
+      } catch (error) {
+        const message = `Não foi possível excluir a área/studio. ${getErrorMessage(error)}`;
+        setError(message);
+        throw new Error(message);
+      }
+    },
     savePerson: async (person) => {
       try {
         const data = await repository.savePerson(person);
@@ -262,6 +296,12 @@ const productionConfigurationError = "Supabase não está configurado para produ
 
 const unavailableProductionRepository: DeliveryRepository = {
   async getAll() {
+    throw new Error(productionConfigurationError);
+  },
+  async saveArea() {
+    throw new Error(productionConfigurationError);
+  },
+  async deleteArea() {
     throw new Error(productionConfigurationError);
   },
   async savePerson() {

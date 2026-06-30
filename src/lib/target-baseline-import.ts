@@ -16,6 +16,9 @@ export interface TargetBaselineRow {
 export interface TargetBaselineComparison {
   key: string;
   row: TargetBaselineRow;
+  effectiveHunterTarget: number;
+  effectiveFarmerRenewalTarget: number;
+  effectiveRevenue: number;
   customer?: Customer;
   matchedCustomerName?: string;
   updateCandidate?: Customer;
@@ -102,6 +105,9 @@ export function buildTargetBaselineComparisons(
       return {
         key: `${row.rowNumber}-${row.customerName}`,
         row,
+        effectiveHunterTarget: importedHunter,
+        effectiveFarmerRenewalTarget: importedFarmerRenewal,
+        effectiveRevenue: importedRevenue,
         valueStatus: "missing_customer",
         hunterStatus: "warning",
         hunterMessage: "Cliente não encontrado na base.",
@@ -117,6 +123,9 @@ export function buildTargetBaselineComparisons(
     return {
       key: customer.id,
       row,
+      effectiveHunterTarget: importedHunter,
+      effectiveFarmerRenewalTarget: importedFarmerRenewal,
+      effectiveRevenue: importedRevenue,
       customer,
       matchedCustomerName: customer.name,
       updateCandidate: {
@@ -137,7 +146,7 @@ export function buildTargetBaselineComparisons(
 export function getResponsibleDisplayName(code: string, people: Person[]) {
   const person = findResponsiblePerson(code, people);
   if (person) return person.name;
-  return code ? `${code} não identificado` : "Não informado";
+  return code ? `${code} não identificado` : "Sem responsável definido";
 }
 
 export function normalizeName(value: string) {
@@ -184,6 +193,7 @@ function validateHunterConsistency(
   year: number,
 ) {
   const importedHunter = roundCurrency(row.hunterTarget);
+  const importedFarmerRenewal = roundCurrency(row.farmerRenewalTarget);
   const responsiblePerson = findResponsiblePerson(row.responsibleCode, people);
   const hunterAllocations = targetAllocations
     .filter((allocation) => allocation.customerId === customer.id && allocation.year === year && allocation.type === "hunter" && allocation.amount > zeroMoneyTolerance)
@@ -195,9 +205,16 @@ function validateHunterConsistency(
 
   if (importedHunter <= zeroMoneyTolerance) {
     if (allocatedHunterTotal > zeroMoneyTolerance) {
+      const allocationMessage = `${formatPersonNames(hunterAllocations)} com ${formatCurrency(allocatedHunterTotal)}`;
+      if (importedFarmerRenewal > zeroMoneyTolerance) {
+        return {
+          status: "warning" as const,
+          message: `Planilha classifica ${formatCurrency(importedFarmerRenewal)} como Renovação + Ampliação, mas o sistema está com Hunter alocado para ${allocationMessage}. Corrija Metas por Pessoa ou aplique a planilha como baseline.`,
+        };
+      }
       return {
         status: "warning" as const,
-        message: `Planilha sem Hunter, mas há ${formatPersonNames(hunterAllocations)} com ${allocatedHunterTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })} alocado.`,
+        message: `Planilha sem meta Hunter, mas o sistema está com Hunter alocado para ${allocationMessage}.`,
       };
     }
     return { status: "not_applicable" as const, message: "Sem meta Hunter na planilha." };
@@ -206,7 +223,9 @@ function validateHunterConsistency(
   if (!responsiblePerson) {
     return {
       status: "warning" as const,
-      message: `Responsável "${row.responsibleCode || "vazio"}" não foi encontrado nas Pessoas cadastradas.`,
+      message: row.responsibleCode
+        ? `Responsável "${row.responsibleCode}" não foi encontrado nas Pessoas cadastradas.`
+        : "Sem responsável definido na planilha.",
     };
   }
 
@@ -220,7 +239,7 @@ function validateHunterConsistency(
   if (!hunterAllocations.length) {
     return {
       status: "warning" as const,
-      message: `Planilha indica ${responsiblePerson.name}, mas não há meta Hunter alocada no app.`,
+      message: `Planilha indica Hunter ${responsiblePerson.name} com ${formatCurrency(importedHunter)}, mas não há meta Hunter alocada no sistema.`,
     };
   }
 
@@ -235,7 +254,7 @@ function validateHunterConsistency(
   if (!isSameDisplayedCurrency(allocatedHunterTotal, importedHunter)) {
     return {
       status: "warning" as const,
-      message: `${responsiblePerson.name} está associado, mas Hunter alocado (${allocatedHunterTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}) difere da planilha.`,
+      message: `Valor Hunter divergente: planilha ${formatCurrency(importedHunter)} vs. sistema ${formatCurrency(allocatedHunterTotal)} para ${responsiblePerson.name}.`,
     };
   }
 
@@ -287,6 +306,10 @@ function parseMoney(value: SpreadsheetCell) {
 function formatPersonNames(items: Array<{ person?: Person }>) {
   const names = Array.from(new Set(items.map((item) => item.person?.name ?? "Pessoa não encontrada")));
   return names.join(", ");
+}
+
+function formatCurrency(value: number) {
+  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 }
 
 function roundCurrency(value: number) {

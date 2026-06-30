@@ -42,10 +42,11 @@ function buildPdf(path) {
   y = section(doc, "Fluxo recomendado", y, margin, purple);
   [
     "1. Revise Pessoas: confirme perfil, cliente associado e se a pessoa pode receber meta direta.",
-    "2. Revise Clientes: confirme diretor, managers, receita/meta total, margem e conta estrategica.",
-    "3. Use Metas por Pessoa: selecione a pessoa e o ano, informe valores Hunter e Renovacao + Ampliacao por cliente.",
-    "4. Use Metas: abra o Assistente de Metas para localizar pendencias e reconciliar soma das pessoas com meta do cliente.",
-    "5. Use Relatorio de Metas: acompanhe valores por pessoa e clique em Ajustar para corrigir rapidamente.",
+    "2. Revise Areas/Studios: cadastre Alianças, PX, Mobile, BA, IA, Dados ou outros grupos que apoiam Delivery.",
+    "3. Revise Clientes: confirme diretor, managers, Hunter responsavel, metas Hunter/Renovacao por ano, margem e conta estrategica.",
+    "4. Use Metas por Pessoa: selecione a pessoa e o ano, informe valores Hunter e Renovacao + Ampliacao por cliente.",
+    "5. Use Insights: importe a planilha baseline e aplique somente divergencias marcadas.",
+    "6. Use Metas e Relatorio de Metas: acompanhe pendencias e valores por pessoa.",
   ].forEach((item) => {
     y = addWrapped(doc, item, margin, y, 175, 5);
     y += 1;
@@ -55,11 +56,12 @@ function buildPdf(path) {
   y = section(doc, "Principais telas", y, margin, purple);
   const rows = [
     ["Tela", "Quando usar", "Resultado esperado"],
-    ["Pessoas", "Cadastrar profissionais e clientes vinculados.", "Cobertura correta para mapa, organograma e metas."],
-    ["Clientes", "Ajustar responsaveis e meta total do cliente.", "Governanca e valor de referencia atualizados."],
-    ["Metas por Pessoa", "Lancar valores Hunter e Renovacao + Ampliacao.", "Metas normalizadas por pessoa, cliente e ano."],
+    ["Pessoas", "Cadastrar profissionais, perfil, Area/Studio e clientes vinculados.", "Cobertura correta para mapa, organograma e metas."],
+    ["Areas/Studios", "Cadastrar grupos como Alianças, PX, Mobile, BA, IA e Dados.", "Classificacao reutilizavel, sem lista fixa no front."],
+    ["Clientes", "Ajustar diretor, managers, Hunter e metas anuais.", "Governanca e baseline financeiro atualizados."],
+    ["Metas por Pessoa", "Lancar valores Hunter e Renovacao + Ampliacao.", "Distribuicao por pessoa, cliente e ano."],
     ["Metas", "Conferir conciliacao e usar o assistente.", "Pendencias visiveis e acionaveis."],
-    ["Relatorio de Metas", "Ver valores por pessoa.", "Leitura executiva por colaborador."],
+    ["Insights", "Comparar planilha Financial BU com a base.", "Atualizacao controlada por checkbox."],
   ];
   y = drawTable(doc, rows, margin, y, [35, 68, 70], light, border, purple);
   y += 8;
@@ -68,6 +70,9 @@ function buildPdf(path) {
   [
     "Robinson, Ane, CA e Staff nao recebem meta direta. Eles aparecem por consolidacao ou governanca.",
     "Renan nao deve carregar meta propria porque responde diretamente a Robinson.",
+    "Managers no Cliente representam governanca Delivery; Studios/Areas classificam pessoas que podem participar da execucao.",
+    "Renovacao + Ampliacao pode ser distribuida entre managers, farmers/delivery e pessoas dos Studios quando fizer sentido operacional.",
+    "A importacao respeita as colunas Target RL Hunter e Target RL Farmer da planilha. Se o sistema divergir, corrija Metas por Pessoa ou aplique o baseline.",
     "Se a soma das metas das pessoas ultrapassar a meta do cliente, o sistema pergunta se a meta do cliente deve ser aumentada.",
     "O Assistente de Metas mostra clientes sem meta, sem manager, sem hunter associado e divergencias de conciliacao.",
   ].forEach((item) => {
