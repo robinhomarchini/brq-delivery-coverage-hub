@@ -1,4 +1,4 @@
-import { areas, customers, people, subjects, targetAllocations } from "@/data/mockData";
+import { areas, customers, customerTargets, people, subjects, targetAllocations } from "@/data/mockData";
 import type { Customer, Person, Subject, TargetAllocation } from "@/data/mockData";
 import type { DeliveryData, DeliveryRepository, PersonCustomerRemovalInput, PersonCustomerTargetsInput } from "./types";
 import { validateCustomer, validatePerson, validateSubject, validateTargetAllocation } from "@/lib/validation";
@@ -13,6 +13,7 @@ export class LocalDeliveryRepository implements DeliveryRepository {
   private data: DeliveryData = {
     people: structuredClone(people),
     customers: structuredClone(customers),
+    customerTargets: structuredClone(customerTargets),
     subjects: structuredClone(subjects),
     areas: structuredClone(areas),
     targetAllocations: structuredClone(targetAllocations),
@@ -45,7 +46,7 @@ export class LocalDeliveryRepository implements DeliveryRepository {
     this.data.targetAllocations = this.data.targetAllocations.filter((item) => item.personId !== id);
   }
 
-  async saveCustomer(customer: Customer) {
+  async saveCustomer(customer: Customer, targetYear = 2026) {
     customer = validateCustomer(customer);
     const managerIds = new Set(this.data.people
       .filter((person) => isCustomerManagerProfile(person.roleType, person.isManager))
@@ -66,7 +67,29 @@ export class LocalDeliveryRepository implements DeliveryRepository {
       ...customer.managerResponsibleIds.map((personId) => ({ personId, customerId: customer.id })),
     ];
     this.data.customers = upsert(this.data.customers, customer);
+    this.upsertCustomerTarget(customer, targetYear);
     return this.getAll();
+  }
+
+  async saveCustomers(customers: Customer[], targetYear = 2026) {
+    for (const customer of customers.map(validateCustomer)) {
+      this.data.customers = upsert(this.data.customers, customer);
+      this.upsertCustomerTarget(customer, targetYear);
+    }
+    return this.getAll();
+  }
+
+  private upsertCustomerTarget(customer: Customer, targetYear: number) {
+    const nextTarget = {
+      customerId: customer.id,
+      year: targetYear,
+      hunterTarget: customer.hunterTarget,
+      farmerRenewalTarget: customer.farmerRenewalTarget,
+      revenue: customer.hunterTarget + customer.farmerRenewalTarget,
+    };
+    this.data.customerTargets = this.data.customerTargets.some((item) => item.customerId === customer.id && item.year === targetYear)
+      ? this.data.customerTargets.map((item) => item.customerId === customer.id && item.year === targetYear ? nextTarget : item)
+      : [...this.data.customerTargets, nextTarget];
   }
 
   async deleteCustomer(id: string) {
@@ -137,10 +160,35 @@ export class LocalDeliveryRepository implements DeliveryRepository {
           }
           : item
       );
+      this.data.customerTargets = this.data.customerTargets.some((item) => item.customerId === input.customerId && item.year === input.year)
+        ? this.data.customerTargets.map((item) => item.customerId === input.customerId && item.year === input.year
+          ? {
+            ...item,
+            hunterTarget: nextHunterTarget,
+            farmerRenewalTarget: nextFarmerRenewalTarget,
+            revenue: nextHunterTarget + nextFarmerRenewalTarget,
+          }
+          : item)
+        : [...this.data.customerTargets, {
+          customerId: input.customerId,
+          year: input.year,
+          hunterTarget: nextHunterTarget,
+          farmerRenewalTarget: nextFarmerRenewalTarget,
+          revenue: nextHunterTarget + nextFarmerRenewalTarget,
+        }];
     }
 
     this.replaceTargetAmount(input, "hunter", nextHunterAmount);
     this.replaceTargetAmount(input, "farmer_renewal", nextFarmerRenewalAmount);
+
+    if (isHunterRole(person.roleType)) {
+      const hasAssignment = this.assignments.some((assignment) =>
+        assignment.personId === input.personId && assignment.customerId === input.customerId
+      );
+      if (!hasAssignment) {
+        this.assignments = [...this.assignments, { personId: input.personId, customerId: input.customerId }];
+      }
+    }
 
     if (person.isManager && isCustomerManagerProfile(person.roleType, person.isManager) && nextFarmerRenewalAmount > 0) {
       const hasAssignment = this.assignments.some((assignment) =>

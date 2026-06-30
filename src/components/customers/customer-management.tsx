@@ -17,11 +17,12 @@ import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DualListSelector } from "@/components/shared/dual-list-selector";
 import { useDeliveryStore } from "@/store/delivery-store";
+import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears } from "@/lib/customer-targets";
 import { getFinancialCustomerMetric } from "@/lib/financial-customers";
-import { isCustomerManagerProfile, isTargetAssignableRole } from "@/lib/roles";
+import { isCustomerManagerProfile, isHunterRole, isTargetAssignableRole } from "@/lib/roles";
 import { formatCurrency, makeId } from "@/lib/utils";
 
-const currentYear = 2026;
+const currentYear = defaultTargetYear;
 
 interface CustomerTargetBreakdown {
   hunter: number;
@@ -70,10 +71,15 @@ interface CustomerTargetPerson {
   amount: number;
 }
 
+type CustomerCoverageStatus = "ok" | "issue" | "empty";
+
 export function CustomerManagement() {
   const initialCustomerId = useMemo(() => getInitialCustomerId(), []);
-  const { customers, people, targetAllocations, saveCustomer, deleteCustomer } = useDeliveryStore();
-  const initialCustomer = customers.find((customer) => customer.id === initialCustomerId);
+  const { customers, customerTargets, people, targetAllocations, saveCustomer, deleteCustomer } = useDeliveryStore();
+  const [year, setYear] = useState(currentYear);
+  const years = useMemo(() => getAvailableTargetYears(customerTargets, currentYear), [customerTargets]);
+  const yearCustomers = useMemo(() => applyCustomerTargetsForYear(customers, customerTargets, year), [customerTargets, customers, year]);
+  const initialCustomer = yearCustomers.find((customer) => customer.id === initialCustomerId);
   const [search, setSearch] = useState(initialCustomer?.name ?? "");
   const [director, setDirector] = useState("");
   const [manager, setManager] = useState("");
@@ -100,13 +106,13 @@ export function CustomerManagement() {
   const linkedEditing = editing ?? (!dismissInitialOpen ? initialCustomer ?? null : null);
   const open = manualOpen || Boolean(linkedEditing && !dismissInitialOpen);
 
-  const filtered = useMemo(() => customers.filter((customer) => {
+  const filtered = useMemo(() => yearCustomers.filter((customer) => {
     const query = search.toLowerCase();
     return (!query || `${customer.name} ${customer.industry}`.toLowerCase().includes(query))
       && (!director || customer.directorResponsibleId === director)
       && (!manager || customer.managerResponsibleIds.includes(manager))
       && (!strategic || String(customer.strategicAccount) === strategic);
-  }), [customers, director, manager, search, strategic]);
+  }), [yearCustomers, director, manager, search, strategic]);
   const formHunterAmount = parseAmount(formHunterTarget);
   const formFarmerRenewalAmount = parseAmount(formFarmerRenewalTarget);
   const formRevenue = roundCurrency(formHunterAmount + formFarmerRenewalAmount);
@@ -166,7 +172,7 @@ export function CustomerManagement() {
 
   function openForm(item?: Customer) {
     setEditing(item ?? null);
-    const defaults = getCustomerDefaults(item?.name ?? "", directors, managers);
+    const defaults = getCustomerDefaults(item?.name ?? "", directors);
     setFormName(item?.name ?? "");
     setFormDirectorId(item?.directorResponsibleId ?? defaults.directorResponsibleId);
     setFormManagerIds(item?.managerResponsibleIds ?? defaults.managerResponsibleIds);
@@ -179,7 +185,7 @@ export function CustomerManagement() {
 
   function applyCustomerRules(name: string) {
     if (linkedEditing) return;
-    const defaults = getCustomerDefaults(name, directors, managers);
+    const defaults = getCustomerDefaults(name, directors);
     setFormDirectorId(defaults.directorResponsibleId);
     setFormManagerIds(defaults.managerResponsibleIds);
     if (!linkedEditing) {
@@ -192,7 +198,7 @@ export function CustomerManagement() {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const customerName = String(formData.get("name"));
-    const defaults = getCustomerDefaults(customerName, directors, managers);
+    const defaults = getCustomerDefaults(customerName, directors);
     const validManagers = formManagerIds.filter((id) => managerIds.has(id));
     try {
       setFormError("");
@@ -207,7 +213,7 @@ export function CustomerManagement() {
       revenue: formRevenue,
       margin: Number(formData.get("margin")),
       strategicAccount: formData.get("strategicAccount") === "true",
-      });
+      }, year);
       setManualOpen(false);
       setDismissInitialOpen(true);
       setSuccessMessage(`Cliente ${customerName} salvo com sucesso.`);
@@ -231,13 +237,14 @@ export function CustomerManagement() {
 
       <section className="mb-5 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <Summary label="Clientes filtrados" value={String(filtered.length)} />
-        <Summary label="Meta Hunter" value={formatCurrency(targetTotals.hunter)} />
-        <Summary label="Renovação + Ampliação" value={formatCurrency(targetTotals.farmerRenewal)} />
-        <Summary label="Meta total" value={formatCurrency(targetTotals.total)} />
+        <Summary label={`Meta Hunter · ${currentYear}`} value={formatCurrency(targetTotals.hunter)} />
+        <Summary label={`Renovação + Ampliação · ${currentYear}`} value={formatCurrency(targetTotals.farmerRenewal)} />
+        <Summary label={`Meta total · ${currentYear}`} value={formatCurrency(targetTotals.total)} />
         <Summary label="Margem média" value={`${averageMargin.toFixed(1).replace(".", ",")}%`} />
       </section>
 
       <FilterBar search={search} onSearchChange={setSearch}>
+        <Select value={String(year)} onChange={(event) => setYear(Number(event.target.value))}>{years.map((item) => <option key={item} value={item}>{item}</option>)}</Select>
         <Select value={director} onChange={(event) => setDirector(event.target.value)}><option value="">Todos os diretores</option>{directors.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</Select>
         <Select value={manager} onChange={(event) => setManager(event.target.value)}><option value="">Todos os managers</option>{managers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</Select>
         <Select value={strategic} onChange={(event) => setStrategic(event.target.value)}><option value="">Todas as contas</option><option value="true">Estratégicas</option><option value="false">Não estratégicas</option></Select>
@@ -254,6 +261,7 @@ export function CustomerManagement() {
               {filtered.map((customer) => {
                 const breakdown = getCustomerTargetBreakdown(customer);
                 const targetPeople = getCustomerTargetPeople(customer, people, targetAllocations, currentYear);
+                const status = getCustomerCoverageStatus(customer, people, targetAllocations, currentYear);
                 return (
                   <TableRow
                     key={customer.id}
@@ -261,7 +269,7 @@ export function CustomerManagement() {
                     title="Dê duplo clique para editar o cliente"
                     onDoubleClick={() => openForm(customer)}
                   >
-                    <TableCell><div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-xl bg-purple-50 text-brq-purple"><Building2 className="h-5 w-5" /></div><div><p className="font-semibold">{customer.name}</p><p className="text-xs text-slate-400">{customer.industry}</p></div></div></TableCell>
+                    <TableCell><div className="flex items-center gap-3"><div className={`grid h-10 w-10 place-items-center rounded-xl ${getCustomerStatusIconClassName(status)}`} title={getCustomerStatusLabel(status)}><Building2 className="h-5 w-5" /></div><div><p className="font-semibold">{customer.name}</p><p className="text-xs text-slate-400">{customer.industry}</p></div></div></TableCell>
                     <TableCell>
                       <p>{displayDirectorName(people.find((item) => item.id === customer.directorResponsibleId)?.name ?? customer.directorResponsibleId)}</p>
                       <p className="text-xs text-slate-400">Governança Delivery</p>
@@ -314,10 +322,10 @@ export function CustomerManagement() {
                 emptyAvailableMessage="Todos os managers de Delivery já foram selecionados."
                 emptySelectedMessage="Nenhum manager selecionado."
               />
-              <span className="mt-1 block text-xs text-slate-400">Mova um ou mais managers para a lista de selecionados. A regra automática apenas sugere o padrão inicial.</span>
+              <span className="mt-1 block text-xs text-slate-400">Mova um ou mais managers para a lista de selecionados. Nenhuma pessoa é incluída por padrão.</span>
             </Field>
             <Field label="Conta estratégica"><Select name="strategicAccount" defaultValue={String(linkedEditing?.strategicAccount ?? true)}><option value="true">Sim</option><option value="false">Não</option></Select></Field>
-            <Field label="Meta Hunter (R$)">
+            <Field label={`Meta Hunter ${currentYear} (R$)`}>
               <div className="flex items-center rounded-xl border border-slate-200 bg-white px-3 focus-within:border-purple-400 focus-within:ring-2 focus-within:ring-purple-100">
                 <span className="mr-2 text-sm font-semibold text-slate-400">R$</span>
                 <Input
@@ -334,7 +342,7 @@ export function CustomerManagement() {
               </div>
               <span className="mt-1 block text-xs text-slate-500">{formatCurrency(formHunterAmount)}</span>
             </Field>
-            <Field label="Meta Renovação + Ampliação (R$)">
+            <Field label={`Meta Renovação + Ampliação ${currentYear} (R$)`}>
               <div className="flex items-center rounded-xl border border-slate-200 bg-white px-3 focus-within:border-purple-400 focus-within:ring-2 focus-within:ring-purple-100">
                 <span className="mr-2 text-sm font-semibold text-slate-400">R$</span>
                 <Input
@@ -354,7 +362,7 @@ export function CustomerManagement() {
             <div className="rounded-2xl border border-slate-200 bg-white p-4">
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Meta total</p>
               <p className="mt-2 text-2xl font-black text-slate-950">{formatCurrency(formRevenue)}</p>
-              <p className="mt-1 text-xs text-slate-500">Calculada por Hunter + Renovação + Ampliação.</p>
+              <p className="mt-1 text-xs text-slate-500">Calculada por Hunter + Renovação + Ampliação para {currentYear}.</p>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 md:col-span-2">
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Composição da meta</p>
@@ -582,24 +590,49 @@ function CustomerAllocationWarning({ warning }: { warning: CustomerAllocationWar
   );
 }
 
+function getCustomerCoverageStatus(customer: Customer, people: Person[], allocations: TargetAllocation[], year: number): CustomerCoverageStatus {
+  const target = getCustomerTarget(customer);
+  const customerAllocations = allocations.filter((allocation) => allocation.customerId === customer.id && allocation.year === year);
+  const assignedPeople = people.filter((person) => person.clientIds.includes(customer.id));
+  const allocated = roundCurrency(customerAllocations.reduce((total, allocation) => total + allocation.amount, 0));
+
+  if (target <= 0.01 && !customer.managerResponsibleIds.length && !assignedPeople.length && !customerAllocations.length) {
+    return "empty";
+  }
+
+  if (!customer.managerResponsibleIds.length && target > 0.01) return "issue";
+  if (Math.abs(target - allocated) > 0.01) return "issue";
+  return "ok";
+}
+
+function getCustomerStatusIconClassName(status: CustomerCoverageStatus) {
+  if (status === "ok") return "bg-emerald-50 text-emerald-700";
+  if (status === "issue") return "bg-blue-50 text-blue-700";
+  return "bg-slate-100 text-slate-400";
+}
+
+function getCustomerStatusLabel(status: CustomerCoverageStatus) {
+  if (status === "ok") return "Cliente reconciliado no ano selecionado.";
+  if (status === "issue") return "Cliente com pendência de associação ou valor no ano selecionado.";
+  return "Cliente sem associação ou meta cadastrada no ano selecionado.";
+}
+
 function getFormErrorMessage(error: unknown) {
   if (error instanceof Error && error.message) return error.message;
   return "Não foi possível salvar. Verifique permissões, dados e conexão.";
 }
 
-function getCustomerDefaults(name: string, directors: Person[], managers: Person[]) {
+function getCustomerDefaults(name: string, directors: Person[]) {
   const normalized = normalizeName(name);
   const caDirectorId = findPersonIdByName(directors, ["CA"]) ?? "ca";
   const aneDirectorId = findPersonIdByName(directors, ["Ane Knust", "Ane Knust Coelho"]) ?? "ane";
-  const itauManagerIds = findPersonIdsByName(managers, ["Bruno", "Orion", "Fernanda", "Ricardo Bonfim", "Bonfim"]);
-  const anaManagerIds = findPersonIdsByName(managers, ["Ana Braz"]);
   if (normalized.includes("itau")) {
-    return { directorResponsibleId: caDirectorId, managerResponsibleIds: itauManagerIds };
+    return { directorResponsibleId: caDirectorId, managerResponsibleIds: [] };
   }
   if (normalized.includes("alelo") || normalized.includes("nuclea") || normalized === "cip") {
-    return { directorResponsibleId: caDirectorId, managerResponsibleIds: anaManagerIds };
+    return { directorResponsibleId: caDirectorId, managerResponsibleIds: [] };
   }
-  return { directorResponsibleId: aneDirectorId, managerResponsibleIds: anaManagerIds };
+  return { directorResponsibleId: aneDirectorId, managerResponsibleIds: [] };
 }
 
 function findPersonIdByName(people: Person[], names: string[]) {
@@ -743,6 +776,22 @@ function getCustomerTargetPeopleByType(
   const peopleById = new Map(people.map((person) => [person.id, person]));
   const totalsByPerson = new Map<string, CustomerTargetPerson>();
 
+  people
+    .filter((person) =>
+      person.clientIds.includes(customer.id)
+      && (type === "hunter"
+        ? isHunterRole(person.roleType)
+        : isCustomerManagerProfile(person.roleType, person.isManager))
+    )
+    .forEach((person) => {
+      totalsByPerson.set(person.id, {
+        personId: person.id,
+        name: person.name,
+        roleType: person.roleType,
+        amount: 0,
+      });
+    });
+
   allocations
     .filter((allocation) => allocation.customerId === customer.id && allocation.year === year && allocation.type === type)
     .forEach((allocation) => {
@@ -758,7 +807,6 @@ function getCustomerTargetPeopleByType(
     });
 
   return Array.from(totalsByPerson.values())
-    .filter((person) => person.amount > 0.01)
     .map((person) => ({ ...person, amount: roundCurrency(person.amount) }))
     .sort((first, second) => second.amount - first.amount || first.name.localeCompare(second.name));
 }

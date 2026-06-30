@@ -59,3 +59,21 @@ Observacao:
 - mudancas futuras em migrations, RLS, RPCs ou constraints devem acionar os
   agentes `database`, `security`, `qa` e `documentador`.
 
+## 2026-06-30 - Metas de cliente sao fatos anuais
+
+Metas de cliente deixam de ser tratadas como atributos atemporais do cadastro do
+cliente e passam a ser modeladas como fato anual: `customer_id + target_year`.
+
+Motivo:
+- permitir historico por ano;
+- reconciliar metas de cliente com metas por pessoa, que ja usam `target_year`;
+- evitar que importacoes de planilha 2026 sobrescrevam metas futuras;
+- separar cadastro do cliente, relacionamento pessoa-cliente e valores
+  financeiros.
+
+Regras derivadas:
+- relacionamento Pessoa-Cliente pode existir com valor financeiro zero;
+- Manager/Farmer/Hunter nao pode ser recolocado por default no cadastro;
+- planilhas de baseline devem comparar primeiro e atualizar apenas itens
+  confirmados pelo usuario.
+

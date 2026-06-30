@@ -1,8 +1,8 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { areas as initialAreas, customers as initialCustomers, people as initialPeople, subjects as initialSubjects, targetAllocations as initialTargetAllocations } from "@/data/mockData";
-import type { Area, Customer, Person, Subject, TargetAllocation } from "@/data/mockData";
+import { areas as initialAreas, customers as initialCustomers, customerTargets as initialCustomerTargets, people as initialPeople, subjects as initialSubjects, targetAllocations as initialTargetAllocations } from "@/data/mockData";
+import type { Area, Customer, CustomerTarget, Person, Subject, TargetAllocation } from "@/data/mockData";
 import { createSupabaseDeliveryRepository, localDeliveryRepository } from "@/lib/repositories";
 import type { DeliveryRepository, PersonCustomerRemovalInput, PersonCustomerTargetsInput } from "@/lib/repositories";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
@@ -10,6 +10,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/client";
 interface DeliveryStoreValue {
   people: Person[];
   customers: Customer[];
+  customerTargets: CustomerTarget[];
   subjects: Subject[];
   areas: Area[];
   targetAllocations: TargetAllocation[];
@@ -18,7 +19,8 @@ interface DeliveryStoreValue {
   clearError: () => void;
   savePerson: (person: Person) => Promise<void>;
   deletePerson: (id: string) => Promise<void>;
-  saveCustomer: (customer: Customer) => Promise<void>;
+  saveCustomer: (customer: Customer, targetYear?: number) => Promise<void>;
+  saveCustomers: (customers: Customer[], targetYear?: number) => Promise<void>;
   deleteCustomer: (id: string) => Promise<void>;
   saveSubject: (subject: Subject) => Promise<void>;
   deleteSubject: (id: string) => Promise<void>;
@@ -34,6 +36,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
   const productionWithoutSupabase = process.env.NODE_ENV === "production" && !isSupabaseConfigured();
   const [people, setPeople] = useState<Person[]>(productionWithoutSupabase ? [] : initialPeople);
   const [customers, setCustomers] = useState<Customer[]>(productionWithoutSupabase ? [] : initialCustomers);
+  const [customerTargets, setCustomerTargets] = useState<CustomerTarget[]>(productionWithoutSupabase ? [] : initialCustomerTargets);
   const [subjects, setSubjects] = useState<Subject[]>(productionWithoutSupabase ? [] : initialSubjects);
   const [areas, setAreas] = useState<Area[]>(productionWithoutSupabase ? [] : initialAreas);
   const [targetAllocations, setTargetAllocations] = useState<TargetAllocation[]>(productionWithoutSupabase ? [] : initialTargetAllocations);
@@ -51,6 +54,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         if (!active) return;
         setPeople(data.people);
         setCustomers(data.customers);
+        setCustomerTargets(data.customerTargets);
         setSubjects(data.subjects);
         setAreas(data.areas);
         setTargetAllocations(data.targetAllocations);
@@ -66,6 +70,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
   const value = useMemo<DeliveryStoreValue>(() => ({
     people,
     customers,
+    customerTargets,
     subjects,
     areas,
     targetAllocations,
@@ -77,6 +82,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         const data = await repository.savePerson(person);
         setPeople(data.people);
         setCustomers(data.customers);
+        setCustomerTargets(data.customerTargets);
         setSubjects(data.subjects);
         setAreas(data.areas);
         setTargetAllocations(data.targetAllocations);
@@ -99,17 +105,34 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         throw new Error(message);
       }
     },
-    saveCustomer: async (customer) => {
+    saveCustomer: async (customer, targetYear) => {
       try {
-        const data = await repository.saveCustomer(customer);
+        const data = await repository.saveCustomer(customer, targetYear);
         setPeople(data.people);
         setCustomers(data.customers);
+        setCustomerTargets(data.customerTargets);
         setSubjects(data.subjects);
         setAreas(data.areas);
         setTargetAllocations(data.targetAllocations);
         setError("");
       } catch (error) {
         const message = `Não foi possível salvar o cliente. ${getErrorMessage(error)}`;
+        setError(message);
+        throw new Error(message);
+      }
+    },
+    saveCustomers: async (items, targetYear) => {
+      try {
+        const data = await repository.saveCustomers(items, targetYear);
+        setPeople(data.people);
+        setCustomers(data.customers);
+        setCustomerTargets(data.customerTargets);
+        setSubjects(data.subjects);
+        setAreas(data.areas);
+        setTargetAllocations(data.targetAllocations);
+        setError("");
+      } catch (error) {
+        const message = `Não foi possível atualizar os clientes. ${getErrorMessage(error)}`;
         setError(message);
         throw new Error(message);
       }
@@ -176,6 +199,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         const data = await repository.savePersonCustomerTargets(input);
         setPeople(data.people);
         setCustomers(data.customers);
+        setCustomerTargets(data.customerTargets);
         setSubjects(data.subjects);
         setAreas(data.areas);
         setTargetAllocations(data.targetAllocations);
@@ -191,6 +215,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         const data = await repository.removePersonCustomerTargets(input);
         setPeople(data.people);
         setCustomers(data.customers);
+        setCustomerTargets(data.customerTargets);
         setSubjects(data.subjects);
         setAreas(data.areas);
         setTargetAllocations(data.targetAllocations);
@@ -201,7 +226,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         throw new Error(message);
       }
     },
-  }), [areas, customers, error, loading, people, repository, subjects, targetAllocations]);
+  }), [areas, customerTargets, customers, error, loading, people, repository, subjects, targetAllocations]);
 
   return <DeliveryStoreContext.Provider value={value}>{children}</DeliveryStoreContext.Provider>;
 }
@@ -246,6 +271,9 @@ const unavailableProductionRepository: DeliveryRepository = {
     throw new Error(productionConfigurationError);
   },
   async saveCustomer() {
+    throw new Error(productionConfigurationError);
+  },
+  async saveCustomers() {
     throw new Error(productionConfigurationError);
   },
   async deleteCustomer() {

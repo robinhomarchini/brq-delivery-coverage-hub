@@ -54,6 +54,14 @@ export interface Customer {
   strategicAccount: boolean;
 }
 
+export interface CustomerTarget {
+  customerId: string;
+  year: number;
+  hunterTarget: number;
+  farmerRenewalTarget: number;
+  revenue: number;
+}
+
 export interface Subject {
   id: string;
   customerId: string;
@@ -93,6 +101,14 @@ export const customers: Customer[] = financialSourceCustomerNames.map((name) => 
   revenue: getFinancialCustomerMetric(name, "revenueTarget"),
   margin: 22.5,
   strategicAccount: true,
+}));
+
+export const customerTargets: CustomerTarget[] = customers.map((customer) => ({
+  customerId: customer.id,
+  year: 2026,
+  hunterTarget: customer.hunterTarget,
+  farmerRenewalTarget: customer.farmerRenewalTarget,
+  revenue: customer.revenue,
 }));
 
 const subject = (

@@ -17,13 +17,14 @@ import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useDeliveryStore } from "@/store/delivery-store";
+import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears } from "@/lib/customer-targets";
 import { formatCurrency, makeId } from "@/lib/utils";
 import { isHunterRole, isTargetAssignableRole } from "@/lib/roles";
 
-const currentYear = 2026;
+const currentYear = defaultTargetYear;
 
 export function TargetManagement() {
-  const { customers, people, targetAllocations, saveTargetAllocation, deleteTargetAllocation } = useDeliveryStore();
+  const { customers, customerTargets, people, targetAllocations, saveTargetAllocation, deleteTargetAllocation } = useDeliveryStore();
   const [search, setSearch] = useState("");
   const [customerId, setCustomerId] = useState("");
   const [personId, setPersonId] = useState("");
@@ -47,10 +48,14 @@ export function TargetManagement() {
     () => targetAllocations.filter((allocation) => targetAssignablePersonIds.has(allocation.personId)),
     [targetAllocations, targetAssignablePersonIds],
   );
-  const years = useMemo(() => Array.from(new Set([currentYear, ...targetAssignableAllocations.map((item) => item.year)])).sort((a, b) => b - a), [targetAssignableAllocations]);
+  const years = useMemo(() =>
+    Array.from(new Set([...getAvailableTargetYears(customerTargets, currentYear), ...targetAssignableAllocations.map((item) => item.year)])).sort((a, b) => b - a),
+  [customerTargets, targetAssignableAllocations]);
+  const effectiveYear = Number(year) || currentYear;
+  const yearCustomers = useMemo(() => applyCustomerTargetsForYear(customers, customerTargets, effectiveYear), [customerTargets, customers, effectiveYear]);
 
   const filtered = useMemo(() => targetAssignableAllocations.filter((allocation) => {
-    const customer = customers.find((item) => item.id === allocation.customerId);
+    const customer = yearCustomers.find((item) => item.id === allocation.customerId);
     const person = people.find((item) => item.id === allocation.personId);
     const query = search.toLowerCase();
     return (!query || `${customer?.name ?? ""} ${person?.name ?? ""} ${allocation.notes ?? ""}`.toLowerCase().includes(query))
@@ -58,24 +63,24 @@ export function TargetManagement() {
       && (!personId || allocation.personId === personId)
       && (!type || allocation.type === type)
       && (!year || allocation.year === Number(year));
-  }), [customerId, customers, people, personId, search, targetAssignableAllocations, type, year]);
+  }), [customerId, people, personId, search, targetAssignableAllocations, type, year, yearCustomers]);
 
   const totals = useMemo(() => filtered.reduce((summary, allocation) => ({
     hunter: summary.hunter + (allocation.type === "hunter" ? allocation.amount : 0),
     farmerRenewal: summary.farmerRenewal + (allocation.type === "farmer_renewal" ? allocation.amount : 0),
   }), { hunter: 0, farmerRenewal: 0 }), [filtered]);
-  const reconciliation = useMemo(() => buildReconciliation(customers, targetAssignableAllocations, Number(year) || currentYear), [customers, targetAssignableAllocations, year]);
+  const reconciliation = useMemo(() => buildReconciliation(yearCustomers, targetAssignableAllocations, effectiveYear), [effectiveYear, targetAssignableAllocations, yearCustomers]);
   const personYearSummary = useMemo(
-    () => buildPersonYearSummary(targetAssignablePeople, customers, targetAssignableAllocations, Number(year) || currentYear),
-    [customers, targetAssignableAllocations, targetAssignablePeople, year],
+    () => buildPersonYearSummary(targetAssignablePeople, yearCustomers, targetAssignableAllocations, effectiveYear),
+    [effectiveYear, targetAssignableAllocations, targetAssignablePeople, yearCustomers],
   );
   const hierarchySummary = useMemo(
     () => buildHierarchySummary(activePeople, targetAssignableAllocations, Number(year) || currentYear),
     [activePeople, targetAssignableAllocations, year],
   );
   const assistant = useMemo(
-    () => buildTargetAssistant(customers, targetAssignableAllocations, Number(year) || currentYear),
-    [customers, targetAssignableAllocations, year],
+    () => buildTargetAssistant(yearCustomers, targetAssignableAllocations, effectiveYear),
+    [effectiveYear, targetAssignableAllocations, yearCustomers],
   );
   const reconciledCount = reconciliation.filter((item) => item.status === "ok").length;
   const pendingCount = reconciliation.filter((item) => item.status === "pending").length;
@@ -127,7 +132,7 @@ export function TargetManagement() {
     const nextAllocations = targetAssignableAllocations.some((allocation) => allocation.id === draft.id)
       ? targetAssignableAllocations.map((allocation) => (allocation.id === draft.id ? draft : allocation))
       : [...targetAssignableAllocations, draft];
-    const customer = customers.find((item) => item.id === draft.customerId);
+    const customer = yearCustomers.find((item) => item.id === draft.customerId);
     const target = customer ? getCustomerTarget(customer) : 0;
     const allocated = sumAllocations(nextAllocations, draft.customerId, draft.year);
 
@@ -171,9 +176,9 @@ export function TargetManagement() {
       {formError && <ErrorNotice message={formError} floating onClose={() => setFormError("")} />}
 
       <section className="mb-5 grid gap-4 md:grid-cols-3">
-        <Summary label="Meta Hunter" value={formatCurrency(totals.hunter)} tone="purple" />
-        <Summary label="Meta Renovação + Ampliação" value={formatCurrency(totals.farmerRenewal)} tone="blue" />
-        <Summary label="Meta Total" value={formatCurrency(totals.hunter + totals.farmerRenewal)} tone="dark" />
+        <Summary label={`Meta Hunter · ${effectiveYear}`} value={formatCurrency(totals.hunter)} tone="purple" />
+        <Summary label={`Meta Renovação + Ampliação · ${effectiveYear}`} value={formatCurrency(totals.farmerRenewal)} tone="blue" />
+        <Summary label={`Meta Total · ${effectiveYear}`} value={formatCurrency(totals.hunter + totals.farmerRenewal)} tone="dark" />
       </section>
 
       {assistantOpen && <TargetAssistantPanel assistant={assistant} />}
@@ -319,7 +324,7 @@ export function TargetManagement() {
       <FilterBar search={search} onSearchChange={setSearch}>
         <Select value={customerId} onChange={(event) => setCustomerId(event.target.value)}>
           <option value="">Todos os clientes</option>
-          {customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}</option>)}
+          {yearCustomers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}</option>)}
         </Select>
         <Select value={personId} onChange={(event) => setPersonId(event.target.value)}>
           <option value="">Todas as pessoas</option>

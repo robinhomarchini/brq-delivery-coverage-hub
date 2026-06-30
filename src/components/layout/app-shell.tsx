@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   Building2,
+  Bot,
   ChartNoAxesCombined,
   CircleHelp,
   ClipboardList,
@@ -32,6 +33,7 @@ const navigation = [
   { href: "/metas", label: "Metas", icon: Target },
   { href: "/metas-pessoas", label: "Metas por Pessoa", icon: Target },
   { href: "/relatorio-metas", label: "Relatório de Metas", icon: ClipboardList },
+  { href: "/insights", label: "Insights", icon: Bot },
   { href: "/assuntos", label: "Assuntos", icon: Target, disabled: true },
   { href: "/mapa-cobertura", label: "Mapa de Cobertura", icon: Map },
   { href: "/configuracoes", label: "Configurações", icon: Settings },

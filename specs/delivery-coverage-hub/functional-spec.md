@@ -3,8 +3,8 @@
 ## Navegação
 
 Sidebar com Dashboard Executivo, Organograma, Pessoas, Clientes, Portfólio de
-Clientes, Metas, Metas por Pessoa, Relatório de Metas, Assuntos, Mapa de
-Cobertura, Configurações e Ajuda. O item Assuntos fica visível como
+Clientes, Metas, Metas por Pessoa, Relatório de Metas, Insights, Assuntos, Mapa
+de Cobertura, Configurações e Ajuda. O item Assuntos fica visível como
 pausado/desabilitado até nova definição do modelo.
 Ao navegar pelo menu ou mudar a rota/query, telas contextuais devem ser
 remontadas para fechar modais, limpar filtros temporários e evitar que uma tela
@@ -153,24 +153,25 @@ Os dropdowns de responsáveis são restritos a:
   `is_manager = true` e com perfil operacional elegível para governança de
   Delivery.
 
-Ao informar o nome do cliente, o formulário aplica a regra padrão:
+Ao informar o nome do cliente, o formulário aplica somente a governança padrão
+de diretor quando aplicável. Pessoas responsáveis por Delivery, Farmer ou Hunter
+não são preenchidas por default:
 
-- Clientes-fonte de Itaú: diretor CA e managers Bruno, Orion, Fernanda e
-  Ricardo Bonfim.
-- Alelo e CIP/Núclea: diretor CA e manager Ana Braz.
-- Demais clientes: diretor Ane Knust e manager Ana Braz.
+- Clientes-fonte de Itaú: diretor CA, sem manager default.
+- Alelo e CIP/Núclea: diretor CA, sem manager default.
+- Demais clientes: diretor Ane Knust, sem manager default.
 
-Os dados continuam editáveis manualmente após a carga inicial. A regra acima
-define o preenchimento padrão, mas a tela permite escolher um ou mais managers
-de Delivery em qualquer cliente, derivados da tabela Pessoas, sem lista
-operacional hardcoded no front. Hunters puros e papéis exclusivamente comerciais
-ficam fora do cadastro de responsáveis de Delivery. A seleção de managers deve
-usar uma interface de duas listas selecionáveis, permitindo mover um ou mais
-managers entre disponíveis e selecionados sem depender de Ctrl/Cmd. Um duplo
-clique sobre um manager deve movê-lo imediatamente para a outra lista. Ao salvar
-com sucesso, a tela deve exibir uma mensagem de confirmação flutuante. Erros de
-salvamento devem aparecer em aviso flutuante, sem alterar o layout do formulário
-ou exigir scroll.
+Os dados continuam editáveis manualmente após a carga inicial. A tela permite
+escolher zero, um ou mais managers de Delivery em qualquer cliente, derivados da
+tabela Pessoas, sem lista operacional hardcoded no front e sem recolocar uma
+pessoa default ao abrir, editar ou salvar. Hunters puros e papéis exclusivamente
+comerciais ficam fora do cadastro de responsáveis de Delivery. A seleção de
+managers deve usar uma interface de duas listas selecionáveis, permitindo mover
+um ou mais managers entre disponíveis e selecionados sem depender de Ctrl/Cmd. Um
+duplo clique sobre um manager deve movê-lo imediatamente para a outra lista. Ao
+salvar com sucesso, a tela deve exibir uma mensagem de confirmação flutuante.
+Erros de salvamento devem aparecer em aviso flutuante, sem alterar o layout do
+formulário ou exigir scroll.
 Quando a Meta Total editada no cliente ficar acima da soma já distribuída em
 Metas por Pessoa no ano corrente, o formulário deve exibir um alerta com o gap,
 a lista de pessoas/gerentes envolvidos no cliente e atalhos para abrir a tela
@@ -234,6 +235,11 @@ Meta Renovação + Ampliação, Meta Total, quantidade de clientes e lista resum
 de clientes. Cada pessoa do relatório deve navegar para Metas por Pessoa com a
 pessoa e o ano pré-selecionados.
 
+As metas-base do cliente também são anuais. A chave canônica é
+`customer_id + target_year` em `customer_target_years`; os campos financeiros
+legados em `customers` existem apenas para compatibilidade durante a migração.
+Telas com valores financeiros devem exibir e filtrar o ano de referência.
+
 Na rota Metas por Pessoa, o combo Pessoa deve iniciar vazio quando não houver
 `personId` na URL, obrigando o usuário a escolher uma pessoa antes de carregar a
 grade ou incluir clientes. Os campos de Meta Hunter e Meta Renovação + Ampliação
@@ -243,6 +249,14 @@ O grid também deve exibir, por cliente e ano, quais pessoas compõem a meta Hun
 e quais pessoas compõem a meta Renovação + Ampliação/Farmer, incluindo valores
 por pessoa. Quando a pessoa selecionada tiver valor digitado ainda não salvo, a
 linha deve indicar que aquela composição está em edição.
+
+A rota Insights permite importar uma planilha `.xlsx` de baseline de metas com
+as colunas Cliente, BU, Target RL Hunter, Target RL Farmer, Total RL 2026 e
+resp. A importação não sobrescreve a base automaticamente. Primeiro o sistema
+compara cliente a cliente contra `customer_target_years` do ano selecionado e
+valida se o responsável Hunter da planilha está consistente com as pessoas e
+metas Hunter cadastradas. As divergências aparecem em uma grade com checkbox por
+cliente. Só os itens marcados pelo usuário atualizam a base canônica anual.
 
 A rota Ajuda deve disponibilizar um guia rápido simples em PDF, publicado como
 link estático, com instruções de uso para homologadores.

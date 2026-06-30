@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   type Area,
   type Customer,
+  type CustomerTarget,
   type Person,
   type RoleType,
   type Subject,
@@ -85,6 +86,14 @@ type TargetAllocationRow = {
   notes: string | null;
 };
 
+type CustomerTargetRow = {
+  customer_id: string;
+  target_year: number;
+  hunter_target: number | string;
+  farmer_renewal_target: number | string;
+  revenue: number | string;
+};
+
 export class SupabaseDeliveryRepository implements DeliveryRepository {
   constructor(private readonly client: SupabaseClient) {}
 
@@ -109,11 +118,18 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
     if (error) throw error;
   }
 
-  async saveCustomer(customer: Customer) {
+  async saveCustomer(customer: Customer, targetYear = 2026) {
     const validated = validateCustomer(customer);
     const { error } = await this.client.from("customers").upsert(toCustomerRow(validated));
     if (error) throw error;
+    await this.upsertCustomerTarget(validated, targetYear);
     await this.replaceCustomerManagerAssignments(validated.id, validated.managerResponsibleIds);
+    return this.fetchAll();
+  }
+
+  async saveCustomers(customers: Customer[], targetYear = 2026) {
+    const validated = customers.map(validateCustomer);
+    await Promise.all(validated.map((customer) => this.updateCustomerTargets(customer, targetYear)));
     return this.fetchAll();
   }
 
@@ -163,10 +179,11 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
   }
 
   private async fetchAll(): Promise<DeliveryData> {
-    const [areasResult, peopleResult, customersResult, subjectsResult, assignmentsResult, targetAllocationsResult] = await Promise.all([
+    const [areasResult, peopleResult, customersResult, customerTargetsResult, subjectsResult, assignmentsResult, targetAllocationsResult] = await Promise.all([
       this.client.from("areas").select("*").order("name"),
       this.client.from("people").select("*").order("hierarchy_level").order("name"),
       this.client.from("customers").select("*").order("name"),
+      this.client.from("customer_target_years").select("*").order("target_year", { ascending: false }).order("customer_id"),
       this.client.from("subjects").select("*").order("name"),
       this.client.from("person_customer_assignments").select("person_id, customer_id"),
       this.client.from("revenue_target_allocations").select("*").order("target_year", { ascending: false }).order("customer_id"),
@@ -176,7 +193,10 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
     if (error) throw error;
 
     const people = (peopleResult.data as PersonRow[]).map(fromPersonRow);
-    const customers = (customersResult.data as CustomerRow[]).map(fromCustomerRow);
+    const customerTargets = customerTargetsResult.error
+      ? (customersResult.data as CustomerRow[]).map(fromLegacyCustomerTargetRow)
+      : (customerTargetsResult.data as CustomerTargetRow[]).map(fromCustomerTargetRow);
+    const customers = applyCustomerTargetsForYear((customersResult.data as CustomerRow[]).map(fromCustomerRow), customerTargets, 2026);
     const assignments = assignmentsResult.error
       ? buildAssignmentsFromCoverage(people, customers)
       : (assignmentsResult.data as AssignmentRow[]).map(fromAssignmentRow);
@@ -186,6 +206,7 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
       areas: (areasResult.data as AreaRow[]).map(fromAreaRow),
       people: coverage.people,
       customers: coverage.customers,
+      customerTargets,
       subjects: (subjectsResult.data as SubjectRow[]).map(fromSubjectRow),
       targetAllocations: targetAllocationsResult.error
         ? []
@@ -206,6 +227,33 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
       .from("person_customer_assignments")
       .insert(customerIds.map((customerId) => ({ person_id: personId, customer_id: customerId })));
     if (insertError) throw insertError;
+  }
+
+  private async updateCustomerTargets(customer: Customer, targetYear: number) {
+    await this.upsertCustomerTarget(customer, targetYear);
+  }
+
+  private async upsertCustomerTarget(customer: Customer, targetYear: number) {
+    const nextRevenue = roundCurrency(customer.hunterTarget + customer.farmerRenewalTarget);
+    const { error } = await this.client
+      .from("customer_target_years")
+      .upsert({
+        customer_id: customer.id,
+        target_year: targetYear,
+        hunter_target: customer.hunterTarget,
+        farmer_renewal_target: customer.farmerRenewalTarget,
+      });
+    if (error) throw error;
+
+    const { error: legacyError } = await this.client
+      .from("customers")
+      .update({
+        hunter_target: customer.hunterTarget,
+        farmer_renewal_target: customer.farmerRenewalTarget,
+        revenue: nextRevenue,
+      })
+      .eq("id", customer.id);
+    if (legacyError) throw legacyError;
   }
 
   private async trySavePersonWithRpc(person: Person) {
@@ -335,8 +383,9 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
   }
 
   private async savePersonCustomerTargetsWithFallback(input: PersonCustomerTargetsInput) {
-    const [customerResult, allocationsResult, personResult] = await Promise.all([
+    const [customerResult, customerTargetResult, allocationsResult, personResult] = await Promise.all([
       this.client.from("customers").select("*").eq("id", input.customerId).single(),
+      this.client.from("customer_target_years").select("*").eq("customer_id", input.customerId).eq("target_year", input.year).maybeSingle(),
       this.client.from("revenue_target_allocations").select("*").eq("customer_id", input.customerId).eq("target_year", input.year),
       this.client.from("people").select("id, role_type").eq("id", input.personId).single(),
     ]);
@@ -349,7 +398,16 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
       throw new Error("Executivo, Diretor e Staff não recebem meta direta.");
     }
 
-    const customer = fromCustomerRow(customerResult.data as CustomerRow);
+    const legacyCustomer = fromCustomerRow(customerResult.data as CustomerRow);
+    const customerTarget = customerTargetResult.data
+      ? fromCustomerTargetRow(customerTargetResult.data as CustomerTargetRow)
+      : fromLegacyCustomerTargetRow(customerResult.data as CustomerRow);
+    const customer = {
+      ...legacyCustomer,
+      hunterTarget: customerTarget.hunterTarget,
+      farmerRenewalTarget: customerTarget.farmerRenewalTarget,
+      revenue: customerTarget.revenue,
+    };
     const allocations = (allocationsResult.data as TargetAllocationRow[]).map(fromTargetAllocationRow);
     const nextHunterAmount = sanitizeAmount(input.hunterAmount);
     const nextFarmerRenewalAmount = sanitizeAmount(input.farmerRenewalAmount);
@@ -370,19 +428,27 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
       if (!input.increaseCustomerTarget) {
         throw new Error(`A soma das metas das pessoas ultrapassa a meta do cliente (${customer.revenue}).`);
       }
-      const { error: customerError } = await this.client
-        .from("customers")
-        .update({
-          hunter_target: nextHunterTarget,
-          farmer_renewal_target: nextFarmerRenewalTarget,
-          revenue: nextHunterTarget + nextFarmerRenewalTarget,
-        })
-        .eq("id", input.customerId);
-      if (customerError) throw customerError;
+      await this.upsertCustomerTarget({
+        ...customer,
+        hunterTarget: nextHunterTarget,
+        farmerRenewalTarget: nextFarmerRenewalTarget,
+        revenue: nextHunterTarget + nextFarmerRenewalTarget,
+      }, input.year);
     }
 
     await this.persistTypeTargetWithFallback(input, "hunter", nextHunterAmount, allocations);
     await this.persistTypeTargetWithFallback(input, "farmer_renewal", nextFarmerRenewalAmount, allocations);
+
+    if (isHunterRole(personRole)) {
+      const { error: assignmentError } = await this.client
+        .from("person_customer_assignments")
+        .upsert({
+          person_id: input.personId,
+          customer_id: input.customerId,
+          source: "rpc_target_save",
+        });
+      if (assignmentError) throw assignmentError;
+    }
 
     if (isCustomerManagerProfile(personRole, true) && nextFarmerRenewalAmount > 0) {
       const { error: assignmentError } = await this.client
@@ -497,8 +563,8 @@ function toCustomerRow(customer: Customer): CustomerRow {
     name: customer.name,
     industry: customer.industry,
     director_responsible_id: customer.directorResponsibleId,
-    manager_responsible_id: null,
-    manager_responsible_ids: [],
+    manager_responsible_id: customer.managerResponsibleIds[0] ?? null,
+    manager_responsible_ids: customer.managerResponsibleIds,
     territory_id: null,
     hunter_target: customer.hunterTarget,
     farmer_renewal_target: customer.farmerRenewalTarget,
@@ -526,6 +592,45 @@ function fromCustomerRow(row: CustomerRow): Customer {
     margin: Number(row.margin),
     strategicAccount: row.strategic_account,
   };
+}
+
+function fromCustomerTargetRow(row: CustomerTargetRow): CustomerTarget {
+  const hunterTarget = Number(row.hunter_target);
+  const farmerRenewalTarget = Number(row.farmer_renewal_target);
+  return {
+    customerId: row.customer_id,
+    year: row.target_year,
+    hunterTarget,
+    farmerRenewalTarget,
+    revenue: Number(row.revenue) || roundCurrency(hunterTarget + farmerRenewalTarget),
+  };
+}
+
+function fromLegacyCustomerTargetRow(row: CustomerRow): CustomerTarget {
+  const customer = fromCustomerRow(row);
+  return {
+    customerId: customer.id,
+    year: 2026,
+    hunterTarget: customer.hunterTarget,
+    farmerRenewalTarget: customer.farmerRenewalTarget,
+    revenue: customer.revenue,
+  };
+}
+
+function applyCustomerTargetsForYear(customers: Customer[], targets: CustomerTarget[], year: number) {
+  const targetsByCustomer = new Map(targets
+    .filter((target) => target.year === year)
+    .map((target) => [target.customerId, target]));
+  return customers.map((customer) => {
+    const target = targetsByCustomer.get(customer.id);
+    if (!target) return customer;
+    return {
+      ...customer,
+      hunterTarget: target.hunterTarget,
+      farmerRenewalTarget: target.farmerRenewalTarget,
+      revenue: target.revenue,
+    };
+  });
 }
 
 function getCustomerTargetDefaults(name: string, revenue: number) {

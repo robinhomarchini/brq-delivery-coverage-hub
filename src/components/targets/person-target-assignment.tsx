@@ -12,28 +12,30 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useDeliveryStore } from "@/store/delivery-store";
+import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears } from "@/lib/customer-targets";
 import { formatCurrency } from "@/lib/utils";
-import { isTargetAssignableRole } from "@/lib/roles";
+import { isCustomerManagerProfile, isHunterRole, isTargetAssignableRole } from "@/lib/roles";
 
-const currentYear = 2026;
+const currentYear = defaultTargetYear;
 
 type DraftAmounts = Record<string, { hunter: string; farmerRenewal: string }>;
 type AllocationField = "hunter" | "farmerRenewal";
 
 export function PersonTargetAssignment() {
   const initialParams = useMemo(() => getInitialTargetParams(), []);
-  const { people, customers, targetAllocations, savePersonCustomerTargets, removePersonCustomerTargets } = useDeliveryStore();
+  const { people, customers, customerTargets, targetAllocations, savePersonCustomerTargets, removePersonCustomerTargets } = useDeliveryStore();
   const activePeople = useMemo(() => people.filter((person) => person.active), [people]);
   const assignablePeople = useMemo(() =>
     activePeople.filter((person) => isTargetAssignableRole(person.roleType)),
     [activePeople],
   );
   const years = useMemo(
-    () => Array.from(new Set([currentYear, ...targetAllocations.map((allocation) => allocation.year)])).sort((a, b) => b - a),
-    [targetAllocations],
+    () => Array.from(new Set([...getAvailableTargetYears(customerTargets, currentYear), ...targetAllocations.map((allocation) => allocation.year)])).sort((a, b) => b - a),
+    [customerTargets, targetAllocations],
   );
   const [personId, setPersonId] = useState(initialParams.personId);
   const [year, setYear] = useState(initialParams.year ?? currentYear);
+  const yearCustomers = useMemo(() => applyCustomerTargetsForYear(customers, customerTargets, year), [customerTargets, customers, year]);
   const [drafts, setDrafts] = useState<DraftAmounts>({});
   const [extraCustomerIds, setExtraCustomerIds] = useState<string[]>(initialParams.customerId ? [initialParams.customerId] : []);
   const [selectedCustomerId, setSelectedCustomerId] = useState(initialParams.customerId);
@@ -52,8 +54,8 @@ export function PersonTargetAssignment() {
     [effectivePersonId, extraCustomerIds, selectedPerson?.clientIds, targetAllocations, year],
   );
   const visibleCustomers = useMemo(
-    () => customers.filter((customer) => visibleCustomerIds.has(customer.id)),
-    [customers, visibleCustomerIds],
+    () => yearCustomers.filter((customer) => visibleCustomerIds.has(customer.id)),
+    [visibleCustomerIds, yearCustomers],
   );
   const effectiveSelectedCustomerId = visibleCustomerIds.has(selectedCustomerId) ? selectedCustomerId : "";
   const scopedVisibleCustomers = useMemo(
@@ -63,8 +65,8 @@ export function PersonTargetAssignment() {
     [effectiveSelectedCustomerId, visibleCustomers],
   );
   const availableCustomersToAdd = useMemo(
-    () => effectivePersonId ? customers.filter((customer) => !visibleCustomerIds.has(customer.id)) : [],
-    [customers, effectivePersonId, visibleCustomerIds],
+    () => effectivePersonId ? yearCustomers.filter((customer) => !visibleCustomerIds.has(customer.id)) : [],
+    [effectivePersonId, visibleCustomerIds, yearCustomers],
   );
   const effectiveCustomerToAdd = availableCustomersToAdd.some((customer) => customer.id === customerToAdd)
     ? customerToAdd
@@ -275,7 +277,7 @@ export function PersonTargetAssignment() {
             ) : (
               <>
                 <option value="">Todos os clientes da pessoa</option>
-                {customers.map((customer) => (
+                {yearCustomers.map((customer) => (
                   <option key={customer.id} value={customer.id}>{customer.name}</option>
                 ))}
               </>
@@ -678,12 +680,28 @@ function buildTargetPeople(
   const peopleById = new Map(people.map((person) => [person.id, person]));
   const rowsByPerson = new Map<string, TargetPerson>();
 
+  people
+    .filter((person) =>
+      person.clientIds.includes(customerId)
+      && (type === "hunter"
+        ? isHunterRole(person.roleType)
+        : isCustomerManagerProfile(person.roleType, person.isManager))
+    )
+    .forEach((person) => {
+      rowsByPerson.set(person.id, {
+        personId: person.id,
+        name: person.name,
+        roleType: person.roleType,
+        amount: 0,
+        isDraft: false,
+      });
+    });
+
   allocations
     .filter((allocation) => allocation.customerId === customerId && allocation.year === year && allocation.type === type)
     .forEach((allocation) => {
       const person = peopleById.get(allocation.personId);
       const amount = selectedPerson?.id === allocation.personId ? selectedAmount : allocation.amount;
-      if (amount <= 0.01) return;
       rowsByPerson.set(allocation.personId, {
         personId: allocation.personId,
         name: person?.name ?? allocation.personId,
