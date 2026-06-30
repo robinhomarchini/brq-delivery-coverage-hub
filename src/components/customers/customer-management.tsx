@@ -18,10 +18,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DualListSelector } from "@/components/shared/dual-list-selector";
 import { useDeliveryStore } from "@/store/delivery-store";
 import { getFinancialCustomerMetric } from "@/lib/financial-customers";
+import { isCustomerManagerProfile, isTargetAssignableRole } from "@/lib/roles";
 import { formatCurrency, makeId } from "@/lib/utils";
 
-const financialDirectorIds = ["ca", "ane"];
-const deliveryManagerIds = ["bruno", "orion", "fernanda", "bonfim", "ana"];
 const itauManagerIds = ["bruno", "orion", "fernanda", "bonfim"];
 const anaManagerIds = ["ana"];
 const currentYear = 2026;
@@ -90,8 +89,15 @@ export function CustomerManagement() {
   const [formRevenue, setFormRevenue] = useState(getInputValue(initialCustomer?.revenue ?? getFinancialCustomerMetric(initialCustomer?.name ?? "", "revenueTarget")));
   const [successMessage, setSuccessMessage] = useState("");
   const [formError, setFormError] = useState("");
-  const directors = people.filter((person) => financialDirectorIds.includes(person.id));
-  const managers = people.filter((person) => deliveryManagerIds.includes(person.id));
+  const directors = useMemo(() => people
+    .filter((person) => person.active && person.roleType === "Director")
+    .sort((first, second) => first.name.localeCompare(second.name)),
+  [people]);
+  const managers = useMemo(() => people
+    .filter((person) => person.active && isCustomerManagerProfile(person.roleType, person.isManager))
+    .sort((first, second) => first.name.localeCompare(second.name)),
+  [people]);
+  const managerIds = useMemo(() => new Set(managers.map((person) => person.id)), [managers]);
   const linkedEditing = editing ?? (!dismissInitialOpen ? initialCustomer ?? null : null);
   const open = manualOpen || Boolean(linkedEditing && !dismissInitialOpen);
 
@@ -177,7 +183,7 @@ export function CustomerManagement() {
     const formData = new FormData(event.currentTarget);
     const customerName = String(formData.get("name"));
     const defaults = getCustomerDefaults(customerName);
-    const validManagers = formManagerIds.filter((id) => deliveryManagerIds.includes(id));
+    const validManagers = formManagerIds.filter((id) => managerIds.has(id));
     try {
       setFormError("");
       await saveCustomer({
@@ -595,7 +601,7 @@ function getCustomerAllocationWarning(
     ...customerAllocations.map((allocation) => allocation.personId),
   ]);
   const involvedPeople = people
-    .filter((person) => involvedIds.has(person.id) && person.active && person.roleType !== "Executive" && person.roleType !== "Director" && person.roleType !== "Staff")
+    .filter((person) => involvedIds.has(person.id) && person.active && isTargetAssignableRole(person.roleType))
     .sort((first, second) => {
       const firstIsManager = customer.managerResponsibleIds.includes(first.id) ? 0 : 1;
       const secondIsManager = customer.managerResponsibleIds.includes(second.id) ? 0 : 1;

@@ -7,7 +7,7 @@ import {
   buildAssignmentsFromCoverage,
   type CoverageAssignment,
 } from "@/lib/coverage-sync";
-import { isHunterRole } from "@/lib/roles";
+import { isCustomerManagerProfile, isHunterRole, isTargetAssignableRole } from "@/lib/roles";
 
 export class LocalDeliveryRepository implements DeliveryRepository {
   private data: DeliveryData = {
@@ -47,7 +47,22 @@ export class LocalDeliveryRepository implements DeliveryRepository {
 
   async saveCustomer(customer: Customer) {
     customer = validateCustomer(customer);
-    const managerIds = new Set(this.data.people.filter((person) => person.isManager).map((person) => person.id));
+    const managerIds = new Set(this.data.people
+      .filter((person) => isCustomerManagerProfile(person.roleType, person.isManager))
+      .map((person) => person.id));
+    const nextManagerIds = new Set(customer.managerResponsibleIds);
+    const removedManagerIds = new Set(this.assignments
+      .filter((assignment) => assignment.customerId === customer.id && managerIds.has(assignment.personId) && !nextManagerIds.has(assignment.personId))
+      .map((assignment) => assignment.personId));
+
+    if (removedManagerIds.size) {
+      this.data.targetAllocations = this.data.targetAllocations.filter((allocation) =>
+        allocation.customerId !== customer.id
+        || allocation.type !== "farmer_renewal"
+        || !removedManagerIds.has(allocation.personId)
+      );
+    }
+
     this.assignments = [
       ...this.assignments.filter((assignment) => assignment.customerId !== customer.id || !managerIds.has(assignment.personId)),
       ...customer.managerResponsibleIds.map((personId) => ({ personId, customerId: customer.id })),
@@ -88,7 +103,7 @@ export class LocalDeliveryRepository implements DeliveryRepository {
   async savePersonCustomerTargets(input: PersonCustomerTargetsInput) {
     const person = this.data.people.find((item) => item.id === input.personId);
     if (!person) throw new Error("Pessoa não encontrada para a meta.");
-    if (person.roleType === "Executive" || person.roleType === "Director" || person.roleType === "Staff") {
+    if (!isTargetAssignableRole(person.roleType)) {
       throw new Error("Executivo, Diretor e Staff não recebem meta direta.");
     }
 

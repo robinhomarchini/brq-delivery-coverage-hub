@@ -12,6 +12,7 @@ export const roleTypes: RoleType[] = [
 ];
 
 export const deliveryManagerRoleTypes: RoleType[] = ["Farmer + Delivery", "Delivery"];
+export const nonTargetAssignableRoleTypes: RoleType[] = ["Executive", "Director", "Staff"];
 
 export function translateRole(role: RoleType) {
   const labels: Record<RoleType, string> = {
@@ -30,6 +31,14 @@ export function translateRole(role: RoleType) {
 
 export function isDeliveryManagerRole(role: RoleType) {
   return deliveryManagerRoleTypes.includes(role);
+}
+
+export function isTargetAssignableRole(role: RoleType) {
+  return !nonTargetAssignableRoleTypes.includes(role);
+}
+
+export function isCustomerManagerProfile(role: RoleType, isManager: boolean) {
+  return isManager && isTargetAssignableRole(role);
 }
 
 export function isHunterRole(role: RoleType) {

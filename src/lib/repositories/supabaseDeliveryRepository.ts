@@ -18,7 +18,7 @@ import {
   buildAssignmentsFromCoverage,
   type CoverageAssignment,
 } from "@/lib/coverage-sync";
-import { isHunterRole } from "@/lib/roles";
+import { isCustomerManagerProfile, isHunterRole, isTargetAssignableRole } from "@/lib/roles";
 
 type AreaRow = {
   id: string;
@@ -243,9 +243,33 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
   private async replaceCustomerManagerAssignments(customerId: string, managerIds: string[]) {
     const { data, error: peopleError } = await this.client.from("people").select("*").eq("is_manager", true);
     if (peopleError) throw peopleError;
-    const currentManagerIds = (data as PersonRow[]).map((row) => row.id);
+    const currentManagerIds = (data as PersonRow[])
+      .filter((row) => isCustomerManagerProfile(row.role_type as RoleType, row.is_manager))
+      .map((row) => row.id);
 
     if (currentManagerIds.length) {
+      const { data: assignmentData, error: assignmentError } = await this.client
+        .from("person_customer_assignments")
+        .select("person_id")
+        .eq("customer_id", customerId)
+        .in("person_id", currentManagerIds);
+      if (assignmentError) throw assignmentError;
+
+      const nextManagerIds = new Set(managerIds);
+      const removedManagerIds = (assignmentData as AssignmentRow[])
+        .map((assignment) => assignment.person_id)
+        .filter((personId) => !nextManagerIds.has(personId));
+
+      if (removedManagerIds.length) {
+        const { error: deleteTargetError } = await this.client
+          .from("revenue_target_allocations")
+          .delete()
+          .eq("customer_id", customerId)
+          .eq("target_type", "farmer_renewal")
+          .in("person_id", removedManagerIds);
+        if (deleteTargetError) throw deleteTargetError;
+      }
+
       const { error: deleteError } = await this.client
         .from("person_customer_assignments")
         .delete()
@@ -306,7 +330,7 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
     if (error) throw error;
 
     const personRole = (personResult.data as { role_type: RoleType }).role_type;
-    if (personRole === "Executive" || personRole === "Director" || personRole === "Staff") {
+    if (!isTargetAssignableRole(personRole)) {
       throw new Error("Executivo, Diretor e Staff não recebem meta direta.");
     }
 

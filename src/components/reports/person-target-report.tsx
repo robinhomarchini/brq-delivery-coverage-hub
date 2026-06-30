@@ -13,6 +13,7 @@ import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useDeliveryStore } from "@/store/delivery-store";
 import { formatCurrency } from "@/lib/utils";
+import { isTargetAssignableRole } from "@/lib/roles";
 
 const currentYear = 2026;
 
@@ -23,12 +24,7 @@ export function PersonTargetReport() {
   const [roleType, setRoleType] = useState("");
 
   const assignablePeople = useMemo(
-    () => people.filter((person) =>
-      person.active
-      && person.roleType !== "Executive"
-      && person.roleType !== "Director"
-      && person.roleType !== "Staff"
-    ),
+    () => people.filter((person) => person.active && isTargetAssignableRole(person.roleType)),
     [people],
   );
   const years = useMemo(

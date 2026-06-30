@@ -19,7 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useDeliveryStore } from "@/store/delivery-store";
 import { formatCurrency, makeId } from "@/lib/utils";
 import { getFinancialCustomerMetric } from "@/lib/financial-customers";
-import { isHunterRole } from "@/lib/roles";
+import { isHunterRole, isTargetAssignableRole } from "@/lib/roles";
 
 const currentYear = 2026;
 
@@ -40,7 +40,7 @@ export function TargetManagement() {
 
   const activePeople = useMemo(() => people.filter((person) => person.active), [people]);
   const targetAssignablePeople = useMemo(
-    () => activePeople.filter((person) => person.roleType !== "Executive" && person.roleType !== "Director" && person.roleType !== "Staff"),
+    () => activePeople.filter((person) => isTargetAssignableRole(person.roleType)),
     [activePeople],
   );
   const targetAssignablePersonIds = useMemo(() => new Set(targetAssignablePeople.map((person) => person.id)), [targetAssignablePeople]);

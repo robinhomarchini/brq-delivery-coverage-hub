@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useDeliveryStore } from "@/store/delivery-store";
 import { formatCurrency } from "@/lib/utils";
 import { getFinancialCustomerMetric } from "@/lib/financial-customers";
+import { isTargetAssignableRole } from "@/lib/roles";
 
 const currentYear = 2026;
 
@@ -25,7 +26,7 @@ export function PersonTargetAssignment() {
   const { people, customers, targetAllocations, savePersonCustomerTargets } = useDeliveryStore();
   const activePeople = useMemo(() => people.filter((person) => person.active), [people]);
   const assignablePeople = useMemo(() =>
-    activePeople.filter((person) => person.roleType !== "Executive" && person.roleType !== "Director" && person.roleType !== "Staff"),
+    activePeople.filter((person) => isTargetAssignableRole(person.roleType)),
     [activePeople],
   );
   const years = useMemo(

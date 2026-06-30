@@ -49,6 +49,14 @@ manualmente no momento de salvar. Cliente sem manager é um caso válido de
 cobertura descoberta e deve ser tratado pelas telas de governança/assistente de
 metas, não bloqueado pelo formulário.
 
+Listas operacionais da tela de Clientes não devem depender de IDs hardcoded. Os
+diretores responsáveis devem vir das Pessoas ativas com perfil Diretor. Managers
+responsáveis devem vir das Pessoas ativas marcadas como manager e elegíveis para
+atuação operacional. Ao remover um manager de um cliente, as metas de Renovação +
+Ampliação desse manager para o cliente devem ser removidas na mesma transação de
+salvamento, mantendo a meta total do cliente e exibindo o saldo como pendente
+sem pessoa alocada.
+
 Na listagem principal de Clientes, a coluna de governança deve exibir apenas o
 diretor responsável pelo cliente, como CA ou Ane Knust. Managers e pessoas que
 compõem as metas devem ficar nas colunas seguintes, evitando duplicidade visual.
