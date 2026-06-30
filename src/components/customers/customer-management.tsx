@@ -372,8 +372,8 @@ export function CustomerManagement() {
                   value={formHunterTarget}
                   onChange={(event) => setFormHunterTarget(event.target.value)}
                   onFocus={(event) => event.currentTarget.select()}
+                  placeholder="0"
                   className="h-10 border-0 px-0 text-right font-semibold tabular-nums focus:ring-0"
-                  required
                 />
               </div>
               <span className="mt-1 block text-xs text-slate-500">{formatCurrency(formHunterAmount)}</span>
@@ -389,8 +389,8 @@ export function CustomerManagement() {
                   value={formFarmerRenewalTarget}
                   onChange={(event) => setFormFarmerRenewalTarget(event.target.value)}
                   onFocus={(event) => event.currentTarget.select()}
+                  placeholder="0"
                   className="h-10 border-0 px-0 text-right font-semibold tabular-nums focus:ring-0"
-                  required
                 />
               </div>
               <span className="mt-1 block text-xs text-slate-500">{formatCurrency(formFarmerRenewalAmount)}</span>
@@ -855,7 +855,8 @@ function getCustomerTargetPeopleByType(
 }
 
 function getInputValue(value: number) {
-  if (!Number.isFinite(value) || value <= 0) return "";
+  if (!Number.isFinite(value) || value < 0) return "";
+  if (value === 0) return "0";
   return new Intl.NumberFormat("pt-BR", {
     minimumFractionDigits: value % 1 === 0 ? 0 : 2,
     maximumFractionDigits: 2,

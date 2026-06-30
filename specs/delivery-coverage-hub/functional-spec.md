@@ -29,6 +29,9 @@ Total, sempre formatada em reais. A tela de Clientes é a base da meta do
 cliente: Meta Total é calculada por Meta Hunter + Meta Renovação + Ampliação. A
 carga Financial BU pode sugerir a quebra inicial, mas após edição os campos do
 cadastro do cliente são a fonte de verdade para as demais telas.
+Meta Hunter e Meta Renovação + Ampliação aceitam `0` como valor válido. Campo
+em branco nesses dois campos deve ser interpretado como R$ 0 e não pode bloquear
+o salvamento do cliente.
 Managers responsáveis representam governança Delivery da conta. O Hunter
 responsável representa vínculo cadastral/comercial. Áreas / Studios classificam
 pessoas e podem apoiar a execução, mas não substituem o manager responsável do
