@@ -6,6 +6,9 @@ Sidebar com Dashboard Executivo, Organograma, Pessoas, Clientes, Portfólio de
 Clientes, Metas, Metas por Pessoa, Relatório de Metas, Assuntos, Mapa de
 Cobertura, Configurações e Ajuda. O item Assuntos fica visível como
 pausado/desabilitado até nova definição do modelo.
+Ao navegar pelo menu ou mudar a rota/query, telas contextuais devem ser
+remontadas para fechar modais, limpar filtros temporários e evitar que uma tela
+como Clientes reabra presa no último cliente consultado.
 
 ## Fluxos CRUD
 
@@ -217,10 +220,11 @@ diretamente a Robinson e não deve carregar meta própria.
 
 A rota Metas possui um Assistente de Metas acionável. Ele apresenta clientes sem
 valor de meta, clientes sem manager, clientes sem hunter associado quando existe
-meta Hunter esperada e divergências entre soma das pessoas e meta total do
-cliente. Achados relacionados ao cliente navegam para a tela Clientes com o
-cliente em edição. Achados relacionados à associação de metas navegam para
-Metas por Pessoa com cliente e ano pré-selecionados.
+meta Hunter no cadastro do cliente, valores em aberto ou excedentes e
+divergências entre soma das pessoas e meta total do cliente. Achados relacionados
+ao cliente navegam para a tela Clientes com o cliente em edição. Achados
+relacionados à associação de metas navegam para Metas por Pessoa com cliente e
+ano pré-selecionados.
 
 A rota Relatório de Metas apresenta visão por pessoa e ano, com Meta Hunter,
 Meta Renovação + Ampliação, Meta Total, quantidade de clientes e lista resumida

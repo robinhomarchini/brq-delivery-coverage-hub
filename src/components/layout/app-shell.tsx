@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   Building2,
   ChartNoAxesCombined,
@@ -40,6 +40,7 @@ const navigation = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [mobileOpen, setMobileOpen] = useState(false);
   const current = navigation.find((item) => item.href === pathname) ?? navigation[0];
   const client = getSupabaseBrowserClient();
@@ -49,6 +50,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     : process.env.NODE_ENV === "production"
       ? { label: "Configuração pendente", className: "bg-amber-500" }
       : { label: "Dados demonstrativos", className: "bg-emerald-500" };
+  const routeKey = `${pathname}?${searchParams.toString()}`;
 
   return (
     <div className="min-h-screen">
@@ -135,7 +137,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </header>
         <main className="mx-auto min-h-[calc(100vh-3.5rem)] max-w-[1680px] p-4 sm:p-6">
           {error && <ErrorNotice message={error} floating onClose={clearError} />}
-          {children}
+          <div key={routeKey}>{children}</div>
         </main>
       </div>
     </div>

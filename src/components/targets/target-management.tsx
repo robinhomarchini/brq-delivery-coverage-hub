@@ -18,7 +18,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useDeliveryStore } from "@/store/delivery-store";
 import { formatCurrency, makeId } from "@/lib/utils";
-import { getFinancialCustomerMetric } from "@/lib/financial-customers";
 import { isHunterRole, isTargetAssignableRole } from "@/lib/roles";
 
 const currentYear = 2026;
@@ -35,7 +34,7 @@ export function TargetManagement() {
   const [successMessage, setSuccessMessage] = useState("");
   const [formError, setFormError] = useState("");
   const [focusAmountOnOpen, setFocusAmountOnOpen] = useState(false);
-  const [assistantOpen, setAssistantOpen] = useState(false);
+  const [assistantOpen, setAssistantOpen] = useState(true);
   const amountInputRef = useRef<HTMLInputElement>(null);
 
   const activePeople = useMemo(() => people.filter((person) => person.active), [people]);
@@ -161,7 +160,7 @@ export function TargetManagement() {
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => setAssistantOpen((current) => !current)}>
               <Bot className="h-4 w-4" />
-              Assistente de metas
+              {assistantOpen ? "Ocultar inconsistências" : "Ver inconsistências"}
             </Button>
             <Button asChild><Link href="/metas-pessoas"><Plus className="h-4 w-4" /> Associar por pessoa</Link></Button>
           </div>
@@ -639,7 +638,7 @@ function buildTargetAssistant(customers: Customer[], allocations: TargetAllocati
   for (const customer of customers) {
     const target = getCustomerTarget(customer);
     const allocated = sumAllocations(allocations, customer.id, year);
-    const hunterExpected = getFinancialCustomerMetric(customer.name, "hunterRevenue");
+    const hunterExpected = customer.hunterTarget;
     const hunterAllocated = allocations
       .filter((allocation) => allocation.customerId === customer.id && allocation.year === year && allocation.type === "hunter")
       .reduce((total, allocation) => total + allocation.amount, 0);
@@ -819,5 +818,9 @@ function sumAllocations(allocations: TargetAllocation[], customerId: string, yea
 }
 
 function getCustomerTarget(customer: Customer) {
-  return customer.revenue || getFinancialCustomerMetric(customer.name, "revenueTarget");
+  return roundCurrency(customer.hunterTarget + customer.farmerRenewalTarget);
+}
+
+function roundCurrency(value: number) {
+  return Math.round(value * 100) / 100;
 }
