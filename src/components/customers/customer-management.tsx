@@ -108,7 +108,7 @@ export function CustomerManagement() {
   }), [customers, director, manager, search, strategic]);
 
   const targetTotals = filtered.reduce((totals, customer) => {
-    const breakdown = getCustomerTargetBreakdown(customer);
+    const breakdown = getCustomerTargetBreakdown(customer, targetAllocations, currentYear);
     return {
       hunter: totals.hunter + breakdown.hunter,
       farmerRenewal: totals.farmerRenewal + breakdown.farmerRenewal,
@@ -125,7 +125,7 @@ export function CustomerManagement() {
     revenue: parseAmount(formRevenue),
     margin: linkedEditing?.margin ?? 0,
     strategicAccount: linkedEditing?.strategicAccount ?? true,
-  });
+  }, targetAllocations, currentYear);
   const allocationComposition = linkedEditing
     ? getCustomerAllocationComposition(
       {
@@ -239,7 +239,7 @@ export function CustomerManagement() {
             </TableRow></TableHeader>
             <TableBody>
               {filtered.map((customer) => {
-                const breakdown = getCustomerTargetBreakdown(customer);
+                const breakdown = getCustomerTargetBreakdown(customer, targetAllocations, currentYear);
                 const targetPeople = getCustomerTargetPeople(customer, people, targetAllocations, currentYear);
                 return (
                   <TableRow
@@ -326,7 +326,7 @@ export function CustomerManagement() {
               <TargetBreakdownView breakdown={formBreakdown} compact />
               {allocationComposition && <CustomerAllocationCompositionView composition={allocationComposition} />}
               <p className="mt-2 text-xs text-slate-500">
-                A quebra Hunter / Renovação + Ampliação vem da carga Financial BU; a distribuição por pessoa vem de Metas por Pessoa.
+                Quando houver metas por pessoa, a quebra Hunter / Renovação + Ampliação vem de Metas por Pessoa. A carga Financial BU é usada apenas como referência inicial.
               </p>
             </div>
             {allocationWarning && <CustomerAllocationWarning warning={allocationWarning} />}
@@ -578,18 +578,58 @@ function findPersonIdsByName(people: Person[], names: string[]) {
     .map((person) => person.id);
 }
 
-function getCustomerTargetBreakdown(customer: Customer): CustomerTargetBreakdown {
+function getCustomerTargetBreakdown(customer: Customer, allocations: TargetAllocation[], year: number): CustomerTargetBreakdown {
   const customerTarget = getCustomerTarget(customer);
+  const allocatedBreakdown = getAllocatedCustomerTargetBreakdown(customer, allocations, year);
+  if (customerTarget <= 0) return { hunter: 0, farmerRenewal: 0, total: 0 };
+
+  if (allocatedBreakdown.total > 0.01) {
+    if (Math.abs(customerTarget - allocatedBreakdown.total) <= 0.01) {
+      return {
+        hunter: allocatedBreakdown.hunter,
+        farmerRenewal: allocatedBreakdown.farmerRenewal,
+        total: customerTarget,
+      };
+    }
+
+    const hunterRatio = allocatedBreakdown.hunter / allocatedBreakdown.total;
+    const hunter = roundCurrency(customerTarget * hunterRatio);
+    return {
+      hunter,
+      farmerRenewal: roundCurrency(customerTarget - hunter),
+      total: customerTarget,
+    };
+  }
+
   const importedHunter = getFinancialCustomerMetric(customer.name, "hunterRevenue");
   const importedFarmerRenewal = getFinancialCustomerMetric(customer.name, "deliveryFarmerRevenue");
   const importedTotal = importedHunter + importedFarmerRenewal;
 
-  if (customerTarget <= 0) return { hunter: 0, farmerRenewal: 0, total: 0 };
   if (importedTotal <= 0) return { hunter: 0, farmerRenewal: customerTarget, total: customerTarget };
 
   const ratio = customerTarget / importedTotal;
   const hunter = roundCurrency(importedHunter * ratio);
   const farmerRenewal = roundCurrency(customerTarget - hunter);
+  return { hunter, farmerRenewal, total: roundCurrency(hunter + farmerRenewal) };
+}
+
+function getAllocatedCustomerTargetBreakdown(
+  customer: Customer,
+  allocations: TargetAllocation[],
+  year: number,
+): CustomerTargetBreakdown {
+  const customerAllocations = allocations.filter((allocation) =>
+    allocation.customerId === customer.id
+    && allocation.year === year
+    && allocation.amount > 0
+  );
+  const hunter = roundCurrency(customerAllocations
+    .filter((allocation) => allocation.type === "hunter")
+    .reduce((sum, allocation) => sum + allocation.amount, 0));
+  const farmerRenewal = roundCurrency(customerAllocations
+    .filter((allocation) => allocation.type === "farmer_renewal")
+    .reduce((sum, allocation) => sum + allocation.amount, 0));
+
   return { hunter, farmerRenewal, total: roundCurrency(hunter + farmerRenewal) };
 }
 

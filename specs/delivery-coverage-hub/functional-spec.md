@@ -21,9 +21,11 @@ operacional. O formulário de novo cliente exibe Nome do cliente, Indústria,
 Diretor responsável, Managers responsáveis, Conta estratégica, Meta total e
 Margem. A listagem e o formulário exibem a composição financeira em Meta Hunter,
 Meta Renovação + Ampliação e Meta Total, sempre formatada em reais. A meta total
-continua sendo o campo editável do cliente; a quebra Hunter/Renovação é derivada
-proporcionalmente da carga Financial BU para evitar duplicidade de fonte de
-verdade.
+continua sendo o campo editável do cliente. Quando já houver metas por pessoa no
+ano corrente, a quebra Hunter/Renovação deve ser derivada de
+`revenue_target_allocations`, que é a fonte operacional de distribuição. A carga
+Financial BU pode sugerir a quebra inicial apenas enquanto não existir
+distribuição operacional cadastrada para o cliente/ano.
 No modal de edição, a composição da meta também deve mostrar a distribuição por
 pessoa no ano corrente, separando Hunter, Renovação + Ampliação e Total por
 pessoa. Quando parte da meta ainda não estiver alocada, a tela deve exibir uma
