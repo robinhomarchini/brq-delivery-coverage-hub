@@ -149,7 +149,9 @@ planilha Financial BU:
 Os dropdowns de responsáveis são restritos a:
 
 - Diretor responsável: CA e Ane Knust.
-- Managers responsáveis: Bruno, Orion, Fernanda, Ricardo Bonfim e Ana Braz.
+- Managers responsáveis: pessoas ativas da BU Financial marcadas como
+  `is_manager = true` e com perfil operacional elegível para governança de
+  Delivery.
 
 Ao informar o nome do cliente, o formulário aplica a regra padrão:
 
@@ -160,14 +162,15 @@ Ao informar o nome do cliente, o formulário aplica a regra padrão:
 
 Os dados continuam editáveis manualmente após a carga inicial. A regra acima
 define o preenchimento padrão, mas a tela permite escolher um ou mais managers
-de Delivery em qualquer cliente, usando apenas Bruno, Orion, Fernanda, Ricardo
-Bonfim e Ana Braz. Hunters, Farmers e papéis comerciais ficam fora do cadastro
-de clientes. A seleção de managers deve usar uma interface de duas listas
-selecionáveis, permitindo mover um ou mais managers entre disponíveis e
-selecionados sem depender de Ctrl/Cmd. Um duplo clique sobre um manager deve
-movê-lo imediatamente para a outra lista. Ao salvar com sucesso, a tela deve
-exibir uma mensagem de confirmação flutuante. Erros de salvamento devem aparecer
-em aviso flutuante, sem alterar o layout do formulário ou exigir scroll.
+de Delivery em qualquer cliente, derivados da tabela Pessoas, sem lista
+operacional hardcoded no front. Hunters puros e papéis exclusivamente comerciais
+ficam fora do cadastro de responsáveis de Delivery. A seleção de managers deve
+usar uma interface de duas listas selecionáveis, permitindo mover um ou mais
+managers entre disponíveis e selecionados sem depender de Ctrl/Cmd. Um duplo
+clique sobre um manager deve movê-lo imediatamente para a outra lista. Ao salvar
+com sucesso, a tela deve exibir uma mensagem de confirmação flutuante. Erros de
+salvamento devem aparecer em aviso flutuante, sem alterar o layout do formulário
+ou exigir scroll.
 Quando a Meta Total editada no cliente ficar acima da soma já distribuída em
 Metas por Pessoa no ano corrente, o formulário deve exibir um alerta com o gap,
 a lista de pessoas/gerentes envolvidos no cliente e atalhos para abrir a tela
