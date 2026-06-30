@@ -79,6 +79,11 @@ alocado a outras pessoas para aquele tipo, salvar imediatamente a meta daquele
 tipo para a pessoa selecionada no ano corrente da tela. Se não houver saldo
 disponível, deve exibir uma mensagem clara orientando revisar as pessoas já
 associadas.
+Essa tela deve suportar navegação contextual: links vindos da tela de Clientes
+devem abrir Metas por Pessoa com o cliente em foco já selecionado. O usuário
+então escolhe a pessoa lançável e edita diretamente aquele cliente, sem precisar
+procurar manualmente na grade. Também deve ser possível trocar o cliente em foco
+por um seletor explícito.
 
 As telas executivas podem exibir clientes agrupados em clusters financeiros,
 desde que o cadastro operacional preserve os clientes individuais como fonte de

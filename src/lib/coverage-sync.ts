@@ -59,7 +59,7 @@ export function applyCoverageAssignments(
 }
 
 export function syncCustomersForPerson(customers: Customer[], person: Person) {
-  if (!person.isManager) return customers;
+  if (!isCustomerManagerProfile(person.roleType, person.isManager)) return customers;
   const selectedCustomerIds = new Set(person.clientIds);
 
   return customers.map((customer) => {
@@ -78,16 +78,20 @@ export function syncCustomersForPerson(customers: Customer[], person: Person) {
 
 export function syncPeopleFromCustomers(people: Person[], customers: Customer[]) {
   const customerIdsByManager = new Map<string, string[]>();
+  const managerIds = new Set(people
+    .filter((person) => isCustomerManagerProfile(person.roleType, person.isManager))
+    .map((person) => person.id));
 
   for (const customer of customers) {
     for (const managerId of customer.managerResponsibleIds) {
+      if (!managerIds.has(managerId)) continue;
       const currentIds = customerIdsByManager.get(managerId) ?? [];
       customerIdsByManager.set(managerId, [...currentIds, customer.id]);
     }
   }
 
   return people.map((person) => {
-    if (!person.isManager) return person;
+    if (!isCustomerManagerProfile(person.roleType, person.isManager)) return person;
     const nextClientIds = customerIdsByManager.get(person.id) ?? [];
     return areArraysEqual(person.clientIds, nextClientIds)
       ? person

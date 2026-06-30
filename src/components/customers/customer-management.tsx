@@ -21,8 +21,6 @@ import { getFinancialCustomerMetric } from "@/lib/financial-customers";
 import { isCustomerManagerProfile, isTargetAssignableRole } from "@/lib/roles";
 import { formatCurrency, makeId } from "@/lib/utils";
 
-const itauManagerIds = ["bruno", "orion", "fernanda", "bonfim"];
-const anaManagerIds = ["ana"];
 const currentYear = 2026;
 
 interface CustomerTargetBreakdown {
@@ -84,7 +82,7 @@ export function CustomerManagement() {
   const [manualOpen, setManualOpen] = useState(false);
   const [dismissInitialOpen, setDismissInitialOpen] = useState(false);
   const [formName, setFormName] = useState(initialCustomer?.name ?? "");
-  const [formDirectorId, setFormDirectorId] = useState(initialCustomer?.directorResponsibleId ?? "ane");
+  const [formDirectorId, setFormDirectorId] = useState(initialCustomer?.directorResponsibleId ?? "");
   const [formManagerIds, setFormManagerIds] = useState<string[]>(initialCustomer?.managerResponsibleIds ?? []);
   const [formRevenue, setFormRevenue] = useState(getInputValue(initialCustomer?.revenue ?? getFinancialCustomerMetric(initialCustomer?.name ?? "", "revenueTarget")));
   const [successMessage, setSuccessMessage] = useState("");
@@ -158,7 +156,7 @@ export function CustomerManagement() {
 
   function openForm(item?: Customer) {
     setEditing(item ?? null);
-    const defaults = getCustomerDefaults(item?.name ?? "");
+    const defaults = getCustomerDefaults(item?.name ?? "", directors, managers);
     setFormName(item?.name ?? "");
     setFormDirectorId(item?.directorResponsibleId ?? defaults.directorResponsibleId);
     setFormManagerIds(item?.managerResponsibleIds ?? defaults.managerResponsibleIds);
@@ -170,7 +168,7 @@ export function CustomerManagement() {
 
   function applyCustomerRules(name: string) {
     if (linkedEditing) return;
-    const defaults = getCustomerDefaults(name);
+    const defaults = getCustomerDefaults(name, directors, managers);
     setFormDirectorId(defaults.directorResponsibleId);
     setFormManagerIds(defaults.managerResponsibleIds);
     const importedTarget = getFinancialCustomerMetric(name, "revenueTarget");
@@ -183,7 +181,7 @@ export function CustomerManagement() {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
     const customerName = String(formData.get("name"));
-    const defaults = getCustomerDefaults(customerName);
+    const defaults = getCustomerDefaults(customerName, directors, managers);
     const validManagers = formManagerIds.filter((id) => managerIds.has(id));
     try {
       setFormError("");
@@ -554,15 +552,30 @@ function getFormErrorMessage(error: unknown) {
   return "Não foi possível salvar. Verifique permissões, dados e conexão.";
 }
 
-function getCustomerDefaults(name: string) {
+function getCustomerDefaults(name: string, directors: Person[], managers: Person[]) {
   const normalized = normalizeName(name);
+  const caDirectorId = findPersonIdByName(directors, ["CA"]) ?? "ca";
+  const aneDirectorId = findPersonIdByName(directors, ["Ane Knust", "Ane Knust Coelho"]) ?? "ane";
+  const itauManagerIds = findPersonIdsByName(managers, ["Bruno", "Orion", "Fernanda", "Ricardo Bonfim", "Bonfim"]);
+  const anaManagerIds = findPersonIdsByName(managers, ["Ana Braz"]);
   if (normalized.includes("itau")) {
-    return { directorResponsibleId: "ca", managerResponsibleIds: itauManagerIds };
+    return { directorResponsibleId: caDirectorId, managerResponsibleIds: itauManagerIds };
   }
   if (normalized.includes("alelo") || normalized.includes("nuclea") || normalized === "cip") {
-    return { directorResponsibleId: "ca", managerResponsibleIds: anaManagerIds };
+    return { directorResponsibleId: caDirectorId, managerResponsibleIds: anaManagerIds };
   }
-  return { directorResponsibleId: "ane", managerResponsibleIds: anaManagerIds };
+  return { directorResponsibleId: aneDirectorId, managerResponsibleIds: anaManagerIds };
+}
+
+function findPersonIdByName(people: Person[], names: string[]) {
+  return findPersonIdsByName(people, names)[0];
+}
+
+function findPersonIdsByName(people: Person[], names: string[]) {
+  const normalizedNames = names.map(normalizeName);
+  return people
+    .filter((person) => normalizedNames.some((name) => normalizeName(person.name).includes(name)))
+    .map((person) => person.id);
 }
 
 function getCustomerTargetBreakdown(customer: Customer): CustomerTargetBreakdown {

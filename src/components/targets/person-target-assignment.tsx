@@ -37,6 +37,7 @@ export function PersonTargetAssignment() {
   const [year, setYear] = useState(initialParams.year ?? currentYear);
   const [drafts, setDrafts] = useState<DraftAmounts>({});
   const [extraCustomerIds, setExtraCustomerIds] = useState<string[]>(initialParams.customerId ? [initialParams.customerId] : []);
+  const [selectedCustomerId, setSelectedCustomerId] = useState(initialParams.customerId);
   const [customerToAdd, setCustomerToAdd] = useState("");
   const [savingCustomerId, setSavingCustomerId] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
@@ -54,6 +55,13 @@ export function PersonTargetAssignment() {
     () => customers.filter((customer) => visibleCustomerIds.has(customer.id)),
     [customers, visibleCustomerIds],
   );
+  const effectiveSelectedCustomerId = visibleCustomerIds.has(selectedCustomerId) ? selectedCustomerId : "";
+  const scopedVisibleCustomers = useMemo(
+    () => effectiveSelectedCustomerId
+      ? visibleCustomers.filter((customer) => customer.id === effectiveSelectedCustomerId)
+      : visibleCustomers,
+    [effectiveSelectedCustomerId, visibleCustomers],
+  );
   const availableCustomersToAdd = useMemo(
     () => effectivePersonId ? customers.filter((customer) => !visibleCustomerIds.has(customer.id)) : [],
     [customers, effectivePersonId, visibleCustomerIds],
@@ -62,7 +70,7 @@ export function PersonTargetAssignment() {
     ? customerToAdd
     : availableCustomersToAdd[0]?.id ?? "";
   const rows = useMemo(
-    () => visibleCustomers.map((customer) => buildRow(
+    () => scopedVisibleCustomers.map((customer) => buildRow(
       customer,
       effectivePersonId,
       year,
@@ -72,7 +80,7 @@ export function PersonTargetAssignment() {
       selectedPerson,
       getRowSource(customer.id, selectedPerson?.clientIds ?? [], targetAllocations, effectivePersonId, year, extraCustomerIds),
     )),
-    [drafts, effectivePersonId, extraCustomerIds, people, selectedPerson, targetAllocations, visibleCustomers, year],
+    [drafts, effectivePersonId, extraCustomerIds, people, scopedVisibleCustomers, selectedPerson, targetAllocations, year],
   );
   const totals = useMemo(() => rows.reduce((summary, row) => ({
     hunter: summary.hunter + row.hunterAmount,
@@ -88,6 +96,12 @@ export function PersonTargetAssignment() {
         [field]: value,
       },
     }));
+  }
+
+  function changeFocusedCustomer(customerId: string) {
+    setSelectedCustomerId(customerId);
+    if (!customerId) return;
+    setExtraCustomerIds((current) => current.includes(customerId) ? current : [...current, customerId]);
   }
 
   async function saveCustomerTargets(row: PersonTargetRow) {
@@ -197,13 +211,14 @@ export function PersonTargetAssignment() {
       {successMessage && <SuccessNotice message={successMessage} floating />}
       {errorMessage && <ErrorNotice message={errorMessage} floating onClose={() => setErrorMessage("")} />}
 
-      <Card className="mb-5 grid gap-4 p-5 shadow-sm lg:grid-cols-[2fr_1fr_1fr_1fr]">
+      <Card className="mb-5 grid gap-4 p-5 shadow-sm lg:grid-cols-[2fr_2fr_1fr_1fr_1fr]">
         <label>
           <span className="mb-1.5 block text-sm font-semibold text-slate-700">Pessoa</span>
           <Select value={effectivePersonId} onChange={(event) => {
             setPersonId(event.target.value);
             setDrafts({});
-            setExtraCustomerIds(initialParams.customerId ? [initialParams.customerId] : []);
+            const retainedCustomerId = selectedCustomerId || initialParams.customerId;
+            setExtraCustomerIds(retainedCustomerId ? [retainedCustomerId] : []);
           }}>
             <option value="">Selecione uma pessoa</option>
             {assignablePeople.map((person) => (
@@ -213,11 +228,32 @@ export function PersonTargetAssignment() {
           <span className="mt-1 block text-xs text-slate-400">Escolha uma pessoa lançável. Executivo, Diretores e Staff aparecem apenas nas consolidações.</span>
         </label>
         <label>
+          <span className="mb-1.5 block text-sm font-semibold text-slate-700">Cliente em foco</span>
+          <Select
+            value={effectivePersonId ? selectedCustomerId : ""}
+            onChange={(event) => changeFocusedCustomer(event.target.value)}
+            disabled={!effectivePersonId}
+          >
+            {!effectivePersonId ? (
+              <option value="">Selecione uma pessoa primeiro</option>
+            ) : (
+              <>
+                <option value="">Todos os clientes da pessoa</option>
+                {customers.map((customer) => (
+                  <option key={customer.id} value={customer.id}>{customer.name}</option>
+                ))}
+              </>
+            )}
+          </Select>
+          <span className="mt-1 block text-xs text-slate-400">Ao vir de Clientes, o cliente já fica selecionado aqui.</span>
+        </label>
+        <label>
           <span className="mb-1.5 block text-sm font-semibold text-slate-700">Ano</span>
           <Select value={String(year)} onChange={(event) => {
             setYear(Number(event.target.value));
             setDrafts({});
-            setExtraCustomerIds(initialParams.customerId ? [initialParams.customerId] : []);
+            const retainedCustomerId = selectedCustomerId || initialParams.customerId;
+            setExtraCustomerIds(retainedCustomerId ? [retainedCustomerId] : []);
           }}>
             {years.map((item) => <option key={item} value={item}>{item}</option>)}
           </Select>
@@ -246,6 +282,7 @@ export function PersonTargetAssignment() {
             onClick={() => {
               if (!effectiveCustomerToAdd) return;
               setExtraCustomerIds((current) => current.includes(effectiveCustomerToAdd) ? current : [...current, effectiveCustomerToAdd]);
+              setSelectedCustomerId(effectiveCustomerToAdd);
             }}
           >
             <Plus className="h-4 w-4" />
