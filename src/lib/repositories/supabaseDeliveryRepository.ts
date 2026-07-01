@@ -211,9 +211,20 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
 
   async saveStudioTargetAllocation(allocation: StudioTargetAllocation) {
     const validated = validateStudioTargetAllocation(allocation);
-    const { error } = await this.client.from("studio_target_allocations").upsert(toStudioTargetAllocationRow(validated));
+    const row = toStudioTargetAllocationRow(validated);
+    const { data: existing, error: lookupError } = await this.client
+      .from("studio_target_allocations")
+      .select("id")
+      .eq("customer_id", validated.customerId)
+      .eq("area_id", validated.areaId)
+      .eq("target_year", validated.year)
+      .maybeSingle();
+    if (lookupError) throw lookupError;
+    if (existing?.id) row.id = existing.id;
+
+    const { error } = await this.client.from("studio_target_allocations").upsert(row);
     if (error) throw error;
-    return validated;
+    return { ...validated, id: row.id };
   }
 
   async deleteStudioTargetAllocation(id: string) {
@@ -823,13 +834,18 @@ function toStudioTargetAllocationRow(allocation: StudioTargetAllocation): Studio
 }
 
 function fromStudioTargetAllocationRow(row: StudioTargetAllocationRow): StudioTargetAllocation {
+  const hunterAmount = Number(row.hunter_amount ?? 0);
+  const maintenanceAmount = Number(row.maintenance_amount ?? 0);
+  const legacyAmount = Number(row.amount ?? 0);
+  const legacyAmountIsUnsplitHunter = hunterAmount <= 0 && maintenanceAmount <= 0 && legacyAmount > 0;
+
   return {
     id: row.id,
     customerId: row.customer_id,
     areaId: row.area_id,
     year: row.target_year,
-    hunterAmount: Number(row.hunter_amount ?? 0),
-    maintenanceAmount: Number(row.maintenance_amount ?? row.amount ?? 0),
+    hunterAmount: legacyAmountIsUnsplitHunter ? legacyAmount : hunterAmount,
+    maintenanceAmount,
     notes: row.notes ?? undefined,
   };
 }

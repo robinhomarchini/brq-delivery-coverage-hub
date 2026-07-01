@@ -63,6 +63,11 @@ experiência do usuário até nova definição de modelo.
   Receita Delivery/Farmer e Áreas / Studios. Hunters são usados somente para
   atribuição de meta e reporting; não entram como owners da governança de
   Delivery.
+- Metas de Áreas / Studios são separadas em Studio Hunter e Studio
+  Manutenção/Renovação. Studio Hunter fica contido na meta Hunter do cliente e
+  não soma novamente no total; Studio Manutenção/Renovação compõe o total do
+  cliente como complemento. Valores de Áreas / Studios cadastrados antes dessa
+  separação são tratados como Studio Hunter.
 - Metas editáveis devem ser separadas em Hunter, Renovação + Ampliação e Áreas
   / Studios, vinculadas a uma pessoa, cliente e ano, sem duplicidade para
   Cliente + Pessoa + Tipo + Ano.
