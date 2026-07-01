@@ -24,7 +24,7 @@ const currentYear = defaultTargetYear;
 
 export function StudioTargetAssignment() {
   const initialParams = useMemo(() => getInitialStudioTargetParams(), []);
-  const { areas, customers, customerTargets, studioTargetAllocations, saveStudioTargetAllocation, deleteStudioTargetAllocation } = useDeliveryStore();
+  const { areas, customers, customerTargets, studioTargetAllocations, saveCustomer, saveStudioTargetAllocation, deleteStudioTargetAllocation } = useDeliveryStore();
   const [search, setSearch] = useState("");
   const [customerId, setCustomerId] = useState(initialParams.customerId);
   const [areaId, setAreaId] = useState("");
@@ -102,20 +102,18 @@ export function StudioTargetAssignment() {
     const customer = findCustomer(yearCustomers, draft.customerId);
     const nextHunterAllocated = sumStudioAllocations(studioTargetAllocations, draft.customerId, draft.year, draft.id, "hunter") + draft.hunterAmount;
     const nextMaintenanceAllocated = sumStudioAllocations(studioTargetAllocations, draft.customerId, draft.year, draft.id, "maintenance") + draft.maintenanceAmount;
-    if (customer && customer.studioHunterTarget > 0 && nextHunterAllocated > customer.studioHunterTarget + 0.01) {
-      setFormError(`A soma Hunter das áreas/studios ficará acima da submeta Hunter do cliente. Meta: ${formatCurrency(customer.studioHunterTarget)}. Soma após salvar: ${formatCurrency(nextHunterAllocated)}.`);
-      return;
-    }
-    if (customer && customer.studioTarget > 0 && nextMaintenanceAllocated > customer.studioTarget + 0.01) {
-      setFormError(`A soma Manutenção das áreas/studios ficará acima da meta de Manutenção do cliente. Meta: ${formatCurrency(customer.studioTarget)}. Soma após salvar: ${formatCurrency(nextMaintenanceAllocated)}.`);
-      return;
-    }
+    const customerUpdate = customer ? buildCustomerTargetUpdate(customer, nextHunterAllocated, nextMaintenanceAllocated) : null;
 
     try {
       setFormError("");
+      if (customerUpdate?.changed) {
+        await saveCustomer(customerUpdate.customer, draft.year);
+      }
       await saveStudioTargetAllocation(draft);
       closeForm();
-      setSuccessMessage("Meta de área/studio salva com sucesso.");
+      setSuccessMessage(customerUpdate?.changed
+        ? "Meta de área/studio salva com sucesso e meta do cliente atualizada."
+        : "Meta de área/studio salva com sucesso. Diferenças permanecem visíveis na conciliação.");
       window.setTimeout(() => setSuccessMessage(""), 3500);
     } catch (error) {
       setFormError(getFormErrorMessage(error));
@@ -158,7 +156,7 @@ export function StudioTargetAssignment() {
       <Card className="mb-5 overflow-hidden shadow-sm">
         <div className="border-b bg-white p-5">
           <h2 className="text-base font-bold text-slate-900">Conciliação por cliente</h2>
-          <p className="mt-1 text-xs text-slate-500">A soma Hunter deve bater com a submeta Studio Hunter; a soma Manutenção deve bater com a meta Studio Manutenção.</p>
+          <p className="mt-1 text-xs text-slate-500">Diferenças entre alocado e meta aparecem como conciliação. Ao salvar acima do subtotal atual, você escolhe se aumenta a meta do cliente ou mantém a pendência visível.</p>
         </div>
         <div className="overflow-x-auto">
           <Table className="min-w-[900px]">
@@ -371,6 +369,57 @@ function sumStudioAllocations(allocations: StudioTargetAllocation[], customerId:
   return roundCurrency(allocations
     .filter((allocation) => allocation.customerId === customerId && allocation.year === year && allocation.id !== exceptId)
     .reduce((total, allocation) => total + (type === "hunter" ? allocation.hunterAmount : allocation.maintenanceAmount), 0));
+}
+
+function buildCustomerTargetUpdate(customer: Customer, nextHunterAllocated: number, nextMaintenanceAllocated: number) {
+  let nextCustomer = { ...customer };
+  let changed = false;
+
+  if (nextHunterAllocated > customer.studioHunterTarget + 0.01) {
+    const increaseStudioHunter = window.confirm(
+      `A soma Studio Hunter das áreas/studios ficará acima do subtotal atual do cliente.\n\nSubtotal atual: ${formatCurrency(customer.studioHunterTarget)}\nSoma após salvar: ${formatCurrency(nextHunterAllocated)}\n\nDeseja aumentar o subtotal Studio Hunter do cliente? Se escolher Cancelar, a meta será salva e a diferença ficará na conciliação.`,
+    );
+
+    if (increaseStudioHunter) {
+      nextCustomer = {
+        ...nextCustomer,
+        studioHunterTarget: roundCurrency(nextHunterAllocated),
+      };
+      changed = true;
+    }
+  }
+
+  if (nextHunterAllocated > customer.hunterTarget + 0.01) {
+    const increaseHunterTarget = window.confirm(
+      `A soma Studio Hunter também ficará acima da Meta Hunter do cliente.\n\nMeta Hunter atual: ${formatCurrency(customer.hunterTarget)}\nSoma Studio Hunter após salvar: ${formatCurrency(nextHunterAllocated)}\n\nDeseja aumentar a Meta Hunter do cliente? Se escolher Cancelar, a meta será salva e a diferença ficará na conciliação.`,
+    );
+
+    if (increaseHunterTarget) {
+      nextCustomer = {
+        ...nextCustomer,
+        hunterTarget: roundCurrency(nextHunterAllocated),
+        revenue: roundCurrency(nextHunterAllocated + nextCustomer.farmerRenewalTarget + nextCustomer.studioTarget),
+      };
+      changed = true;
+    }
+  }
+
+  if (nextMaintenanceAllocated > customer.studioTarget + 0.01) {
+    const increaseMaintenance = window.confirm(
+      `A soma Studio Manutenção/Renovação ficará acima do subtotal atual do cliente.\n\nSubtotal atual: ${formatCurrency(customer.studioTarget)}\nSoma após salvar: ${formatCurrency(nextMaintenanceAllocated)}\n\nDeseja aumentar o subtotal Studio Manutenção/Renovação do cliente? Se escolher Cancelar, a meta será salva e a diferença ficará na conciliação.`,
+    );
+
+    if (increaseMaintenance) {
+      nextCustomer = {
+        ...nextCustomer,
+        studioTarget: roundCurrency(nextMaintenanceAllocated),
+        revenue: roundCurrency(nextCustomer.hunterTarget + nextCustomer.farmerRenewalTarget + nextMaintenanceAllocated),
+      };
+      changed = true;
+    }
+  }
+
+  return { customer: nextCustomer, changed };
 }
 
 function findCustomer(customers: Customer[], id: string) {

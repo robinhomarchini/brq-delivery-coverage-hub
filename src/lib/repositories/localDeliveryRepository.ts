@@ -147,10 +147,17 @@ export class LocalDeliveryRepository implements DeliveryRepository {
 
   async saveStudioTargetAllocation(allocation: StudioTargetAllocation) {
     allocation = validateStudioTargetAllocation(allocation);
-    ensureUniqueStudioTargetAllocation(this.data.studioTargetAllocations, allocation);
-    ensureStudioTargetNotExceeded(this.data.customers, this.data.studioTargetAllocations, allocation);
-    this.data.studioTargetAllocations = upsert(this.data.studioTargetAllocations, allocation);
-    return structuredClone(allocation);
+    const existing = this.data.studioTargetAllocations.find((item) =>
+      item.customerId === allocation.customerId
+      && item.areaId === allocation.areaId
+      && item.year === allocation.year
+    );
+    const nextAllocation = {
+      ...allocation,
+      id: existing?.id ?? allocation.id,
+    };
+    this.data.studioTargetAllocations = upsert(this.data.studioTargetAllocations, nextAllocation);
+    return structuredClone(nextAllocation);
   }
 
   async deleteStudioTargetAllocation(id: string) {
@@ -317,46 +324,6 @@ function ensureCustomerTargetNotExceeded(customers: Customer[], items: TargetAll
 
   if (customerTarget > 0 && allocated > customerTarget + 0.01) {
     throw new Error(`A soma das metas das pessoas ultrapassa a meta total do cliente (${customerTarget}).`);
-  }
-}
-
-function ensureUniqueStudioTargetAllocation(items: StudioTargetAllocation[], allocation: StudioTargetAllocation) {
-  const duplicate = items.find((item) =>
-    item.id !== allocation.id
-    && item.customerId === allocation.customerId
-    && item.areaId === allocation.areaId
-    && item.year === allocation.year
-  );
-
-  if (duplicate) {
-    throw new Error("Já existe uma meta para este cliente, área/studio e ano.");
-  }
-}
-
-function ensureStudioTargetNotExceeded(customers: Customer[], items: StudioTargetAllocation[], allocation: StudioTargetAllocation) {
-  const customer = customers.find((item) => item.id === allocation.customerId);
-  const customerHunterTarget = customer?.studioHunterTarget ?? 0;
-  const customerMaintenanceTarget = customer?.studioTarget ?? 0;
-  const allocatedHunter = items
-    .filter((item) =>
-      item.id !== allocation.id
-      && item.customerId === allocation.customerId
-      && item.year === allocation.year
-    )
-    .reduce((total, item) => total + item.hunterAmount, 0) + allocation.hunterAmount;
-  const allocatedMaintenance = items
-    .filter((item) =>
-      item.id !== allocation.id
-      && item.customerId === allocation.customerId
-      && item.year === allocation.year
-    )
-    .reduce((total, item) => total + item.maintenanceAmount, 0) + allocation.maintenanceAmount;
-
-  if (customerHunterTarget > 0 && allocatedHunter > customerHunterTarget + 0.01) {
-    throw new Error(`A soma Hunter de áreas/studios ultrapassa a meta Hunter de Áreas/Studios do cliente (${customerHunterTarget}).`);
-  }
-  if (customerMaintenanceTarget > 0 && allocatedMaintenance > customerMaintenanceTarget + 0.01) {
-    throw new Error(`A soma Manutenção/Renovação de áreas/studios ultrapassa a meta de Manutenção de Áreas/Studios do cliente (${customerMaintenanceTarget}).`);
   }
 }
 
