@@ -1,8 +1,8 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { areas as initialAreas, customers as initialCustomers, customerTargets as initialCustomerTargets, people as initialPeople, subjects as initialSubjects, targetAllocations as initialTargetAllocations } from "@/data/mockData";
-import type { Area, Customer, CustomerTarget, Person, Subject, TargetAllocation } from "@/data/mockData";
+import { areas as initialAreas, customers as initialCustomers, customerTargets as initialCustomerTargets, people as initialPeople, studioTargetAllocations as initialStudioTargetAllocations, subjects as initialSubjects, targetAllocations as initialTargetAllocations } from "@/data/mockData";
+import type { Area, Customer, CustomerTarget, Person, StudioTargetAllocation, Subject, TargetAllocation } from "@/data/mockData";
 import { createSupabaseDeliveryRepository, localDeliveryRepository } from "@/lib/repositories";
 import type { AreaUsage, DeliveryRepository, PersonCustomerRemovalInput, PersonCustomerTargetsInput } from "@/lib/repositories";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
@@ -16,6 +16,7 @@ interface DeliveryStoreValue {
   areas: Area[];
   areaUsages: AreaUsage[];
   targetAllocations: TargetAllocation[];
+  studioTargetAllocations: StudioTargetAllocation[];
   loading: boolean;
   error: string;
   clearError: () => void;
@@ -30,6 +31,8 @@ interface DeliveryStoreValue {
   deleteSubject: (id: string) => Promise<void>;
   saveTargetAllocation: (allocation: TargetAllocation) => Promise<void>;
   deleteTargetAllocation: (id: string) => Promise<void>;
+  saveStudioTargetAllocation: (allocation: StudioTargetAllocation) => Promise<void>;
+  deleteStudioTargetAllocation: (id: string) => Promise<void>;
   savePersonCustomerTargets: (input: PersonCustomerTargetsInput) => Promise<void>;
   removePersonCustomerTargets: (input: PersonCustomerRemovalInput) => Promise<void>;
 }
@@ -45,6 +48,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
   const [areas, setAreas] = useState<Area[]>(productionWithoutSupabase ? [] : initialAreas);
   const [areaUsages, setAreaUsages] = useState<AreaUsage[]>(productionWithoutSupabase ? [] : buildAreaUsages(initialPeople));
   const [targetAllocations, setTargetAllocations] = useState<TargetAllocation[]>(productionWithoutSupabase ? [] : initialTargetAllocations);
+  const [studioTargetAllocations, setStudioTargetAllocations] = useState<StudioTargetAllocation[]>(productionWithoutSupabase ? [] : initialStudioTargetAllocations);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const repository = useMemo(
@@ -64,6 +68,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setAreas(data.areas);
         setAreaUsages(data.areaUsages);
         setTargetAllocations(data.targetAllocations);
+        setStudioTargetAllocations(data.studioTargetAllocations);
         setError("");
       })
       .catch((error) => setError(`Não foi possível carregar os dados persistidos. Nenhuma alteração será considerada salva. ${getErrorMessage(error)}`))
@@ -81,6 +86,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
     areas,
     areaUsages,
     targetAllocations,
+    studioTargetAllocations,
     loading,
     error,
     clearError: () => setError(""),
@@ -94,6 +100,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setAreas(data.areas);
         setAreaUsages(data.areaUsages);
         setTargetAllocations(data.targetAllocations);
+        setStudioTargetAllocations(data.studioTargetAllocations);
         setError("");
       } catch (error) {
         const message = `Não foi possível salvar a área/studio. ${getErrorMessage(error)}`;
@@ -111,6 +118,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setAreas(data.areas);
         setAreaUsages(data.areaUsages);
         setTargetAllocations(data.targetAllocations);
+        setStudioTargetAllocations(data.studioTargetAllocations);
         setError("");
       } catch (error) {
         const message = `Não foi possível excluir a área/studio. ${getErrorMessage(error)}`;
@@ -128,6 +136,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setAreas(data.areas);
         setAreaUsages(data.areaUsages);
         setTargetAllocations(data.targetAllocations);
+        setStudioTargetAllocations(data.studioTargetAllocations);
         setError("");
       } catch (error) {
         const message = `Não foi possível salvar a pessoa. ${getErrorMessage(error)}`;
@@ -157,6 +166,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setAreas(data.areas);
         setAreaUsages(data.areaUsages);
         setTargetAllocations(data.targetAllocations);
+        setStudioTargetAllocations(data.studioTargetAllocations);
         setError("");
       } catch (error) {
         const message = `Não foi possível salvar o cliente. ${getErrorMessage(error)}`;
@@ -174,6 +184,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setAreas(data.areas);
         setAreaUsages(data.areaUsages);
         setTargetAllocations(data.targetAllocations);
+        setStudioTargetAllocations(data.studioTargetAllocations);
         setError("");
       } catch (error) {
         const message = `Não foi possível atualizar os clientes. ${getErrorMessage(error)}`;
@@ -187,6 +198,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setCustomers((current) => current.filter((item) => item.id !== id));
         setSubjects((current) => current.filter((item) => item.customerId !== id));
         setTargetAllocations((current) => current.filter((item) => item.customerId !== id));
+        setStudioTargetAllocations((current) => current.filter((item) => item.customerId !== id));
         setError("");
       } catch (error) {
         const message = `Não foi possível excluir o cliente. ${getErrorMessage(error)}`;
@@ -238,6 +250,28 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         throw new Error(message);
       }
     },
+    saveStudioTargetAllocation: async (allocation) => {
+      try {
+        const saved = await repository.saveStudioTargetAllocation(allocation);
+        setStudioTargetAllocations((current) => upsert(current, saved));
+        setError("");
+      } catch (error) {
+        const message = `Não foi possível salvar a meta de área/studio. ${getErrorMessage(error)}`;
+        setError(message);
+        throw new Error(message);
+      }
+    },
+    deleteStudioTargetAllocation: async (id) => {
+      try {
+        await repository.deleteStudioTargetAllocation(id);
+        setStudioTargetAllocations((current) => current.filter((item) => item.id !== id));
+        setError("");
+      } catch (error) {
+        const message = `Não foi possível excluir a meta de área/studio. ${getErrorMessage(error)}`;
+        setError(message);
+        throw new Error(message);
+      }
+    },
     savePersonCustomerTargets: async (input) => {
       try {
         const data = await repository.savePersonCustomerTargets(input);
@@ -248,6 +282,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setAreas(data.areas);
         setAreaUsages(data.areaUsages);
         setTargetAllocations(data.targetAllocations);
+        setStudioTargetAllocations(data.studioTargetAllocations);
         setError("");
       } catch (error) {
         const message = `Não foi possível salvar as metas da pessoa. ${getErrorMessage(error)}`;
@@ -265,6 +300,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setAreas(data.areas);
         setAreaUsages(data.areaUsages);
         setTargetAllocations(data.targetAllocations);
+        setStudioTargetAllocations(data.studioTargetAllocations);
         setError("");
       } catch (error) {
         const message = `Não foi possível remover o cliente da pessoa. ${getErrorMessage(error)}`;
@@ -272,7 +308,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         throw new Error(message);
       }
     },
-  }), [areaUsages, areas, customerTargets, customers, error, loading, people, repository, subjects, targetAllocations]);
+  }), [areaUsages, areas, customerTargets, customers, error, loading, people, repository, studioTargetAllocations, subjects, targetAllocations]);
 
   return <DeliveryStoreContext.Provider value={value}>{children}</DeliveryStoreContext.Provider>;
 }
@@ -344,6 +380,12 @@ const unavailableProductionRepository: DeliveryRepository = {
     throw new Error(productionConfigurationError);
   },
   async deleteTargetAllocation() {
+    throw new Error(productionConfigurationError);
+  },
+  async saveStudioTargetAllocation() {
+    throw new Error(productionConfigurationError);
+  },
+  async deleteStudioTargetAllocation() {
     throw new Error(productionConfigurationError);
   },
   async savePersonCustomerTargets() {

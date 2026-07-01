@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Area, Customer, Person, Subject, TargetAllocation } from "@/data/mockData";
+import type { Area, Customer, Person, StudioTargetAllocation, Subject, TargetAllocation } from "@/data/mockData";
 
 const safeText = (label: string, max: number) =>
   z.string().trim().min(1, `${label} é obrigatório.`).max(max, `${label} excede ${max} caracteres.`);
@@ -74,6 +74,15 @@ const targetAllocationSchema = z.object({
   notes: optionalText(2000),
 });
 
+const studioTargetAllocationSchema = z.object({
+  id: safeText("Identificador", 180),
+  customerId: safeText("Cliente", 120),
+  areaId: safeText("Área/Studio", 120),
+  year: z.number().int("Ano deve ser inteiro.").min(2020, "Ano inválido.").max(2100, "Ano inválido."),
+  amount: z.number().finite().min(0, "Valor da meta não pode ser negativo.").max(999999999999),
+  notes: optionalText(2000),
+});
+
 export function validatePerson(value: Person) {
   return parse(personSchema, value);
 }
@@ -92,6 +101,10 @@ export function validateSubject(value: Subject) {
 
 export function validateTargetAllocation(value: TargetAllocation) {
   return parse(targetAllocationSchema, value);
+}
+
+export function validateStudioTargetAllocation(value: StudioTargetAllocation) {
+  return parse(studioTargetAllocationSchema, value);
 }
 
 function parse<T>(schema: z.ZodType<T>, value: T): T {

@@ -3,7 +3,7 @@
 import { Building2, Pencil, Plus, Star, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
-import type { Customer, Person, TargetAllocation } from "@/data/mockData";
+import type { Area, Customer, Person, StudioTargetAllocation, TargetAllocation } from "@/data/mockData";
 import { PageHeader } from "@/components/shared/page-header";
 import { FilterBar } from "@/components/shared/filter-bar";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -60,6 +60,22 @@ interface CustomerAllocationCompositionData {
   overTotal: number;
 }
 
+interface CustomerStudioCompositionData {
+  customerId: string;
+  year: number;
+  target: number;
+  allocated: number;
+  open: number;
+  over: number;
+  rows: CustomerStudioAllocationRow[];
+}
+
+interface CustomerStudioAllocationRow {
+  id: string;
+  areaName: string;
+  amount: number;
+}
+
 interface CustomerAllocationPersonRow {
   personId: string;
   personName: string;
@@ -82,9 +98,15 @@ type CustomerCoverageStatus = "ok" | "issue" | "empty";
 
 export function CustomerManagement() {
   const initialCustomerId = useMemo(() => getInitialCustomerId(), []);
-  const { customers, customerTargets, people, targetAllocations, savePerson, saveCustomer, deleteCustomer } = useDeliveryStore();
+  const { areas, customers, customerTargets, people, studioTargetAllocations, targetAllocations, savePerson, saveCustomer, deleteCustomer } = useDeliveryStore();
   const [year, setYear] = useState(currentYear);
-  const years = useMemo(() => getAvailableTargetYears(customerTargets, currentYear), [customerTargets]);
+  const years = useMemo(
+    () => Array.from(new Set([
+      ...getAvailableTargetYears(customerTargets, currentYear),
+      ...studioTargetAllocations.map((allocation) => allocation.year),
+    ])).sort((first, second) => second - first),
+    [customerTargets, studioTargetAllocations],
+  );
   const yearCustomers = useMemo(() => applyCustomerTargetsForYear(customers, customerTargets, year), [customerTargets, customers, year]);
   const initialCustomer = yearCustomers.find((customer) => customer.id === initialCustomerId);
   const [search, setSearch] = useState(initialCustomer?.name ?? "");
@@ -167,8 +189,17 @@ export function CustomerManagement() {
       },
       people,
       targetAllocations,
-      currentYear,
+      year,
       formBreakdown,
+    )
+    : null;
+  const studioComposition = linkedEditing
+    ? getCustomerStudioComposition(
+      linkedEditing.id,
+      formStudioAmount,
+      areas,
+      studioTargetAllocations,
+      year,
     )
     : null;
   const allocationWarning = linkedEditing
@@ -184,7 +215,7 @@ export function CustomerManagement() {
       },
       people,
       targetAllocations,
-      currentYear,
+      year,
     )
     : null;
 
@@ -288,10 +319,10 @@ export function CustomerManagement() {
 
       <section className="mb-5 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
         <Summary label="Clientes filtrados" value={String(filtered.length)} />
-        <Summary label={`Meta Hunter · ${currentYear}`} value={formatCurrency(targetTotals.hunter)} />
-        <Summary label={`Renovação + Ampliação · ${currentYear}`} value={formatCurrency(targetTotals.farmerRenewal)} />
-        <Summary label={`Áreas / Studios · ${currentYear}`} value={formatCurrency(targetTotals.studio)} />
-        <Summary label={`Meta total · ${currentYear}`} value={formatCurrency(targetTotals.total)} />
+        <Summary label={`Meta Hunter · ${year}`} value={formatCurrency(targetTotals.hunter)} />
+        <Summary label={`Renovação + Ampliação · ${year}`} value={formatCurrency(targetTotals.farmerRenewal)} />
+        <Summary label={`Áreas / Studios · ${year}`} value={formatCurrency(targetTotals.studio)} />
+        <Summary label={`Meta total · ${year}`} value={formatCurrency(targetTotals.total)} />
         <Summary label="Margem média" value={formatPercentPtBr(averageMargin)} />
       </section>
 
@@ -312,8 +343,8 @@ export function CustomerManagement() {
             <TableBody>
               {filtered.map((customer) => {
                 const breakdown = getCustomerTargetBreakdown(customer);
-                const targetPeople = getCustomerTargetPeople(customer, people, targetAllocations, currentYear);
-                const status = getCustomerCoverageStatus(customer, people, targetAllocations, currentYear);
+                const targetPeople = getCustomerTargetPeople(customer, people, targetAllocations, year);
+                const status = getCustomerCoverageStatus(customer, people, targetAllocations, studioTargetAllocations, year);
                 return (
                   <TableRow
                     key={customer.id}
@@ -385,7 +416,7 @@ export function CustomerManagement() {
               </span>
             </Field>
             <Field label="Conta estratégica"><Select name="strategicAccount" defaultValue={String(linkedEditing?.strategicAccount ?? true)}><option value="true">Sim</option><option value="false">Não</option></Select></Field>
-            <Field label={`Meta Hunter ${currentYear} (R$)`}>
+            <Field label={`Meta Hunter ${year} (R$)`}>
               <div className="flex items-center rounded-xl border border-slate-200 bg-white px-3 focus-within:border-purple-400 focus-within:ring-2 focus-within:ring-purple-100">
                 <span className="mr-2 text-sm font-semibold text-slate-400">R$</span>
                 <Input
@@ -402,7 +433,7 @@ export function CustomerManagement() {
               </div>
               <span className="mt-1 block text-xs text-slate-500">{formatCurrency(formHunterAmount)}</span>
             </Field>
-            <Field label={`Meta Renovação + Ampliação ${currentYear} (R$)`}>
+            <Field label={`Meta Renovação + Ampliação ${year} (R$)`}>
               <div className="flex items-center rounded-xl border border-slate-200 bg-white px-3 focus-within:border-purple-400 focus-within:ring-2 focus-within:ring-purple-100">
                 <span className="mr-2 text-sm font-semibold text-slate-400">R$</span>
                 <Input
@@ -419,7 +450,7 @@ export function CustomerManagement() {
               </div>
               <span className="mt-1 block text-xs text-slate-500">{formatCurrency(formFarmerRenewalAmount)}</span>
             </Field>
-            <Field label={`Meta Áreas / Studios ${currentYear} (R$)`}>
+            <Field label={`Meta Áreas / Studios ${year} (R$)`}>
               <div className="flex items-center rounded-xl border border-slate-200 bg-white px-3 focus-within:border-purple-400 focus-within:ring-2 focus-within:ring-purple-100">
                 <span className="mr-2 text-sm font-semibold text-slate-400">R$</span>
                 <Input
@@ -439,14 +470,15 @@ export function CustomerManagement() {
             <div className="rounded-2xl border border-slate-200 bg-white p-4">
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Meta total</p>
               <p className="mt-2 text-2xl font-black text-slate-950">{formatCurrency(formRevenue)}</p>
-              <p className="mt-1 text-xs text-slate-500">Calculada por Hunter + Renovação + Ampliação + Áreas / Studios para {currentYear}.</p>
+              <p className="mt-1 text-xs text-slate-500">Calculada por Hunter + Renovação + Ampliação + Áreas / Studios para {year}.</p>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 md:col-span-2">
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Composição da meta</p>
               <TargetBreakdownView breakdown={formBreakdown} compact />
               {allocationComposition && <CustomerAllocationCompositionView composition={allocationComposition} />}
+              {studioComposition && <CustomerStudioCompositionView composition={studioComposition} />}
               <p className="mt-2 text-xs text-slate-500">
-                A tela de Cliente é a base da meta. Metas por Pessoa distribui estes valores entre os responsáveis.
+                A tela de Cliente é a base da meta. Metas por Pessoa distribui Hunter/Farmer; Metas por Área/Studio distribui a parcela de Áreas / Studios.
               </p>
             </div>
             {allocationWarning && <CustomerAllocationWarning warning={allocationWarning} />}
@@ -573,7 +605,6 @@ function CustomerAllocationCompositionView({ composition }: { composition: Custo
               <th className="px-4 py-2 font-semibold">Perfil</th>
               <th className="px-4 py-2 text-right font-semibold">Hunter</th>
               <th className="px-4 py-2 text-right font-semibold">Renov. + Ampl.</th>
-              <th className="px-4 py-2 text-right font-semibold">Áreas / Studios</th>
               <th className="px-4 py-2 text-right font-semibold">Total</th>
               <th className="px-4 py-2 text-right font-semibold">Ação</th>
             </tr>
@@ -588,7 +619,6 @@ function CustomerAllocationCompositionView({ composition }: { composition: Custo
                 <td className="px-4 py-3 text-slate-500">{row.roleType}</td>
                 <td className="px-4 py-3 text-right">{formatCurrency(row.hunter)}</td>
                 <td className="px-4 py-3 text-right">{formatCurrency(row.farmerRenewal)}</td>
-                <td className="px-4 py-3 text-right">{formatCurrency(row.studio)}</td>
                 <td className="px-4 py-3 text-right font-bold text-slate-950">{formatCurrency(row.total)}</td>
                 <td className="px-4 py-3 text-right">
                   <Link className="font-semibold text-brq-purple hover:underline" href={`/metas-pessoas?personId=${encodeURIComponent(row.personId)}&customerId=${encodeURIComponent(composition.customerId)}&year=${composition.year}`}>
@@ -606,7 +636,6 @@ function CustomerAllocationCompositionView({ composition }: { composition: Custo
                 <td className="px-4 py-3 text-amber-700">Pendente</td>
                 <td className="px-4 py-3 text-right font-semibold text-amber-800">{formatCurrency(composition.openHunter)}</td>
                 <td className="px-4 py-3 text-right font-semibold text-amber-800">{formatCurrency(composition.openFarmerRenewal)}</td>
-                <td className="px-4 py-3 text-right font-semibold text-amber-800">{formatCurrency(composition.openStudio)}</td>
                 <td className="px-4 py-3 text-right font-bold text-amber-900">{formatCurrency(composition.openTotal)}</td>
                 <td className="px-4 py-3 text-right">
                   <Link className="font-semibold text-amber-800 hover:underline" href={`/metas-pessoas?customerId=${encodeURIComponent(composition.customerId)}&year=${composition.year}`}>
@@ -624,7 +653,6 @@ function CustomerAllocationCompositionView({ composition }: { composition: Custo
                 <td className="px-4 py-3 text-red-700">Excedente</td>
                 <td className="px-4 py-3 text-right font-semibold text-red-800">{formatCurrency(composition.overHunter)}</td>
                 <td className="px-4 py-3 text-right font-semibold text-red-800">{formatCurrency(composition.overFarmerRenewal)}</td>
-                <td className="px-4 py-3 text-right font-semibold text-red-800">{formatCurrency(composition.overStudio)}</td>
                 <td className="px-4 py-3 text-right font-bold text-red-900">{formatCurrency(composition.overTotal)}</td>
                 <td className="px-4 py-3 text-right">
                   <Link className="font-semibold text-red-800 hover:underline" href={`/metas-pessoas?customerId=${encodeURIComponent(composition.customerId)}&year=${composition.year}`}>
@@ -635,8 +663,64 @@ function CustomerAllocationCompositionView({ composition }: { composition: Custo
             )}
             {!composition.rows.length && !hasOpenAmount && !hasOverAmount && (
               <tr>
-                <td className="px-4 py-4 text-slate-500" colSpan={7}>
-                  Ainda não há meta associada a pessoas para este cliente no ano selecionado.
+                <td className="px-4 py-4 text-slate-500" colSpan={6}>
+                  Ainda não há meta Hunter/Farmer associada a pessoas para este cliente no ano selecionado.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function CustomerStudioCompositionView({ composition }: { composition: CustomerStudioCompositionData }) {
+  const hasOpenAmount = hasVisibleCurrencyAmount(composition.open);
+  const hasOverAmount = hasVisibleCurrencyAmount(composition.over);
+
+  return (
+    <div className="mt-4 overflow-hidden rounded-2xl border border-cyan-100 bg-white">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-cyan-50 px-4 py-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Distribuição por área/studio · {composition.year}</p>
+          <p className="text-sm text-slate-500">
+            Alocado: <span className="font-semibold text-slate-800">{formatCurrency(composition.allocated)}</span>
+            {hasOpenAmount && <> · Em aberto: <span className="font-semibold text-amber-700">{formatCurrency(composition.open)}</span></>}
+            {hasOverAmount && <> · Acima da meta: <span className="font-semibold text-red-700">{formatCurrency(composition.over)}</span></>}
+          </p>
+        </div>
+        <Button asChild variant="outline" size="sm">
+          <Link href={`/metas-studios?customerId=${encodeURIComponent(composition.customerId)}&year=${composition.year}`}>
+            Ajustar studios
+          </Link>
+        </Button>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[620px] text-left text-sm">
+          <thead className="bg-cyan-50/60 text-xs uppercase tracking-wider text-slate-400">
+            <tr>
+              <th className="px-4 py-2 font-semibold">Área / Studio</th>
+              <th className="px-4 py-2 text-right font-semibold">Valor</th>
+              <th className="px-4 py-2 text-right font-semibold">Ação</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {composition.rows.map((row) => (
+              <tr key={row.id}>
+                <td className="px-4 py-3 font-semibold text-slate-900">{row.areaName}</td>
+                <td className="px-4 py-3 text-right">{formatCurrency(row.amount)}</td>
+                <td className="px-4 py-3 text-right">
+                  <Link className="font-semibold text-brq-purple hover:underline" href={`/metas-studios?customerId=${encodeURIComponent(composition.customerId)}&year=${composition.year}`}>
+                    Editar
+                  </Link>
+                </td>
+              </tr>
+            ))}
+            {!composition.rows.length && (
+              <tr>
+                <td className="px-4 py-4 text-slate-500" colSpan={3}>
+                  Ainda não há meta associada a áreas/studios para este cliente no ano selecionado.
                 </td>
               </tr>
             )}
@@ -674,17 +758,30 @@ function CustomerAllocationWarning({ warning }: { warning: CustomerAllocationWar
   );
 }
 
-function getCustomerCoverageStatus(customer: Customer, people: Person[], allocations: TargetAllocation[], year: number): CustomerCoverageStatus {
+function getCustomerCoverageStatus(
+  customer: Customer,
+  people: Person[],
+  allocations: TargetAllocation[],
+  studioAllocations: StudioTargetAllocation[],
+  year: number,
+): CustomerCoverageStatus {
   const target = getCustomerTarget(customer);
   const customerAllocations = allocations.filter((allocation) =>
     allocation.customerId === customer.id
     && allocation.year === year
     && allocation.type !== "studio"
   );
+  const customerStudioAllocations = studioAllocations.filter((allocation) =>
+    allocation.customerId === customer.id
+    && allocation.year === year
+  );
   const assignedPeople = people.filter((person) => person.clientIds.includes(customer.id));
-  const allocated = roundCurrency(customerAllocations.reduce((total, allocation) => total + allocation.amount, 0));
+  const allocated = roundCurrency(
+    customerAllocations.reduce((total, allocation) => total + allocation.amount, 0)
+    + customerStudioAllocations.reduce((total, allocation) => total + allocation.amount, 0)
+  );
 
-  if (target <= 0.01 && !customer.managerResponsibleIds.length && !assignedPeople.length && !customerAllocations.length) {
+  if (target <= 0.01 && !customer.managerResponsibleIds.length && !assignedPeople.length && !customerAllocations.length && !customerStudioAllocations.length) {
     return "empty";
   }
 
@@ -759,8 +856,12 @@ function getCustomerAllocationWarning(
   allocations: TargetAllocation[],
   year: number,
 ): CustomerAllocationWarningData | null {
-  const target = getCustomerTarget(customer);
-  const customerAllocations = allocations.filter((allocation) => allocation.customerId === customer.id && allocation.year === year);
+  const target = roundCurrency(customer.hunterTarget + customer.farmerRenewalTarget);
+  const customerAllocations = allocations.filter((allocation) =>
+    allocation.customerId === customer.id
+    && allocation.year === year
+    && allocation.type !== "studio"
+  );
   const allocated = customerAllocations.reduce((sum, allocation) => sum + allocation.amount, 0);
   const gap = roundCurrency(target - allocated);
 
@@ -832,16 +933,16 @@ function getCustomerAllocationComposition(
     .sort((first, second) => second.total - first.total || first.personName.localeCompare(second.personName));
   const allocatedHunter = roundCurrency(rows.reduce((total, row) => total + row.hunter, 0));
   const allocatedFarmerRenewal = roundCurrency(rows.reduce((total, row) => total + row.farmerRenewal, 0));
-  const allocatedStudio = roundCurrency(rows.reduce((total, row) => total + row.studio, 0));
-  const allocatedTotal = roundCurrency(allocatedHunter + allocatedFarmerRenewal + allocatedStudio);
+  const allocatedStudio = 0;
+  const allocatedTotal = roundCurrency(allocatedHunter + allocatedFarmerRenewal);
   const hunterGap = roundCurrency(targetBreakdown.hunter - allocatedHunter);
   const farmerRenewalGap = roundCurrency(targetBreakdown.farmerRenewal - allocatedFarmerRenewal);
-  const studioGap = roundCurrency(targetBreakdown.studio - allocatedStudio);
-  const totalGap = roundCurrency(targetBreakdown.total - allocatedTotal);
+  const personTargetTotal = roundCurrency(targetBreakdown.hunter + targetBreakdown.farmerRenewal);
+  const totalGap = roundCurrency(personTargetTotal - allocatedTotal);
   const openTotal = Math.max(0, totalGap);
   const overTotal = Math.max(0, roundCurrency(-totalGap));
-  const openSplit = splitFinancialGap(openTotal, Math.max(0, hunterGap), Math.max(0, farmerRenewalGap), Math.max(0, studioGap));
-  const overSplit = splitFinancialGap(overTotal, Math.max(0, -hunterGap), Math.max(0, -farmerRenewalGap), Math.max(0, -studioGap));
+  const openSplit = splitFinancialGap(openTotal, Math.max(0, hunterGap), Math.max(0, farmerRenewalGap), 0);
+  const overSplit = splitFinancialGap(overTotal, Math.max(0, -hunterGap), Math.max(0, -farmerRenewalGap), 0);
 
   return {
     customerId: customer.id,
@@ -866,6 +967,36 @@ function getCustomerTargetPeople(customer: Customer, people: Person[], allocatio
   return {
     hunterPeople: getCustomerTargetPeopleByType(customer, people, allocations, year, "hunter"),
     farmerRenewalPeople: getCustomerTargetPeopleByType(customer, people, allocations, year, "farmer_renewal"),
+  };
+}
+
+function getCustomerStudioComposition(
+  customerId: string,
+  studioTarget: number,
+  areas: Area[],
+  allocations: StudioTargetAllocation[],
+  year: number,
+): CustomerStudioCompositionData {
+  const areaNamesById = new Map(areas.map((area) => [area.id, area.name]));
+  const rows = allocations
+    .filter((allocation) => allocation.customerId === customerId && allocation.year === year)
+    .map((allocation) => ({
+      id: allocation.id,
+      areaName: areaNamesById.get(allocation.areaId) ?? allocation.areaId,
+      amount: roundCurrency(allocation.amount),
+    }))
+    .sort((first, second) => second.amount - first.amount || first.areaName.localeCompare(second.areaName, "pt-BR"));
+  const allocated = roundCurrency(rows.reduce((total, row) => total + row.amount, 0));
+  const difference = roundCurrency(studioTarget - allocated);
+
+  return {
+    customerId,
+    year,
+    target: roundCurrency(studioTarget),
+    allocated,
+    open: Math.max(0, difference),
+    over: Math.max(0, -difference),
+    rows,
   };
 }
 

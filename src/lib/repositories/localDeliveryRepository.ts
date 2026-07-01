@@ -1,7 +1,7 @@
-import { areas, customers, customerTargets, people, subjects, targetAllocations } from "@/data/mockData";
-import type { Area, Customer, Person, Subject, TargetAllocation } from "@/data/mockData";
+import { areas, customers, customerTargets, people, studioTargetAllocations, subjects, targetAllocations } from "@/data/mockData";
+import type { Area, Customer, Person, StudioTargetAllocation, Subject, TargetAllocation } from "@/data/mockData";
 import type { DeliveryData, DeliveryRepository, PersonCustomerRemovalInput, PersonCustomerTargetsInput } from "./types";
-import { validateArea, validateCustomer, validatePerson, validateSubject, validateTargetAllocation } from "@/lib/validation";
+import { validateArea, validateCustomer, validatePerson, validateStudioTargetAllocation, validateSubject, validateTargetAllocation } from "@/lib/validation";
 import { buildAreaUsages } from "@/lib/area-usage";
 import {
   applyCoverageAssignments,
@@ -19,6 +19,7 @@ export class LocalDeliveryRepository implements DeliveryRepository {
     areas: structuredClone(areas),
     areaUsages: buildAreaUsages(people),
     targetAllocations: structuredClone(targetAllocations),
+    studioTargetAllocations: structuredClone(studioTargetAllocations),
   };
   private assignments: CoverageAssignment[] = buildAssignmentsFromCoverage(this.data.people, this.data.customers);
 
@@ -42,6 +43,7 @@ export class LocalDeliveryRepository implements DeliveryRepository {
 
   async deleteArea(id: string) {
     this.data.areas = this.data.areas.filter((item) => item.id !== id);
+    this.data.studioTargetAllocations = this.data.studioTargetAllocations.filter((item) => item.areaId !== id);
     this.data.people = this.data.people.map((person) =>
       person.areaId === id ? { ...person, areaId: undefined } : person
     );
@@ -117,6 +119,7 @@ export class LocalDeliveryRepository implements DeliveryRepository {
     this.data.subjects = this.data.subjects.filter((item) => item.customerId !== id);
     this.assignments = this.assignments.filter((assignment) => assignment.customerId !== id);
     this.data.targetAllocations = this.data.targetAllocations.filter((item) => item.customerId !== id);
+    this.data.studioTargetAllocations = this.data.studioTargetAllocations.filter((item) => item.customerId !== id);
   }
 
   async saveSubject(subject: Subject) {
@@ -139,6 +142,18 @@ export class LocalDeliveryRepository implements DeliveryRepository {
 
   async deleteTargetAllocation(id: string) {
     this.data.targetAllocations = this.data.targetAllocations.filter((item) => item.id !== id);
+  }
+
+  async saveStudioTargetAllocation(allocation: StudioTargetAllocation) {
+    allocation = validateStudioTargetAllocation(allocation);
+    ensureUniqueStudioTargetAllocation(this.data.studioTargetAllocations, allocation);
+    ensureStudioTargetNotExceeded(this.data.customers, this.data.studioTargetAllocations, allocation);
+    this.data.studioTargetAllocations = upsert(this.data.studioTargetAllocations, allocation);
+    return structuredClone(allocation);
+  }
+
+  async deleteStudioTargetAllocation(id: string) {
+    this.data.studioTargetAllocations = this.data.studioTargetAllocations.filter((item) => item.id !== id);
   }
 
   async savePersonCustomerTargets(input: PersonCustomerTargetsInput) {
@@ -299,6 +314,35 @@ function ensureCustomerTargetNotExceeded(customers: Customer[], items: TargetAll
 
   if (customerTarget > 0 && allocated > customerTarget + 0.01) {
     throw new Error(`A soma das metas das pessoas ultrapassa a meta total do cliente (${customerTarget}).`);
+  }
+}
+
+function ensureUniqueStudioTargetAllocation(items: StudioTargetAllocation[], allocation: StudioTargetAllocation) {
+  const duplicate = items.find((item) =>
+    item.id !== allocation.id
+    && item.customerId === allocation.customerId
+    && item.areaId === allocation.areaId
+    && item.year === allocation.year
+  );
+
+  if (duplicate) {
+    throw new Error("Já existe uma meta para este cliente, área/studio e ano.");
+  }
+}
+
+function ensureStudioTargetNotExceeded(customers: Customer[], items: StudioTargetAllocation[], allocation: StudioTargetAllocation) {
+  const customer = customers.find((item) => item.id === allocation.customerId);
+  const customerTarget = customer?.studioTarget ?? 0;
+  const allocated = items
+    .filter((item) =>
+      item.id !== allocation.id
+      && item.customerId === allocation.customerId
+      && item.year === allocation.year
+    )
+    .reduce((total, item) => total + item.amount, 0) + allocation.amount;
+
+  if (customerTarget > 0 && allocated > customerTarget + 0.01) {
+    throw new Error(`A soma das metas de áreas/studios ultrapassa a meta de Áreas/Studios do cliente (${customerTarget}).`);
   }
 }
 

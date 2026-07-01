@@ -1,4 +1,4 @@
-import type { Area, Customer, CustomerTarget, Person, Subject, TargetAllocation } from "@/data/mockData";
+import type { Area, Customer, CustomerTarget, Person, StudioTargetAllocation, Subject, TargetAllocation } from "@/data/mockData";
 
 export interface AreaUsage {
   areaId: string;
@@ -30,6 +30,7 @@ export interface DeliveryData {
   areas: Area[];
   areaUsages: AreaUsage[];
   targetAllocations: TargetAllocation[];
+  studioTargetAllocations: StudioTargetAllocation[];
 }
 
 export interface DeliveryRepository {
@@ -45,6 +46,8 @@ export interface DeliveryRepository {
   deleteSubject(id: string): Promise<void>;
   saveTargetAllocation(allocation: TargetAllocation): Promise<TargetAllocation>;
   deleteTargetAllocation(id: string): Promise<void>;
+  saveStudioTargetAllocation(allocation: StudioTargetAllocation): Promise<StudioTargetAllocation>;
+  deleteStudioTargetAllocation(id: string): Promise<void>;
   savePersonCustomerTargets(input: PersonCustomerTargetsInput): Promise<DeliveryData>;
   removePersonCustomerTargets(input: PersonCustomerRemovalInput): Promise<DeliveryData>;
 }

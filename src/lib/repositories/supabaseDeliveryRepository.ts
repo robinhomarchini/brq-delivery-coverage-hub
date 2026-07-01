@@ -5,6 +5,7 @@ import {
   type CustomerTarget,
   type Person,
   type RoleType,
+  type StudioTargetAllocation,
   type Subject,
   type SubjectStatus,
   type TargetAllocation,
@@ -15,7 +16,7 @@ import type { PersonCustomerRemovalInput, PersonCustomerTargetsInput } from "./t
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { buildAreaUsages } from "@/lib/area-usage";
 import { getFinancialCustomerMetric } from "@/lib/financial-customers";
-import { validateArea, validateCustomer, validatePerson, validateSubject, validateTargetAllocation } from "@/lib/validation";
+import { validateArea, validateCustomer, validatePerson, validateStudioTargetAllocation, validateSubject, validateTargetAllocation } from "@/lib/validation";
 import {
   applyCoverageAssignments,
   buildAssignmentsFromCoverage,
@@ -97,6 +98,15 @@ type CustomerTargetRow = {
   revenue: number | string;
 };
 
+type StudioTargetAllocationRow = {
+  id: string;
+  customer_id: string;
+  area_id: string;
+  target_year: number;
+  amount: number | string;
+  notes: string | null;
+};
+
 type TerritoryAreaRow = {
   id: string;
   area_id: string | null;
@@ -117,6 +127,12 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
   }
 
   async deleteArea(id: string) {
+    const { error: studioTargetError } = await this.client
+      .from("studio_target_allocations")
+      .delete()
+      .eq("area_id", id);
+    if (studioTargetError && !isMissingTableError(studioTargetError)) throw studioTargetError;
+
     const { error: territoryError } = await this.client
       .from("territories")
       .update({ area_id: null })
@@ -189,6 +205,18 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
     if (error) throw error;
   }
 
+  async saveStudioTargetAllocation(allocation: StudioTargetAllocation) {
+    const validated = validateStudioTargetAllocation(allocation);
+    const { error } = await this.client.from("studio_target_allocations").upsert(toStudioTargetAllocationRow(validated));
+    if (error) throw error;
+    return validated;
+  }
+
+  async deleteStudioTargetAllocation(id: string) {
+    const { error } = await this.client.from("studio_target_allocations").delete().eq("id", id);
+    if (error) throw error;
+  }
+
   async savePersonCustomerTargets(input: PersonCustomerTargetsInput) {
     const savedWithRpc = await this.trySavePersonCustomerTargetsWithRpc(input);
     if (!savedWithRpc) {
@@ -206,7 +234,7 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
   }
 
   private async fetchAll(): Promise<DeliveryData> {
-    const [areasResult, peopleResult, customersResult, customerTargetsResult, subjectsResult, assignmentsResult, targetAllocationsResult, territoriesResult] = await Promise.all([
+    const [areasResult, peopleResult, customersResult, customerTargetsResult, subjectsResult, assignmentsResult, targetAllocationsResult, studioTargetAllocationsResult, territoriesResult] = await Promise.all([
       this.client.from("areas").select("*").order("name"),
       this.client.from("people").select("*").order("hierarchy_level").order("name"),
       this.client.from("customers").select("*").order("name"),
@@ -214,6 +242,7 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
       this.client.from("subjects").select("*").order("name"),
       this.client.from("person_customer_assignments").select("person_id, customer_id"),
       this.client.from("revenue_target_allocations").select("*").order("target_year", { ascending: false }).order("customer_id"),
+      this.client.from("studio_target_allocations").select("*").order("target_year", { ascending: false }).order("customer_id"),
       this.client.from("territories").select("id, area_id"),
     ]);
 
@@ -243,6 +272,9 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
       targetAllocations: targetAllocationsResult.error
         ? []
         : (targetAllocationsResult.data as TargetAllocationRow[]).map(fromTargetAllocationRow),
+      studioTargetAllocations: studioTargetAllocationsResult.error
+        ? []
+        : (studioTargetAllocationsResult.data as StudioTargetAllocationRow[]).map(fromStudioTargetAllocationRow),
     };
   }
 
@@ -757,6 +789,28 @@ function fromTargetAllocationRow(row: TargetAllocationRow): TargetAllocation {
     customerId: row.customer_id,
     personId: row.person_id,
     type: row.target_type as TargetAllocationType,
+    year: row.target_year,
+    amount: Number(row.amount),
+    notes: row.notes ?? undefined,
+  };
+}
+
+function toStudioTargetAllocationRow(allocation: StudioTargetAllocation): StudioTargetAllocationRow {
+  return {
+    id: allocation.id,
+    customer_id: allocation.customerId,
+    area_id: allocation.areaId,
+    target_year: allocation.year,
+    amount: allocation.amount,
+    notes: allocation.notes ?? null,
+  };
+}
+
+function fromStudioTargetAllocationRow(row: StudioTargetAllocationRow): StudioTargetAllocation {
+  return {
+    id: row.id,
+    customerId: row.customer_id,
+    areaId: row.area_id,
     year: row.target_year,
     amount: Number(row.amount),
     notes: row.notes ?? undefined,

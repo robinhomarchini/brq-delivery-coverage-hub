@@ -17,30 +17,43 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import {
-  portfolioDeliveryManagers,
-  portfolioDirectors,
-  portfolioSource,
-  revenuePlans,
-  type RevenuePlan,
-} from "@/data/customerPortfolioData";
+import { portfolioSource, revenuePlans, type RevenuePlan } from "@/data/customerPortfolioData";
+import type { Customer, Person } from "@/data/mockData";
+import { useDeliveryStore } from "@/store/delivery-store";
+import { normalizeName } from "@/lib/financial-customers";
+import { isCustomerManagerProfile } from "@/lib/roles";
 import { formatCurrency } from "@/lib/utils";
 
+type PortfolioPlanView = RevenuePlan & {
+  directorIds: string[];
+  managerIds: string[];
+};
+
 export function CustomerPortfolioManagement() {
+  const { customers, people } = useDeliveryStore();
   const chartsReady = useSyncExternalStore(subscribeToHydration, () => true, () => false);
   const [directorId, setDirectorId] = useState("");
   const [managerId, setManagerId] = useState("");
   const [cluster, setCluster] = useState("");
+  const directors = useMemo(() => people
+    .filter((person) => person.active && person.roleType === "Director")
+    .sort((first, second) => first.name.localeCompare(second.name, "pt-BR")),
+  [people]);
+  const managers = useMemo(() => people
+    .filter((person) => person.active && isCustomerManagerProfile(person.roleType, person.isManager))
+    .sort((first, second) => first.name.localeCompare(second.name, "pt-BR")),
+  [people]);
+  const planViews = useMemo(() => buildPortfolioPlanViews(revenuePlans, customers), [customers]);
 
-  const filteredPlans = useMemo(() => revenuePlans.filter((plan) =>
-    (!directorId || plan.directorId === directorId)
+  const filteredPlans = useMemo(() => planViews.filter((plan) =>
+    (!directorId || plan.directorIds.includes(directorId))
     && (!managerId || plan.managerIds.includes(managerId))
     && (!cluster || plan.customerCluster === cluster)
-  ), [cluster, directorId, managerId]);
+  ), [cluster, directorId, managerId, planViews]);
 
   const totals = useMemo(() => calculateTotals(filteredPlans), [filteredPlans]);
-  const byDirector = useMemo(() => groupByDirector(filteredPlans), [filteredPlans]);
-  const byManager = useMemo(() => groupByManager(filteredPlans), [filteredPlans]);
+  const byDirector = useMemo(() => groupByDirector(filteredPlans, directors), [directors, filteredPlans]);
+  const byManager = useMemo(() => groupByManager(filteredPlans, managers), [filteredPlans, managers]);
   const topClusters = useMemo(() => [...filteredPlans]
     .sort((a, b) => b.revenueTarget - a.revenueTarget)
     .slice(0, 12), [filteredPlans]);
@@ -64,11 +77,11 @@ export function CustomerPortfolioManagement() {
         <div className="grid gap-3 md:grid-cols-3">
           <Select value={directorId} onChange={(event) => setDirectorId(event.target.value)}>
             <option value="">Todos os diretores</option>
-            {portfolioDirectors.map((director) => <option key={director.id} value={director.id}>{director.name}</option>)}
+            {directors.map((director) => <option key={director.id} value={director.id}>{displayDirectorName(director.name)}</option>)}
           </Select>
           <Select value={managerId} onChange={(event) => setManagerId(event.target.value)}>
             <option value="">Todos os managers</option>
-            {portfolioDeliveryManagers.map((manager) => <option key={manager.id} value={manager.id}>{manager.name}</option>)}
+            {managers.map((manager) => <option key={manager.id} value={manager.id}>{manager.name}</option>)}
           </Select>
           <Select value={cluster} onChange={(event) => setCluster(event.target.value)}>
             <option value="">Todos os clusters</option>
@@ -183,10 +196,18 @@ export function CustomerPortfolioManagement() {
                     <p className="font-semibold text-slate-900">{plan.customerName}</p>
                     <p className="text-xs text-slate-400">{plan.industry}</p>
                   </TableCell>
-                  <TableCell>{directorName(plan.directorId)}</TableCell>
+                  <TableCell>
+                    <div className="flex max-w-56 flex-wrap gap-1">
+                      {plan.directorIds.length
+                        ? plan.directorIds.map((id) => <Badge key={id} variant="secondary">{displayDirectorName(personName(people, id))}</Badge>)
+                        : <span className="text-slate-400">Sem diretor definido</span>}
+                    </div>
+                  </TableCell>
                   <TableCell>
                     <div className="flex max-w-64 flex-wrap gap-1">
-                      {plan.managerIds.map((id) => <Badge key={id} variant="secondary">{managerName(id)}</Badge>)}
+                      {plan.managerIds.length
+                        ? plan.managerIds.map((id) => <Badge key={id} variant="secondary">{personName(people, id)}</Badge>)
+                        : <span className="text-slate-400">Sem manager definido</span>}
                     </div>
                   </TableCell>
                   <MoneyCell value={plan.revenueCurrent} />
@@ -249,19 +270,19 @@ function getStudioRevenue(plan: RevenuePlan) {
   return Math.max(plan.revenueTarget - plan.hunterRevenue - plan.deliveryFarmerRevenue, 0);
 }
 
-function groupByDirector(plans: RevenuePlan[]) {
-  return portfolioDirectors.map((director) => {
-    const directorPlans = plans.filter((plan) => plan.directorId === director.id);
+function groupByDirector(plans: PortfolioPlanView[], directors: Person[]) {
+  return directors.map((director) => {
+    const directorPlans = plans.filter((plan) => plan.directorIds.includes(director.id));
     return {
-      name: director.name,
+      name: displayDirectorName(director.name),
       revenueCurrent: calculateTotals(directorPlans).revenueCurrent,
       revenueTarget: calculateTotals(directorPlans).revenueTarget,
     };
   });
 }
 
-function groupByManager(plans: RevenuePlan[]) {
-  return portfolioDeliveryManagers.map((manager) => ({
+function groupByManager(plans: PortfolioPlanView[], managers: Person[]) {
+  return managers.map((manager) => ({
     name: manager.name,
     revenueTarget: plans
       .filter((plan) => plan.managerIds.includes(manager.id))
@@ -269,12 +290,34 @@ function groupByManager(plans: RevenuePlan[]) {
   })).filter((item) => item.revenueTarget > 0).sort((a, b) => b.revenueTarget - a.revenueTarget);
 }
 
-function directorName(id: string) {
-  return portfolioDirectors.find((director) => director.id === id)?.name ?? id;
+function buildPortfolioPlanViews(plans: RevenuePlan[], customers: Customer[]): PortfolioPlanView[] {
+  const customersByName = new Map(customers.map((customer) => [normalizeName(customer.name), customer]));
+
+  return plans.map((plan) => {
+    const sourceCustomers = plan.sourceCustomerNames
+      .map((name) => customersByName.get(normalizeName(name)))
+      .filter((customer): customer is Customer => Boolean(customer));
+    const directorIds = unique(sourceCustomers.map((customer) => customer.directorResponsibleId));
+    const managerIds = unique(sourceCustomers.flatMap((customer) => customer.managerResponsibleIds));
+
+    return {
+      ...plan,
+      directorIds,
+      managerIds,
+    };
+  });
 }
 
-function managerName(id: string) {
-  return portfolioDeliveryManagers.find((manager) => manager.id === id)?.name ?? id;
+function personName(people: Person[], id: string) {
+  return people.find((person) => person.id === id)?.name ?? id;
+}
+
+function displayDirectorName(name: string) {
+  return name.startsWith("Ane Knust") ? "Ane Knust" : name;
+}
+
+function unique(values: string[]) {
+  return Array.from(new Set(values.filter(Boolean)));
 }
 
 function compactCurrency(value: number) {

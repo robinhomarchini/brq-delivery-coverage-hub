@@ -3,7 +3,7 @@
 import { Bot, Pencil, Plus, Target, Trash2, UserRound } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Customer, Person, TargetAllocation, TargetAllocationType } from "@/data/mockData";
+import type { Customer, Person, StudioTargetAllocation, TargetAllocation, TargetAllocationType } from "@/data/mockData";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorNotice, SuccessNotice } from "@/components/shared/success-notice";
 import { FilterBar } from "@/components/shared/filter-bar";
@@ -25,7 +25,7 @@ import { useCloseOnNavigation } from "@/lib/use-close-on-navigation";
 const currentYear = defaultTargetYear;
 
 export function TargetManagement() {
-  const { customers, customerTargets, people, targetAllocations, saveTargetAllocation, deleteTargetAllocation } = useDeliveryStore();
+  const { customers, customerTargets, people, studioTargetAllocations, targetAllocations, saveTargetAllocation, deleteTargetAllocation } = useDeliveryStore();
   const [search, setSearch] = useState("");
   const [customerId, setCustomerId] = useState("");
   const [personId, setPersonId] = useState("");
@@ -50,8 +50,12 @@ export function TargetManagement() {
     [targetAllocations, targetAssignablePersonIds],
   );
   const years = useMemo(() =>
-    Array.from(new Set([...getAvailableTargetYears(customerTargets, currentYear), ...targetAssignableAllocations.map((item) => item.year)])).sort((a, b) => b - a),
-  [customerTargets, targetAssignableAllocations]);
+    Array.from(new Set([
+      ...getAvailableTargetYears(customerTargets, currentYear),
+      ...targetAssignableAllocations.map((item) => item.year),
+      ...studioTargetAllocations.map((item) => item.year),
+    ])).sort((a, b) => b - a),
+  [customerTargets, studioTargetAllocations, targetAssignableAllocations]);
   const effectiveYear = Number(year) || currentYear;
   const yearCustomers = useMemo(() => applyCustomerTargetsForYear(customers, customerTargets, effectiveYear), [customerTargets, customers, effectiveYear]);
 
@@ -70,7 +74,7 @@ export function TargetManagement() {
     hunter: summary.hunter + (allocation.type === "hunter" ? allocation.amount : 0),
     farmerRenewal: summary.farmerRenewal + (allocation.type === "farmer_renewal" ? allocation.amount : 0),
   }), { hunter: 0, farmerRenewal: 0 }), [filtered]);
-  const reconciliation = useMemo(() => buildReconciliation(yearCustomers, targetAssignableAllocations, effectiveYear), [effectiveYear, targetAssignableAllocations, yearCustomers]);
+  const reconciliation = useMemo(() => buildReconciliation(yearCustomers, targetAssignableAllocations, studioTargetAllocations, effectiveYear), [effectiveYear, studioTargetAllocations, targetAssignableAllocations, yearCustomers]);
   const personYearSummary = useMemo(
     () => buildPersonYearSummary(targetAssignablePeople, yearCustomers, targetAssignableAllocations, effectiveYear),
     [effectiveYear, targetAssignableAllocations, targetAssignablePeople, yearCustomers],
@@ -80,8 +84,8 @@ export function TargetManagement() {
     [activePeople, targetAssignableAllocations, year],
   );
   const assistant = useMemo(
-    () => buildTargetAssistant(yearCustomers, targetAssignableAllocations, effectiveYear),
-    [effectiveYear, targetAssignableAllocations, yearCustomers],
+    () => buildTargetAssistant(yearCustomers, targetAssignableAllocations, studioTargetAllocations, effectiveYear),
+    [effectiveYear, studioTargetAllocations, targetAssignableAllocations, yearCustomers],
   );
   const reconciledCount = reconciliation.filter((item) => item.status === "ok").length;
   const pendingCount = reconciliation.filter((item) => item.status === "pending").length;
@@ -143,7 +147,7 @@ export function TargetManagement() {
       : [...targetAssignableAllocations, draft];
     const customer = yearCustomers.find((item) => item.id === draft.customerId);
     const target = customer ? getCustomerTarget(customer) : 0;
-    const allocated = sumAllocations(nextAllocations, draft.customerId, draft.year);
+    const allocated = sumAllocations(nextAllocations, studioTargetAllocations, draft.customerId, draft.year);
 
     if (target > 0 && allocated > target + 0.01) {
       setFormError(`A soma das metas das pessoas para este cliente ficaria acima da meta total. Meta do cliente: ${formatCurrency(target)}. Soma após salvar: ${formatCurrency(allocated)}.`);
@@ -614,10 +618,10 @@ function getFormErrorMessage(error: unknown) {
 
 type ReconciliationStatus = "ok" | "pending" | "over";
 
-function buildReconciliation(customers: Customer[], allocations: TargetAllocation[], year: number) {
+function buildReconciliation(customers: Customer[], allocations: TargetAllocation[], studioAllocations: StudioTargetAllocation[], year: number) {
   return customers.map((customer) => {
     const target = getCustomerTarget(customer);
-    const allocated = sumAllocations(allocations, customer.id, year);
+    const allocated = sumAllocations(allocations, studioAllocations, customer.id, year);
     const difference = target - allocated;
     return {
       customerId: customer.id,
@@ -645,7 +649,7 @@ type TargetAssistant = {
   totalIssues: number;
 };
 
-function buildTargetAssistant(customers: Customer[], allocations: TargetAllocation[], year: number): TargetAssistant {
+function buildTargetAssistant(customers: Customer[], allocations: TargetAllocation[], studioAllocations: StudioTargetAllocation[], year: number): TargetAssistant {
   const missingTargetValue: TargetAssistantIssue[] = [];
   const missingManagers: TargetAssistantIssue[] = [];
   const missingHunters: TargetAssistantIssue[] = [];
@@ -653,7 +657,7 @@ function buildTargetAssistant(customers: Customer[], allocations: TargetAllocati
 
   for (const customer of customers) {
     const target = getCustomerTarget(customer);
-    const allocated = sumAllocations(allocations, customer.id, year);
+    const allocated = sumAllocations(allocations, studioAllocations, customer.id, year);
     const hunterExpected = customer.hunterTarget;
     const hunterAllocated = allocations
       .filter((allocation) => allocation.customerId === customer.id && allocation.year === year && allocation.type === "hunter")
@@ -689,8 +693,8 @@ function buildTargetAssistant(customers: Customer[], allocations: TargetAllocati
         customerId: customer.id,
         customerName: customer.name,
         detail: difference > 0
-          ? `Faltam ${formatCurrency(difference)} para a soma das pessoas bater com a meta do cliente.`
-          : `A soma das pessoas está ${formatCurrency(Math.abs(difference))} acima da meta do cliente.`,
+          ? `Faltam ${formatCurrency(difference)} para a soma de pessoas e áreas/studios bater com a meta do cliente.`
+          : `A soma de pessoas e áreas/studios está ${formatCurrency(Math.abs(difference))} acima da meta do cliente.`,
       });
     }
   }
@@ -830,10 +834,14 @@ function getReconciliationStatus(target: number, allocated: number): Reconciliat
   return "pending";
 }
 
-function sumAllocations(allocations: TargetAllocation[], customerId: string, year: number) {
-  return allocations
+function sumAllocations(allocations: TargetAllocation[], studioAllocations: StudioTargetAllocation[], customerId: string, year: number) {
+  const peopleTotal = allocations
     .filter((allocation) => allocation.customerId === customerId && allocation.year === year && allocation.type !== "studio")
     .reduce((total, allocation) => total + allocation.amount, 0);
+  const studioTotal = studioAllocations
+    .filter((allocation) => allocation.customerId === customerId && allocation.year === year)
+    .reduce((total, allocation) => total + allocation.amount, 0);
+  return peopleTotal + studioTotal;
 }
 
 function getCustomerTarget(customer: Customer) {

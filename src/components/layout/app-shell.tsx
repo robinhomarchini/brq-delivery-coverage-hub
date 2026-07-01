@@ -34,10 +34,11 @@ const navigation = [
   { href: "/portfolio-clientes", label: "Portfólio de Clientes", icon: ChartNoAxesCombined },
   { href: "/metas", label: "Metas", icon: Target },
   { href: "/metas-pessoas", label: "Metas por Pessoa", icon: Target },
+  { href: "/metas-studios", label: "Metas por Área/Studio", icon: Layers3 },
   { href: "/relatorio-metas", label: "Relatório de Metas", icon: ClipboardList },
   { href: "/insights", label: "Insights", icon: Bot },
   { href: "/assuntos", label: "Assuntos", icon: Target, disabled: true },
-  { href: "/mapa-cobertura", label: "Mapa de Cobertura", icon: Map },
+  { href: "/mapa-cobertura", label: "Mapa de Cobertura", icon: Map, disabled: true },
   { href: "/configuracoes", label: "Configurações", icon: Settings },
   { href: "/ajuda", label: "Ajuda", icon: CircleHelp },
 ];

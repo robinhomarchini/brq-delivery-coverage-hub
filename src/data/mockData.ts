@@ -87,6 +87,15 @@ export interface TargetAllocation {
   notes?: string;
 }
 
+export interface StudioTargetAllocation {
+  id: string;
+  customerId: string;
+  areaId: string;
+  year: number;
+  amount: number;
+  notes?: string;
+}
+
 export const areas: Area[] = [
   { id: "area-financial", name: "Serviços Financeiros", description: "Bancos, seguros e meios de pagamento." },
   { id: "area-aliancas", name: "Alianças", description: "Parcerias, alianças estratégicas e ecossistema." },
@@ -285,3 +294,5 @@ export const targetAllocations: TargetAllocation[] = customers.flatMap((customer
 
   return managerAllocations;
 });
+
+export const studioTargetAllocations: StudioTargetAllocation[] = [];
