@@ -29,6 +29,7 @@ const currentYear = defaultTargetYear;
 interface CustomerTargetBreakdown {
   hunter: number;
   farmerRenewal: number;
+  studioHunter: number;
   studio: number;
   total: number;
 }
@@ -63,17 +64,26 @@ interface CustomerAllocationCompositionData {
 interface CustomerStudioCompositionData {
   customerId: string;
   year: number;
-  target: number;
-  allocated: number;
-  open: number;
-  over: number;
+  targetHunter: number;
+  targetMaintenance: number;
+  allocatedHunter: number;
+  allocatedMaintenance: number;
+  openHunter: number;
+  openMaintenance: number;
+  overHunter: number;
+  overMaintenance: number;
+  allocatedTotal: number;
+  openTotal: number;
+  overTotal: number;
   rows: CustomerStudioAllocationRow[];
 }
 
 interface CustomerStudioAllocationRow {
   id: string;
   areaName: string;
-  amount: number;
+  hunterAmount: number;
+  maintenanceAmount: number;
+  total: number;
 }
 
 interface CustomerAllocationPersonRow {
@@ -122,6 +132,7 @@ export function CustomerManagement() {
   const [formHunterId, setFormHunterId] = useState(getPrimaryHunterIdForCustomer(initialCustomer?.id ?? "", people));
   const [formHunterTarget, setFormHunterTarget] = useState(getInputValue(initialCustomer?.hunterTarget ?? getFinancialCustomerMetric(initialCustomer?.name ?? "", "hunterRevenue")));
   const [formFarmerRenewalTarget, setFormFarmerRenewalTarget] = useState(getInputValue(initialCustomer?.farmerRenewalTarget ?? getFinancialCustomerMetric(initialCustomer?.name ?? "", "deliveryFarmerRevenue")));
+  const [formStudioHunterTarget, setFormStudioHunterTarget] = useState(getInputValue(initialCustomer?.studioHunterTarget ?? 0));
   const [formStudioTarget, setFormStudioTarget] = useState(getInputValue(initialCustomer?.studioTarget ?? 0));
   const [successMessage, setSuccessMessage] = useState("");
   const [formError, setFormError] = useState("");
@@ -150,6 +161,7 @@ export function CustomerManagement() {
   }), [yearCustomers, director, manager, search, strategic]);
   const formHunterAmount = parseAmount(formHunterTarget);
   const formFarmerRenewalAmount = parseAmount(formFarmerRenewalTarget);
+  const formStudioHunterAmount = parseAmount(formStudioHunterTarget);
   const formStudioAmount = parseAmount(formStudioTarget);
   const formRevenue = roundCurrency(formHunterAmount + formFarmerRenewalAmount + formStudioAmount);
 
@@ -158,10 +170,11 @@ export function CustomerManagement() {
     return {
       hunter: totals.hunter + breakdown.hunter,
       farmerRenewal: totals.farmerRenewal + breakdown.farmerRenewal,
+      studioHunter: totals.studioHunter + breakdown.studioHunter,
       studio: totals.studio + breakdown.studio,
       total: totals.total + breakdown.total,
     };
-  }, { hunter: 0, farmerRenewal: 0, studio: 0, total: 0 });
+  }, { hunter: 0, farmerRenewal: 0, studioHunter: 0, studio: 0, total: 0 });
   const averageMargin = filtered.length ? filtered.reduce((sum, customer) => sum + customer.margin, 0) / filtered.length : 0;
   const formBreakdown = getCustomerTargetBreakdown({
     id: linkedEditing?.id ?? "",
@@ -171,6 +184,7 @@ export function CustomerManagement() {
     managerResponsibleIds: formManagerIds,
     hunterTarget: formHunterAmount,
     farmerRenewalTarget: formFarmerRenewalAmount,
+    studioHunterTarget: formStudioHunterAmount,
     studioTarget: formStudioAmount,
     revenue: formRevenue,
     margin: linkedEditing?.margin ?? 0,
@@ -184,6 +198,7 @@ export function CustomerManagement() {
         managerResponsibleIds: formManagerIds,
         hunterTarget: formHunterAmount,
         farmerRenewalTarget: formFarmerRenewalAmount,
+        studioHunterTarget: formStudioHunterAmount,
         studioTarget: formStudioAmount,
         revenue: formRevenue,
       },
@@ -197,6 +212,7 @@ export function CustomerManagement() {
     ? getCustomerStudioComposition(
       linkedEditing.id,
       formStudioAmount,
+      formStudioHunterAmount,
       areas,
       studioTargetAllocations,
       year,
@@ -210,6 +226,7 @@ export function CustomerManagement() {
         managerResponsibleIds: formManagerIds,
         hunterTarget: formHunterAmount,
         farmerRenewalTarget: formFarmerRenewalAmount,
+        studioHunterTarget: formStudioHunterAmount,
         studioTarget: formStudioAmount,
         revenue: formRevenue,
       },
@@ -237,6 +254,7 @@ export function CustomerManagement() {
     setFormHunterId(getPrimaryHunterIdForCustomer(item?.id ?? "", people));
     setFormHunterTarget(getInputValue(item?.hunterTarget ?? getFinancialCustomerMetric(item?.name ?? "", "hunterRevenue")));
     setFormFarmerRenewalTarget(getInputValue(item?.farmerRenewalTarget ?? getFinancialCustomerMetric(item?.name ?? "", "deliveryFarmerRevenue")));
+    setFormStudioHunterTarget(getInputValue(item?.studioHunterTarget ?? 0));
     setFormStudioTarget(getInputValue(item?.studioTarget ?? 0));
     setFormError("");
     setManualOpen(true);
@@ -251,6 +269,7 @@ export function CustomerManagement() {
     if (!linkedEditing) {
       setFormHunterTarget(getInputValue(getFinancialCustomerMetric(name, "hunterRevenue")));
       setFormFarmerRenewalTarget(getInputValue(getFinancialCustomerMetric(name, "deliveryFarmerRevenue")));
+      setFormStudioHunterTarget("0");
       setFormStudioTarget("0");
     }
   }
@@ -272,6 +291,7 @@ export function CustomerManagement() {
         managerResponsibleIds: validManagers,
         hunterTarget: formHunterAmount,
         farmerRenewalTarget: formFarmerRenewalAmount,
+        studioHunterTarget: formStudioHunterAmount,
         studioTarget: formStudioAmount,
         revenue: formRevenue,
         margin: Number(formData.get("margin")),
@@ -321,7 +341,8 @@ export function CustomerManagement() {
         <Summary label="Clientes filtrados" value={String(filtered.length)} />
         <Summary label={`Meta Hunter · ${year}`} value={formatCurrency(targetTotals.hunter)} />
         <Summary label={`Renovação + Ampliação · ${year}`} value={formatCurrency(targetTotals.farmerRenewal)} />
-        <Summary label={`Áreas / Studios · ${year}`} value={formatCurrency(targetTotals.studio)} />
+        <Summary label={`Studio Hunter · ${year}`} value={formatCurrency(targetTotals.studioHunter)} />
+        <Summary label={`Studio Manutenção · ${year}`} value={formatCurrency(targetTotals.studio)} />
         <Summary label={`Meta total · ${year}`} value={formatCurrency(targetTotals.total)} />
         <Summary label="Margem média" value={formatPercentPtBr(averageMargin)} />
       </section>
@@ -450,7 +471,24 @@ export function CustomerManagement() {
               </div>
               <span className="mt-1 block text-xs text-slate-500">{formatCurrency(formFarmerRenewalAmount)}</span>
             </Field>
-            <Field label={`Meta Áreas / Studios ${year} (R$)`}>
+            <Field label={`Área/Studio Hunter ${year} (R$)`}>
+              <div className="flex items-center rounded-xl border border-slate-200 bg-white px-3 focus-within:border-purple-400 focus-within:ring-2 focus-within:ring-purple-100">
+                <span className="mr-2 text-sm font-semibold text-slate-400">R$</span>
+                <Input
+                  name="studioHunterTarget"
+                  type="text"
+                  inputMode="decimal"
+                  autoComplete="off"
+                  value={formStudioHunterTarget}
+                  onChange={(event) => setFormStudioHunterTarget(event.target.value)}
+                  onFocus={(event) => event.currentTarget.select()}
+                  placeholder="0"
+                  className="h-10 border-0 px-0 text-right font-semibold tabular-nums focus:ring-0"
+                />
+              </div>
+              <span className="mt-1 block text-xs text-slate-500">{formatCurrency(formStudioHunterAmount)} dentro da Meta Hunter; não soma novamente no total.</span>
+            </Field>
+            <Field label={`Área/Studio Manutenção ${year} (R$)`}>
               <div className="flex items-center rounded-xl border border-slate-200 bg-white px-3 focus-within:border-purple-400 focus-within:ring-2 focus-within:ring-purple-100">
                 <span className="mr-2 text-sm font-semibold text-slate-400">R$</span>
                 <Input
@@ -470,7 +508,7 @@ export function CustomerManagement() {
             <div className="rounded-2xl border border-slate-200 bg-white p-4">
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Meta total</p>
               <p className="mt-2 text-2xl font-black text-slate-950">{formatCurrency(formRevenue)}</p>
-              <p className="mt-1 text-xs text-slate-500">Calculada por Hunter + Renovação + Ampliação + Áreas / Studios para {year}.</p>
+              <p className="mt-1 text-xs text-slate-500">Calculada por Hunter + Renovação + Ampliação + Área/Studio Manutenção para {year}. Área/Studio Hunter é subquebra da meta Hunter.</p>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 md:col-span-2">
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Composição da meta</p>
@@ -478,7 +516,7 @@ export function CustomerManagement() {
               {allocationComposition && <CustomerAllocationCompositionView composition={allocationComposition} />}
               {studioComposition && <CustomerStudioCompositionView composition={studioComposition} />}
               <p className="mt-2 text-xs text-slate-500">
-                A tela de Cliente é a base da meta. Metas por Pessoa distribui Hunter/Farmer; Metas por Área/Studio distribui a parcela de Áreas / Studios.
+                A tela de Cliente é a base da meta. Metas por Pessoa distribui Hunter/Farmer; Metas por Área/Studio distribui a abertura Hunter e Manutenção por studio.
               </p>
             </div>
             {allocationWarning && <CustomerAllocationWarning warning={allocationWarning} />}
@@ -509,8 +547,9 @@ function TargetBreakdownView({ breakdown, compact = false }: { breakdown: Custom
   return (
     <div className={containerClassName}>
       <MoneyLine label="Hunter" value={breakdown.hunter} />
+      <MoneyLine label="Studio Hunter" value={breakdown.studioHunter} />
       <MoneyLine label="Renov. + Ampl." value={breakdown.farmerRenewal} />
-      <MoneyLine label="Áreas / Studios" value={breakdown.studio} />
+      <MoneyLine label="Studio Manut." value={breakdown.studio} />
       <MoneyLine label="Total" value={breakdown.total} strong />
     </div>
   );
@@ -676,8 +715,8 @@ function CustomerAllocationCompositionView({ composition }: { composition: Custo
 }
 
 function CustomerStudioCompositionView({ composition }: { composition: CustomerStudioCompositionData }) {
-  const hasOpenAmount = hasVisibleCurrencyAmount(composition.open);
-  const hasOverAmount = hasVisibleCurrencyAmount(composition.over);
+  const hasOpenAmount = hasVisibleCurrencyAmount(composition.openTotal);
+  const hasOverAmount = hasVisibleCurrencyAmount(composition.overTotal);
 
   return (
     <div className="mt-4 overflow-hidden rounded-2xl border border-cyan-100 bg-white">
@@ -685,9 +724,13 @@ function CustomerStudioCompositionView({ composition }: { composition: CustomerS
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Distribuição por área/studio · {composition.year}</p>
           <p className="text-sm text-slate-500">
-            Alocado: <span className="font-semibold text-slate-800">{formatCurrency(composition.allocated)}</span>
-            {hasOpenAmount && <> · Em aberto: <span className="font-semibold text-amber-700">{formatCurrency(composition.open)}</span></>}
-            {hasOverAmount && <> · Acima da meta: <span className="font-semibold text-red-700">{formatCurrency(composition.over)}</span></>}
+            Alocado: <span className="font-semibold text-slate-800">{formatCurrency(composition.allocatedTotal)}</span>
+            {hasOpenAmount && <> · Em aberto: <span className="font-semibold text-amber-700">{formatCurrency(composition.openTotal)}</span></>}
+            {hasOverAmount && <> · Acima da meta: <span className="font-semibold text-red-700">{formatCurrency(composition.overTotal)}</span></>}
+          </p>
+          <p className="mt-1 text-xs text-slate-400">
+            Hunter alocado {formatCurrency(composition.allocatedHunter)} de {formatCurrency(composition.targetHunter)} ·
+            {" "}Manutenção alocada {formatCurrency(composition.allocatedMaintenance)} de {formatCurrency(composition.targetMaintenance)}
           </p>
         </div>
         <Button asChild variant="outline" size="sm">
@@ -701,7 +744,9 @@ function CustomerStudioCompositionView({ composition }: { composition: CustomerS
           <thead className="bg-cyan-50/60 text-xs uppercase tracking-wider text-slate-400">
             <tr>
               <th className="px-4 py-2 font-semibold">Área / Studio</th>
-              <th className="px-4 py-2 text-right font-semibold">Valor</th>
+              <th className="px-4 py-2 text-right font-semibold">Hunter</th>
+              <th className="px-4 py-2 text-right font-semibold">Manutenção</th>
+              <th className="px-4 py-2 text-right font-semibold">Total</th>
               <th className="px-4 py-2 text-right font-semibold">Ação</th>
             </tr>
           </thead>
@@ -709,7 +754,9 @@ function CustomerStudioCompositionView({ composition }: { composition: CustomerS
             {composition.rows.map((row) => (
               <tr key={row.id}>
                 <td className="px-4 py-3 font-semibold text-slate-900">{row.areaName}</td>
-                <td className="px-4 py-3 text-right">{formatCurrency(row.amount)}</td>
+                <td className="px-4 py-3 text-right">{formatCurrency(row.hunterAmount)}</td>
+                <td className="px-4 py-3 text-right">{formatCurrency(row.maintenanceAmount)}</td>
+                <td className="px-4 py-3 text-right font-bold text-slate-950">{formatCurrency(row.total)}</td>
                 <td className="px-4 py-3 text-right">
                   <Link className="font-semibold text-brq-purple hover:underline" href={`/metas-studios?customerId=${encodeURIComponent(composition.customerId)}&year=${composition.year}`}>
                     Editar
@@ -719,8 +766,34 @@ function CustomerStudioCompositionView({ composition }: { composition: CustomerS
             ))}
             {!composition.rows.length && (
               <tr>
-                <td className="px-4 py-4 text-slate-500" colSpan={3}>
+                <td className="px-4 py-4 text-slate-500" colSpan={5}>
                   Ainda não há meta associada a áreas/studios para este cliente no ano selecionado.
+                </td>
+              </tr>
+            )}
+            {hasOpenAmount && (
+              <tr className="bg-amber-50/70">
+                <td className="px-4 py-3 font-semibold text-amber-900">Em aberto sem Área/Studio alocada</td>
+                <td className="px-4 py-3 text-right font-semibold text-amber-800">{formatCurrency(composition.openHunter)}</td>
+                <td className="px-4 py-3 text-right font-semibold text-amber-800">{formatCurrency(composition.openMaintenance)}</td>
+                <td className="px-4 py-3 text-right font-bold text-amber-900">{formatCurrency(composition.openTotal)}</td>
+                <td className="px-4 py-3 text-right">
+                  <Link className="font-semibold text-amber-800 hover:underline" href={`/metas-studios?customerId=${encodeURIComponent(composition.customerId)}&year=${composition.year}`}>
+                    Alocar
+                  </Link>
+                </td>
+              </tr>
+            )}
+            {hasOverAmount && (
+              <tr className="bg-red-50/70">
+                <td className="px-4 py-3 font-semibold text-red-900">Acima da meta de Área/Studio</td>
+                <td className="px-4 py-3 text-right font-semibold text-red-800">{formatCurrency(composition.overHunter)}</td>
+                <td className="px-4 py-3 text-right font-semibold text-red-800">{formatCurrency(composition.overMaintenance)}</td>
+                <td className="px-4 py-3 text-right font-bold text-red-900">{formatCurrency(composition.overTotal)}</td>
+                <td className="px-4 py-3 text-right">
+                  <Link className="font-semibold text-red-800 hover:underline" href={`/metas-studios?customerId=${encodeURIComponent(composition.customerId)}&year=${composition.year}`}>
+                    Revisar
+                  </Link>
                 </td>
               </tr>
             )}
@@ -778,7 +851,7 @@ function getCustomerCoverageStatus(
   const assignedPeople = people.filter((person) => person.clientIds.includes(customer.id));
   const allocated = roundCurrency(
     customerAllocations.reduce((total, allocation) => total + allocation.amount, 0)
-    + customerStudioAllocations.reduce((total, allocation) => total + allocation.amount, 0)
+    + customerStudioAllocations.reduce((total, allocation) => total + allocation.maintenanceAmount, 0)
   );
 
   if (target <= 0.01 && !customer.managerResponsibleIds.length && !assignedPeople.length && !customerAllocations.length && !customerStudioAllocations.length) {
@@ -841,8 +914,9 @@ function getPrimaryHunterIdForCustomer(customerId: string, people: Person[]) {
 function getCustomerTargetBreakdown(customer: Customer): CustomerTargetBreakdown {
   const hunter = roundCurrency(customer.hunterTarget);
   const farmerRenewal = roundCurrency(customer.farmerRenewalTarget);
+  const studioHunter = roundCurrency(customer.studioHunterTarget);
   const studio = roundCurrency(customer.studioTarget);
-  return { hunter, farmerRenewal, studio, total: roundCurrency(hunter + farmerRenewal + studio) };
+  return { hunter, farmerRenewal, studioHunter, studio, total: roundCurrency(hunter + farmerRenewal + studio) };
 }
 
 function getCustomerTarget(customer: Customer) {
@@ -973,6 +1047,7 @@ function getCustomerTargetPeople(customer: Customer, people: Person[], allocatio
 function getCustomerStudioComposition(
   customerId: string,
   studioTarget: number,
+  studioHunterTarget: number,
   areas: Area[],
   allocations: StudioTargetAllocation[],
   year: number,
@@ -983,19 +1058,30 @@ function getCustomerStudioComposition(
     .map((allocation) => ({
       id: allocation.id,
       areaName: areaNamesById.get(allocation.areaId) ?? allocation.areaId,
-      amount: roundCurrency(allocation.amount),
+      hunterAmount: roundCurrency(allocation.hunterAmount),
+      maintenanceAmount: roundCurrency(allocation.maintenanceAmount),
+      total: roundCurrency(allocation.hunterAmount + allocation.maintenanceAmount),
     }))
-    .sort((first, second) => second.amount - first.amount || first.areaName.localeCompare(second.areaName, "pt-BR"));
-  const allocated = roundCurrency(rows.reduce((total, row) => total + row.amount, 0));
-  const difference = roundCurrency(studioTarget - allocated);
+    .sort((first, second) => second.total - first.total || first.areaName.localeCompare(second.areaName, "pt-BR"));
+  const allocatedHunter = roundCurrency(rows.reduce((total, row) => total + row.hunterAmount, 0));
+  const allocatedMaintenance = roundCurrency(rows.reduce((total, row) => total + row.maintenanceAmount, 0));
+  const hunterDifference = roundCurrency(studioHunterTarget - allocatedHunter);
+  const maintenanceDifference = roundCurrency(studioTarget - allocatedMaintenance);
 
   return {
     customerId,
     year,
-    target: roundCurrency(studioTarget),
-    allocated,
-    open: Math.max(0, difference),
-    over: Math.max(0, -difference),
+    targetHunter: roundCurrency(studioHunterTarget),
+    targetMaintenance: roundCurrency(studioTarget),
+    allocatedHunter,
+    allocatedMaintenance,
+    openHunter: Math.max(0, hunterDifference),
+    openMaintenance: Math.max(0, maintenanceDifference),
+    overHunter: Math.max(0, -hunterDifference),
+    overMaintenance: Math.max(0, -maintenanceDifference),
+    allocatedTotal: roundCurrency(allocatedHunter + allocatedMaintenance),
+    openTotal: roundCurrency(Math.max(0, hunterDifference) + Math.max(0, maintenanceDifference)),
+    overTotal: roundCurrency(Math.max(0, -hunterDifference) + Math.max(0, -maintenanceDifference)),
     rows,
   };
 }

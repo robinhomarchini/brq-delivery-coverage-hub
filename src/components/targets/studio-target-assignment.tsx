@@ -63,11 +63,13 @@ export function StudioTargetAssignment() {
       && (!areaId || row.areaIds.includes(areaId));
   }), [areaId, customerId, reconciliation, search]);
   const totals = useMemo(() => visibleReconciliation.reduce((summary, row) => ({
-    target: summary.target + row.target,
-    allocated: summary.allocated + row.allocated,
-    open: summary.open + row.open,
-    over: summary.over + row.over,
-  }), { target: 0, allocated: 0, open: 0, over: 0 }), [visibleReconciliation]);
+    targetHunter: summary.targetHunter + row.targetHunter,
+    targetMaintenance: summary.targetMaintenance + row.targetMaintenance,
+    allocatedHunter: summary.allocatedHunter + row.allocatedHunter,
+    allocatedMaintenance: summary.allocatedMaintenance + row.allocatedMaintenance,
+    open: summary.open + row.openTotal,
+    over: summary.over + row.overTotal,
+  }), { targetHunter: 0, targetMaintenance: 0, allocatedHunter: 0, allocatedMaintenance: 0, open: 0, over: 0 }), [visibleReconciliation]);
 
   const closeForm = useCallback(() => {
     setOpen(false);
@@ -92,14 +94,20 @@ export function StudioTargetAssignment() {
       customerId: String(formData.get("customerId")),
       areaId: String(formData.get("areaId")),
       year: Number(formData.get("year")),
-      amount: parseAmount(String(formData.get("amount") ?? "0")),
+      hunterAmount: parseAmount(String(formData.get("hunterAmount") ?? "0")),
+      maintenanceAmount: parseAmount(String(formData.get("maintenanceAmount") ?? "0")),
       notes: String(formData.get("notes") ?? ""),
     };
 
     const customer = findCustomer(yearCustomers, draft.customerId);
-    const nextAllocated = sumStudioAllocations(studioTargetAllocations, draft.customerId, draft.year, draft.id) + draft.amount;
-    if (customer && customer.studioTarget > 0 && nextAllocated > customer.studioTarget + 0.01) {
-      setFormError(`A soma das áreas/studios ficará acima da meta do cliente. Meta: ${formatCurrency(customer.studioTarget)}. Soma após salvar: ${formatCurrency(nextAllocated)}.`);
+    const nextHunterAllocated = sumStudioAllocations(studioTargetAllocations, draft.customerId, draft.year, draft.id, "hunter") + draft.hunterAmount;
+    const nextMaintenanceAllocated = sumStudioAllocations(studioTargetAllocations, draft.customerId, draft.year, draft.id, "maintenance") + draft.maintenanceAmount;
+    if (customer && customer.studioHunterTarget > 0 && nextHunterAllocated > customer.studioHunterTarget + 0.01) {
+      setFormError(`A soma Hunter das áreas/studios ficará acima da submeta Hunter do cliente. Meta: ${formatCurrency(customer.studioHunterTarget)}. Soma após salvar: ${formatCurrency(nextHunterAllocated)}.`);
+      return;
+    }
+    if (customer && customer.studioTarget > 0 && nextMaintenanceAllocated > customer.studioTarget + 0.01) {
+      setFormError(`A soma Manutenção das áreas/studios ficará acima da meta de Manutenção do cliente. Meta: ${formatCurrency(customer.studioTarget)}. Soma após salvar: ${formatCurrency(nextMaintenanceAllocated)}.`);
       return;
     }
 
@@ -119,7 +127,7 @@ export function StudioTargetAssignment() {
       <PageHeader
         eyebrow="BU Financial"
         title="Metas por Área/Studio"
-        description="Distribua a meta anual de Áreas / Studios do cliente entre PX, Mobile, BA, IA, Dados e demais studios. Pessoas não fazem parte desta tela."
+        description="Distribua a abertura anual de Áreas / Studios entre Hunter, que fica contido na meta Hunter do cliente, e Manutenção/Renovação, que compõe o total."
         actions={<Button onClick={() => openForm()}><Plus className="h-4 w-4" /> Nova meta por studio</Button>}
       />
 
@@ -127,10 +135,10 @@ export function StudioTargetAssignment() {
       {formError && <ErrorNotice message={formError} floating onClose={() => setFormError("")} />}
 
       <section className="mb-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Summary label={`Meta Áreas / Studios · ${effectiveYear}`} value={formatCurrency(totals.target)} />
-        <Summary label="Alocado" value={formatCurrency(totals.allocated)} />
+        <Summary label={`Studio Hunter · ${effectiveYear}`} value={formatCurrency(totals.targetHunter)} />
+        <Summary label={`Studio Manutenção · ${effectiveYear}`} value={formatCurrency(totals.targetMaintenance)} />
+        <Summary label="Alocado" value={formatCurrency(totals.allocatedHunter + totals.allocatedMaintenance)} />
         <Summary label="Em aberto" value={formatCurrency(totals.open)} />
-        <Summary label="Acima da meta" value={formatCurrency(totals.over)} />
       </section>
 
       <FilterBar search={search} onSearchChange={setSearch}>
@@ -150,7 +158,7 @@ export function StudioTargetAssignment() {
       <Card className="mb-5 overflow-hidden shadow-sm">
         <div className="border-b bg-white p-5">
           <h2 className="text-base font-bold text-slate-900">Conciliação por cliente</h2>
-          <p className="mt-1 text-xs text-slate-500">A soma das áreas/studios deve bater com a meta de Áreas / Studios cadastrada no cliente.</p>
+          <p className="mt-1 text-xs text-slate-500">A soma Hunter deve bater com a submeta Studio Hunter; a soma Manutenção deve bater com a meta Studio Manutenção.</p>
         </div>
         <div className="overflow-x-auto">
           <Table className="min-w-[900px]">
@@ -168,8 +176,14 @@ export function StudioTargetAssignment() {
               {visibleReconciliation.map((row) => (
                 <TableRow key={row.customerId} className="cursor-pointer" onDoubleClick={() => openForm(undefined, row.customerId)}>
                   <TableCell className="font-semibold text-slate-900">{row.customerName}</TableCell>
-                  <TableCell>{formatCurrency(row.target)}</TableCell>
-                  <TableCell>{formatCurrency(row.allocated)}</TableCell>
+                  <TableCell>
+                    <p>Hunter: {formatCurrency(row.targetHunter)}</p>
+                    <p>Manut.: {formatCurrency(row.targetMaintenance)}</p>
+                  </TableCell>
+                  <TableCell>
+                    <p>Hunter: {formatCurrency(row.allocatedHunter)}</p>
+                    <p>Manut.: {formatCurrency(row.allocatedMaintenance)}</p>
+                  </TableCell>
                   <TableCell>{row.areaNames.join(", ") || "Sem área/studio alocado"}</TableCell>
                   <TableCell><StatusBadge status={row.status} /></TableCell>
                   <TableCell className="text-right">
@@ -193,7 +207,9 @@ export function StudioTargetAssignment() {
                 <TableHead>Cliente</TableHead>
                 <TableHead>Área / Studio</TableHead>
                 <TableHead>Ano</TableHead>
-                <TableHead>Valor</TableHead>
+                <TableHead>Hunter</TableHead>
+                <TableHead>Manutenção</TableHead>
+                <TableHead>Total</TableHead>
                 <TableHead>Observações</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
@@ -211,7 +227,9 @@ export function StudioTargetAssignment() {
                     </div>
                   </TableCell>
                   <TableCell>{allocation.year}</TableCell>
-                  <TableCell className="font-bold text-slate-950">{formatCurrency(allocation.amount)}</TableCell>
+                  <TableCell>{formatCurrency(allocation.hunterAmount)}</TableCell>
+                  <TableCell>{formatCurrency(allocation.maintenanceAmount)}</TableCell>
+                  <TableCell className="font-bold text-slate-950">{formatCurrency(allocation.hunterAmount + allocation.maintenanceAmount)}</TableCell>
                   <TableCell className="max-w-xs truncate text-slate-500">{allocation.notes || "—"}</TableCell>
                   <TableCell onDoubleClick={(event) => event.stopPropagation()}>
                     <div className="flex justify-end gap-1">
@@ -240,7 +258,7 @@ export function StudioTargetAssignment() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{editing ? "Editar meta por área/studio" : "Nova meta por área/studio"}</DialogTitle>
-            <DialogDescription>Informe cliente, área/studio, ano e valor. O total não pode ultrapassar a meta de Áreas / Studios do cliente.</DialogDescription>
+            <DialogDescription>Informe cliente, área/studio, ano e os valores Hunter e Manutenção. Hunter não soma novamente no total do cliente.</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-2">
             <Field label="Cliente">
@@ -258,8 +276,11 @@ export function StudioTargetAssignment() {
             <Field label="Ano">
               <Input name="year" type="number" min="2020" max="2100" step="1" defaultValue={editing?.year ?? effectiveYear} required />
             </Field>
-            <Field label="Valor da meta (R$)">
-              <Input name="amount" type="text" inputMode="decimal" defaultValue={getInputValue(editing?.amount ?? 0)} required />
+            <Field label="Valor Hunter (R$)">
+              <Input name="hunterAmount" type="text" inputMode="decimal" defaultValue={getInputValue(editing?.hunterAmount ?? 0)} required />
+            </Field>
+            <Field label="Valor Manutenção/Renovação (R$)">
+              <Input name="maintenanceAmount" type="text" inputMode="decimal" defaultValue={getInputValue(editing?.maintenanceAmount ?? 0)} required />
             </Field>
             <Field label="Observações" className="md:col-span-2">
               <Textarea name="notes" rows={3} defaultValue={editing?.notes ?? ""} maxLength={2000} />
@@ -306,37 +327,50 @@ function StatusBadge({ status }: { status: "ok" | "pending" | "over" | "empty" }
 function buildReconciliation(customers: Customer[], areas: Area[], allocations: StudioTargetAllocation[]) {
   const areasById = new Map(areas.map((area) => [area.id, area.name]));
   return customers
-    .filter((customer) => customer.studioTarget > 0 || allocations.some((allocation) => allocation.customerId === customer.id))
+    .filter((customer) => customer.studioHunterTarget > 0 || customer.studioTarget > 0 || allocations.some((allocation) => allocation.customerId === customer.id))
     .map((customer) => {
       const customerAllocations = allocations.filter((allocation) => allocation.customerId === customer.id);
-      const allocated = roundCurrency(customerAllocations.reduce((total, allocation) => total + allocation.amount, 0));
-      const difference = roundCurrency(customer.studioTarget - allocated);
+      const allocatedHunter = roundCurrency(customerAllocations.reduce((total, allocation) => total + allocation.hunterAmount, 0));
+      const allocatedMaintenance = roundCurrency(customerAllocations.reduce((total, allocation) => total + allocation.maintenanceAmount, 0));
+      const hunterDifference = roundCurrency(customer.studioHunterTarget - allocatedHunter);
+      const maintenanceDifference = roundCurrency(customer.studioTarget - allocatedMaintenance);
       const areaIds = customerAllocations.map((allocation) => allocation.areaId);
+      const overTotal = Math.max(0, -hunterDifference) + Math.max(0, -maintenanceDifference);
+      const openTotal = Math.max(0, hunterDifference) + Math.max(0, maintenanceDifference);
       return {
         customerId: customer.id,
         customerName: customer.name,
-        target: customer.studioTarget,
-        allocated,
-        open: Math.max(0, difference),
-        over: Math.max(0, -difference),
+        targetHunter: customer.studioHunterTarget,
+        targetMaintenance: customer.studioTarget,
+        allocatedHunter,
+        allocatedMaintenance,
+        openHunter: Math.max(0, hunterDifference),
+        openMaintenance: Math.max(0, maintenanceDifference),
+        overHunter: Math.max(0, -hunterDifference),
+        overMaintenance: Math.max(0, -maintenanceDifference),
+        openTotal,
+        overTotal,
         areaIds,
         areaNames: Array.from(new Set(areaIds.map((id) => areasById.get(id) ?? id))).sort((a, b) => a.localeCompare(b, "pt-BR")),
-        status: customer.studioTarget <= 0 && allocated <= 0
+        status: customer.studioHunterTarget <= 0 && customer.studioTarget <= 0 && allocatedHunter <= 0 && allocatedMaintenance <= 0
           ? "empty" as const
-          : allocated > customer.studioTarget + 0.01
+          : overTotal > 0.01
             ? "over" as const
-            : Math.abs(difference) <= 0.01
+            : openTotal <= 0.01
               ? "ok" as const
               : "pending" as const,
       };
     })
-    .sort((first, second) => second.target - first.target || first.customerName.localeCompare(second.customerName, "pt-BR"));
+    .sort((first, second) =>
+      (second.targetHunter + second.targetMaintenance) - (first.targetHunter + first.targetMaintenance)
+      || first.customerName.localeCompare(second.customerName, "pt-BR")
+    );
 }
 
-function sumStudioAllocations(allocations: StudioTargetAllocation[], customerId: string, year: number, exceptId: string) {
+function sumStudioAllocations(allocations: StudioTargetAllocation[], customerId: string, year: number, exceptId: string, type: "hunter" | "maintenance") {
   return roundCurrency(allocations
     .filter((allocation) => allocation.customerId === customerId && allocation.year === year && allocation.id !== exceptId)
-    .reduce((total, allocation) => total + allocation.amount, 0));
+    .reduce((total, allocation) => total + (type === "hunter" ? allocation.hunterAmount : allocation.maintenanceAmount), 0));
 }
 
 function findCustomer(customers: Customer[], id: string) {

@@ -106,6 +106,7 @@ export class LocalDeliveryRepository implements DeliveryRepository {
       year: targetYear,
       hunterTarget: customer.hunterTarget,
       farmerRenewalTarget: customer.farmerRenewalTarget,
+      studioHunterTarget: customer.studioHunterTarget,
       studioTarget: customer.studioTarget,
       revenue: getCustomerTarget(customer),
     };
@@ -184,38 +185,40 @@ export class LocalDeliveryRepository implements DeliveryRepository {
       || nextFarmerRenewalTotal > customer.farmerRenewalTarget + 0.01;
 
     if (targetIncreaseRequired) {
-      if (!input.increaseCustomerTarget) {
-        throw new Error(`A soma das metas das pessoas ultrapassa a meta do cliente (${customer.revenue}).`);
+      if (input.increaseCustomerTarget) {
+        this.data.customers = this.data.customers.map((item) =>
+          item.id === input.customerId
+            ? {
+              ...item,
+              hunterTarget: nextHunterTarget,
+              farmerRenewalTarget: nextFarmerRenewalTarget,
+              studioHunterTarget: customer.studioHunterTarget,
+              studioTarget: nextStudioTarget,
+              revenue: nextHunterTarget + nextFarmerRenewalTarget + nextStudioTarget,
+            }
+            : item
+        );
+        this.data.customerTargets = this.data.customerTargets.some((item) => item.customerId === input.customerId && item.year === input.year)
+          ? this.data.customerTargets.map((item) => item.customerId === input.customerId && item.year === input.year
+            ? {
+              ...item,
+              hunterTarget: nextHunterTarget,
+              farmerRenewalTarget: nextFarmerRenewalTarget,
+              studioHunterTarget: customer.studioHunterTarget,
+              studioTarget: nextStudioTarget,
+              revenue: nextHunterTarget + nextFarmerRenewalTarget + nextStudioTarget,
+            }
+            : item)
+          : [...this.data.customerTargets, {
+            customerId: input.customerId,
+            year: input.year,
+            hunterTarget: nextHunterTarget,
+            farmerRenewalTarget: nextFarmerRenewalTarget,
+            studioHunterTarget: customer.studioHunterTarget,
+            studioTarget: nextStudioTarget,
+            revenue: nextHunterTarget + nextFarmerRenewalTarget + nextStudioTarget,
+          }];
       }
-      this.data.customers = this.data.customers.map((item) =>
-        item.id === input.customerId
-          ? {
-            ...item,
-            hunterTarget: nextHunterTarget,
-            farmerRenewalTarget: nextFarmerRenewalTarget,
-            studioTarget: nextStudioTarget,
-            revenue: nextHunterTarget + nextFarmerRenewalTarget + nextStudioTarget,
-          }
-          : item
-      );
-      this.data.customerTargets = this.data.customerTargets.some((item) => item.customerId === input.customerId && item.year === input.year)
-        ? this.data.customerTargets.map((item) => item.customerId === input.customerId && item.year === input.year
-          ? {
-            ...item,
-            hunterTarget: nextHunterTarget,
-            farmerRenewalTarget: nextFarmerRenewalTarget,
-            studioTarget: nextStudioTarget,
-            revenue: nextHunterTarget + nextFarmerRenewalTarget + nextStudioTarget,
-          }
-          : item)
-        : [...this.data.customerTargets, {
-          customerId: input.customerId,
-          year: input.year,
-          hunterTarget: nextHunterTarget,
-          farmerRenewalTarget: nextFarmerRenewalTarget,
-          studioTarget: nextStudioTarget,
-          revenue: nextHunterTarget + nextFarmerRenewalTarget + nextStudioTarget,
-        }];
     }
 
     this.replaceTargetAmount(input, "hunter", nextHunterAmount);
@@ -332,17 +335,28 @@ function ensureUniqueStudioTargetAllocation(items: StudioTargetAllocation[], all
 
 function ensureStudioTargetNotExceeded(customers: Customer[], items: StudioTargetAllocation[], allocation: StudioTargetAllocation) {
   const customer = customers.find((item) => item.id === allocation.customerId);
-  const customerTarget = customer?.studioTarget ?? 0;
-  const allocated = items
+  const customerHunterTarget = customer?.studioHunterTarget ?? 0;
+  const customerMaintenanceTarget = customer?.studioTarget ?? 0;
+  const allocatedHunter = items
     .filter((item) =>
       item.id !== allocation.id
       && item.customerId === allocation.customerId
       && item.year === allocation.year
     )
-    .reduce((total, item) => total + item.amount, 0) + allocation.amount;
+    .reduce((total, item) => total + item.hunterAmount, 0) + allocation.hunterAmount;
+  const allocatedMaintenance = items
+    .filter((item) =>
+      item.id !== allocation.id
+      && item.customerId === allocation.customerId
+      && item.year === allocation.year
+    )
+    .reduce((total, item) => total + item.maintenanceAmount, 0) + allocation.maintenanceAmount;
 
-  if (customerTarget > 0 && allocated > customerTarget + 0.01) {
-    throw new Error(`A soma das metas de áreas/studios ultrapassa a meta de Áreas/Studios do cliente (${customerTarget}).`);
+  if (customerHunterTarget > 0 && allocatedHunter > customerHunterTarget + 0.01) {
+    throw new Error(`A soma Hunter de áreas/studios ultrapassa a meta Hunter de Áreas/Studios do cliente (${customerHunterTarget}).`);
+  }
+  if (customerMaintenanceTarget > 0 && allocatedMaintenance > customerMaintenanceTarget + 0.01) {
+    throw new Error(`A soma Manutenção/Renovação de áreas/studios ultrapassa a meta de Manutenção de Áreas/Studios do cliente (${customerMaintenanceTarget}).`);
   }
 }
 

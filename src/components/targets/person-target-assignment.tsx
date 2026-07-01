@@ -199,6 +199,7 @@ export function PersonTargetAssignment() {
     const nextCustomerTotal = currentOtherPeopleTotal + nextHunterAmount + nextFarmerRenewalAmount + nextStudioAmount;
     const overAmount = nextCustomerTotal - row.customerTarget;
 
+    let increaseCustomerTarget = false;
     if (overAmount > 0.01) {
       const increaseType = getIncreaseType({
         currentHunterAmount: row.hunterAllocation?.amount ?? 0,
@@ -208,10 +209,9 @@ export function PersonTargetAssignment() {
         currentStudioAmount: 0,
         nextStudioAmount,
       });
-      const confirmed = window.confirm(
-        `A soma das metas das pessoas em ${row.customerName} ficará ${formatCurrency(overAmount)} acima da meta atual do cliente.\n\nDeseja aumentar a meta do cliente para ${formatCurrency(nextCustomerTotal)}? Origem do acréscimo: ${increaseType}.`,
+      increaseCustomerTarget = window.confirm(
+        `A soma das metas das pessoas em ${row.customerName} ficará ${formatCurrency(overAmount)} acima da meta atual do cliente.\n\nOK: aumentar a meta do cliente para ${formatCurrency(nextCustomerTotal)}.\nCancelar: manter a meta original e salvar a alocação como excedente para conciliação.\n\nOrigem do acréscimo: ${increaseType}.`,
       );
-      if (!confirmed) return;
     }
 
     try {
@@ -224,7 +224,7 @@ export function PersonTargetAssignment() {
         hunterAmount: nextHunterAmount,
         farmerRenewalAmount: nextFarmerRenewalAmount,
         studioAmount: nextStudioAmount,
-        increaseCustomerTarget: overAmount > 0.01,
+        increaseCustomerTarget,
         notes: "Meta associada pela tela Metas por Pessoa.",
       });
       setDrafts((current) => {
@@ -232,8 +232,10 @@ export function PersonTargetAssignment() {
         delete next[row.customerId];
         return next;
       });
-      setSuccessMessage(overAmount > 0.01
+      setSuccessMessage(overAmount > 0.01 && increaseCustomerTarget
         ? `Metas salvas e meta do cliente ${row.customerName} aumentada para ${formatCurrency(nextCustomerTotal)}.`
+        : overAmount > 0.01
+          ? `Metas salvas mantendo a meta original do cliente. ${row.customerName} ficará ${formatCurrency(overAmount)} acima para conciliação.`
         : successText ?? `Metas de ${selectedPerson?.name ?? "pessoa"} em ${row.customerName} salvas.`);
       window.setTimeout(() => setSuccessMessage(""), 3500);
     } catch (error) {

@@ -19,6 +19,7 @@ export function applyCustomerTargetsForYear(customers: Customer[], customerTarge
       ...customer,
       hunterTarget: 0,
       farmerRenewalTarget: 0,
+      studioHunterTarget: 0,
       studioTarget: 0,
       revenue: 0,
     };
@@ -26,6 +27,7 @@ export function applyCustomerTargetsForYear(customers: Customer[], customerTarge
       ...customer,
       hunterTarget: target.hunterTarget,
       farmerRenewalTarget: target.farmerRenewalTarget,
+      studioHunterTarget: target.studioHunterTarget,
       studioTarget: target.studioTarget,
       revenue: target.revenue,
     };

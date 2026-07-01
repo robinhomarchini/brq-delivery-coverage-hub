@@ -840,7 +840,7 @@ function sumAllocations(allocations: TargetAllocation[], studioAllocations: Stud
     .reduce((total, allocation) => total + allocation.amount, 0);
   const studioTotal = studioAllocations
     .filter((allocation) => allocation.customerId === customerId && allocation.year === year)
-    .reduce((total, allocation) => total + allocation.amount, 0);
+    .reduce((total, allocation) => total + allocation.maintenanceAmount, 0);
   return peopleTotal + studioTotal;
 }
 

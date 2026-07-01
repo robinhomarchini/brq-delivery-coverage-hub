@@ -24,6 +24,8 @@ import { cn } from "@/lib/utils";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useDeliveryStore } from "@/store/delivery-store";
 import { ErrorNotice } from "@/components/shared/success-notice";
+import { translateAccessRole } from "@/lib/access-control";
+import { useAccess } from "@/lib/access-context";
 
 const navigation = [
   { href: "/", label: "Dashboard Executivo", icon: LayoutDashboard },
@@ -39,7 +41,7 @@ const navigation = [
   { href: "/insights", label: "Insights", icon: Bot },
   { href: "/assuntos", label: "Assuntos", icon: Target, disabled: true },
   { href: "/mapa-cobertura", label: "Mapa de Cobertura", icon: Map, disabled: true },
-  { href: "/configuracoes", label: "Configurações", icon: Settings },
+  { href: "/configuracoes", label: "Configurações", icon: Settings, adminOnly: true },
   { href: "/ajuda", label: "Ajuda", icon: CircleHelp },
 ];
 
@@ -47,9 +49,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const current = navigation.find((item) => item.href === pathname) ?? navigation[0];
+  const { accessUser, isAdmin } = useAccess();
+  const visibleNavigation = navigation.filter((item) => !item.adminOnly || isAdmin);
+  const current = visibleNavigation.find((item) => item.href === pathname) ?? navigation[0];
   const client = getSupabaseBrowserClient();
   const { error, clearError } = useDeliveryStore();
+  const userEmail = accessUser?.email ?? "Usuário BRQ";
+  const userInitials = getInitials(userEmail);
   const dataStatus = client
     ? { label: "Dados persistidos", className: "bg-emerald-500" }
     : process.env.NODE_ENV === "production"
@@ -77,7 +83,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
         <nav className="space-y-1 p-3">
           <p className="px-3 pb-2 pt-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Navegação</p>
-          {navigation.map((item) => {
+          {visibleNavigation.map((item) => {
             const Icon = item.icon;
             const active = pathname === item.href;
             if (item.disabled) {
@@ -111,14 +117,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
         <div className="absolute bottom-0 left-0 right-0 border-t bg-white p-3">
-          <div className="flex items-center gap-3">
-            <div className="grid h-8 w-8 place-items-center rounded-full bg-purple-100 text-xs font-bold text-brq-purple">RM</div>
+          <div className="flex items-center gap-3 pr-9">
+            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-purple-100 text-xs font-bold text-brq-purple">{userInitials}</div>
             <div className="min-w-0">
-              <p className="truncate text-xs font-semibold text-slate-800">Robinson Marchini</p>
-              <p className="truncate text-[10px] text-slate-400">Diretor Executivo</p>
+              <p className="truncate text-xs font-semibold text-slate-800">{userEmail}</p>
+              <p className="truncate text-[10px] text-slate-400">
+                {accessUser ? translateAccessRole(accessUser.role) : "Acesso local"}
+              </p>
             </div>
           </div>
-          {client && <button onClick={() => client.auth.signOut()} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Sair"><LogOut className="h-4 w-4" /></button>}
+          {client && <button onClick={() => client.auth.signOut()} className="absolute bottom-3 right-3 rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Sair"><LogOut className="h-4 w-4" /></button>}
         </div>
       </aside>
 
@@ -147,4 +155,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
     </div>
   );
+}
+
+function getInitials(email: string) {
+  const [name] = email.split("@");
+  const parts = name.split(/[._-]/).filter(Boolean);
+  return (parts.length > 1 ? `${parts[0][0]}${parts[1][0]}` : name.slice(0, 2)).toUpperCase();
 }

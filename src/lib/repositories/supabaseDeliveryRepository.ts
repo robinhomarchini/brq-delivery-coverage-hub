@@ -58,6 +58,7 @@ type CustomerRow = {
   territory_id: string | null;
   hunter_target?: number | string | null;
   farmer_renewal_target?: number | string | null;
+  studio_hunter_target?: number | string | null;
   studio_target?: number | string | null;
   revenue: number | string;
   margin: number | string;
@@ -94,6 +95,7 @@ type CustomerTargetRow = {
   target_year: number;
   hunter_target: number | string;
   farmer_renewal_target: number | string;
+  studio_hunter_target?: number | string | null;
   studio_target?: number | string | null;
   revenue: number | string;
 };
@@ -103,7 +105,9 @@ type StudioTargetAllocationRow = {
   customer_id: string;
   area_id: string;
   target_year: number;
-  amount: number | string;
+  amount?: number | string | null;
+  hunter_amount?: number | string | null;
+  maintenance_amount?: number | string | null;
   notes: string | null;
 };
 
@@ -306,6 +310,7 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
         target_year: targetYear,
         hunter_target: customer.hunterTarget,
         farmer_renewal_target: customer.farmerRenewalTarget,
+        studio_hunter_target: customer.studioHunterTarget,
         studio_target: customer.studioTarget,
       });
     if (error) throw error;
@@ -315,6 +320,7 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
       .update({
         hunter_target: customer.hunterTarget,
         farmer_renewal_target: customer.farmerRenewalTarget,
+        studio_hunter_target: customer.studioHunterTarget,
         studio_target: customer.studioTarget,
         revenue: nextRevenue,
       })
@@ -472,6 +478,7 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
       ...legacyCustomer,
       hunterTarget: customerTarget.hunterTarget,
       farmerRenewalTarget: customerTarget.farmerRenewalTarget,
+      studioHunterTarget: customerTarget.studioHunterTarget,
       studioTarget: customerTarget.studioTarget,
       revenue: customerTarget.revenue,
     };
@@ -494,16 +501,16 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
       || nextFarmerRenewalTotal > customer.farmerRenewalTarget + 0.01;
 
     if (targetIncreaseRequired) {
-      if (!input.increaseCustomerTarget) {
-        throw new Error(`A soma das metas das pessoas ultrapassa a meta do cliente (${customer.revenue}).`);
+      if (input.increaseCustomerTarget) {
+        await this.upsertCustomerTarget({
+          ...customer,
+          hunterTarget: nextHunterTarget,
+          farmerRenewalTarget: nextFarmerRenewalTarget,
+          studioHunterTarget: customer.studioHunterTarget,
+          studioTarget: nextStudioTarget,
+          revenue: nextHunterTarget + nextFarmerRenewalTarget + nextStudioTarget,
+        }, input.year);
       }
-      await this.upsertCustomerTarget({
-        ...customer,
-        hunterTarget: nextHunterTarget,
-        farmerRenewalTarget: nextFarmerRenewalTarget,
-        studioTarget: nextStudioTarget,
-        revenue: nextHunterTarget + nextFarmerRenewalTarget + nextStudioTarget,
-      }, input.year);
     }
 
     await this.persistTypeTargetWithFallback(input, "hunter", nextHunterAmount, allocations);
@@ -640,10 +647,11 @@ function toCustomerRow(customer: Customer): CustomerRow {
     director_responsible_id: customer.directorResponsibleId,
     manager_responsible_id: customer.managerResponsibleIds[0] ?? null,
     manager_responsible_ids: customer.managerResponsibleIds,
-    territory_id: null,
-    hunter_target: customer.hunterTarget,
-    farmer_renewal_target: customer.farmerRenewalTarget,
-    studio_target: customer.studioTarget,
+      territory_id: null,
+      hunter_target: customer.hunterTarget,
+      farmer_renewal_target: customer.farmerRenewalTarget,
+      studio_hunter_target: customer.studioHunterTarget,
+      studio_target: customer.studioTarget,
     revenue: customer.revenue,
     margin: customer.margin,
     strategic_account: customer.strategicAccount,
@@ -655,6 +663,7 @@ function fromCustomerRow(row: CustomerRow): Customer {
   const targetDefaults = getCustomerTargetDefaults(row.name, revenue);
   const hunterTarget = row.hunter_target == null ? targetDefaults.hunter : Number(row.hunter_target);
   const farmerRenewalTarget = row.farmer_renewal_target == null ? targetDefaults.farmerRenewal : Number(row.farmer_renewal_target);
+  const studioHunterTarget = row.studio_hunter_target == null ? targetDefaults.studioHunter : Number(row.studio_hunter_target);
   const studioTarget = row.studio_target == null ? targetDefaults.studio : Number(row.studio_target);
 
   return {
@@ -665,6 +674,7 @@ function fromCustomerRow(row: CustomerRow): Customer {
     managerResponsibleIds: row.manager_responsible_ids ?? (row.manager_responsible_id ? [row.manager_responsible_id] : []),
     hunterTarget,
     farmerRenewalTarget,
+    studioHunterTarget,
     studioTarget,
     revenue: roundCurrency(hunterTarget + farmerRenewalTarget + studioTarget),
     margin: Number(row.margin),
@@ -675,12 +685,14 @@ function fromCustomerRow(row: CustomerRow): Customer {
 function fromCustomerTargetRow(row: CustomerTargetRow): CustomerTarget {
   const hunterTarget = Number(row.hunter_target);
   const farmerRenewalTarget = Number(row.farmer_renewal_target);
+  const studioHunterTarget = Number(row.studio_hunter_target ?? 0);
   const studioTarget = Number(row.studio_target ?? 0);
   return {
     customerId: row.customer_id,
     year: row.target_year,
     hunterTarget,
     farmerRenewalTarget,
+    studioHunterTarget,
     studioTarget,
     revenue: Number(row.revenue) || roundCurrency(hunterTarget + farmerRenewalTarget + studioTarget),
   };
@@ -693,6 +705,7 @@ function fromLegacyCustomerTargetRow(row: CustomerRow): CustomerTarget {
     year: 2026,
     hunterTarget: customer.hunterTarget,
     farmerRenewalTarget: customer.farmerRenewalTarget,
+    studioHunterTarget: customer.studioHunterTarget,
     studioTarget: customer.studioTarget,
     revenue: customer.revenue,
   };
@@ -709,6 +722,7 @@ function applyCustomerTargetsForYear(customers: Customer[], targets: CustomerTar
       ...customer,
       hunterTarget: target.hunterTarget,
       farmerRenewalTarget: target.farmerRenewalTarget,
+      studioHunterTarget: target.studioHunterTarget,
       studioTarget: target.studioTarget,
       revenue: target.revenue,
     };
@@ -719,10 +733,10 @@ function getCustomerTargetDefaults(name: string, revenue: number) {
   const importedHunter = getFinancialCustomerMetric(name, "hunterRevenue");
   const importedFarmerRenewal = getFinancialCustomerMetric(name, "deliveryFarmerRevenue");
   const importedTotal = importedHunter + importedFarmerRenewal;
-  if (revenue <= 0) return { hunter: 0, farmerRenewal: 0, studio: 0 };
-  if (importedTotal <= 0) return { hunter: 0, farmerRenewal: revenue, studio: 0 };
+  if (revenue <= 0) return { hunter: 0, farmerRenewal: 0, studioHunter: 0, studio: 0 };
+  if (importedTotal <= 0) return { hunter: 0, farmerRenewal: revenue, studioHunter: 0, studio: 0 };
   const hunter = roundCurrency(revenue * (importedHunter / importedTotal));
-  return { hunter, farmerRenewal: roundCurrency(revenue - hunter), studio: 0 };
+  return { hunter, farmerRenewal: roundCurrency(revenue - hunter), studioHunter: 0, studio: 0 };
 }
 
 function getCustomerTarget(customer: Customer) {
@@ -801,7 +815,9 @@ function toStudioTargetAllocationRow(allocation: StudioTargetAllocation): Studio
     customer_id: allocation.customerId,
     area_id: allocation.areaId,
     target_year: allocation.year,
-    amount: allocation.amount,
+    amount: allocation.maintenanceAmount,
+    hunter_amount: allocation.hunterAmount,
+    maintenance_amount: allocation.maintenanceAmount,
     notes: allocation.notes ?? null,
   };
 }
@@ -812,7 +828,8 @@ function fromStudioTargetAllocationRow(row: StudioTargetAllocationRow): StudioTa
     customerId: row.customer_id,
     areaId: row.area_id,
     year: row.target_year,
-    amount: Number(row.amount),
+    hunterAmount: Number(row.hunter_amount ?? 0),
+    maintenanceAmount: Number(row.maintenance_amount ?? row.amount ?? 0),
     notes: row.notes ?? undefined,
   };
 }

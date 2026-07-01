@@ -48,7 +48,8 @@ const customerSchema = z.object({
   managerResponsibleIds: z.array(safeText("Manager", 120)).max(20),
   hunterTarget: z.number().finite().min(0, "Meta Hunter não pode ser negativa.").max(999999999999),
   farmerRenewalTarget: z.number().finite().min(0, "Meta Renovação + Ampliação não pode ser negativa.").max(999999999999),
-  studioTarget: z.number().finite().min(0, "Meta Áreas / Studios não pode ser negativa.").max(999999999999),
+  studioHunterTarget: z.number().finite().min(0, "Meta Hunter de Áreas / Studios não pode ser negativa.").max(999999999999),
+  studioTarget: z.number().finite().min(0, "Meta Manutenção de Áreas / Studios não pode ser negativa.").max(999999999999),
   revenue: z.number().finite().min(0, "Receita não pode ser negativa.").max(999999999999),
   margin: z.number().finite().min(0, "Margem não pode ser negativa.").max(100, "Margem não pode exceder 100%."),
   strategicAccount: z.boolean(),
@@ -79,7 +80,8 @@ const studioTargetAllocationSchema = z.object({
   customerId: safeText("Cliente", 120),
   areaId: safeText("Área/Studio", 120),
   year: z.number().int("Ano deve ser inteiro.").min(2020, "Ano inválido.").max(2100, "Ano inválido."),
-  amount: z.number().finite().min(0, "Valor da meta não pode ser negativo.").max(999999999999),
+  hunterAmount: z.number().finite().min(0, "Valor Hunter não pode ser negativo.").max(999999999999),
+  maintenanceAmount: z.number().finite().min(0, "Valor Manutenção/Renovação não pode ser negativo.").max(999999999999),
   notes: optionalText(2000),
 });
 

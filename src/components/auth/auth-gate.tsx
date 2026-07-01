@@ -6,11 +6,15 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { fetchCurrentAccessUser, type AccessUser } from "@/lib/access-control";
+import { AccessContextProvider } from "@/lib/access-context";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [accessUser, setAccessUser] = useState<AccessUser | null>(null);
   const [loading, setLoading] = useState(isSupabaseConfigured());
+  const [loadingAccess, setLoadingAccess] = useState(false);
   const [sending, setSending] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -21,6 +25,26 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 
     let mounted = true;
 
+    async function loadAccessProfile() {
+      if (!client) return null;
+      setLoadingAccess(true);
+      try {
+        return await fetchCurrentAccessUserWithRetry();
+      } finally {
+        setLoadingAccess(false);
+      }
+    }
+
+    async function fetchCurrentAccessUserWithRetry() {
+      if (!client) return null;
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        const profile = await fetchCurrentAccessUser(client);
+        if (profile) return profile;
+        await new Promise((resolve) => window.setTimeout(resolve, 250));
+      }
+      return null;
+    }
+
     async function acceptUser(nextUser: User | null) {
       if (!client || !mounted) return;
       const email = nextUser?.email?.toLowerCase() ?? "";
@@ -28,9 +52,38 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         await client.auth.signOut();
         if (!mounted) return;
         setUser(null);
+        setAccessUser(null);
         setError("Use seu e-mail corporativo @brq.com.");
         setLoading(false);
         return;
+      }
+      if (nextUser) {
+        let profile: AccessUser | null = null;
+        try {
+          profile = await loadAccessProfile();
+        } catch (accessError) {
+          console.error("Failed to load access profile", accessError);
+          await client.auth.signOut();
+          if (!mounted) return;
+          setUser(null);
+          setAccessUser(null);
+          setError("Não foi possível validar seu acesso. Tente novamente ou solicite apoio ao administrador.");
+          setLoading(false);
+          return;
+        }
+        if (!mounted) return;
+        if (!profile?.active) {
+          await client.auth.signOut();
+          if (!mounted) return;
+          setUser(null);
+          setAccessUser(null);
+          setError("Seu usuário BRQ ainda não está liberado para acessar este hub. Solicite acesso ao administrador.");
+          setLoading(false);
+          return;
+        }
+        setAccessUser(profile);
+      } else {
+        setAccessUser(null);
       }
       setUser(nextUser);
       setLoading(false);
@@ -75,11 +128,38 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     setMessage("Link de acesso enviado. Verifique seu e-mail corporativo.");
   }
 
-  if (!client) return children;
+  async function refreshAccess() {
+    if (!client || !user) return;
+    const profile = await fetchCurrentAccessUser(client);
+    setAccessUser(profile);
+  }
+
+  const accessContextValue = {
+    user,
+    accessUser,
+    loadingAccess,
+    isAdmin: accessUser?.active === true && accessUser.role === "admin",
+    canEdit: accessUser?.active === true && (accessUser.role === "editor" || accessUser.role === "admin"),
+    refreshAccess,
+  };
+
+  if (!client) {
+    return (
+      <AccessContextProvider value={accessContextValue}>
+        {children}
+      </AccessContextProvider>
+    );
+  }
   if (loading) {
     return <div className="grid min-h-screen place-items-center"><LoaderCircle className="h-8 w-8 animate-spin text-brq-purple" /></div>;
   }
-  if (user) return children;
+  if (user) {
+    return (
+      <AccessContextProvider value={accessContextValue}>
+        {children}
+      </AccessContextProvider>
+    );
+  }
 
   return (
     <main className="grid min-h-screen place-items-center bg-slate-50 p-6">

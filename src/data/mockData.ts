@@ -50,6 +50,7 @@ export interface Customer {
   managerResponsibleIds: string[];
   hunterTarget: number;
   farmerRenewalTarget: number;
+  studioHunterTarget: number;
   studioTarget: number;
   revenue: number;
   margin: number;
@@ -61,6 +62,7 @@ export interface CustomerTarget {
   year: number;
   hunterTarget: number;
   farmerRenewalTarget: number;
+  studioHunterTarget: number;
   studioTarget: number;
   revenue: number;
 }
@@ -92,7 +94,8 @@ export interface StudioTargetAllocation {
   customerId: string;
   areaId: string;
   year: number;
-  amount: number;
+  hunterAmount: number;
+  maintenanceAmount: number;
   notes?: string;
 }
 
@@ -116,6 +119,7 @@ export const customers: Customer[] = financialSourceCustomerNames.map((name) => 
   ...getFinancialCustomerGovernance(name),
   hunterTarget: getFinancialCustomerMetric(name, "hunterRevenue"),
   farmerRenewalTarget: getFinancialCustomerMetric(name, "deliveryFarmerRevenue"),
+  studioHunterTarget: 0,
   studioTarget: 0,
   revenue: getFinancialCustomerMetric(name, "revenueTarget"),
   margin: targetMarginPercent,
@@ -127,6 +131,7 @@ export const customerTargets: CustomerTarget[] = customers.map((customer) => ({
   year: 2026,
   hunterTarget: customer.hunterTarget,
   farmerRenewalTarget: customer.farmerRenewalTarget,
+  studioHunterTarget: customer.studioHunterTarget,
   studioTarget: customer.studioTarget,
   revenue: customer.revenue,
 }));

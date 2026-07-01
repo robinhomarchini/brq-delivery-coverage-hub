@@ -1,35 +1,333 @@
-import { Bot, Database, Palette, ShieldCheck } from "lucide-react";
-import { PageHeader } from "@/components/shared/page-header";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+"use client";
 
-const settings = [
-  { icon: Database, title: "Fonte de dados", description: "Supabase com persistência protegida por autenticação e RLS.", status: "Ativo" },
-  { icon: Bot, title: "Insights de IA", description: "Funções placeholder disponíveis para capacidade, cobertura e portfólio.", status: "Demonstração" },
-  { icon: ShieldCheck, title: "Acesso e governança", description: "Login corporativo, papéis de acesso, RLS e trilha de auditoria.", status: "Ativo" },
-  { icon: Palette, title: "Identidade visual", description: "Tema executivo inspirado na identidade BRQ e otimizado para apresentações.", status: "Ativo" },
-];
+import { LoaderCircle, Pencil, ShieldAlert, ShieldCheck, UserPlus } from "lucide-react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import { PageHeader } from "@/components/shared/page-header";
+import { ErrorNotice, SuccessNotice } from "@/components/shared/success-notice";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  accessRoles,
+  deactivateAccessUser,
+  isBrqEmail,
+  listAccessUsers,
+  normalizeAccessEmail,
+  saveAccessUser,
+  translateAccessRole,
+  type AccessRole,
+  type AccessUser,
+} from "@/lib/access-control";
+import { useAccess } from "@/lib/access-context";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+
+const initialForm = {
+  email: "",
+  role: "viewer" as AccessRole,
+  active: true,
+};
 
 export default function SettingsPage() {
+  const client = getSupabaseBrowserClient();
+  const { isAdmin, loadingAccess, refreshAccess } = useAccess();
+  const [users, setUsers] = useState<AccessUser[]>([]);
+  const [form, setForm] = useState(initialForm);
+  const [editingEmail, setEditingEmail] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [error, setError] = useState("");
+
+  const sortedUsers = useMemo(
+    () => users.slice().sort((first, second) => first.email.localeCompare(second.email, "pt-BR")),
+    [users],
+  );
+
+  useEffect(() => {
+    if (!client || !isAdmin) return;
+    void loadUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client, isAdmin]);
+
+  if (loadingAccess) {
+    return (
+      <div className="grid min-h-[50vh] place-items-center">
+        <LoaderCircle className="h-8 w-8 animate-spin text-brq-purple" />
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <>
+        <PageHeader
+          eyebrow="Administração"
+          title="Configurações"
+          description="Esta área é restrita a administradores do Delivery Coverage Hub."
+        />
+        <Card className="border-amber-200 bg-amber-50 shadow-sm">
+          <CardContent className="flex items-start gap-3 p-5 text-sm text-amber-800">
+            <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0" />
+            <div>
+              <p className="font-semibold">Acesso restrito</p>
+              <p className="mt-1 leading-6">Peça a um administrador para revisar seu papel de acesso caso precise gerenciar usuários.</p>
+            </div>
+          </CardContent>
+        </Card>
+      </>
+    );
+  }
+
+  async function loadUsers() {
+    if (!client) return;
+    setLoading(true);
+    setError("");
+    try {
+      setUsers(await listAccessUsers(client));
+    } catch (loadError) {
+      setError(getErrorMessage(loadError, "Não foi possível carregar os usuários."));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!client) return;
+
+    const email = normalizeAccessEmail(form.email);
+    setNotice("");
+    setError("");
+
+    if (!isBrqEmail(email)) {
+      setError("Informe um e-mail corporativo @brq.com.");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await saveAccessUser(client, {
+        email,
+        role: form.role,
+        active: form.active,
+      });
+      await Promise.all([loadUsers(), refreshAccess()]);
+      setNotice(editingEmail ? "Acesso atualizado com sucesso." : "Usuário pré-cadastrado com sucesso.");
+      setForm(initialForm);
+      setEditingEmail(null);
+    } catch (saveError) {
+      setError(getErrorMessage(saveError, "Não foi possível salvar o acesso."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDeactivate(user: AccessUser) {
+    if (!client) return;
+    setNotice("");
+    setError("");
+    setSaving(true);
+    try {
+      await deactivateAccessUser(client, user.email, user.role);
+      await Promise.all([loadUsers(), refreshAccess()]);
+      setNotice("Usuário desativado com sucesso.");
+      if (editingEmail === user.email) {
+        setForm({ ...form, active: false });
+      }
+    } catch (deactivateError) {
+      setError(getErrorMessage(deactivateError, "Não foi possível desativar o usuário."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function startEditing(user: AccessUser) {
+    setEditingEmail(user.email);
+    setForm({
+      email: user.email,
+      role: user.role,
+      active: user.active,
+    });
+    setNotice("");
+    setError("");
+  }
+
+  function resetForm() {
+    setEditingEmail(null);
+    setForm(initialForm);
+    setNotice("");
+    setError("");
+  }
+
   return (
     <>
-      <PageHeader eyebrow="Administração" title="Configurações" description="Visão da arquitetura atual e dos recursos preparados para evolução." />
-      <div className="grid gap-5 md:grid-cols-2">
-        {settings.map(({ icon: Icon, title, description, status }) => (
-          <Card key={title} className="shadow-sm">
-            <CardHeader className="flex-row items-start gap-4 space-y-0">
-              <div className="grid h-12 w-12 place-items-center rounded-xl bg-purple-50 text-brq-purple"><Icon className="h-6 w-6" /></div>
-              <div className="flex-1"><CardTitle>{title}</CardTitle><CardDescription className="mt-2 leading-6">{description}</CardDescription></div>
-              <Badge variant={status === "Ativo" ? "success" : "secondary"}>{status}</Badge>
-            </CardHeader>
-            <CardContent>
-              <div className="rounded-xl border border-dashed bg-slate-50 p-4 text-xs leading-5 text-slate-500">
-                Configuração protegida neste MVP. A camada está documentada para a próxima evolução.
+      <PageHeader
+        eyebrow="Administração"
+        title="Configurações"
+        description="Gerencie o acesso corporativo ao Delivery Coverage Hub com papéis e pré-cadastro no Supabase."
+      />
+
+      {notice && <SuccessNotice message={notice} floating />}
+      {error && <ErrorNotice message={error} floating onClose={() => setError("")} />}
+
+      <div className="grid gap-5 xl:grid-cols-[minmax(320px,420px)_1fr]">
+        <Card className="shadow-sm">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="grid h-11 w-11 place-items-center rounded-xl bg-purple-50 text-brq-purple">
+                <UserPlus className="h-5 w-5" />
               </div>
-            </CardContent>
-          </Card>
-        ))}
+              <div>
+                <CardTitle>{editingEmail ? "Editar usuário" : "Pré-cadastrar usuário"}</CardTitle>
+                <CardDescription className="mt-1">Use apenas e-mails corporativos BRQ.</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <form className="space-y-4" onSubmit={handleSubmit}>
+              <div>
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500" htmlFor="access-email">E-mail</label>
+                <Input
+                  id="access-email"
+                  type="email"
+                  value={form.email}
+                  onChange={(event) => setForm((current) => ({ ...current, email: event.target.value }))}
+                  placeholder="nome@brq.com"
+                  autoComplete="email"
+                  maxLength={254}
+                  disabled={saving || Boolean(editingEmail)}
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500" htmlFor="access-role">Papel</label>
+                <Select
+                  id="access-role"
+                  value={form.role}
+                  onChange={(event) => setForm((current) => ({ ...current, role: event.target.value as AccessRole }))}
+                  disabled={saving}
+                >
+                  {accessRoles.map((role) => (
+                    <option key={role} value={role}>{translateAccessRole(role)}</option>
+                  ))}
+                </Select>
+              </div>
+
+              <label className="flex items-center gap-3 rounded-xl border bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-slate-300 text-brq-purple focus:ring-brq-purple"
+                  checked={form.active}
+                  onChange={(event) => setForm((current) => ({ ...current, active: event.target.checked }))}
+                  disabled={saving}
+                />
+                Ativo
+              </label>
+
+              <div className="flex flex-wrap gap-2">
+                <Button type="submit" disabled={saving}>
+                  {saving ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
+                  {saving ? "Salvando..." : "Salvar acesso"}
+                </Button>
+                {editingEmail && (
+                  <Button type="button" variant="secondary" onClick={resetForm} disabled={saving}>Cancelar edição</Button>
+                )}
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm">
+          <CardHeader className="flex-row items-start justify-between gap-4 space-y-0">
+            <div>
+              <CardTitle>Usuários e convites</CardTitle>
+              <CardDescription className="mt-1">Status ativo indica login já convertido em `app_users`; pendente indica pré-cadastro.</CardDescription>
+            </div>
+            <Button type="button" variant="secondary" onClick={loadUsers} disabled={loading || saving}>
+              {loading ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}
+              Atualizar
+            </Button>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto rounded-xl border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>E-mail</TableHead>
+                    <TableHead>Papel</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Situação</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loading && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="py-8 text-center text-slate-500">
+                        <LoaderCircle className="mx-auto mb-2 h-5 w-5 animate-spin text-brq-purple" />
+                        Carregando acessos...
+                      </TableCell>
+                    </TableRow>
+                  )}
+
+                  {!loading && sortedUsers.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="py-8 text-center text-slate-500">
+                        Nenhum usuário cadastrado.
+                      </TableCell>
+                    </TableRow>
+                  )}
+
+                  {!loading && sortedUsers.map((user) => (
+                    <TableRow key={user.email}>
+                      <TableCell>
+                        <div className="font-semibold text-slate-900">{user.email}</div>
+                        <div className="text-xs text-slate-400">{user.userId ? "Conta autenticada" : "Aguardando primeiro login"}</div>
+                      </TableCell>
+                      <TableCell>{translateAccessRole(user.role)}</TableCell>
+                      <TableCell>
+                        <Badge variant={user.status === "active" ? "success" : "secondary"}>
+                          {user.status === "active" ? "Ativo" : "Pendente"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={user.active ? "success" : "secondary"}>
+                          {user.active ? "Liberado" : "Inativo"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button type="button" variant="secondary" onClick={() => startEditing(user)} disabled={saving}>
+                            <Pencil className="h-4 w-4" />
+                            Editar
+                          </Button>
+                          {user.active && (
+                            <Button type="button" variant="destructive" onClick={() => handleDeactivate(user)} disabled={saving}>
+                              Desativar
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </>
   );
+}
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof Error) return error.message || fallback;
+  if (typeof error === "object" && error && "message" in error) {
+    return String((error as { message?: unknown }).message || fallback);
+  }
+  return fallback;
 }
