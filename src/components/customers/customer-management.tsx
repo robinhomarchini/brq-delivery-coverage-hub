@@ -104,7 +104,12 @@ interface CustomerTargetPerson {
   amount: number;
 }
 
-type CustomerCoverageStatus = "ok" | "issue" | "empty";
+type CustomerCoverageStatus = "ok" | "issue" | "mismatch" | "empty";
+type CustomerCoverageSignal = {
+  status: CustomerCoverageStatus;
+  title: string;
+  difference?: number;
+};
 
 export function CustomerManagement() {
   const initialCustomerId = useMemo(() => getInitialCustomerId(), []);
@@ -359,13 +364,13 @@ export function CustomerManagement() {
           <Table>
             <TableHeader><TableRow>
               <TableHead>Cliente</TableHead><TableHead>Diretor responsável</TableHead>
-              <TableHead>Hunters / Farmers</TableHead><TableHead>Metas</TableHead><TableHead>Margem alvo</TableHead><TableHead>Estratégica</TableHead><TableHead className="text-right">Ações</TableHead>
+              <TableHead>Alocado por pessoas</TableHead><TableHead>Meta do cliente</TableHead><TableHead>Margem alvo</TableHead><TableHead>Estratégica</TableHead><TableHead className="text-right">Ações</TableHead>
             </TableRow></TableHeader>
             <TableBody>
               {filtered.map((customer) => {
                 const breakdown = getCustomerTargetBreakdown(customer);
                 const targetPeople = getCustomerTargetPeople(customer, people, targetAllocations, year);
-                const status = getCustomerCoverageStatus(customer, people, targetAllocations, studioTargetAllocations, year);
+                const coverage = getCustomerCoverageStatus(customer, people, targetAllocations, studioTargetAllocations, year);
                 return (
                   <TableRow
                     key={customer.id}
@@ -373,7 +378,7 @@ export function CustomerManagement() {
                     title="Dê duplo clique para editar o cliente"
                     onDoubleClick={() => openForm(customer)}
                   >
-                    <TableCell><div className="flex items-center gap-3"><div className={`grid h-10 w-10 place-items-center rounded-xl ${getCustomerStatusIconClassName(status)}`} title={getCustomerStatusLabel(status)}><Building2 className="h-5 w-5" /></div><div><p className="font-semibold">{customer.name}</p><p className="text-xs text-slate-400">{customer.industry}</p></div></div></TableCell>
+                    <TableCell><div className="flex items-center gap-3"><div className={`grid h-10 w-10 place-items-center rounded-xl ${getCustomerStatusIconClassName(coverage.status)}`} title={coverage.title} aria-label={coverage.title}><Building2 className="h-5 w-5" /></div><div><p className="font-semibold">{customer.name}</p><p className="text-xs text-slate-400">{customer.industry}</p>{coverage.status === "mismatch" && typeof coverage.difference === "number" && <p className="text-xs font-semibold text-red-600" title={coverage.title}>{coverage.difference > 0 ? "Em aberto" : "Acima"}: {formatCurrency(Math.abs(coverage.difference))}</p>}</div></div></TableCell>
                     <TableCell>
                       <p>{displayDirectorName(people.find((item) => item.id === customer.directorResponsibleId)?.name ?? customer.directorResponsibleId)}</p>
                       <p className="text-xs text-slate-400">Governança Delivery</p>
@@ -868,8 +873,8 @@ function getCustomerCoverageStatus(
   allocations: TargetAllocation[],
   studioAllocations: StudioTargetAllocation[],
   year: number,
-): CustomerCoverageStatus {
-  const target = getCustomerTarget(customer);
+): CustomerCoverageSignal {
+  const breakdown = getCustomerTargetBreakdown(customer);
   const customerAllocations = allocations.filter((allocation) =>
     allocation.customerId === customer.id
     && allocation.year === year
@@ -880,30 +885,98 @@ function getCustomerCoverageStatus(
     && allocation.year === year
   );
   const assignedPeople = people.filter((person) => person.clientIds.includes(customer.id));
-  const allocated = roundCurrency(
-    customerAllocations.reduce((total, allocation) => total + allocation.amount, 0)
-    + customerStudioAllocations.reduce((total, allocation) => total + allocation.maintenanceAmount, 0)
-  );
+  const allocatedHunter = roundCurrency(customerAllocations
+    .filter((allocation) => allocation.type === "hunter")
+    .reduce((total, allocation) => total + allocation.amount, 0));
+  const allocatedFarmerRenewal = roundCurrency(customerAllocations
+    .filter((allocation) => allocation.type === "farmer_renewal")
+    .reduce((total, allocation) => total + allocation.amount, 0));
+  const allocatedStudioMaintenance = roundCurrency(customerStudioAllocations
+    .reduce((total, allocation) => total + allocation.maintenanceAmount, 0));
+  const allocated = roundCurrency(allocatedHunter + allocatedFarmerRenewal + allocatedStudioMaintenance);
+  const difference = roundCurrency(breakdown.total - allocated);
 
-  if (target <= 0.01 && !customer.managerResponsibleIds.length && !assignedPeople.length && !customerAllocations.length && !customerStudioAllocations.length) {
-    return "empty";
+  if (breakdown.total <= 0.01 && !customer.managerResponsibleIds.length && !assignedPeople.length && !customerAllocations.length && !customerStudioAllocations.length) {
+    return {
+      status: "empty",
+      title: "Cliente sem associação ou meta cadastrada no ano selecionado.",
+      difference: 0,
+    };
   }
 
-  if (!customer.managerResponsibleIds.length && target > 0.01) return "issue";
-  if (Math.abs(target - allocated) > 0.01) return "issue";
-  return "ok";
+  if (Math.abs(difference) > 0.01) {
+    return {
+      status: "mismatch",
+      title: buildCustomerReconciliationTitle({
+        year,
+        breakdown,
+        allocatedHunter,
+        allocatedFarmerRenewal,
+        allocatedStudioMaintenance,
+        allocated,
+        difference,
+      }),
+      difference,
+    };
+  }
+
+  if (!customer.managerResponsibleIds.length && breakdown.total > 0.01) {
+    return {
+      status: "issue",
+      title: "Cliente com meta reconciliada, mas sem manager responsável cadastrado no ano selecionado.",
+      difference: 0,
+    };
+  }
+
+  return {
+    status: "ok",
+    title: "Cliente reconciliado no ano selecionado.",
+    difference: 0,
+  };
 }
 
 function getCustomerStatusIconClassName(status: CustomerCoverageStatus) {
   if (status === "ok") return "bg-emerald-50 text-emerald-700";
+  if (status === "mismatch") return "bg-red-50 text-red-700";
   if (status === "issue") return "bg-blue-50 text-blue-700";
   return "bg-slate-100 text-slate-400";
 }
 
-function getCustomerStatusLabel(status: CustomerCoverageStatus) {
-  if (status === "ok") return "Cliente reconciliado no ano selecionado.";
-  if (status === "issue") return "Cliente com pendência de associação ou valor no ano selecionado.";
-  return "Cliente sem associação ou meta cadastrada no ano selecionado.";
+function buildCustomerReconciliationTitle({
+  year,
+  breakdown,
+  allocatedHunter,
+  allocatedFarmerRenewal,
+  allocatedStudioMaintenance,
+  allocated,
+  difference,
+}: {
+  year: number;
+  breakdown: CustomerTargetBreakdown;
+  allocatedHunter: number;
+  allocatedFarmerRenewal: number;
+  allocatedStudioMaintenance: number;
+  allocated: number;
+  difference: number;
+}) {
+  const direction = difference > 0 ? "em aberto" : "acima da meta";
+  return [
+    `Diferença de metas em ${year}: ${formatCurrency(Math.abs(difference))} ${direction}.`,
+    "",
+    "Meta do cliente:",
+    `Hunter: ${formatCurrency(breakdown.hunter)}`,
+    `Renov. + Ampl.: ${formatCurrency(breakdown.farmerRenewal)}`,
+    `Studio Manut.: ${formatCurrency(breakdown.studio)}`,
+    `Total esperado: ${formatCurrency(breakdown.total)}`,
+    "",
+    "Alocado:",
+    `Hunter: ${formatCurrency(allocatedHunter)}`,
+    `Renov. + Ampl.: ${formatCurrency(allocatedFarmerRenewal)}`,
+    `Studio Manut.: ${formatCurrency(allocatedStudioMaintenance)}`,
+    `Total alocado: ${formatCurrency(allocated)}`,
+    "",
+    `Studio Hunter: ${formatCurrency(breakdown.studioHunter)} fica contido em Hunter e não soma novamente no Total.`,
+  ].join("\n");
 }
 
 function getFormErrorMessage(error: unknown) {
@@ -948,11 +1021,6 @@ function getCustomerTargetBreakdown(customer: Customer): CustomerTargetBreakdown
   const studioHunter = roundCurrency(customer.studioHunterTarget);
   const studio = roundCurrency(customer.studioTarget);
   return { hunter, farmerRenewal, studioHunter, studio, total: roundCurrency(hunter + farmerRenewal + studio) };
-}
-
-function getCustomerTarget(customer: Customer) {
-  const breakdown = getCustomerTargetBreakdown(customer);
-  return breakdown.total;
 }
 
 function getCustomerAllocationWarning(

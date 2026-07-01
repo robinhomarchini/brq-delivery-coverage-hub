@@ -70,7 +70,7 @@ export function PersonTargetAssignment() {
   );
   const effectiveCustomerToAdd = availableCustomersToAdd.some((customer) => customer.id === customerToAdd)
     ? customerToAdd
-    : availableCustomersToAdd[0]?.id ?? "";
+    : "";
   const rows = useMemo(
     () => scopedVisibleCustomers.map((customer) => buildRow(
       customer,
@@ -102,6 +102,18 @@ export function PersonTargetAssignment() {
     setSelectedCustomerId(customerId);
     if (!customerId) return;
     setExtraCustomerIds((current) => current.includes(customerId) ? current : [...current, customerId]);
+  }
+
+  function changePerson(nextPersonId: string) {
+    setPersonId(nextPersonId);
+    setDrafts({});
+    setSelectedCustomerId("");
+    setExtraCustomerIds([]);
+    setCustomerToAdd("");
+    setSavingCustomerId("");
+    setRemovingCustomerId("");
+    setErrorMessage("");
+    setSuccessMessage("");
   }
 
   async function saveCustomerTargets(row: PersonTargetRow) {
@@ -257,12 +269,7 @@ export function PersonTargetAssignment() {
       <Card className="mb-5 grid gap-4 p-5 shadow-sm lg:grid-cols-[2fr_2fr_1fr_1fr_1fr]">
         <label>
           <span className="mb-1.5 block text-sm font-semibold text-slate-700">Pessoa</span>
-          <Select value={effectivePersonId} onChange={(event) => {
-            setPersonId(event.target.value);
-            setDrafts({});
-            const retainedCustomerId = selectedCustomerId || initialParams.customerId;
-            setExtraCustomerIds(retainedCustomerId ? [retainedCustomerId] : []);
-          }}>
+          <Select value={effectivePersonId} onChange={(event) => changePerson(event.target.value)}>
             <option value="">Selecione uma pessoa</option>
             {assignablePeople.map((person) => (
               <option key={person.id} value={person.id}>{person.name} · {person.roleType}</option>
@@ -282,7 +289,7 @@ export function PersonTargetAssignment() {
             ) : (
               <>
                 <option value="">Todos os clientes da pessoa</option>
-                {yearCustomers.map((customer) => (
+                {visibleCustomers.map((customer) => (
                   <option key={customer.id} value={customer.id}>{customer.name}</option>
                 ))}
               </>
@@ -309,9 +316,13 @@ export function PersonTargetAssignment() {
         <label>
           <span className="mb-1.5 block text-sm font-semibold text-slate-700">Incluir cliente para meta</span>
           <Select value={effectiveCustomerToAdd} onChange={(event) => setCustomerToAdd(event.target.value)} disabled={!effectivePersonId || !availableCustomersToAdd.length}>
-            {!effectivePersonId
-              ? <option value="">Selecione uma pessoa primeiro</option>
-              : !availableCustomersToAdd.length && <option value="">Todos os clientes já estão na grade</option>}
+            {!effectivePersonId ? (
+              <option value="">Selecione uma pessoa primeiro</option>
+            ) : !availableCustomersToAdd.length ? (
+              <option value="">Todos os clientes já estão na grade</option>
+            ) : (
+              <option value="">Selecione um cliente</option>
+            )}
             {availableCustomersToAdd.map((customer) => (
               <option key={customer.id} value={customer.id}>{customer.name}</option>
             ))}
