@@ -326,7 +326,7 @@ export function CustomerManagement() {
                       <p>{displayDirectorName(people.find((item) => item.id === customer.directorResponsibleId)?.name ?? customer.directorResponsibleId)}</p>
                       <p className="text-xs text-slate-400">Governança Delivery</p>
                     </TableCell>
-                    <TableCell><CustomerTargetPeopleView hunterPeople={targetPeople.hunterPeople} farmerRenewalPeople={targetPeople.farmerRenewalPeople} studioPeople={targetPeople.studioPeople} /></TableCell>
+                    <TableCell><CustomerTargetPeopleView hunterPeople={targetPeople.hunterPeople} farmerRenewalPeople={targetPeople.farmerRenewalPeople} /></TableCell>
                     <TableCell><TargetBreakdownView breakdown={breakdown} /></TableCell>
                     <TableCell>
                       <span className={customer.margin < targetMarginPercent ? "font-semibold text-amber-600" : "text-emerald-700"}>
@@ -496,17 +496,14 @@ function MoneyLine({ label, value, strong = false }: { label: string; value: num
 function CustomerTargetPeopleView({
   hunterPeople,
   farmerRenewalPeople,
-  studioPeople,
 }: {
   hunterPeople: CustomerTargetPerson[];
   farmerRenewalPeople: CustomerTargetPerson[];
-  studioPeople: CustomerTargetPerson[];
 }) {
   return (
     <div className="min-w-60 space-y-2 text-xs">
       <CustomerTargetPeopleGroup label="Hunters" people={hunterPeople} emptyLabel="Sem hunter" tone="orange" />
       <CustomerTargetPeopleGroup label="Farmers / Delivery" people={farmerRenewalPeople} emptyLabel="Sem farmer/delivery" tone="purple" />
-      <CustomerTargetPeopleGroup label="Áreas / Studios" people={studioPeople} emptyLabel="Sem área/studio" tone="blue" />
     </div>
   );
 }
@@ -679,7 +676,11 @@ function CustomerAllocationWarning({ warning }: { warning: CustomerAllocationWar
 
 function getCustomerCoverageStatus(customer: Customer, people: Person[], allocations: TargetAllocation[], year: number): CustomerCoverageStatus {
   const target = getCustomerTarget(customer);
-  const customerAllocations = allocations.filter((allocation) => allocation.customerId === customer.id && allocation.year === year);
+  const customerAllocations = allocations.filter((allocation) =>
+    allocation.customerId === customer.id
+    && allocation.year === year
+    && allocation.type !== "studio"
+  );
   const assignedPeople = people.filter((person) => person.clientIds.includes(customer.id));
   const allocated = roundCurrency(customerAllocations.reduce((total, allocation) => total + allocation.amount, 0));
 
@@ -797,7 +798,7 @@ function getCustomerAllocationComposition(
   const rowsByPerson = new Map<string, CustomerAllocationPersonRow>();
 
   allocations
-    .filter((allocation) => allocation.customerId === customer.id && allocation.year === year)
+    .filter((allocation) => allocation.customerId === customer.id && allocation.year === year && allocation.type !== "studio")
     .forEach((allocation) => {
       const person = peopleById.get(allocation.personId);
       const current = rowsByPerson.get(allocation.personId) ?? {
@@ -813,10 +814,8 @@ function getCustomerAllocationComposition(
 
       if (allocation.type === "hunter") {
         current.hunter += allocation.amount;
-      } else if (allocation.type === "farmer_renewal") {
-        current.farmerRenewal += allocation.amount;
       } else {
-        current.studio += allocation.amount;
+        current.farmerRenewal += allocation.amount;
       }
       current.total = current.hunter + current.farmerRenewal + current.studio;
       rowsByPerson.set(allocation.personId, current);
@@ -867,7 +866,6 @@ function getCustomerTargetPeople(customer: Customer, people: Person[], allocatio
   return {
     hunterPeople: getCustomerTargetPeopleByType(customer, people, allocations, year, "hunter"),
     farmerRenewalPeople: getCustomerTargetPeopleByType(customer, people, allocations, year, "farmer_renewal"),
-    studioPeople: getCustomerTargetPeopleByType(customer, people, allocations, year, "studio"),
   };
 }
 
@@ -878,6 +876,8 @@ function getCustomerTargetPeopleByType(
   year: number,
   type: "hunter" | "farmer_renewal" | "studio",
 ) {
+  if (type === "studio") return [];
+
   const peopleById = new Map(people.map((person) => [person.id, person]));
   const totalsByPerson = new Map<string, CustomerTargetPerson>();
 

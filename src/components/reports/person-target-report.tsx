@@ -41,9 +41,8 @@ export function PersonTargetReport() {
   const totals = useMemo(() => filteredRows.reduce((summary, row) => ({
     hunter: summary.hunter + row.hunter,
     farmerRenewal: summary.farmerRenewal + row.farmerRenewal,
-    studio: summary.studio + row.studio,
     peopleWithTargets: summary.peopleWithTargets + (row.total > 0 ? 1 : 0),
-  }), { hunter: 0, farmerRenewal: 0, studio: 0, peopleWithTargets: 0 }), [filteredRows]);
+  }), { hunter: 0, farmerRenewal: 0, peopleWithTargets: 0 }), [filteredRows]);
   const roleTypes = useMemo(() => Array.from(new Set(assignablePeople.map((person) => person.roleType))).sort((a, b) => a.localeCompare(b, "pt-BR")), [assignablePeople]);
 
   return (
@@ -55,12 +54,11 @@ export function PersonTargetReport() {
         actions={<Button asChild><Link href="/metas-pessoas"><Target className="h-4 w-4" /> Ajustar metas</Link></Button>}
       />
 
-      <section className="mb-5 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <section className="mb-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Summary label="Pessoas com meta" value={String(totals.peopleWithTargets)} />
         <Summary label="Meta Hunter" value={formatCurrency(totals.hunter)} />
         <Summary label="Renovação + Ampliação" value={formatCurrency(totals.farmerRenewal)} />
-        <Summary label="Áreas / Studios" value={formatCurrency(totals.studio)} />
-        <Summary label="Meta Total" value={formatCurrency(totals.hunter + totals.farmerRenewal + totals.studio)} />
+        <Summary label="Meta Total" value={formatCurrency(totals.hunter + totals.farmerRenewal)} />
       </section>
 
       <FilterBar search={search} onSearchChange={setSearch}>
@@ -83,7 +81,6 @@ export function PersonTargetReport() {
                 <TableHead>Clientes</TableHead>
                 <TableHead>Meta Hunter</TableHead>
                 <TableHead>Meta Renovação + Ampliação</TableHead>
-                <TableHead>Meta Áreas / Studios</TableHead>
                 <TableHead>Meta Total</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Ação</TableHead>
@@ -117,7 +114,6 @@ export function PersonTargetReport() {
                   </TableCell>
                   <TableCell>{formatCurrency(row.hunter)}</TableCell>
                   <TableCell>{formatCurrency(row.farmerRenewal)}</TableCell>
-                  <TableCell>{formatCurrency(row.studio)}</TableCell>
                   <TableCell className="font-bold text-slate-950">{formatCurrency(row.total)}</TableCell>
                   <TableCell>{row.total > 0 ? <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">Com meta</Badge> : <Badge className="bg-slate-100 text-slate-600 hover:bg-slate-100">Sem meta</Badge>}</TableCell>
                   <TableCell>
@@ -156,15 +152,16 @@ function buildRows(
   year: number,
 ) {
   return people.map((person) => {
-    const personAllocations = allocations.filter((allocation) => allocation.personId === person.id && allocation.year === year);
+    const personAllocations = allocations.filter((allocation) =>
+      allocation.personId === person.id
+      && allocation.year === year
+      && allocation.type !== "studio"
+    );
     const hunter = personAllocations
       .filter((allocation) => allocation.type === "hunter")
       .reduce((total, allocation) => total + allocation.amount, 0);
     const farmerRenewal = personAllocations
       .filter((allocation) => allocation.type === "farmer_renewal")
-      .reduce((total, allocation) => total + allocation.amount, 0);
-    const studio = personAllocations
-      .filter((allocation) => allocation.type === "studio")
       .reduce((total, allocation) => total + allocation.amount, 0);
     const names = Array.from(new Set(personAllocations.map((allocation) => customerNames.get(allocation.customerId) ?? allocation.customerId)))
       .sort((a, b) => a.localeCompare(b, "pt-BR"));
@@ -178,8 +175,8 @@ function buildRows(
       customerNames: names,
       hunter,
       farmerRenewal,
-      studio,
-      total: hunter + farmerRenewal + studio,
+      studio: 0,
+      total: hunter + farmerRenewal,
     };
   }).sort((a, b) => b.total - a.total || a.personName.localeCompare(b.personName, "pt-BR"));
 }

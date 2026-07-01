@@ -446,25 +446,20 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
     const allocations = (allocationsResult.data as TargetAllocationRow[]).map(fromTargetAllocationRow);
     const nextHunterAmount = sanitizeAmount(input.hunterAmount);
     const nextFarmerRenewalAmount = sanitizeAmount(input.farmerRenewalAmount);
-    const nextStudioAmount = sanitizeAmount(input.studioAmount);
+    const nextStudioAmount = 0;
     const otherHunterTotal = allocations
       .filter((allocation) => allocation.personId !== input.personId && allocation.type === "hunter")
       .reduce((total, allocation) => total + allocation.amount, 0);
     const otherFarmerRenewalTotal = allocations
       .filter((allocation) => allocation.personId !== input.personId && allocation.type === "farmer_renewal")
       .reduce((total, allocation) => total + allocation.amount, 0);
-    const otherStudioTotal = allocations
-      .filter((allocation) => allocation.personId !== input.personId && allocation.type === "studio")
-      .reduce((total, allocation) => total + allocation.amount, 0);
     const nextHunterTotal = otherHunterTotal + nextHunterAmount;
     const nextFarmerRenewalTotal = otherFarmerRenewalTotal + nextFarmerRenewalAmount;
-    const nextStudioTotal = otherStudioTotal + nextStudioAmount;
     const nextHunterTarget = Math.max(customer.hunterTarget, nextHunterTotal);
     const nextFarmerRenewalTarget = Math.max(customer.farmerRenewalTarget, nextFarmerRenewalTotal);
-    const nextStudioTarget = Math.max(customer.studioTarget, nextStudioTotal);
+    const nextStudioTarget = customer.studioTarget;
     const targetIncreaseRequired = nextHunterTotal > customer.hunterTarget + 0.01
-      || nextFarmerRenewalTotal > customer.farmerRenewalTarget + 0.01
-      || nextStudioTotal > customer.studioTarget + 0.01;
+      || nextFarmerRenewalTotal > customer.farmerRenewalTarget + 0.01;
 
     if (targetIncreaseRequired) {
       if (!input.increaseCustomerTarget) {

@@ -153,25 +153,20 @@ export class LocalDeliveryRepository implements DeliveryRepository {
 
     const nextHunterAmount = sanitizeAmount(input.hunterAmount);
     const nextFarmerRenewalAmount = sanitizeAmount(input.farmerRenewalAmount);
-    const nextStudioAmount = sanitizeAmount(input.studioAmount);
+    const nextStudioAmount = 0;
     const otherHunterTotal = this.data.targetAllocations
       .filter((item) => item.customerId === input.customerId && item.year === input.year && item.personId !== input.personId && item.type === "hunter")
       .reduce((total, item) => total + item.amount, 0);
     const otherFarmerRenewalTotal = this.data.targetAllocations
       .filter((item) => item.customerId === input.customerId && item.year === input.year && item.personId !== input.personId && item.type === "farmer_renewal")
       .reduce((total, item) => total + item.amount, 0);
-    const otherStudioTotal = this.data.targetAllocations
-      .filter((item) => item.customerId === input.customerId && item.year === input.year && item.personId !== input.personId && item.type === "studio")
-      .reduce((total, item) => total + item.amount, 0);
     const nextHunterTotal = otherHunterTotal + nextHunterAmount;
     const nextFarmerRenewalTotal = otherFarmerRenewalTotal + nextFarmerRenewalAmount;
-    const nextStudioTotal = otherStudioTotal + nextStudioAmount;
     const nextHunterTarget = Math.max(customer.hunterTarget, nextHunterTotal);
     const nextFarmerRenewalTarget = Math.max(customer.farmerRenewalTarget, nextFarmerRenewalTotal);
-    const nextStudioTarget = Math.max(customer.studioTarget, nextStudioTotal);
+    const nextStudioTarget = customer.studioTarget;
     const targetIncreaseRequired = nextHunterTotal > customer.hunterTarget + 0.01
-      || nextFarmerRenewalTotal > customer.farmerRenewalTarget + 0.01
-      || nextStudioTotal > customer.studioTarget + 0.01;
+      || nextFarmerRenewalTotal > customer.farmerRenewalTarget + 0.01;
 
     if (targetIncreaseRequired) {
       if (!input.increaseCustomerTarget) {
