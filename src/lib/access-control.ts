@@ -90,6 +90,19 @@ export async function deactivateAccessUser(client: SupabaseClient, email: string
   });
 }
 
+export async function deleteAccessUser(client: SupabaseClient, email: string) {
+  const normalizedEmail = normalizeAccessEmail(email);
+  if (!isBrqEmail(normalizedEmail)) {
+    throw new Error("Informe um e-mail corporativo @brq.com.");
+  }
+
+  const { error } = await client.rpc("delete_app_access", {
+    p_email: normalizedEmail,
+  });
+
+  if (error) throw error;
+}
+
 function fromAppUserRow(row: AppUserRow): AccessUser {
   return {
     userId: row.user_id ?? undefined,

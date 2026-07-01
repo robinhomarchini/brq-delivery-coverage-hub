@@ -1,6 +1,6 @@
 "use client";
 
-import { LoaderCircle, Pencil, ShieldAlert, ShieldCheck, UserPlus } from "lucide-react";
+import { LoaderCircle, Pencil, ShieldAlert, ShieldCheck, Trash2, UserPlus } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { ErrorNotice, SuccessNotice } from "@/components/shared/success-notice";
@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import {
   accessRoles,
   deactivateAccessUser,
+  deleteAccessUser,
   isBrqEmail,
   listAccessUsers,
   normalizeAccessEmail,
@@ -139,6 +140,28 @@ export default function SettingsPage() {
       }
     } catch (deactivateError) {
       setError(getErrorMessage(deactivateError, "Não foi possível desativar o usuário."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete(user: AccessUser) {
+    if (!client) return;
+    const confirmed = window.confirm(`Excluir o acesso de ${user.email}?\n\nSe for uma conta já autenticada, ela perderá acesso ao hub. O sistema manterá pelo menos um administrador ativo.`);
+    if (!confirmed) return;
+
+    setNotice("");
+    setError("");
+    setSaving(true);
+    try {
+      await deleteAccessUser(client, user.email);
+      await Promise.all([loadUsers(), refreshAccess()]);
+      setNotice("Usuário excluído com sucesso.");
+      if (editingEmail === user.email) {
+        resetForm();
+      }
+    } catch (deleteError) {
+      setError(getErrorMessage(deleteError, "Não foi possível excluir o usuário."));
     } finally {
       setSaving(false);
     }
@@ -310,6 +333,10 @@ export default function SettingsPage() {
                               Desativar
                             </Button>
                           )}
+                          <Button type="button" variant="ghost" className="text-red-600 hover:bg-red-50 hover:text-red-700" onClick={() => handleDelete(user)} disabled={saving}>
+                            <Trash2 className="h-4 w-4" />
+                            Excluir
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
