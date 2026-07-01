@@ -123,6 +123,7 @@ export function TargetBaselineImport() {
             </div>
             <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-500">
               Faça upload da planilha com Cliente, Target RL Hunter, Target RL Farmer, Total RL 2026 e resp.
+              A coluna de Áreas / Studios é opcional; se não existir, o saldo entre total, Hunter e Renovação será usado.
               A tela compara contra o Supabase e só atualiza os clientes marcados por você.
             </p>
           </div>
@@ -185,7 +186,7 @@ export function TargetBaselineImport() {
               <div className="flex items-start gap-2">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                 <span>
-                  Há {invalidTotals} linha(s) com total da planilha diferente da soma Hunter + Renovação e {missingCustomers} cliente(s) não encontrado(s).
+                  Há {invalidTotals} linha(s) com total da planilha diferente da soma Hunter + Renovação + Áreas / Studios e {missingCustomers} cliente(s) não encontrado(s).
                   Revise esses itens antes de aplicar qualquer atualização.
                 </span>
               </div>
@@ -193,7 +194,7 @@ export function TargetBaselineImport() {
           )}
 
           <div className="overflow-x-auto">
-            <Table className="min-w-[1380px]">
+            <Table className="min-w-[1580px]">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-16">Usar</TableHead>
@@ -204,6 +205,8 @@ export function TargetBaselineImport() {
                   <TableHead>Hunter planilha</TableHead>
                   <TableHead>Renov. atual</TableHead>
                   <TableHead>Renov. planilha</TableHead>
+                  <TableHead>Áreas/Studios atual</TableHead>
+                  <TableHead>Áreas/Studios planilha</TableHead>
                   <TableHead>Total atual</TableHead>
                   <TableHead>Total planilha</TableHead>
                   <TableHead>Hunter cadastrado</TableHead>
@@ -240,7 +243,9 @@ export function TargetBaselineImport() {
                       <MoneyCell value={comparison.effectiveHunterTarget} highlight={hasDifference(comparison, "hunterTarget")} />
                       <MoneyCell value={comparison.customer?.farmerRenewalTarget ?? 0} />
                       <MoneyCell value={comparison.effectiveFarmerRenewalTarget} highlight={hasDifference(comparison, "farmerRenewalTarget")} />
-                      <MoneyCell value={comparison.customer ? comparison.customer.hunterTarget + comparison.customer.farmerRenewalTarget : 0} />
+                      <MoneyCell value={comparison.customer?.studioTarget ?? 0} />
+                      <MoneyCell value={comparison.effectiveStudioTarget} highlight={hasDifference(comparison, "studioTarget")} />
+                      <MoneyCell value={comparison.customer ? getCustomerTarget(comparison.customer) : 0} />
                       <TableCell>
                         <p className={cn("font-semibold", hasDifference(comparison, "revenue") && "text-brq-purple")}>{formatCurrency(comparison.effectiveRevenue)}</p>
                         {hasVisibleCurrencyDifference(comparison.sheetTotalDifference) && (
@@ -295,12 +300,16 @@ function canApplyComparison(comparison: TargetBaselineComparison) {
   return Boolean(comparison.customer && comparison.updateCandidate && comparison.differences.length && comparison.valueStatus !== "invalid_total");
 }
 
-function hasDifference(comparison: TargetBaselineComparison, field: "hunterTarget" | "farmerRenewalTarget" | "revenue") {
+function hasDifference(comparison: TargetBaselineComparison, field: "hunterTarget" | "farmerRenewalTarget" | "studioTarget" | "revenue") {
   return comparison.differences.some((difference) => difference.field === field);
 }
 
 function hasVisibleCurrencyDifference(value: number) {
   return Math.round(Math.abs(value)) > 0;
+}
+
+function getCustomerTarget(customer: Customer) {
+  return customer.hunterTarget + customer.farmerRenewalTarget + customer.studioTarget;
 }
 
 function getImportErrorMessage(error: unknown) {

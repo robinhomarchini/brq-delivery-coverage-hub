@@ -33,12 +33,23 @@ aplicada:
 
 - `save_person_with_assignments`: salva Pessoa e seus clientes em uma transação.
 - `save_customer_with_managers`: salva Cliente e managers em uma transação.
-- `save_person_customer_targets`: salva Hunter/Renovação de uma pessoa em um
-  cliente/ano com lock por cliente/ano.
+- `save_person_customer_targets`: salva Hunter, Renovação + Ampliação e Áreas /
+  Studios de uma pessoa em um cliente/ano com lock por cliente/ano.
 
 O banco também protege a regra de exclusividade Hunter na fonte de verdade
 `person_customer_assignments`: um cliente não pode ficar associado a duas pessoas
 com papel Hunter/Hunter + Farmer.
+
+Metas financeiras anuais têm três componentes canônicos:
+
+- Hunter.
+- Renovação + Ampliação.
+- Áreas / Studios.
+
+O total financeiro exibido em Clientes, Metas, Dashboard, Insights e Relatórios
+é sempre derivado da soma desses três componentes para o ano selecionado.
+Campos legados em `customers` existem como cache de compatibilidade; a fonte
+anual normalizada é `customer_target_years`.
 
 Enquanto a migration não estiver aplicada, o adaptador Supabase preserva fallback
 compatível para não interromper homologação, mas o caminho recomendado é aplicar

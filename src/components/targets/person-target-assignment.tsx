@@ -18,8 +18,8 @@ import { isCustomerManagerProfile, isHunterRole, isTargetAssignableRole } from "
 
 const currentYear = defaultTargetYear;
 
-type DraftAmounts = Record<string, { hunter: string; farmerRenewal: string }>;
-type AllocationField = "hunter" | "farmerRenewal";
+type DraftAmounts = Record<string, { hunter: string; farmerRenewal: string; studio: string }>;
+type AllocationField = "hunter" | "farmerRenewal" | "studio";
 
 export function PersonTargetAssignment() {
   const initialParams = useMemo(() => getInitialTargetParams(), []);
@@ -87,14 +87,16 @@ export function PersonTargetAssignment() {
   const totals = useMemo(() => rows.reduce((summary, row) => ({
     hunter: summary.hunter + row.hunterAmount,
     farmerRenewal: summary.farmerRenewal + row.farmerRenewalAmount,
-  }), { hunter: 0, farmerRenewal: 0 }), [rows]);
+    studio: summary.studio + row.studioAmount,
+  }), { hunter: 0, farmerRenewal: 0, studio: 0 }), [rows]);
 
-  function updateDraft(customerId: string, field: "hunter" | "farmerRenewal", value: string) {
+  function updateDraft(customerId: string, field: AllocationField, value: string) {
     setDrafts((current) => ({
       ...current,
       [customerId]: {
         hunter: current[customerId]?.hunter ?? getInputValue(rows.find((row) => row.customerId === customerId)?.hunterAmount ?? 0),
         farmerRenewal: current[customerId]?.farmerRenewal ?? getInputValue(rows.find((row) => row.customerId === customerId)?.farmerRenewalAmount ?? 0),
+        studio: current[customerId]?.studio ?? getInputValue(rows.find((row) => row.customerId === customerId)?.studioAmount ?? 0),
         [field]: value,
       },
     }));
@@ -114,7 +116,8 @@ export function PersonTargetAssignment() {
 
     const nextHunterAmount = parseAmount(drafts[row.customerId]?.hunter ?? row.hunterInput);
     const nextFarmerRenewalAmount = parseAmount(drafts[row.customerId]?.farmerRenewal ?? row.farmerRenewalInput);
-    await persistCustomerTargets(row, nextHunterAmount, nextFarmerRenewalAmount);
+    const nextStudioAmount = parseAmount(drafts[row.customerId]?.studio ?? row.studioInput);
+    await persistCustomerTargets(row, nextHunterAmount, nextFarmerRenewalAmount, nextStudioAmount);
   }
 
   async function removeCustomerFromPerson(row: PersonTargetRow) {
@@ -159,10 +162,12 @@ export function PersonTargetAssignment() {
       return;
     }
 
-    const label = field === "hunter" ? "Hunter" : "Renovação + Ampliação";
+    const label = field === "hunter" ? "Hunter" : field === "farmerRenewal" ? "Renovação + Ampliação" : "Áreas / Studios";
     const availableAmount = roundCurrency(Math.max(0, field === "hunter"
       ? row.customerHunterTarget - row.otherPeopleHunterTotal
-      : row.customerFarmerRenewalTarget - row.otherPeopleFarmerRenewalTotal));
+      : field === "farmerRenewal"
+        ? row.customerFarmerRenewalTarget - row.otherPeopleFarmerRenewalTotal
+        : row.customerStudioTarget - row.otherPeopleStudioTotal));
 
     if (availableAmount <= 0.01) {
       setErrorMessage(`Não há saldo disponível de ${label} para ${row.customerName}. Revise as pessoas já associadas antes de realocar.`);
@@ -178,6 +183,7 @@ export function PersonTargetAssignment() {
       row,
       field === "hunter" ? availableAmount : row.hunterAmount,
       field === "farmerRenewal" ? availableAmount : row.farmerRenewalAmount,
+      field === "studio" ? availableAmount : row.studioAmount,
       `Meta ${label} de ${selectedPerson.name} em ${row.customerName} alocada com sucesso.`,
     );
   }
@@ -186,6 +192,7 @@ export function PersonTargetAssignment() {
     row: PersonTargetRow,
     nextHunterAmount: number,
     nextFarmerRenewalAmount: number,
+    nextStudioAmount: number,
     successText?: string,
   ) {
     if (!effectivePersonId) {
@@ -194,7 +201,7 @@ export function PersonTargetAssignment() {
     }
 
     const currentOtherPeopleTotal = sumOtherPeopleAllocations(targetAllocations, row.customerId, effectivePersonId, year);
-    const nextCustomerTotal = currentOtherPeopleTotal + nextHunterAmount + nextFarmerRenewalAmount;
+    const nextCustomerTotal = currentOtherPeopleTotal + nextHunterAmount + nextFarmerRenewalAmount + nextStudioAmount;
     const overAmount = nextCustomerTotal - row.customerTarget;
 
     if (overAmount > 0.01) {
@@ -203,6 +210,8 @@ export function PersonTargetAssignment() {
         nextHunterAmount,
         currentFarmerRenewalAmount: row.farmerRenewalAllocation?.amount ?? 0,
         nextFarmerRenewalAmount,
+        currentStudioAmount: row.studioAllocation?.amount ?? 0,
+        nextStudioAmount,
       });
       const confirmed = window.confirm(
         `A soma das metas das pessoas em ${row.customerName} ficará ${formatCurrency(overAmount)} acima da meta atual do cliente.\n\nDeseja aumentar a meta do cliente para ${formatCurrency(nextCustomerTotal)}? Origem do acréscimo: ${increaseType}.`,
@@ -219,6 +228,7 @@ export function PersonTargetAssignment() {
         year,
         hunterAmount: nextHunterAmount,
         farmerRenewalAmount: nextFarmerRenewalAmount,
+        studioAmount: nextStudioAmount,
         increaseCustomerTarget: overAmount > 0.01,
         notes: "Meta associada pela tela Metas por Pessoa.",
       });
@@ -249,7 +259,7 @@ export function PersonTargetAssignment() {
       {successMessage && <SuccessNotice message={successMessage} floating />}
       {errorMessage && <ErrorNotice message={errorMessage} floating onClose={() => setErrorMessage("")} />}
 
-      <Card className="mb-5 grid gap-4 p-5 shadow-sm lg:grid-cols-[2fr_2fr_1fr_1fr_1fr]">
+      <Card className="mb-5 grid gap-4 p-5 shadow-sm lg:grid-cols-[2fr_2fr_1fr_1fr_1fr_1fr]">
         <label>
           <span className="mb-1.5 block text-sm font-semibold text-slate-700">Pessoa</span>
           <Select value={effectivePersonId} onChange={(event) => {
@@ -298,6 +308,7 @@ export function PersonTargetAssignment() {
         </label>
         <Summary label="Meta Hunter" value={formatCurrency(totals.hunter)} />
         <Summary label="Renovação + Ampliação" value={formatCurrency(totals.farmerRenewal)} />
+        <Summary label="Áreas / Studios" value={formatCurrency(totals.studio)} />
       </Card>
 
       <Card className="mb-5 grid gap-3 p-5 shadow-sm lg:grid-cols-[1fr_auto]">
@@ -342,7 +353,7 @@ export function PersonTargetAssignment() {
           </div>
         </div>
         <div className="overflow-x-auto">
-          <Table className="min-w-[1760px]">
+          <Table className="min-w-[1980px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Cliente</TableHead>
@@ -353,6 +364,7 @@ export function PersonTargetAssignment() {
                 <TableHead>Gap após edição</TableHead>
                 <TableHead>Meta Hunter</TableHead>
                 <TableHead>Meta Renovação + Ampliação</TableHead>
+                <TableHead>Meta Áreas / Studios</TableHead>
                 <TableHead>Total da Pessoa</TableHead>
                 <TableHead>Status do Cliente</TableHead>
                 <TableHead className="text-right">Ação</TableHead>
@@ -370,6 +382,7 @@ export function PersonTargetAssignment() {
                     <TargetBreakdown
                       hunter={row.customerHunterTarget}
                       farmerRenewal={row.customerFarmerRenewalTarget}
+                      studio={row.customerStudioTarget}
                       total={row.customerTarget}
                       hunterAction={{
                         onClick: () => quickAllocateCustomerTarget(row, "hunter"),
@@ -379,22 +392,28 @@ export function PersonTargetAssignment() {
                         onClick: () => quickAllocateCustomerTarget(row, "farmerRenewal"),
                         title: `Clique para alocar o saldo de Renovação + Ampliação em ${selectedPerson?.name ?? "pessoa selecionada"}`,
                       }}
+                      studioAction={{
+                        onClick: () => quickAllocateCustomerTarget(row, "studio"),
+                        title: `Clique para alocar o saldo de Áreas / Studios em ${selectedPerson?.name ?? "pessoa selecionada"}`,
+                      }}
                     />
                   </TableCell>
                   <TableCell>
                     <TargetBreakdown
                       hunter={row.otherPeopleHunterTotal}
                       farmerRenewal={row.otherPeopleFarmerRenewalTotal}
+                      studio={row.otherPeopleStudioTotal}
                       total={row.otherPeopleTotal}
                     />
                   </TableCell>
                   <TableCell>
-                    <TargetPeopleSummary hunterPeople={row.hunterPeople} farmerRenewalPeople={row.farmerRenewalPeople} />
+                    <TargetPeopleSummary hunterPeople={row.hunterPeople} farmerRenewalPeople={row.farmerRenewalPeople} studioPeople={row.studioPeople} />
                   </TableCell>
                   <TableCell>
                     <TargetGapBreakdown
                       hunter={row.hunterGap}
                       farmerRenewal={row.farmerRenewalGap}
+                      studio={row.studioGap}
                       total={row.customerTarget - row.clientTotal}
                     />
                   </TableCell>
@@ -410,6 +429,13 @@ export function PersonTargetAssignment() {
                       value={drafts[row.customerId]?.farmerRenewal ?? row.farmerRenewalInput}
                       onChange={(event) => updateDraft(row.customerId, "farmerRenewal", event.target.value)}
                       aria-label={`Meta Renovação + Ampliação para ${row.customerName}`}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <MoneyInput
+                      value={drafts[row.customerId]?.studio ?? row.studioInput}
+                      onChange={(event) => updateDraft(row.customerId, "studio", event.target.value)}
+                      aria-label={`Meta Áreas / Studios para ${row.customerName}`}
                     />
                   </TableCell>
                   <TableCell className="font-bold text-slate-950">{formatCurrency(row.personTotal)}</TableCell>
@@ -495,48 +521,57 @@ function SourceBadge({ source }: { source: RowSource }) {
 function TargetBreakdown({
   hunter,
   farmerRenewal,
+  studio,
   total,
   hunterAction,
   farmerRenewalAction,
+  studioAction,
 }: {
   hunter: number;
   farmerRenewal: number;
+  studio: number;
   total: number;
   hunterAction?: BreakdownLineAction;
   farmerRenewalAction?: BreakdownLineAction;
+  studioAction?: BreakdownLineAction;
 }) {
   return (
     <div className="min-w-40 space-y-1 text-xs">
       <BreakdownLine label="Hunter" value={hunter} action={hunterAction} />
       <BreakdownLine label="Renov. + Ampl." value={farmerRenewal} action={farmerRenewalAction} />
+      <BreakdownLine label="Áreas / Studios" value={studio} action={studioAction} />
       <div className="border-t pt-1 font-bold text-slate-950">{formatCurrency(total)}</div>
     </div>
   );
 }
 
-function TargetGapBreakdown({ hunter, farmerRenewal, total }: { hunter: number; farmerRenewal: number; total: number }) {
+function TargetGapBreakdown({ hunter, farmerRenewal, studio, total }: { hunter: number; farmerRenewal: number; studio: number; total: number }) {
   return (
     <div className="min-w-40 space-y-1 text-xs">
       <BreakdownLine label="Hunter" value={hunter} tone={getGapTone(hunter)} />
       <BreakdownLine label="Renov. + Ampl." value={farmerRenewal} tone={getGapTone(farmerRenewal)} />
+      <BreakdownLine label="Áreas / Studios" value={studio} tone={getGapTone(studio)} />
       <div className={`border-t pt-1 font-bold ${getGapClassName(total)}`}>{formatCurrency(total)}</div>
     </div>
   );
 }
 
-function TargetPeopleSummary({ hunterPeople, farmerRenewalPeople }: { hunterPeople: TargetPerson[]; farmerRenewalPeople: TargetPerson[] }) {
+function TargetPeopleSummary({ hunterPeople, farmerRenewalPeople, studioPeople }: { hunterPeople: TargetPerson[]; farmerRenewalPeople: TargetPerson[]; studioPeople: TargetPerson[] }) {
   return (
     <div className="min-w-56 space-y-3 text-xs">
       <TargetPeopleGroup label="Hunters" people={hunterPeople} emptyLabel="Sem hunter alocado" tone="orange" />
       <TargetPeopleGroup label="Farmers / Delivery" people={farmerRenewalPeople} emptyLabel="Sem farmer/delivery alocado" tone="purple" />
+      <TargetPeopleGroup label="Áreas / Studios" people={studioPeople} emptyLabel="Sem área/studio alocado" tone="blue" />
     </div>
   );
 }
 
-function TargetPeopleGroup({ label, people, emptyLabel, tone }: { label: string; people: TargetPerson[]; emptyLabel: string; tone: "orange" | "purple" }) {
+function TargetPeopleGroup({ label, people, emptyLabel, tone }: { label: string; people: TargetPerson[]; emptyLabel: string; tone: "orange" | "purple" | "blue" }) {
   const toneClassName = tone === "orange"
     ? "bg-orange-50 text-orange-800"
-    : "bg-purple-50 text-brq-purple";
+    : tone === "blue"
+      ? "bg-sky-50 text-sky-700"
+      : "bg-purple-50 text-brq-purple";
 
   return (
     <div>
@@ -618,25 +653,30 @@ function buildRow(
   personId: string,
   year: number,
   allocations: TargetAllocation[],
-  draft: { hunter: string; farmerRenewal: string } | undefined,
+  draft: { hunter: string; farmerRenewal: string; studio: string } | undefined,
   people: Person[],
   selectedPerson: Person | undefined,
   source: RowSource,
 ) {
   const hunterAllocation = findAllocation(allocations, customer.id, personId, year, "hunter");
   const farmerRenewalAllocation = findAllocation(allocations, customer.id, personId, year, "farmer_renewal");
+  const studioAllocation = findAllocation(allocations, customer.id, personId, year, "studio");
   const hunterAmount = parseAmount(draft?.hunter ?? getInputValue(hunterAllocation?.amount ?? 0));
   const farmerRenewalAmount = parseAmount(draft?.farmerRenewal ?? getInputValue(farmerRenewalAllocation?.amount ?? 0));
+  const studioAmount = parseAmount(draft?.studio ?? getInputValue(studioAllocation?.amount ?? 0));
   const targetBreakdown = getCustomerTargetBreakdown(customer, allocations, year);
   const otherPeopleHunterTotal = sumOtherPeopleAllocations(allocations, customer.id, personId, year, "hunter");
   const otherPeopleFarmerRenewalTotal = sumOtherPeopleAllocations(allocations, customer.id, personId, year, "farmer_renewal");
-  const otherPeopleTotal = otherPeopleHunterTotal + otherPeopleFarmerRenewalTotal;
+  const otherPeopleStudioTotal = sumOtherPeopleAllocations(allocations, customer.id, personId, year, "studio");
+  const otherPeopleTotal = otherPeopleHunterTotal + otherPeopleFarmerRenewalTotal + otherPeopleStudioTotal;
   const customerTarget = getCustomerTarget(customer);
   const clientHunterTotal = otherPeopleHunterTotal + hunterAmount;
   const clientFarmerRenewalTotal = otherPeopleFarmerRenewalTotal + farmerRenewalAmount;
-  const clientTotal = clientHunterTotal + clientFarmerRenewalTotal;
+  const clientStudioTotal = otherPeopleStudioTotal + studioAmount;
+  const clientTotal = clientHunterTotal + clientFarmerRenewalTotal + clientStudioTotal;
   const hunterPeople = buildTargetPeople(allocations, people, customer.id, year, "hunter", selectedPerson, hunterAmount);
   const farmerRenewalPeople = buildTargetPeople(allocations, people, customer.id, year, "farmer_renewal", selectedPerson, farmerRenewalAmount);
+  const studioPeople = buildTargetPeople(allocations, people, customer.id, year, "studio", selectedPerson, studioAmount);
 
   return {
     customerId: customer.id,
@@ -646,24 +686,32 @@ function buildRow(
     customerTarget,
     customerHunterTarget: targetBreakdown.hunter,
     customerFarmerRenewalTarget: targetBreakdown.farmerRenewal,
+    customerStudioTarget: targetBreakdown.studio,
     otherPeopleHunterTotal,
     otherPeopleFarmerRenewalTotal,
+    otherPeopleStudioTotal,
     otherPeopleTotal,
     clientHunterTotal,
     clientFarmerRenewalTotal,
+    clientStudioTotal,
     clientTotal,
     hunterGap: targetBreakdown.hunter - clientHunterTotal,
     farmerRenewalGap: targetBreakdown.farmerRenewal - clientFarmerRenewalTotal,
+    studioGap: targetBreakdown.studio - clientStudioTotal,
     hunterAllocation,
     farmerRenewalAllocation,
+    studioAllocation,
     hunterAmount,
     farmerRenewalAmount,
+    studioAmount,
     hunterPeople,
     farmerRenewalPeople,
+    studioPeople,
     hunterInput: getInputValue(hunterAllocation?.amount ?? 0),
     farmerRenewalInput: getInputValue(farmerRenewalAllocation?.amount ?? 0),
-    personTotal: hunterAmount + farmerRenewalAmount,
-    clientStatus: getClientStatus(targetBreakdown.hunter, clientHunterTotal, targetBreakdown.farmerRenewal, clientFarmerRenewalTotal),
+    studioInput: getInputValue(studioAllocation?.amount ?? 0),
+    personTotal: hunterAmount + farmerRenewalAmount + studioAmount,
+    clientStatus: getClientStatus(targetBreakdown, { hunter: clientHunterTotal, farmerRenewal: clientFarmerRenewalTotal, studio: clientStudioTotal }),
     source,
   };
 }
@@ -685,7 +733,9 @@ function buildTargetPeople(
       person.clientIds.includes(customerId)
       && (type === "hunter"
         ? isHunterRole(person.roleType)
-        : isCustomerManagerProfile(person.roleType, person.isManager))
+        : type === "farmer_renewal"
+          ? isCustomerManagerProfile(person.roleType, person.isManager)
+          : isTargetAssignableRole(person.roleType))
     )
     .forEach((person) => {
       rowsByPerson.set(person.id, {
@@ -790,14 +840,25 @@ function getRowSource(
   return "added";
 }
 
-function getClientStatus(hunterTarget: number, hunterAllocated: number, farmerRenewalTarget: number, farmerRenewalAllocated: number): ClientStatus {
-  if (hunterAllocated > hunterTarget + 0.01 || farmerRenewalAllocated > farmerRenewalTarget + 0.01) return "over";
-  if (Math.abs(hunterTarget - hunterAllocated) <= 0.01 && Math.abs(farmerRenewalTarget - farmerRenewalAllocated) <= 0.01) return "ok";
+function getClientStatus(
+  target: { hunter: number; farmerRenewal: number; studio: number },
+  allocated: { hunter: number; farmerRenewal: number; studio: number },
+): ClientStatus {
+  if (
+    allocated.hunter > target.hunter + 0.01
+    || allocated.farmerRenewal > target.farmerRenewal + 0.01
+    || allocated.studio > target.studio + 0.01
+  ) return "over";
+  if (
+    Math.abs(target.hunter - allocated.hunter) <= 0.01
+    && Math.abs(target.farmerRenewal - allocated.farmerRenewal) <= 0.01
+    && Math.abs(target.studio - allocated.studio) <= 0.01
+  ) return "ok";
   return "pending";
 }
 
 function getCustomerTarget(customer: Customer) {
-  return roundCurrency(customer.hunterTarget + customer.farmerRenewalTarget);
+  return roundCurrency(customer.hunterTarget + customer.farmerRenewalTarget + customer.studioTarget);
 }
 
 function getCustomerTargetBreakdown(customer: Customer, allocations: TargetAllocation[], year: number) {
@@ -806,6 +867,7 @@ function getCustomerTargetBreakdown(customer: Customer, allocations: TargetAlloc
   return {
     hunter: roundCurrency(customer.hunterTarget),
     farmerRenewal: roundCurrency(customer.farmerRenewalTarget),
+    studio: roundCurrency(customer.studioTarget),
   };
 }
 
@@ -870,16 +932,24 @@ function getIncreaseType({
   nextHunterAmount,
   currentFarmerRenewalAmount,
   nextFarmerRenewalAmount,
+  currentStudioAmount,
+  nextStudioAmount,
 }: {
   currentHunterAmount: number;
   nextHunterAmount: number;
   currentFarmerRenewalAmount: number;
   nextFarmerRenewalAmount: number;
+  currentStudioAmount: number;
+  nextStudioAmount: number;
 }) {
   const hunterDelta = nextHunterAmount - currentHunterAmount;
   const farmerRenewalDelta = nextFarmerRenewalAmount - currentFarmerRenewalAmount;
-  if (hunterDelta > 0.01 && farmerRenewalDelta > 0.01) return "Hunter e Renovação + Ampliação";
-  if (hunterDelta > 0.01) return "Hunter";
-  if (farmerRenewalDelta > 0.01) return "Renovação + Ampliação";
+  const studioDelta = nextStudioAmount - currentStudioAmount;
+  const increased = [
+    hunterDelta > 0.01 ? "Hunter" : "",
+    farmerRenewalDelta > 0.01 ? "Renovação + Ampliação" : "",
+    studioDelta > 0.01 ? "Áreas / Studios" : "",
+  ].filter(Boolean);
+  if (increased.length) return increased.join(" e ");
   return "redistribuição de metas";
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { Pencil, Plus, Trash2, UserRoundCheck } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { Person, RoleType } from "@/data/mockData";
 import { PageHeader } from "@/components/shared/page-header";
 import { FilterBar } from "@/components/shared/filter-bar";
@@ -20,6 +20,7 @@ import { DualListSelector } from "@/components/shared/dual-list-selector";
 import { useDeliveryStore } from "@/store/delivery-store";
 import { makeId } from "@/lib/utils";
 import { getHierarchyLevelForRole, getRoleBadgeVariant, isDeliveryManagerRole, isHunterRole, roleTypes, translateRole } from "@/lib/roles";
+import { useCloseOnNavigation } from "@/lib/use-close-on-navigation";
 
 export function PeopleManagement() {
   const { people, customers, areas, savePerson, deletePerson } = useDeliveryStore();
@@ -64,6 +65,14 @@ export function PeopleManagement() {
       && (!status || String(person.active) === status);
   }), [area, director, people, roleType, search, status]);
 
+  const closeForm = useCallback(() => {
+    setDialogOpen(false);
+    setEditing(null);
+    setFormError("");
+  }, []);
+
+  useCloseOnNavigation(closeForm);
+
   function openForm(person?: Person) {
     setEditing(person ?? null);
     setSelectedClientIds(person?.clientIds ?? []);
@@ -101,7 +110,7 @@ export function PeopleManagement() {
     try {
       setFormError("");
       await savePerson(person);
-      setDialogOpen(false);
+      closeForm();
       setSuccessMessage(`Pessoa ${person.name} salva com sucesso.`);
       window.setTimeout(() => setSuccessMessage(""), 4000);
     } catch (error) {
@@ -256,7 +265,7 @@ export function PeopleManagement() {
             </Field>
             <Field label="Observações" className="md:col-span-2"><Textarea name="notes" defaultValue={editing?.notes} maxLength={2000} /></Field>
             <div className="flex justify-end gap-2 md:col-span-2">
-              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+              <Button type="button" variant="outline" onClick={closeForm}>Cancelar</Button>
               <Button type="submit"><UserRoundCheck className="h-4 w-4" /> Salvar pessoa</Button>
             </div>
           </form>

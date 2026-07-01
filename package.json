@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "audit:background": "powershell -ExecutionPolicy Bypass -File scripts/audit-background.ps1"
+    "audit:background": "powershell -ExecutionPolicy Bypass -File scripts/audit-background.ps1",
+    "db:migrations:check": "node scripts/check-supabase-migration-history.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",

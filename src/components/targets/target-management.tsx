@@ -2,7 +2,7 @@
 
 import { Bot, Pencil, Plus, Target, Trash2, UserRound } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Customer, Person, TargetAllocation, TargetAllocationType } from "@/data/mockData";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorNotice, SuccessNotice } from "@/components/shared/success-notice";
@@ -20,6 +20,7 @@ import { useDeliveryStore } from "@/store/delivery-store";
 import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears } from "@/lib/customer-targets";
 import { formatCurrency, makeId } from "@/lib/utils";
 import { isHunterRole, isTargetAssignableRole } from "@/lib/roles";
+import { useCloseOnNavigation } from "@/lib/use-close-on-navigation";
 
 const currentYear = defaultTargetYear;
 
@@ -68,7 +69,8 @@ export function TargetManagement() {
   const totals = useMemo(() => filtered.reduce((summary, allocation) => ({
     hunter: summary.hunter + (allocation.type === "hunter" ? allocation.amount : 0),
     farmerRenewal: summary.farmerRenewal + (allocation.type === "farmer_renewal" ? allocation.amount : 0),
-  }), { hunter: 0, farmerRenewal: 0 }), [filtered]);
+    studio: summary.studio + (allocation.type === "studio" ? allocation.amount : 0),
+  }), { hunter: 0, farmerRenewal: 0, studio: 0 }), [filtered]);
   const reconciliation = useMemo(() => buildReconciliation(yearCustomers, targetAssignableAllocations, effectiveYear), [effectiveYear, targetAssignableAllocations, yearCustomers]);
   const personYearSummary = useMemo(
     () => buildPersonYearSummary(targetAssignablePeople, yearCustomers, targetAssignableAllocations, effectiveYear),
@@ -85,6 +87,14 @@ export function TargetManagement() {
   const reconciledCount = reconciliation.filter((item) => item.status === "ok").length;
   const pendingCount = reconciliation.filter((item) => item.status === "pending").length;
   const overTargetCount = reconciliation.filter((item) => item.status === "over").length;
+
+  const closeForm = useCallback(() => {
+    setOpen(false);
+    setEditing(null);
+    setFormError("");
+  }, []);
+
+  useCloseOnNavigation(closeForm);
 
   useEffect(() => {
     if (!open || !focusAmountOnOpen) return;
@@ -144,7 +154,7 @@ export function TargetManagement() {
     try {
       setFormError("");
       await saveTargetAllocation(draft);
-      setOpen(false);
+      closeForm();
       const difference = target - allocated;
       setSuccessMessage(Math.abs(difference) <= 0.01
         ? "Meta salva com sucesso. Cliente reconciliado com a meta total."
@@ -175,10 +185,11 @@ export function TargetManagement() {
       {successMessage && <SuccessNotice message={successMessage} floating />}
       {formError && <ErrorNotice message={formError} floating onClose={() => setFormError("")} />}
 
-      <section className="mb-5 grid gap-4 md:grid-cols-3">
+      <section className="mb-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Summary label={`Meta Hunter · ${effectiveYear}`} value={formatCurrency(totals.hunter)} tone="purple" />
         <Summary label={`Meta Renovação + Ampliação · ${effectiveYear}`} value={formatCurrency(totals.farmerRenewal)} tone="blue" />
-        <Summary label={`Meta Total · ${effectiveYear}`} value={formatCurrency(totals.hunter + totals.farmerRenewal)} tone="dark" />
+        <Summary label={`Áreas / Studios · ${effectiveYear}`} value={formatCurrency(totals.studio)} tone="sky" />
+        <Summary label={`Meta Total · ${effectiveYear}`} value={formatCurrency(totals.hunter + totals.farmerRenewal + totals.studio)} tone="dark" />
       </section>
 
       {assistantOpen && <TargetAssistantPanel assistant={assistant} />}
@@ -186,16 +197,17 @@ export function TargetManagement() {
       <Card className="mb-5 overflow-hidden shadow-sm">
         <div className="border-b bg-white p-5">
           <h2 className="text-base font-bold text-slate-900">Metas anuais por pessoa</h2>
-          <p className="mt-1 text-xs text-slate-500">Visão consolidada do ano selecionado, separando Hunter de Renovação + Ampliação por colaborador.</p>
+          <p className="mt-1 text-xs text-slate-500">Visão consolidada do ano selecionado, separando Hunter, Renovação + Ampliação e Áreas / Studios por colaborador.</p>
         </div>
         <div className="overflow-x-auto">
-          <Table className="min-w-[980px]">
+          <Table className="min-w-[1120px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Pessoa</TableHead>
                 <TableHead>Clientes com meta</TableHead>
                 <TableHead>Meta Hunter</TableHead>
                 <TableHead>Meta Renovação + Ampliação</TableHead>
+                <TableHead>Áreas / Studios</TableHead>
                 <TableHead>Meta Total</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
@@ -227,6 +239,7 @@ export function TargetManagement() {
                   </TableCell>
                   <TableCell>{formatCurrency(item.hunter)}</TableCell>
                   <TableCell>{formatCurrency(item.farmerRenewal)}</TableCell>
+                  <TableCell>{formatCurrency(item.studio)}</TableCell>
                   <TableCell className="font-bold text-slate-950">{formatCurrency(item.total)}</TableCell>
                   <TableCell><PersonTargetBadge total={item.total} /></TableCell>
                 </TableRow>
@@ -242,7 +255,7 @@ export function TargetManagement() {
           <p className="mt-1 text-xs text-slate-500">Diretores consolidam metas dos managers. Hunters aparecem em trilha própria. Robinson consolida toda a estrutura.</p>
         </div>
         <div className="overflow-x-auto">
-          <Table className="min-w-[900px]">
+          <Table className="min-w-[1040px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Responsável</TableHead>
@@ -250,6 +263,7 @@ export function TargetManagement() {
                 <TableHead>Pessoas consolidadas</TableHead>
                 <TableHead>Meta Hunter</TableHead>
                 <TableHead>Meta Renovação + Ampliação</TableHead>
+                <TableHead>Áreas / Studios</TableHead>
                 <TableHead>Meta Total</TableHead>
               </TableRow>
             </TableHeader>
@@ -267,6 +281,7 @@ export function TargetManagement() {
                   </TableCell>
                   <TableCell>{formatCurrency(item.hunter)}</TableCell>
                   <TableCell>{formatCurrency(item.farmerRenewal)}</TableCell>
+                  <TableCell>{formatCurrency(item.studio)}</TableCell>
                   <TableCell className="font-bold text-slate-950">{formatCurrency(item.total)}</TableCell>
                 </TableRow>
               ))}
@@ -334,6 +349,7 @@ export function TargetManagement() {
           <option value="">Todos os tipos</option>
           <option value="hunter">Hunter</option>
           <option value="farmer_renewal">Renovação + Ampliação</option>
+          <option value="studio">Áreas / Studios</option>
         </Select>
         <Select value={year} onChange={(event) => setYear(event.target.value)}>
           <option value="">Todos os anos</option>
@@ -401,7 +417,7 @@ export function TargetManagement() {
         {!filtered.length && <EmptyState />}
       </Card>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={(nextOpen) => (nextOpen ? setOpen(true) : closeForm())}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{editing ? "Editar meta" : "Nova meta"}</DialogTitle>
@@ -422,6 +438,7 @@ export function TargetManagement() {
               <Select name="type" defaultValue={editing?.type ?? "farmer_renewal"} required>
                 <option value="farmer_renewal">Renovação + Ampliação</option>
                 <option value="hunter">Hunter</option>
+                <option value="studio">Áreas / Studios</option>
               </Select>
             </Field>
             <Field label="Ano">
@@ -434,7 +451,7 @@ export function TargetManagement() {
               <Textarea name="notes" rows={3} defaultValue={editing?.notes ?? ""} maxLength={2000} />
             </Field>
             <div className="flex justify-end gap-2 md:col-span-2">
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+              <Button type="button" variant="outline" onClick={closeForm}>Cancelar</Button>
               <Button type="submit"><Target className="h-4 w-4" /> Salvar meta</Button>
             </div>
           </form>
@@ -444,10 +461,11 @@ export function TargetManagement() {
   );
 }
 
-function Summary({ label, value, tone }: { label: string; value: string; tone: "purple" | "blue" | "dark" }) {
+function Summary({ label, value, tone }: { label: string; value: string; tone: "purple" | "blue" | "sky" | "dark" }) {
   const colors = {
     purple: "bg-purple-50 text-brq-purple",
     blue: "bg-sky-50 text-sky-700",
+    sky: "bg-cyan-50 text-cyan-700",
     dark: "bg-slate-950 text-white",
   };
   return (
@@ -570,6 +588,7 @@ function AssistantIssueList({
 
 function TypeBadge({ type }: { type: TargetAllocationType }) {
   if (type === "hunter") return <Badge className="bg-orange-100 text-orange-800 hover:bg-orange-100">Hunter</Badge>;
+  if (type === "studio") return <Badge className="bg-cyan-100 text-cyan-800 hover:bg-cyan-100">Áreas / Studios</Badge>;
   return <Badge className="bg-purple-100 text-brq-purple hover:bg-purple-100">Renovação + Ampliação</Badge>;
 }
 
@@ -705,6 +724,9 @@ function buildPersonYearSummary(people: Person[], customers: Customer[], allocat
       const farmerRenewal = personAllocations
         .filter((allocation) => allocation.type === "farmer_renewal")
         .reduce((total, allocation) => total + allocation.amount, 0);
+      const studio = personAllocations
+        .filter((allocation) => allocation.type === "studio")
+        .reduce((total, allocation) => total + allocation.amount, 0);
       const assignedCustomerNames = Array.from(new Set(personAllocations.map((allocation) => customerNames.get(allocation.customerId) ?? allocation.customerId)))
         .sort((a, b) => a.localeCompare(b, "pt-BR"));
 
@@ -716,7 +738,8 @@ function buildPersonYearSummary(people: Person[], customers: Customer[], allocat
         customerNames: assignedCustomerNames,
         hunter,
         farmerRenewal,
-        total: hunter + farmerRenewal,
+        studio,
+        total: hunter + farmerRenewal + studio,
       };
     })
     .sort((a, b) => b.total - a.total || a.personName.localeCompare(b.personName, "pt-BR"));
@@ -796,6 +819,9 @@ function buildHierarchyRow(
   const farmerRenewal = scopedAllocations
     .filter((allocation) => allocation.type === "farmer_renewal")
     .reduce((total, allocation) => total + allocation.amount, 0);
+  const studio = scopedAllocations
+    .filter((allocation) => allocation.type === "studio")
+    .reduce((total, allocation) => total + allocation.amount, 0);
 
   return {
     id,
@@ -806,7 +832,8 @@ function buildHierarchyRow(
     peopleNames: people.map((person) => person.name).sort((a, b) => a.localeCompare(b, "pt-BR")),
     hunter,
     farmerRenewal,
-    total: hunter + farmerRenewal,
+    studio,
+    total: hunter + farmerRenewal + studio,
   };
 }
 
@@ -823,7 +850,7 @@ function sumAllocations(allocations: TargetAllocation[], customerId: string, yea
 }
 
 function getCustomerTarget(customer: Customer) {
-  return roundCurrency(customer.hunterTarget + customer.farmerRenewalTarget);
+  return roundCurrency(customer.hunterTarget + customer.farmerRenewalTarget + customer.studioTarget);
 }
 
 function roundCurrency(value: number) {

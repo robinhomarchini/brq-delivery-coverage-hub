@@ -5,8 +5,9 @@
   transacional.
 - Quando a migration estiver aplicada, Cliente + managers é salvo por RPC
   transacional.
-- Quando a migration estiver aplicada, metas Hunter e Renovação + Ampliação de
-  uma linha da tela Metas por Pessoa são salvas por RPC transacional.
+- Quando a migration estiver aplicada, metas Hunter, Renovação + Ampliação e
+  Áreas / Studios de uma linha da tela Metas por Pessoa são salvas por RPC
+  transacional.
 - Quando a migration estiver aplicada, a tabela normalizada Pessoa ↔ Cliente
   bloqueia associação de um mesmo cliente a dois Hunters/Hunter + Farmer.
 - A migration adiciona auditoria às tabelas normalizadas de cobertura e metas.

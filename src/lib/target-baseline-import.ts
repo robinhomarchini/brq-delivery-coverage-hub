@@ -9,6 +9,7 @@ export interface TargetBaselineRow {
   businessUnit: string;
   hunterTarget: number;
   farmerRenewalTarget: number;
+  studioTarget: number;
   totalTarget: number;
   responsibleCode: string;
 }
@@ -18,6 +19,7 @@ export interface TargetBaselineComparison {
   row: TargetBaselineRow;
   effectiveHunterTarget: number;
   effectiveFarmerRenewalTarget: number;
+  effectiveStudioTarget: number;
   effectiveRevenue: number;
   customer?: Customer;
   matchedCustomerName?: string;
@@ -30,7 +32,7 @@ export interface TargetBaselineComparison {
 }
 
 export interface TargetBaselineDifference {
-  field: "hunterTarget" | "farmerRenewalTarget" | "revenue";
+  field: "hunterTarget" | "farmerRenewalTarget" | "studioTarget" | "revenue";
   label: string;
   currentValue: number;
   importedValue: number;
@@ -44,6 +46,26 @@ const requiredHeaders = {
   farmerRenewalTarget: ["target rl farmer", "meta farmer", "renovacao", "renovação", "renovacao ampliacao", "renovação ampliação"],
   totalTarget: ["total rl 2026", "meta total", "total"],
   responsibleCode: ["resp", "responsavel", "responsável", "hunter responsavel", "hunter responsável"],
+};
+
+const optionalHeaders = {
+  studioTarget: [
+    "target rl areas",
+    "target rl areas studios",
+    "target rl studios",
+    "meta areas",
+    "meta áreas",
+    "meta areas studios",
+    "meta áreas studios",
+    "areas",
+    "áreas",
+    "areas studios",
+    "áreas studios",
+    "areas / studios",
+    "áreas / studios",
+    "studio",
+    "studios",
+  ],
 };
 
 const responsibleAliases: Record<string, string[]> = {
@@ -68,20 +90,31 @@ export function parseTargetBaselineRows(rows: SpreadsheetCell[][]): TargetBaseli
     businessUnit: findHeaderIndex(headers, requiredHeaders.businessUnit, "BU"),
     hunterTarget: findHeaderIndex(headers, requiredHeaders.hunterTarget, "Target RL Hunter"),
     farmerRenewalTarget: findHeaderIndex(headers, requiredHeaders.farmerRenewalTarget, "Target RL Farmer"),
+    studioTarget: findOptionalHeaderIndex(headers, optionalHeaders.studioTarget),
     totalTarget: findHeaderIndex(headers, requiredHeaders.totalTarget, "Total RL 2026"),
     responsibleCode: findHeaderIndex(headers, requiredHeaders.responsibleCode, "resp"),
   };
 
   return rows.slice(1)
-    .map((row, index) => ({
-      rowNumber: index + 2,
-      customerName: String(row[indexes.customerName] ?? "").trim(),
-      businessUnit: String(row[indexes.businessUnit] ?? "").trim(),
-      hunterTarget: parseMoney(row[indexes.hunterTarget]),
-      farmerRenewalTarget: parseMoney(row[indexes.farmerRenewalTarget]),
-      totalTarget: parseMoney(row[indexes.totalTarget]),
-      responsibleCode: String(row[indexes.responsibleCode] ?? "").trim(),
-    }))
+    .map((row, index) => {
+      const hunterTarget = parseMoney(row[indexes.hunterTarget]);
+      const farmerRenewalTarget = parseMoney(row[indexes.farmerRenewalTarget]);
+      const totalTarget = parseMoney(row[indexes.totalTarget]);
+      const studioTarget = indexes.studioTarget >= 0
+        ? parseMoney(row[indexes.studioTarget])
+        : Math.max(roundCurrency(totalTarget - hunterTarget - farmerRenewalTarget), 0);
+
+      return {
+        rowNumber: index + 2,
+        customerName: String(row[indexes.customerName] ?? "").trim(),
+        businessUnit: String(row[indexes.businessUnit] ?? "").trim(),
+        hunterTarget,
+        farmerRenewalTarget,
+        studioTarget,
+        totalTarget,
+        responsibleCode: String(row[indexes.responsibleCode] ?? "").trim(),
+      };
+    })
     .filter((row) => row.customerName);
 }
 
@@ -98,7 +131,8 @@ export function buildTargetBaselineComparisons(
     const customer = customersByName.get(normalizeName(row.customerName));
     const importedHunter = roundCurrency(row.hunterTarget);
     const importedFarmerRenewal = roundCurrency(row.farmerRenewalTarget);
-    const importedRevenue = roundCurrency(importedHunter + importedFarmerRenewal);
+    const importedStudio = roundCurrency(row.studioTarget);
+    const importedRevenue = roundCurrency(importedHunter + importedFarmerRenewal + importedStudio);
     const sheetTotalDifference = roundCurrency(row.totalTarget - importedRevenue);
 
     if (!customer) {
@@ -107,6 +141,7 @@ export function buildTargetBaselineComparisons(
         row,
         effectiveHunterTarget: importedHunter,
         effectiveFarmerRenewalTarget: importedFarmerRenewal,
+        effectiveStudioTarget: importedStudio,
         effectiveRevenue: importedRevenue,
         valueStatus: "missing_customer",
         hunterStatus: "warning",
@@ -116,7 +151,7 @@ export function buildTargetBaselineComparisons(
       };
     }
 
-    const differences = buildDifferences(customer, importedHunter, importedFarmerRenewal, importedRevenue);
+    const differences = buildDifferences(customer, importedHunter, importedFarmerRenewal, importedStudio, importedRevenue);
     const importedTotalIsValid = isSameDisplayedCurrency(row.totalTarget, importedRevenue);
     const hunterCheck = validateHunterConsistency(row, customer, people, targetAllocations, year);
 
@@ -125,6 +160,7 @@ export function buildTargetBaselineComparisons(
       row,
       effectiveHunterTarget: importedHunter,
       effectiveFarmerRenewalTarget: importedFarmerRenewal,
+      effectiveStudioTarget: importedStudio,
       effectiveRevenue: importedRevenue,
       customer,
       matchedCustomerName: customer.name,
@@ -132,6 +168,7 @@ export function buildTargetBaselineComparisons(
         ...customer,
         hunterTarget: importedHunter,
         farmerRenewalTarget: importedFarmerRenewal,
+        studioTarget: importedStudio,
         revenue: importedRevenue,
       },
       valueStatus: !importedTotalIsValid ? "invalid_total" : differences.length ? "different" : "ok",
@@ -158,7 +195,8 @@ export function normalizeName(value: string) {
     .toUpperCase();
 }
 
-function buildDifferences(customer: Customer, hunterTarget: number, farmerRenewalTarget: number, revenue: number) {
+function buildDifferences(customer: Customer, hunterTarget: number, farmerRenewalTarget: number, studioTarget: number, revenue: number) {
+  const currentRevenue = getCustomerTarget(customer);
   const candidates: TargetBaselineDifference[] = [
     {
       field: "hunterTarget",
@@ -175,11 +213,18 @@ function buildDifferences(customer: Customer, hunterTarget: number, farmerRenewa
       delta: farmerRenewalTarget - customer.farmerRenewalTarget,
     },
     {
+      field: "studioTarget",
+      label: "Áreas / Studios",
+      currentValue: customer.studioTarget,
+      importedValue: studioTarget,
+      delta: studioTarget - customer.studioTarget,
+    },
+    {
       field: "revenue",
       label: "Meta Total",
-      currentValue: roundCurrency(customer.hunterTarget + customer.farmerRenewalTarget),
+      currentValue: currentRevenue,
       importedValue: revenue,
-      delta: revenue - roundCurrency(customer.hunterTarget + customer.farmerRenewalTarget),
+      delta: revenue - currentRevenue,
     },
   ];
   return candidates.filter((difference) => !isSameDisplayedCurrency(difference.currentValue, difference.importedValue));
@@ -194,6 +239,7 @@ function validateHunterConsistency(
 ) {
   const importedHunter = roundCurrency(row.hunterTarget);
   const importedFarmerRenewal = roundCurrency(row.farmerRenewalTarget);
+  const importedStudio = roundCurrency(row.studioTarget);
   const responsiblePerson = findResponsiblePerson(row.responsibleCode, people);
   const hunterAllocations = targetAllocations
     .filter((allocation) => allocation.customerId === customer.id && allocation.year === year && allocation.type === "hunter" && allocation.amount > zeroMoneyTolerance)
@@ -206,10 +252,11 @@ function validateHunterConsistency(
   if (importedHunter <= zeroMoneyTolerance) {
     if (allocatedHunterTotal > zeroMoneyTolerance) {
       const allocationMessage = `${formatPersonNames(hunterAllocations)} com ${formatCurrency(allocatedHunterTotal)}`;
-      if (importedFarmerRenewal > zeroMoneyTolerance) {
+      const nonHunterImportedTotal = roundCurrency(importedFarmerRenewal + importedStudio);
+      if (nonHunterImportedTotal > zeroMoneyTolerance) {
         return {
           status: "warning" as const,
-          message: `Planilha classifica ${formatCurrency(importedFarmerRenewal)} como Renovação + Ampliação, mas o sistema está com Hunter alocado para ${allocationMessage}. Corrija Metas por Pessoa ou aplique a planilha como baseline.`,
+          message: `Planilha classifica ${formatCurrency(nonHunterImportedTotal)} fora de Hunter, mas o sistema está com Hunter alocado para ${allocationMessage}. Corrija Metas por Pessoa ou aplique a planilha como baseline.`,
         };
       }
       return {
@@ -274,6 +321,11 @@ function findHeaderIndex(headers: string[], aliases: string[], label: string) {
   throw new Error(`Coluna obrigatória não encontrada: ${label}.`);
 }
 
+function findOptionalHeaderIndex(headers: string[], aliases: string[]) {
+  const normalizedAliases = aliases.map(normalizeHeader);
+  return headers.findIndex((header) => normalizedAliases.includes(header));
+}
+
 function normalizeHeader(value: string) {
   return value
     .normalize("NFD")
@@ -310,6 +362,10 @@ function formatPersonNames(items: Array<{ person?: Person }>) {
 
 function formatCurrency(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+}
+
+function getCustomerTarget(customer: Customer) {
+  return roundCurrency(customer.hunterTarget + customer.farmerRenewalTarget + customer.studioTarget);
 }
 
 function roundCurrency(value: number) {

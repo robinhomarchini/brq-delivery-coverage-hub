@@ -104,7 +104,8 @@ export class LocalDeliveryRepository implements DeliveryRepository {
       year: targetYear,
       hunterTarget: customer.hunterTarget,
       farmerRenewalTarget: customer.farmerRenewalTarget,
-      revenue: customer.hunterTarget + customer.farmerRenewalTarget,
+      studioTarget: customer.studioTarget,
+      revenue: getCustomerTarget(customer),
     };
     this.data.customerTargets = this.data.customerTargets.some((item) => item.customerId === customer.id && item.year === targetYear)
       ? this.data.customerTargets.map((item) => item.customerId === customer.id && item.year === targetYear ? nextTarget : item)
@@ -152,18 +153,25 @@ export class LocalDeliveryRepository implements DeliveryRepository {
 
     const nextHunterAmount = sanitizeAmount(input.hunterAmount);
     const nextFarmerRenewalAmount = sanitizeAmount(input.farmerRenewalAmount);
+    const nextStudioAmount = sanitizeAmount(input.studioAmount);
     const otherHunterTotal = this.data.targetAllocations
       .filter((item) => item.customerId === input.customerId && item.year === input.year && item.personId !== input.personId && item.type === "hunter")
       .reduce((total, item) => total + item.amount, 0);
     const otherFarmerRenewalTotal = this.data.targetAllocations
       .filter((item) => item.customerId === input.customerId && item.year === input.year && item.personId !== input.personId && item.type === "farmer_renewal")
       .reduce((total, item) => total + item.amount, 0);
+    const otherStudioTotal = this.data.targetAllocations
+      .filter((item) => item.customerId === input.customerId && item.year === input.year && item.personId !== input.personId && item.type === "studio")
+      .reduce((total, item) => total + item.amount, 0);
     const nextHunterTotal = otherHunterTotal + nextHunterAmount;
     const nextFarmerRenewalTotal = otherFarmerRenewalTotal + nextFarmerRenewalAmount;
+    const nextStudioTotal = otherStudioTotal + nextStudioAmount;
     const nextHunterTarget = Math.max(customer.hunterTarget, nextHunterTotal);
     const nextFarmerRenewalTarget = Math.max(customer.farmerRenewalTarget, nextFarmerRenewalTotal);
+    const nextStudioTarget = Math.max(customer.studioTarget, nextStudioTotal);
     const targetIncreaseRequired = nextHunterTotal > customer.hunterTarget + 0.01
-      || nextFarmerRenewalTotal > customer.farmerRenewalTarget + 0.01;
+      || nextFarmerRenewalTotal > customer.farmerRenewalTarget + 0.01
+      || nextStudioTotal > customer.studioTarget + 0.01;
 
     if (targetIncreaseRequired) {
       if (!input.increaseCustomerTarget) {
@@ -175,7 +183,8 @@ export class LocalDeliveryRepository implements DeliveryRepository {
             ...item,
             hunterTarget: nextHunterTarget,
             farmerRenewalTarget: nextFarmerRenewalTarget,
-            revenue: nextHunterTarget + nextFarmerRenewalTarget,
+            studioTarget: nextStudioTarget,
+            revenue: nextHunterTarget + nextFarmerRenewalTarget + nextStudioTarget,
           }
           : item
       );
@@ -185,7 +194,8 @@ export class LocalDeliveryRepository implements DeliveryRepository {
             ...item,
             hunterTarget: nextHunterTarget,
             farmerRenewalTarget: nextFarmerRenewalTarget,
-            revenue: nextHunterTarget + nextFarmerRenewalTarget,
+            studioTarget: nextStudioTarget,
+            revenue: nextHunterTarget + nextFarmerRenewalTarget + nextStudioTarget,
           }
           : item)
         : [...this.data.customerTargets, {
@@ -193,12 +203,14 @@ export class LocalDeliveryRepository implements DeliveryRepository {
           year: input.year,
           hunterTarget: nextHunterTarget,
           farmerRenewalTarget: nextFarmerRenewalTarget,
-          revenue: nextHunterTarget + nextFarmerRenewalTarget,
+          studioTarget: nextStudioTarget,
+          revenue: nextHunterTarget + nextFarmerRenewalTarget + nextStudioTarget,
         }];
     }
 
     this.replaceTargetAmount(input, "hunter", nextHunterAmount);
     this.replaceTargetAmount(input, "farmer_renewal", nextFarmerRenewalAmount);
+    this.replaceTargetAmount(input, "studio", nextStudioAmount);
 
     if (isHunterRole(person.roleType)) {
       const hasAssignment = this.assignments.some((assignment) =>
@@ -231,7 +243,7 @@ export class LocalDeliveryRepository implements DeliveryRepository {
     return this.getAll();
   }
 
-  private replaceTargetAmount(input: PersonCustomerTargetsInput, type: "hunter" | "farmer_renewal", amount: number) {
+  private replaceTargetAmount(input: PersonCustomerTargetsInput, type: "hunter" | "farmer_renewal" | "studio", amount: number) {
     const existing = this.data.targetAllocations.find((item) =>
       item.customerId === input.customerId
       && item.personId === input.personId
@@ -281,7 +293,7 @@ function ensureUniqueTargetAllocation(items: TargetAllocation[], allocation: Tar
 
 function ensureCustomerTargetNotExceeded(customers: Customer[], items: TargetAllocation[], allocation: TargetAllocation) {
   const customer = customers.find((item) => item.id === allocation.customerId);
-  const customerTarget = customer?.revenue ?? 0;
+  const customerTarget = customer ? getCustomerTarget(customer) : 0;
   const allocated = items
     .filter((item) =>
       item.id !== allocation.id
@@ -293,6 +305,10 @@ function ensureCustomerTargetNotExceeded(customers: Customer[], items: TargetAll
   if (customerTarget > 0 && allocated > customerTarget + 0.01) {
     throw new Error(`A soma das metas das pessoas ultrapassa a meta total do cliente (${customerTarget}).`);
   }
+}
+
+function getCustomerTarget(customer: Customer) {
+  return customer.hunterTarget + customer.farmerRenewalTarget + customer.studioTarget;
 }
 
 function ensureHunterAssignmentsAvailable(people: Person[], assignments: CoverageAssignment[], person: Person) {

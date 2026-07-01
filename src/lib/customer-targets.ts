@@ -19,12 +19,14 @@ export function applyCustomerTargetsForYear(customers: Customer[], customerTarge
       ...customer,
       hunterTarget: 0,
       farmerRenewalTarget: 0,
+      studioTarget: 0,
       revenue: 0,
     };
     return {
       ...customer,
       hunterTarget: target.hunterTarget,
       farmerRenewalTarget: target.farmerRenewalTarget,
+      studioTarget: target.studioTarget,
       revenue: target.revenue,
     };
   });

@@ -53,7 +53,7 @@ export function CustomerPortfolioManagement() {
       <PageHeader
         eyebrow="BU Financial"
         title="Portfólio de Clientes e Metas"
-        description="Gestão executiva de receita atual, meta prevista, receita Hunter e receita Delivery/Farmer por cliente, diretor e manager."
+        description="Gestão executiva de receita atual, meta prevista, receita Hunter, receita Delivery/Farmer e Áreas / Studios por cliente, diretor e manager."
       />
 
       <Card className="p-4 shadow-sm">
@@ -77,17 +77,18 @@ export function CustomerPortfolioManagement() {
         </div>
       </Card>
 
-      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
         <Kpi label="Receita Atual" value={formatCurrency(totals.revenueCurrent)} icon={TrendingUp} />
         <Kpi label="Meta Prevista" value={formatCurrency(totals.revenueTarget)} icon={Target} />
         <Kpi label="Receita Hunter" value={formatCurrency(totals.hunterRevenue)} icon={UserCog} />
         <Kpi label="Delivery/Farmer" value={formatCurrency(totals.deliveryFarmerRevenue)} icon={Building2} />
+        <Kpi label="Áreas / Studios" value={formatCurrency(totals.studioRevenue)} icon={Building2} />
       </section>
 
       <Card className="border-emerald-200 bg-emerald-50/60 p-4 text-sm text-emerald-900 shadow-sm">
         <p className="font-bold">Reconciliação Financial BU</p>
         <p className="mt-1">
-          Receita Hunter + Delivery/Farmer = {formatCurrency(totals.hunterRevenue + totals.deliveryFarmerRevenue)} ·
+          Receita Hunter + Delivery/Farmer + Áreas / Studios = {formatCurrency(totals.hunterRevenue + totals.deliveryFarmerRevenue + totals.studioRevenue)} ·
           Meta Prevista = {formatCurrency(totals.revenueTarget)}
         </p>
       </Card>
@@ -162,7 +163,7 @@ export function CustomerPortfolioManagement() {
           </p>
         </div>
         <div className="overflow-x-auto">
-          <Table className="min-w-[1180px]">
+          <Table className="min-w-[1280px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Cliente</TableHead>
@@ -172,6 +173,7 @@ export function CustomerPortfolioManagement() {
                 <TableHead>Meta Prevista</TableHead>
                 <TableHead>Receita Hunter</TableHead>
                 <TableHead>Receita Delivery/Farmer</TableHead>
+                <TableHead>Áreas / Studios</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -191,6 +193,7 @@ export function CustomerPortfolioManagement() {
                   <MoneyCell value={plan.revenueTarget} strong />
                   <MoneyCell value={plan.hunterRevenue} />
                   <MoneyCell value={plan.deliveryFarmerRevenue} />
+                  <MoneyCell value={getStudioRevenue(plan)} />
                 </TableRow>
               ))}
             </TableBody>
@@ -238,7 +241,12 @@ function calculateTotals(plans: RevenuePlan[]) {
     revenueTarget: totals.revenueTarget + plan.revenueTarget,
     hunterRevenue: totals.hunterRevenue + plan.hunterRevenue,
     deliveryFarmerRevenue: totals.deliveryFarmerRevenue + plan.deliveryFarmerRevenue,
-  }), { revenueCurrent: 0, revenueTarget: 0, hunterRevenue: 0, deliveryFarmerRevenue: 0 });
+    studioRevenue: totals.studioRevenue + getStudioRevenue(plan),
+  }), { revenueCurrent: 0, revenueTarget: 0, hunterRevenue: 0, deliveryFarmerRevenue: 0, studioRevenue: 0 });
+}
+
+function getStudioRevenue(plan: RevenuePlan) {
+  return Math.max(plan.revenueTarget - plan.hunterRevenue - plan.deliveryFarmerRevenue, 0);
 }
 
 function groupByDirector(plans: RevenuePlan[]) {

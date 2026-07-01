@@ -57,6 +57,7 @@ type CustomerRow = {
   territory_id: string | null;
   hunter_target?: number | string | null;
   farmer_renewal_target?: number | string | null;
+  studio_target?: number | string | null;
   revenue: number | string;
   margin: number | string;
   strategic_account: boolean;
@@ -92,6 +93,7 @@ type CustomerTargetRow = {
   target_year: number;
   hunter_target: number | string;
   farmer_renewal_target: number | string;
+  studio_target?: number | string | null;
   revenue: number | string;
 };
 
@@ -264,7 +266,7 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
   }
 
   private async upsertCustomerTarget(customer: Customer, targetYear: number) {
-    const nextRevenue = roundCurrency(customer.hunterTarget + customer.farmerRenewalTarget);
+    const nextRevenue = getCustomerTarget(customer);
     const { error } = await this.client
       .from("customer_target_years")
       .upsert({
@@ -272,6 +274,7 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
         target_year: targetYear,
         hunter_target: customer.hunterTarget,
         farmer_renewal_target: customer.farmerRenewalTarget,
+        studio_target: customer.studioTarget,
       });
     if (error) throw error;
 
@@ -280,6 +283,7 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
       .update({
         hunter_target: customer.hunterTarget,
         farmer_renewal_target: customer.farmerRenewalTarget,
+        studio_target: customer.studioTarget,
         revenue: nextRevenue,
       })
       .eq("id", customer.id);
@@ -436,23 +440,31 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
       ...legacyCustomer,
       hunterTarget: customerTarget.hunterTarget,
       farmerRenewalTarget: customerTarget.farmerRenewalTarget,
+      studioTarget: customerTarget.studioTarget,
       revenue: customerTarget.revenue,
     };
     const allocations = (allocationsResult.data as TargetAllocationRow[]).map(fromTargetAllocationRow);
     const nextHunterAmount = sanitizeAmount(input.hunterAmount);
     const nextFarmerRenewalAmount = sanitizeAmount(input.farmerRenewalAmount);
+    const nextStudioAmount = sanitizeAmount(input.studioAmount);
     const otherHunterTotal = allocations
       .filter((allocation) => allocation.personId !== input.personId && allocation.type === "hunter")
       .reduce((total, allocation) => total + allocation.amount, 0);
     const otherFarmerRenewalTotal = allocations
       .filter((allocation) => allocation.personId !== input.personId && allocation.type === "farmer_renewal")
       .reduce((total, allocation) => total + allocation.amount, 0);
+    const otherStudioTotal = allocations
+      .filter((allocation) => allocation.personId !== input.personId && allocation.type === "studio")
+      .reduce((total, allocation) => total + allocation.amount, 0);
     const nextHunterTotal = otherHunterTotal + nextHunterAmount;
     const nextFarmerRenewalTotal = otherFarmerRenewalTotal + nextFarmerRenewalAmount;
+    const nextStudioTotal = otherStudioTotal + nextStudioAmount;
     const nextHunterTarget = Math.max(customer.hunterTarget, nextHunterTotal);
     const nextFarmerRenewalTarget = Math.max(customer.farmerRenewalTarget, nextFarmerRenewalTotal);
+    const nextStudioTarget = Math.max(customer.studioTarget, nextStudioTotal);
     const targetIncreaseRequired = nextHunterTotal > customer.hunterTarget + 0.01
-      || nextFarmerRenewalTotal > customer.farmerRenewalTarget + 0.01;
+      || nextFarmerRenewalTotal > customer.farmerRenewalTarget + 0.01
+      || nextStudioTotal > customer.studioTarget + 0.01;
 
     if (targetIncreaseRequired) {
       if (!input.increaseCustomerTarget) {
@@ -462,12 +474,14 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
         ...customer,
         hunterTarget: nextHunterTarget,
         farmerRenewalTarget: nextFarmerRenewalTarget,
-        revenue: nextHunterTarget + nextFarmerRenewalTarget,
+        studioTarget: nextStudioTarget,
+        revenue: nextHunterTarget + nextFarmerRenewalTarget + nextStudioTarget,
       }, input.year);
     }
 
     await this.persistTypeTargetWithFallback(input, "hunter", nextHunterAmount, allocations);
     await this.persistTypeTargetWithFallback(input, "farmer_renewal", nextFarmerRenewalAmount, allocations);
+    await this.persistTypeTargetWithFallback(input, "studio", nextStudioAmount, allocations);
 
     if (isHunterRole(personRole)) {
       const { error: assignmentError } = await this.client
@@ -602,6 +616,7 @@ function toCustomerRow(customer: Customer): CustomerRow {
     territory_id: null,
     hunter_target: customer.hunterTarget,
     farmer_renewal_target: customer.farmerRenewalTarget,
+    studio_target: customer.studioTarget,
     revenue: customer.revenue,
     margin: customer.margin,
     strategic_account: customer.strategicAccount,
@@ -613,6 +628,7 @@ function fromCustomerRow(row: CustomerRow): Customer {
   const targetDefaults = getCustomerTargetDefaults(row.name, revenue);
   const hunterTarget = row.hunter_target == null ? targetDefaults.hunter : Number(row.hunter_target);
   const farmerRenewalTarget = row.farmer_renewal_target == null ? targetDefaults.farmerRenewal : Number(row.farmer_renewal_target);
+  const studioTarget = row.studio_target == null ? targetDefaults.studio : Number(row.studio_target);
 
   return {
     id: row.id,
@@ -622,7 +638,8 @@ function fromCustomerRow(row: CustomerRow): Customer {
     managerResponsibleIds: row.manager_responsible_ids ?? (row.manager_responsible_id ? [row.manager_responsible_id] : []),
     hunterTarget,
     farmerRenewalTarget,
-    revenue: roundCurrency(hunterTarget + farmerRenewalTarget),
+    studioTarget,
+    revenue: roundCurrency(hunterTarget + farmerRenewalTarget + studioTarget),
     margin: Number(row.margin),
     strategicAccount: row.strategic_account,
   };
@@ -631,12 +648,14 @@ function fromCustomerRow(row: CustomerRow): Customer {
 function fromCustomerTargetRow(row: CustomerTargetRow): CustomerTarget {
   const hunterTarget = Number(row.hunter_target);
   const farmerRenewalTarget = Number(row.farmer_renewal_target);
+  const studioTarget = Number(row.studio_target ?? 0);
   return {
     customerId: row.customer_id,
     year: row.target_year,
     hunterTarget,
     farmerRenewalTarget,
-    revenue: Number(row.revenue) || roundCurrency(hunterTarget + farmerRenewalTarget),
+    studioTarget,
+    revenue: Number(row.revenue) || roundCurrency(hunterTarget + farmerRenewalTarget + studioTarget),
   };
 }
 
@@ -647,6 +666,7 @@ function fromLegacyCustomerTargetRow(row: CustomerRow): CustomerTarget {
     year: 2026,
     hunterTarget: customer.hunterTarget,
     farmerRenewalTarget: customer.farmerRenewalTarget,
+    studioTarget: customer.studioTarget,
     revenue: customer.revenue,
   };
 }
@@ -662,6 +682,7 @@ function applyCustomerTargetsForYear(customers: Customer[], targets: CustomerTar
       ...customer,
       hunterTarget: target.hunterTarget,
       farmerRenewalTarget: target.farmerRenewalTarget,
+      studioTarget: target.studioTarget,
       revenue: target.revenue,
     };
   });
@@ -671,10 +692,14 @@ function getCustomerTargetDefaults(name: string, revenue: number) {
   const importedHunter = getFinancialCustomerMetric(name, "hunterRevenue");
   const importedFarmerRenewal = getFinancialCustomerMetric(name, "deliveryFarmerRevenue");
   const importedTotal = importedHunter + importedFarmerRenewal;
-  if (revenue <= 0) return { hunter: 0, farmerRenewal: 0 };
-  if (importedTotal <= 0) return { hunter: 0, farmerRenewal: revenue };
+  if (revenue <= 0) return { hunter: 0, farmerRenewal: 0, studio: 0 };
+  if (importedTotal <= 0) return { hunter: 0, farmerRenewal: revenue, studio: 0 };
   const hunter = roundCurrency(revenue * (importedHunter / importedTotal));
-  return { hunter, farmerRenewal: roundCurrency(revenue - hunter) };
+  return { hunter, farmerRenewal: roundCurrency(revenue - hunter), studio: 0 };
+}
+
+function getCustomerTarget(customer: Customer) {
+  return roundCurrency(customer.hunterTarget + customer.farmerRenewalTarget + customer.studioTarget);
 }
 
 function roundCurrency(value: number) {

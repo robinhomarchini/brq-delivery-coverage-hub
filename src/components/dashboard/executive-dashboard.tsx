@@ -29,14 +29,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useDeliveryStore } from "@/store/delivery-store";
 import { exportDeliveryDataAsCsv, exportElementAsPdf } from "@/lib/export";
 import { formatCurrency } from "@/lib/utils";
-import { portfolioDeliveryManagers, portfolioDirectors, revenuePlans } from "@/data/customerPortfolioData";
 import { translateRole } from "@/lib/roles";
+import { applyCustomerTargetsForYear, defaultTargetYear } from "@/lib/customer-targets";
 
 const COLORS = ["#15171B", "#7F2EC9", "#EE7C38", "#2563EB", "#F97316", "#A3A3A3"];
 
 export function ExecutiveDashboard() {
   const chartsReady = useSyncExternalStore(subscribeToHydration, () => true, () => false);
-  const { people, customers } = useDeliveryStore();
+  const { people, customers, customerTargets } = useDeliveryStore();
+  const financialCustomers = applyCustomerTargetsForYear(customers, customerTargets, defaultTargetYear);
   const activePeople = people.filter((person) => person.active);
   const directors = activePeople.filter((person) => person.roleType === "Director" || person.roleType === "Executive");
   const managers = activePeople.filter((person) => person.isManager);
@@ -46,33 +47,48 @@ export function ExecutiveDashboard() {
   const farmers = activePeople.filter((person) => person.roleType === "Farmer");
   const hunterFarmers = activePeople.filter((person) => person.roleType === "Hunter + Farmer");
   const staff = activePeople.filter((person) => person.roleType === "Staff");
-  const totalRevenue = customers.reduce((total, customer) => total + customer.revenue, 0);
-  const financialTotals = revenuePlans.reduce((totals, plan) => ({
-    revenueCurrent: totals.revenueCurrent + plan.revenueCurrent,
-    revenueTarget: totals.revenueTarget + plan.revenueTarget,
-    hunterRevenue: totals.hunterRevenue + plan.hunterRevenue,
-    deliveryFarmerRevenue: totals.deliveryFarmerRevenue + plan.deliveryFarmerRevenue,
-  }), { revenueCurrent: 0, revenueTarget: 0, hunterRevenue: 0, deliveryFarmerRevenue: 0 });
-  const financialByCustomer = [...revenuePlans]
+  const totalRevenue = financialCustomers.reduce((total, customer) => total + getCustomerTarget(customer), 0);
+  const financialTotals = financialCustomers.reduce((totals, customer) => ({
+    revenueCurrent: totals.revenueCurrent + customer.revenue,
+    revenueTarget: totals.revenueTarget + getCustomerTarget(customer),
+    hunterRevenue: totals.hunterRevenue + customer.hunterTarget,
+    deliveryFarmerRevenue: totals.deliveryFarmerRevenue + customer.farmerRenewalTarget,
+    studioRevenue: totals.studioRevenue + customer.studioTarget,
+  }), { revenueCurrent: 0, revenueTarget: 0, hunterRevenue: 0, deliveryFarmerRevenue: 0, studioRevenue: 0 });
+  const financialByCustomer = financialCustomers
+    .map((customer) => ({
+      customerCluster: customer.name,
+      revenueCurrent: customer.revenue,
+      revenueTarget: getCustomerTarget(customer),
+      hunterRevenue: customer.hunterTarget,
+      deliveryFarmerRevenue: customer.farmerRenewalTarget,
+      studioRevenue: customer.studioTarget,
+    }))
     .sort((a, b) => b.revenueTarget - a.revenueTarget)
     .slice(0, 10);
-  const financialByDirector = portfolioDirectors.map((director) => {
-    const plans = revenuePlans.filter((plan) => plan.directorId === director.id);
+  const financialByDirector = activePeople
+    .filter((person) => person.roleType === "Director")
+    .map((director) => {
+    const plans = financialCustomers.filter((customer) => customer.directorResponsibleId === director.id);
     return {
       name: director.name,
-      revenueTarget: plans.reduce((total, plan) => total + plan.revenueTarget, 0),
-      hunterRevenue: plans.reduce((total, plan) => total + plan.hunterRevenue, 0),
-      deliveryFarmerRevenue: plans.reduce((total, plan) => total + plan.deliveryFarmerRevenue, 0),
+      revenueTarget: plans.reduce((total, customer) => total + getCustomerTarget(customer), 0),
+      hunterRevenue: plans.reduce((total, customer) => total + customer.hunterTarget, 0),
+      deliveryFarmerRevenue: plans.reduce((total, customer) => total + customer.farmerRenewalTarget, 0),
+      studioRevenue: plans.reduce((total, customer) => total + customer.studioTarget, 0),
     };
-  });
-  const financialByManager = portfolioDeliveryManagers
+  })
+    .filter((item) => item.revenueTarget > 0)
+    .sort((a, b) => b.revenueTarget - a.revenueTarget);
+  const financialByManager = managers
     .map((manager) => {
-      const plans = revenuePlans.filter((plan) => plan.managerIds.includes(manager.id));
+      const plans = financialCustomers.filter((customer) => customer.managerResponsibleIds.includes(manager.id));
       return {
         name: manager.name,
-        revenueTarget: plans.reduce((total, plan) => total + plan.revenueTarget, 0),
-        hunterRevenue: plans.reduce((total, plan) => total + plan.hunterRevenue, 0),
-        deliveryFarmerRevenue: plans.reduce((total, plan) => total + plan.deliveryFarmerRevenue, 0),
+        revenueTarget: plans.reduce((total, customer) => total + getCustomerTarget(customer), 0),
+        hunterRevenue: plans.reduce((total, customer) => total + customer.hunterTarget, 0),
+        deliveryFarmerRevenue: plans.reduce((total, customer) => total + customer.farmerRenewalTarget, 0),
+        studioRevenue: plans.reduce((total, customer) => total + customer.studioTarget, 0),
       };
     })
     .filter((item) => item.revenueTarget > 0)
@@ -153,11 +169,12 @@ export function ExecutiveDashboard() {
           ))}
         </section>
 
-        <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
           <FinancialKpi label="Receita Atual" value={formatCurrency(financialTotals.revenueCurrent)} icon={TrendingUp} />
           <FinancialKpi label="Meta Prevista" value={formatCurrency(financialTotals.revenueTarget)} icon={Target} />
           <FinancialKpi label="Receita Hunter" value={formatCurrency(financialTotals.hunterRevenue)} icon={UserCog} />
           <FinancialKpi label="Delivery/Farmer" value={formatCurrency(financialTotals.deliveryFarmerRevenue)} icon={BriefcaseBusiness} />
+          <FinancialKpi label="Áreas / Studios" value={formatCurrency(financialTotals.studioRevenue)} icon={Building2} />
         </section>
 
         <ChartCard title="Visão Financeira por Cliente">
@@ -184,7 +201,8 @@ export function ExecutiveDashboard() {
                 <Tooltip cursor={{ fill: "#f1f5f9" }} formatter={(value) => formatCurrency(Number(value))} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Bar dataKey="hunterRevenue" name="Hunter" stackId="total" fill="#EE7C38" radius={[0, 0, 0, 0]} />
-                <Bar dataKey="deliveryFarmerRevenue" name="Delivery/Farmer" stackId="total" fill="#7F2EC9" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="deliveryFarmerRevenue" name="Delivery/Farmer" stackId="total" fill="#7F2EC9" radius={[0, 0, 0, 0]} />
+                <Bar dataKey="studioRevenue" name="Áreas / Studios" stackId="total" fill="#06B6D4" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer> : <ChartPlaceholder />}
           </ChartCard>
@@ -198,7 +216,8 @@ export function ExecutiveDashboard() {
                 <Tooltip cursor={{ fill: "#f1f5f9" }} formatter={(value) => formatCurrency(Number(value))} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Bar dataKey="hunterRevenue" name="Hunter" stackId="total" fill="#EE7C38" radius={[0, 0, 0, 0]} />
-                <Bar dataKey="deliveryFarmerRevenue" name="Delivery/Farmer" stackId="total" fill="#7F2EC9" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="deliveryFarmerRevenue" name="Delivery/Farmer" stackId="total" fill="#7F2EC9" radius={[0, 0, 0, 0]} />
+                <Bar dataKey="studioRevenue" name="Áreas / Studios" stackId="total" fill="#06B6D4" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer> : <ChartPlaceholder />}
           </ChartCard>
@@ -266,6 +285,10 @@ function FinancialKpi({ label, value, icon: Icon }: { label: string; value: stri
       </CardContent>
     </Card>
   );
+}
+
+function getCustomerTarget(customer: { hunterTarget: number; farmerRenewalTarget: number; studioTarget: number }) {
+  return customer.hunterTarget + customer.farmerRenewalTarget + customer.studioTarget;
 }
 
 function compactCurrency(value: number) {

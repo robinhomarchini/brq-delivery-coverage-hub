@@ -1,4 +1,5 @@
 import type { Customer, Person, Subject } from "@/data/mockData";
+import { formatPercentPtBr, targetMarginPercent } from "@/lib/financial-targets";
 
 export interface AiInsight {
   title: string;
@@ -39,10 +40,10 @@ export function detectUncoveredSubjects(subjects: Subject[]): AiInsight[] {
 }
 
 export function suggestPortfolioRebalance(customers: Customer[]): AiInsight[] {
-  const lowMargin = customers.filter((customer) => customer.margin < 18);
+  const lowMargin = customers.filter((customer) => customer.margin < targetMarginPercent);
   return [{
-    title: "Revisar portfólio de baixa margem",
-    description: `${lowMargin.length} conta(s) estão abaixo de 18% de margem no cenário demonstrativo.`,
+    title: "Revisar portfólio abaixo da margem-alvo",
+    description: `${lowMargin.length} conta(s) estão abaixo da margem-alvo informativa de ${formatPercentPtBr(targetMarginPercent)}.`,
     severity: lowMargin.length ? "attention" : "info",
   }];
 }

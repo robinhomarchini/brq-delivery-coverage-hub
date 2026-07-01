@@ -21,8 +21,8 @@ atômicas, RLS auditável e guardrails de produção.
 
 - RPC transacional para salvar Pessoa com clientes.
 - RPC transacional para salvar Cliente com managers.
-- RPC transacional para salvar metas Hunter e Renovação + Ampliação de uma
-  pessoa em um cliente/ano.
+- RPC transacional para salvar metas Hunter, Renovação + Ampliação e Áreas /
+  Studios de uma pessoa em um cliente/ano.
 - Auditoria em `person_customer_assignments` e `revenue_target_allocations`.
 - Guardrail no app para bloquear mock local em produção sem Supabase.
 

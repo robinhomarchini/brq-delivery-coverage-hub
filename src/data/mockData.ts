@@ -5,6 +5,7 @@ import {
   getFinancialCustomerMetric,
   splitAmount,
 } from "@/lib/financial-customers";
+import { targetMarginPercent } from "@/lib/financial-targets";
 
 export type RoleType =
   | "Executive"
@@ -49,6 +50,7 @@ export interface Customer {
   managerResponsibleIds: string[];
   hunterTarget: number;
   farmerRenewalTarget: number;
+  studioTarget: number;
   revenue: number;
   margin: number;
   strategicAccount: boolean;
@@ -59,6 +61,7 @@ export interface CustomerTarget {
   year: number;
   hunterTarget: number;
   farmerRenewalTarget: number;
+  studioTarget: number;
   revenue: number;
 }
 
@@ -72,7 +75,7 @@ export interface Subject {
   strategic: boolean;
 }
 
-export type TargetAllocationType = "hunter" | "farmer_renewal";
+export type TargetAllocationType = "hunter" | "farmer_renewal" | "studio";
 
 export interface TargetAllocation {
   id: string;
@@ -104,8 +107,9 @@ export const customers: Customer[] = financialSourceCustomerNames.map((name) => 
   ...getFinancialCustomerGovernance(name),
   hunterTarget: getFinancialCustomerMetric(name, "hunterRevenue"),
   farmerRenewalTarget: getFinancialCustomerMetric(name, "deliveryFarmerRevenue"),
+  studioTarget: 0,
   revenue: getFinancialCustomerMetric(name, "revenueTarget"),
-  margin: 22.5,
+  margin: targetMarginPercent,
   strategicAccount: true,
 }));
 
@@ -114,6 +118,7 @@ export const customerTargets: CustomerTarget[] = customers.map((customer) => ({
   year: 2026,
   hunterTarget: customer.hunterTarget,
   farmerRenewalTarget: customer.farmerRenewalTarget,
+  studioTarget: customer.studioTarget,
   revenue: customer.revenue,
 }));
 

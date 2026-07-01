@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronDown, ChevronUp, ImageDown, Info, LoaderCircle } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { PersonCard } from "./person-card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useDeliveryStore } from "@/store/delivery-store";
 import { exportElementAsPng } from "@/lib/export";
+import { useCloseOnNavigation } from "@/lib/use-close-on-navigation";
 
 export function OrganizationChart() {
   const { people, customers, areas } = useDeliveryStore();
@@ -21,6 +22,15 @@ export function OrganizationChart() {
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState("");
   const [previewUrl, setPreviewUrl] = useState("");
+
+  const closePreview = useCallback(() => {
+    setPreviewUrl((current) => {
+      if (current) URL.revokeObjectURL(current);
+      return "";
+    });
+  }, []);
+
+  useCloseOnNavigation(closePreview);
 
   async function handleExport() {
     setExporting(true);
@@ -159,10 +169,7 @@ export function OrganizationChart() {
       {previewUrl && <Dialog
         open={Boolean(previewUrl)}
         onOpenChange={(open) => {
-          if (!open) {
-            URL.revokeObjectURL(previewUrl);
-            setPreviewUrl("");
-          }
+          if (!open) closePreview();
         }}
       >
         <DialogContent className="max-w-[92vw]">

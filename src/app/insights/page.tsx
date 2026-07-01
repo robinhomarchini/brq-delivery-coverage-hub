@@ -7,7 +7,7 @@ export default function InsightsPage() {
       <PageHeader
         eyebrow="Insights executivos"
         title="Insights"
-        description="Importe uma planilha de baseline, compare metas por cliente e valide a consistência dos Hunters antes de atualizar a base."
+        description="Importe uma planilha de baseline, compare Hunter, Renovação + Ampliação e Áreas / Studios por cliente e valide consistências antes de atualizar a base."
       />
       <TargetBaselineImport />
     </>

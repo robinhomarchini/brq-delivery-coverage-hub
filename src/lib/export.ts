@@ -64,7 +64,7 @@ export function exportDeliveryDataAsCsv(
     ...people.map((person) => [person.name, person.email ?? "", person.jobTitle, person.roleType, person.active ? "Sim" : "Não"]),
     [],
     ["CLIENTES"],
-    ["Nome", "Indústria", "Diretor", "Managers", "Receita", "Margem", "Estratégica"],
+    ["Nome", "Indústria", "Diretor", "Managers", "Receita", "Margem alvo", "Estratégica"],
     ...customers.map((customer) => [
       customer.name,
       customer.industry,

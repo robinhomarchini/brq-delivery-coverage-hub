@@ -27,6 +27,8 @@
   SICOOB, SICREDI, TRAVELEX, VISA, VOTORANTIM, XP INVESTIMENTOS e ZURICH.
 - O cliente Itaú aceita múltiplos managers responsáveis: Bruno, Orion, Fernanda
   e Ricardo Bonfim.
+- A margem do cliente é exibida como margem-alvo informativa, com padrão de
+  35,8%, sem cálculo de apuração real nesta versão.
 - Os clientes-fonte de Itaú ficam com diretor CA e managers Bruno, Orion,
   Fernanda e Ricardo Bonfim.
 - Alelo e CIP ficam com diretor CA e manager padrão Ana Braz.
@@ -70,23 +72,25 @@
 - O módulo Portfólio de Clientes renderiza a carga importada da planilha
   Financial BU.
 - O módulo Portfólio de Clientes exibe Cliente, Diretor Responsável, Manager
-  Responsável, Receita Atual, Meta Prevista, Receita Hunter e Receita
-  Delivery/Farmer.
+  Responsável, Receita Atual, Meta Prevista, Receita Hunter, Receita
+  Delivery/Farmer e Áreas / Studios quando aplicável.
 - O módulo Portfólio de Clientes apresenta dashboards por Diretor, Manager e
   Cluster de Cliente.
 - O módulo Portfólio de Clientes compara Receita Atual e Meta Prevista por
   cliente/cluster.
 - O módulo Portfólio de Clientes reconcilia Receita Hunter + Receita
-  Delivery/Farmer com o total Financial BU de R$ 538.269.290.
+  Delivery/Farmer + Áreas / Studios com o total Financial BU.
 - A tela de Metas permite cadastrar, editar e excluir metas por Cliente, Pessoa,
   Tipo de Meta e Ano.
-- A tela de Metas separa Tipo de Meta em Hunter e Farmer/Renovação.
+- A tela de Metas separa Tipo de Meta em Hunter, Farmer/Renovação e Áreas /
+  Studios.
 - A tela de Metas impede duplicidade para a mesma combinação Cliente + Pessoa +
   Tipo de Meta + Ano.
 - A tela de Metas mostra a conciliação entre meta total do cliente e soma das
   metas das pessoas.
 - A tela Metas por Pessoa mostra Meta do Cliente, Já associado a outras pessoas
-  e Gap após edição quebrados em Hunter e Renovação + Ampliação.
+  e Gap após edição quebrados em Hunter, Renovação + Ampliação e Áreas /
+  Studios.
 - A tela de Metas bloqueia salvamento quando a soma das pessoas ultrapassa a
   meta total do cliente.
 - Ao salvar uma meta com sucesso, a tela exibe mensagem flutuante de
@@ -98,6 +102,9 @@
   Financial.
 - O Dashboard Executivo exibe a visão financeira por Diretor e por
   subordinado/manager.
+- O Dashboard Executivo deriva a visão financeira de Clientes/metas anuais e
+  mostra Hunter, Renovação + Ampliação e Áreas / Studios sem usar fonte
+  financeira paralela.
 - A navegação não apresenta Territórios e mostra Assuntos como item
   desabilitado/pausado.
 - A rota direta `/assuntos` renderiza uma mensagem de módulo em avaliação, sem

@@ -25,7 +25,9 @@ experiência do usuário até nova definição de modelo.
 - Delivery, Farmer + Delivery, Hunter, Farmer, Hunter + Farmer, Staff e
   Diretores têm identidade visual distinta.
 - Apenas pessoas com `isManager: true` entram no KPI de Managers.
-- Receita e margem pertencem ao portfólio de clientes.
+- Receita e margem pertencem ao portfólio de clientes. Nesta etapa, margem é
+  apenas margem-alvo informativa com padrão de 35,8%; apuração real fica para
+  evolução futura.
 - Assuntos por cliente estão pausados na navegação, nas visualizações e nos
   exports enquanto o modelo de cobertura é reavaliado.
 - A cobertura executiva segue Diretor → Manager → Cliente.
@@ -57,17 +59,19 @@ experiência do usuário até nova definição de modelo.
   um ou mais managers responsáveis.
 - O portfólio de clientes/metas possui entidades de Cliente, Diretor, Delivery
   Manager e Plano de Receita.
-- O plano de receita suporta Receita Atual, Meta Prevista, Receita Hunter e
-  Receita Delivery/Farmer. Hunters são usados somente para atribuição de meta e
-  reporting; não entram como owners da governança de Delivery.
-- Metas editáveis devem ser separadas em Hunter e Renovação + Ampliação,
-  vinculadas a uma pessoa, cliente e ano, sem duplicidade para Cliente + Pessoa
-  + Tipo + Ano.
+- O plano de receita suporta Receita Atual, Meta Prevista, Receita Hunter,
+  Receita Delivery/Farmer e Áreas / Studios. Hunters são usados somente para
+  atribuição de meta e reporting; não entram como owners da governança de
+  Delivery.
+- Metas editáveis devem ser separadas em Hunter, Renovação + Ampliação e Áreas
+  / Studios, vinculadas a uma pessoa, cliente e ano, sem duplicidade para
+  Cliente + Pessoa + Tipo + Ano.
 - A tela de Metas deve exibir uma visão anual por pessoa, somando a meta Hunter,
-  a meta de Renovação + Ampliação e a meta total de cada colaborador no ano
-  selecionado.
+  a meta de Renovação + Ampliação, a meta de Áreas / Studios e a meta total de
+  cada colaborador no ano selecionado.
 - Deve existir uma tela operacional "Metas por Pessoa" para associar, em uma
-  única grade, Pessoa + Ano + Cliente + Meta Hunter + Meta Renovação/Ampliação.
+  única grade, Pessoa + Ano + Cliente + Meta Hunter + Meta Renovação/Ampliação
+  + Meta Áreas/Studios.
   Essa tela grava na tabela normalizada `revenue_target_allocations` e alimenta
   as demais visões de metas, dashboards e consolidações.
 - A tela "Metas por Pessoa" deve excluir pessoas com perfil Executivo ou Diretor
@@ -84,14 +88,15 @@ experiência do usuário até nova definição de modelo.
   cliente e destacar pendências até o fechamento exato.
 - Se uma edição em "Metas por Pessoa" ultrapassar a meta atual do cliente, o
   sistema deve solicitar confirmação para aumentar a meta do cliente pelo
-  excedente, identificando se o acréscimo veio de Hunter, Renovação + Ampliação
-  ou ambos.
+  excedente, identificando se o acréscimo veio de Hunter, Renovação + Ampliação,
+  Áreas / Studios ou combinação desses componentes.
 - Deve existir um Assistente de Metas acionável que aponte clientes sem meta,
   sem manager, sem hunter associado quando houver meta Hunter esperada e clientes
   cuja soma das pessoas não bate com a meta total. Cada achado deve navegar para
   a tela de correção apropriada.
 - Deve existir um Relatório de Pessoas e Metas com visão por pessoa, ano, Meta
-  Hunter, Meta Renovação + Ampliação, Meta Total e clientes associados.
+  Hunter, Meta Renovação + Ampliação, Áreas / Studios, Meta Total e clientes
+  associados.
 - Deve existir uma página Ajuda com link para um guia rápido em PDF para
   homologadores.
 - Diretores não recebem meta duplicada por cliente; Ane Knust e CA consolidam as

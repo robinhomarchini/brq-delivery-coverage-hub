@@ -22,37 +22,40 @@ leva diretamente para a tela operacional de ajuste correspondente.
 A tela de Clientes usa os clientes-fonte da planilha Financial BU como base
 operacional. O formulário de novo cliente exibe Nome do cliente, Indústria,
 Diretor responsável, Managers responsáveis, Hunter responsável, Conta
-estratégica, Meta Hunter, Meta Renovação + Ampliação, Meta Total calculada e
-Margem. A listagem e o formulário
-exibem a composição financeira em Meta Hunter, Meta Renovação + Ampliação e Meta
-Total, sempre formatada em reais. A tela de Clientes é a base da meta do
-cliente: Meta Total é calculada por Meta Hunter + Meta Renovação + Ampliação. A
+estratégica, Meta Hunter, Meta Renovação + Ampliação, Meta Áreas / Studios e
+Meta Total calculada. A listagem e o formulário exibem a composição financeira
+em Meta Hunter, Meta Renovação + Ampliação, Áreas / Studios e Meta Total, sempre
+formatada em reais. A tela de Clientes é a base da meta do cliente: Meta Total é
+calculada por Meta Hunter + Meta Renovação + Ampliação + Áreas / Studios. A
 carga Financial BU pode sugerir a quebra inicial, mas após edição os campos do
 cadastro do cliente são a fonte de verdade para as demais telas.
-Meta Hunter e Meta Renovação + Ampliação aceitam `0` como valor válido. Campo
-em branco nesses dois campos deve ser interpretado como R$ 0 e não pode bloquear
-o salvamento do cliente.
+Margem deve ser tratada como margem-alvo informativa, com padrão de 35,8%,
+sem apuração automática nesta versão.
+Meta Hunter, Meta Renovação + Ampliação e Meta Áreas / Studios aceitam `0` como
+valor válido. Campo em branco nesses campos deve ser interpretado como R$ 0 e
+não pode bloquear o salvamento do cliente.
 Managers responsáveis representam governança Delivery da conta. O Hunter
 responsável representa vínculo cadastral/comercial. Áreas / Studios classificam
 pessoas e podem apoiar a execução, mas não substituem o manager responsável do
 cliente.
 No modal de edição, a composição da meta também deve mostrar a distribuição por
-pessoa no ano corrente, separando Hunter, Renovação + Ampliação e Total por
-pessoa. Quando parte da meta ainda não estiver alocada, a tela deve exibir uma
+pessoa no ano corrente, separando Hunter, Renovação + Ampliação, Áreas /
+Studios e Total por pessoa. Quando parte da meta ainda não estiver alocada, a tela deve exibir uma
 linha "Em aberto sem pessoa alocada"; quando houver alocação acima da meta do
 cliente, a tela deve indicar o excedente e oferecer atalho para revisão em Metas
 por Pessoa.
 A listagem principal de Clientes também deve exibir, por cliente e ano corrente,
-quais pessoas compõem a meta Hunter e quais pessoas compõem a meta Renovação +
-Ampliação/Farmer, com os valores alocados por pessoa, derivados de
+quais pessoas compõem a meta Hunter, a meta Renovação + Ampliação/Farmer e a
+meta Áreas / Studios, com os valores alocados por pessoa, derivados de
 `revenue_target_allocations`.
 Linhas de saldo "Em aberto" ou "Acima da meta" só devem aparecer quando houver
 valor material visível em reais; diferenças residuais de centavos/arredondamento
 que aparecem como R$ 0 não devem gerar linhas no grid.
 Essas linhas devem considerar o saldo líquido total do cliente. Se Hunter estiver
-abaixo da quebra sugerida e Renovação + Ampliação estiver acima no mesmo valor
--- ou vice-versa -- e a soma das pessoas bater com a meta total do cliente, não
-deve existir linha de pendência nem de excedente.
+abaixo da quebra sugerida e outra parcela estiver acima no mesmo valor -- por
+exemplo Renovação + Ampliação ou Áreas / Studios -- e a soma das pessoas bater
+com a meta total do cliente, não deve existir linha de pendência nem de
+excedente.
 
 O cadastro de cliente deve permitir zero, um ou vários managers responsáveis.
 As regras automáticas de CA/Ane/Ana/Bruno/Orion/Fernanda/Bonfim são sugestões de
@@ -88,9 +91,11 @@ Na listagem principal de Clientes, a coluna de governança deve exibir apenas o
 diretor responsável pelo cliente, como CA ou Ane Knust. Managers e pessoas que
 compõem as metas devem ficar nas colunas seguintes, evitando duplicidade visual.
 
-Na tela Metas por Pessoa, os valores de Hunter e Renovação + Ampliação exibidos
+Na tela Metas por Pessoa, os valores de Hunter, Renovação + Ampliação e Áreas /
+Studios exibidos
 na coluna "Meta do Cliente" devem vir diretamente da base do cliente
-(`customers.hunter_target` e `customers.farmer_renewal_target`). Esses valores
+(`customers.hunter_target`, `customers.farmer_renewal_target` e
+`customers.studio_target`). Esses valores
 funcionam como atalhos de alocação. Ao clicar em um valor, o sistema deve pedir
 confirmação e, se houver saldo disponível não alocado a outras pessoas para
 aquele tipo, salvar imediatamente a meta daquele tipo para a pessoa selecionada
@@ -222,7 +227,8 @@ como referência analítica importada.
 A rota Metas funciona como visão de conciliação e consolidação executiva. A rota
 Metas por Pessoa é a tela operacional principal para associar metas: o usuário
 seleciona uma pessoa e um ano, escolhe o cliente na grade e informa os valores
-de Meta Hunter e Meta Renovação + Ampliação para aquele Cliente + Pessoa + Ano.
+de Meta Hunter, Meta Renovação + Ampliação e Áreas / Studios para aquele
+Cliente + Pessoa + Ano.
 Ambas as telas usam `revenue_target_allocations` como fonte única de verdade.
 Renovação + Ampliação pode ser distribuída entre managers, farmers/delivery e
 pessoas dos Studios, desde que o perfil permita meta direta. O cadastro
@@ -251,9 +257,9 @@ relacionados à associação de metas navegam para Metas por Pessoa com cliente 
 ano pré-selecionados.
 
 A rota Relatório de Metas apresenta visão por pessoa e ano, com Meta Hunter,
-Meta Renovação + Ampliação, Meta Total, quantidade de clientes e lista resumida
-de clientes. Cada pessoa do relatório deve navegar para Metas por Pessoa com a
-pessoa e o ano pré-selecionados.
+Meta Renovação + Ampliação, Áreas / Studios, Meta Total, quantidade de clientes
+e lista resumida de clientes. Cada pessoa do relatório deve navegar para Metas
+por Pessoa com a pessoa e o ano pré-selecionados.
 
 As metas-base do cliente também são anuais. A chave canônica é
 `customer_id + target_year` em `customer_target_years`; os campos financeiros
@@ -262,33 +268,37 @@ Telas com valores financeiros devem exibir e filtrar o ano de referência.
 
 Na rota Metas por Pessoa, o combo Pessoa deve iniciar vazio quando não houver
 `personId` na URL, obrigando o usuário a escolher uma pessoa antes de carregar a
-grade ou incluir clientes. Os campos de Meta Hunter e Meta Renovação + Ampliação
+grade ou incluir clientes. Os campos de Meta Hunter, Meta Renovação + Ampliação
+e Áreas / Studios
 devem ser inputs monetários largos, com prefixo visual de R$, seleção automática
 ao focar e suporte a digitação em formato brasileiro, como `11.033.497,00`.
-O grid também deve exibir, por cliente e ano, quais pessoas compõem a meta Hunter
-e quais pessoas compõem a meta Renovação + Ampliação/Farmer, incluindo valores
-por pessoa. Quando a pessoa selecionada tiver valor digitado ainda não salvo, a
+O grid também deve exibir, por cliente e ano, quais pessoas compõem a meta
+Hunter, quais pessoas compõem a meta Renovação + Ampliação/Farmer e quais
+pessoas compõem Áreas / Studios, incluindo valores por pessoa. Quando a pessoa selecionada tiver valor digitado ainda não salvo, a
 linha deve indicar que aquela composição está em edição.
 
 A rota Insights permite importar uma planilha `.xlsx` de baseline de metas com
 as colunas Cliente, BU, Target RL Hunter, Target RL Farmer, Total RL 2026 e
-resp. A importação não sobrescreve a base automaticamente. Primeiro o sistema
+resp, aceitando uma coluna opcional de Áreas / Studios. A importação não sobrescreve a base automaticamente. Primeiro o sistema
 compara cliente a cliente contra `customer_target_years` do ano selecionado e
 valida se o responsável Hunter da planilha está consistente com as pessoas e
 metas Hunter cadastradas. As divergências aparecem em uma grade com checkbox por
 cliente. Só os itens marcados pelo usuário atualizam a base canônica anual.
 A importação deve respeitar as colunas financeiras da planilha: `Target RL
-Hunter` compara com Meta Hunter e `Target RL Farmer` compara com Renovação +
-Ampliação. O campo `resp` identifica o responsável informado na planilha para
-análise, mas não reclassifica automaticamente valores entre Hunter e Renovação.
+Hunter` compara com Meta Hunter, `Target RL Farmer` compara com Renovação +
+Ampliação e a coluna opcional de Áreas / Studios compara com Meta Áreas /
+Studios. Quando essa coluna não existir, o saldo entre Total, Hunter e
+Renovação + Ampliação é tratado como Áreas / Studios. O campo `resp` identifica
+o responsável informado na planilha para análise, mas não reclassifica
+automaticamente valores entre os componentes.
 
 A rota Ajuda deve disponibilizar um guia rápido simples em PDF, publicado como
 link estático, com instruções de uso para homologadores.
 
 O Dashboard Executivo também apresenta uma visão financeira resumida dos clientes
 Financial, com Receita Atual, Meta Prevista, Receita Hunter, Receita
-Delivery/Farmer, ranking de clientes por meta, abertura por Diretor e abertura
-por subordinado/manager.
+Delivery/Farmer, Áreas / Studios, ranking de clientes por meta, abertura por
+Diretor e abertura por subordinado/manager.
 
 Entidades do módulo:
 
@@ -307,12 +317,13 @@ Campos exibidos:
 - Meta Prevista.
 - Receita Hunter.
 - Receita Delivery/Farmer.
+- Áreas / Studios.
 
 Campos do cadastro de Metas:
 
 - Cliente.
 - Pessoa.
-- Tipo de Meta: Hunter ou Renovação + Ampliação.
+- Tipo de Meta: Hunter, Renovação + Ampliação ou Áreas / Studios.
 - Ano.
 - Valor da Meta.
 - Observações.
@@ -324,10 +335,13 @@ Campos da associação de Metas por Pessoa:
 - Cliente.
 - Meta Hunter do Cliente.
 - Meta Renovação + Ampliação do Cliente.
-- Já associado a outras pessoas, separado por Hunter e Renovação + Ampliação.
-- Gap após edição, separado por Hunter e Renovação + Ampliação.
+- Meta Áreas / Studios do Cliente.
+- Já associado a outras pessoas, separado por Hunter, Renovação + Ampliação e
+  Áreas / Studios.
+- Gap após edição, separado por Hunter, Renovação + Ampliação e Áreas / Studios.
 - Meta Hunter.
 - Meta Renovação + Ampliação.
+- Meta Áreas / Studios.
 - Total associado.
 - Origem do vínculo na tela: cliente associado, meta existente ou incluído na
   edição atual.
@@ -345,20 +359,21 @@ Regras do cadastro de Metas:
   salvamento não deve permitir que a soma das pessoas ultrapasse a meta total do
   cliente.
 - A tela Metas por Pessoa deve quebrar a meta do cliente, o valor já associado
-  a outras pessoas e o gap após edição em Hunter e Renovação + Ampliação, para
+  a outras pessoas e o gap após edição em Hunter, Renovação + Ampliação e Áreas
+  / Studios, para
   deixar claro onde falta ou sobra meta.
 - Na tela Metas por Pessoa, quando uma alteração fizer a soma das metas das
   pessoas ultrapassar a meta atual do cliente, o sistema deve perguntar se o
   usuário deseja aumentar a meta do cliente pelo excedente. Se confirmado, a
   meta total do cliente é elevada antes de gravar a nova meta da pessoa; a
-  mensagem deve indicar se o acréscimo veio de Hunter, Renovação + Ampliação ou
-  ambos.
+  mensagem deve indicar se o acréscimo veio de Hunter, Renovação + Ampliação,
+  Áreas / Studios ou combinação desses componentes.
 - Hunter é usado somente para atribuição/reporting de metas e não transforma a
   pessoa em responsável de Delivery do cliente.
 - Renovação + Ampliação representa o crescimento e manutenção das squads
   existentes, trabalho de Farmer e Delivery Manager.
 - A tela deve exibir uma visão anual por pessoa, com Meta Hunter, Meta Renovação
-  + Ampliação, Meta Total, quantidade de clientes atendidos e status de
+  + Ampliação, Áreas / Studios, Meta Total, quantidade de clientes atendidos e status de
   cobertura no ano selecionado.
 - A tela deve exibir uma consolidação hierárquica anual:
   - Robinson consolida todos os managers e hunters da estrutura.

@@ -43,8 +43,8 @@ function buildPdf(path) {
   [
     "1. Revise Pessoas: confirme perfil, cliente associado e se a pessoa pode receber meta direta.",
     "2. Revise Areas/Studios: cadastre Alianças, PX, Mobile, BA, IA, Dados ou outros grupos que apoiam Delivery.",
-    "3. Revise Clientes: confirme diretor, managers, Hunter responsavel, metas Hunter/Renovacao por ano, margem e conta estrategica.",
-    "4. Use Metas por Pessoa: selecione a pessoa e o ano, informe valores Hunter e Renovacao + Ampliacao por cliente.",
+    "3. Revise Clientes: confirme diretor, managers, Hunter responsavel, metas Hunter/Renovacao/Areas-Studio por ano, margem-alvo 35,8% e conta estrategica.",
+    "4. Use Metas por Pessoa: selecione a pessoa e o ano, informe valores Hunter, Renovacao + Ampliacao e Areas / Studios por cliente.",
     "5. Use Insights: importe a planilha baseline e aplique somente divergencias marcadas.",
     "6. Use Metas e Relatorio de Metas: acompanhe pendencias e valores por pessoa.",
   ].forEach((item) => {
@@ -58,8 +58,8 @@ function buildPdf(path) {
     ["Tela", "Quando usar", "Resultado esperado"],
     ["Pessoas", "Cadastrar profissionais, perfil, Area/Studio e clientes vinculados.", "Cobertura correta para mapa, organograma e metas."],
     ["Areas/Studios", "Cadastrar grupos como Alianças, PX, Mobile, BA, IA e Dados.", "Classificacao reutilizavel, sem lista fixa no front."],
-    ["Clientes", "Ajustar diretor, managers, Hunter e metas anuais.", "Governanca e baseline financeiro atualizados."],
-    ["Metas por Pessoa", "Lancar valores Hunter e Renovacao + Ampliacao.", "Distribuicao por pessoa, cliente e ano."],
+    ["Clientes", "Ajustar diretor, managers, Hunter, metas anuais e margem-alvo.", "Governanca e baseline financeiro atualizados."],
+    ["Metas por Pessoa", "Lancar valores Hunter, Renovacao + Ampliacao e Areas / Studios.", "Distribuicao por pessoa, cliente e ano."],
     ["Metas", "Conferir conciliacao e usar o assistente.", "Pendencias visiveis e acionaveis."],
     ["Insights", "Comparar planilha Financial BU com a base.", "Atualizacao controlada por checkbox."],
   ];
@@ -72,7 +72,9 @@ function buildPdf(path) {
     "Renan nao deve carregar meta propria porque responde diretamente a Robinson.",
     "Managers no Cliente representam governanca Delivery; Studios/Areas classificam pessoas que podem participar da execucao.",
     "Renovacao + Ampliacao pode ser distribuida entre managers, farmers/delivery e pessoas dos Studios quando fizer sentido operacional.",
-    "A importacao respeita as colunas Target RL Hunter e Target RL Farmer da planilha. Se o sistema divergir, corrija Metas por Pessoa ou aplique o baseline.",
+    "A meta total do cliente e composta por Hunter + Renovacao e Ampliacao + Areas / Studios.",
+    "A margem e informativa nesta versao; o alvo padrao e 35,8%, sem apuracao automatica.",
+    "A importacao respeita as colunas Target RL Hunter, Target RL Farmer e, quando existir, Areas / Studios. Se o sistema divergir, corrija Metas por Pessoa ou aplique o baseline.",
     "Se a soma das metas das pessoas ultrapassar a meta do cliente, o sistema pergunta se a meta do cliente deve ser aumentada.",
     "O Assistente de Metas mostra clientes sem meta, sem manager, sem hunter associado e divergencias de conciliacao.",
   ].forEach((item) => {

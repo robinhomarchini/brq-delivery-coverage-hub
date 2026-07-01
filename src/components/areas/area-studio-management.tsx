@@ -1,7 +1,7 @@
 "use client";
 
 import { Layers3, Pencil, Plus, Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { Area } from "@/data/mockData";
 import { EmptyState } from "@/components/shared/empty-state";
 import { FilterBar } from "@/components/shared/filter-bar";
@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useDeliveryStore } from "@/store/delivery-store";
 import { getAreaUsage, getAreaUsageTotal } from "@/lib/area-usage";
 import { makeId } from "@/lib/utils";
+import { useCloseOnNavigation } from "@/lib/use-close-on-navigation";
 
 export function AreaStudioManagement() {
   const { areas, areaUsages, people, saveArea, deleteArea } = useDeliveryStore();
@@ -31,6 +32,13 @@ export function AreaStudioManagement() {
       .filter((area) => !query || `${area.name} ${area.description}`.toLowerCase().includes(query))
       .sort((first, second) => first.name.localeCompare(second.name));
   }, [areas, search]);
+
+  const closeForm = useCallback(() => {
+    setOpen(false);
+    setEditing(null);
+  }, []);
+
+  useCloseOnNavigation(closeForm);
 
   function openForm(area?: Area) {
     setEditing(area ?? null);
@@ -50,7 +58,7 @@ export function AreaStudioManagement() {
         name,
         description: String(formData.get("description") ?? ""),
       });
-      setOpen(false);
+      closeForm();
       setSuccess(`Área/Studio ${name} salvo com sucesso.`);
       window.setTimeout(() => setSuccess(""), 4000);
     } catch (error) {
@@ -159,7 +167,7 @@ export function AreaStudioManagement() {
               <Textarea name="description" defaultValue={editing?.description} maxLength={500} rows={4} />
             </Field>
             <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+              <Button type="button" variant="outline" onClick={closeForm}>Cancelar</Button>
               <Button type="submit">Salvar área/studio</Button>
             </div>
           </form>

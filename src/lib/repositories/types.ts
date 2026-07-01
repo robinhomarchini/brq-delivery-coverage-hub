@@ -12,6 +12,7 @@ export interface PersonCustomerTargetsInput {
   year: number;
   hunterAmount: number;
   farmerRenewalAmount: number;
+  studioAmount: number;
   increaseCustomerTarget: boolean;
   notes?: string;
 }

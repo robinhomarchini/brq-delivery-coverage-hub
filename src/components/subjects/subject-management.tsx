@@ -1,7 +1,7 @@
 "use client";
 
 import { Pencil, Plus, Tags, Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import type { Subject, SubjectStatus } from "@/data/mockData";
 import { PageHeader } from "@/components/shared/page-header";
 import { FilterBar } from "@/components/shared/filter-bar";
@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useDeliveryStore } from "@/store/delivery-store";
 import { makeId } from "@/lib/utils";
+import { useCloseOnNavigation } from "@/lib/use-close-on-navigation";
 
 const statuses: SubjectStatus[] = ["Ativo", "Em evolução", "Atenção", "Planejado"];
 
@@ -36,6 +37,13 @@ export function SubjectManagement() {
     && (!status || subject.status === status)
   ), [customer, owner, search, status, subjects]);
 
+  const closeForm = useCallback(() => {
+    setOpen(false);
+    setEditing(null);
+  }, []);
+
+  useCloseOnNavigation(closeForm);
+
   function openForm(item?: Subject) {
     setEditing(item ?? null);
     setOpen(true);
@@ -52,7 +60,7 @@ export function SubjectManagement() {
       status: String(formData.get("status")) as SubjectStatus,
       strategic: formData.get("strategic") === "true",
       });
-      setOpen(false);
+      closeForm();
     } catch {
       // The store exposes a user-facing persistence error.
     }
@@ -116,7 +124,7 @@ export function SubjectManagement() {
             <Field label="Status"><Select name="status" defaultValue={editing?.status ?? "Ativo"}>{statuses.map((item) => <option key={item}>{item}</option>)}</Select></Field>
             <Field label="Estratégico"><Select name="strategic" defaultValue={String(editing?.strategic ?? false)}><option value="true">Sim</option><option value="false">Não</option></Select></Field>
             <Field label="Descrição" className="md:col-span-2"><Textarea name="description" defaultValue={editing?.description} maxLength={2000} /></Field>
-            <div className="flex justify-end gap-2 md:col-span-2"><Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button><Button type="submit">Salvar assunto</Button></div>
+            <div className="flex justify-end gap-2 md:col-span-2"><Button type="button" variant="outline" onClick={closeForm}>Cancelar</Button><Button type="submit">Salvar assunto</Button></div>
           </form>
         </DialogContent>
       </Dialog>
