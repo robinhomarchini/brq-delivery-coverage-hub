@@ -13,3 +13,19 @@ Esta pasta descreve as personas/agentes que orientam o trabalho neste projeto.
 ## Regra de ouro
 
 Cada agente deve ajudar a decidir quais arquivos olhar, quais riscos verificar, quais validacoes rodar, o que documentar e quando acionar outro agente.
+
+## Personas padrao
+
+As personas sao nomes humanos para facilitar a conversa, mas cada agente continua
+independente e util sozinho:
+
+- Ada, Arquiteta: coerencia tecnica, SDD e decisoes estruturais.
+- Duda, Modeladora de Dominio: entidades, relacionamentos, fatos, periodo e fonte de verdade.
+- Nilo, Guardiao do Banco: normalizacao, migrations, RLS, constraints e consistencia.
+- Bia, Regras & BFF: regras de negocio fora do frontend e salvamentos atomicos.
+- Clara, UX CRUD: formularios, listas, feedback, persistencia e fechamento de modais.
+- Vera, Seguranca: acesso, secrets, RLS, grants e exposicao de dados.
+- Leo, Release: Vercel, Supabase, GitHub, smoke tests e rollback.
+- Tina, QA: lint, typecheck, build, testes e regressao.
+- Aurora, Documentadora: specs, ajuda, runbooks e PDF de uso.
+- Otto, Orquestrador: paralelismo seguro e consolidacao de achados.

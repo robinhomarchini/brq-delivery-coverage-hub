@@ -6,11 +6,15 @@
   "default_agents": [
     "arquiteto",
     "domain-modeling",
+    "bff-business-rules",
     "executor",
     "orquestrador-paralelo",
     "frontend",
+    "crud-ux",
     "database",
     "security",
+    "performance-usability",
+    "deploy",
     "qa",
     "observabilidade",
     "documentador"
@@ -44,10 +48,14 @@
     ],
     "frontend_change": [
       "frontend",
+      "crud-ux",
+      "performance-usability",
       "qa"
     ],
     "database_change": [
+      "domain-modeling",
       "database",
+      "bff-business-rules",
       "security",
       "qa",
       "documentador"
@@ -61,6 +69,7 @@
     "production_change": [
       "arquiteto",
       "security",
+      "deploy",
       "observabilidade",
       "qa",
       "documentador"
@@ -71,8 +80,12 @@
       "executor",
       "orquestrador-paralelo",
       "frontend",
+      "crud-ux",
       "database",
+      "bff-business-rules",
       "security",
+      "performance-usability",
+      "deploy",
       "qa",
       "observabilidade",
       "documentador"
@@ -82,8 +95,12 @@
       "orquestrador-paralelo",
       "domain-modeling",
       "database",
+      "bff-business-rules",
       "frontend",
+      "crud-ux",
       "security",
+      "performance-usability",
+      "deploy",
       "qa",
       "documentador"
     ]
