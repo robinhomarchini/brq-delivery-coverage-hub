@@ -2,7 +2,7 @@
 
 import { Plus, Save, Target, Trash2, UserRound } from "lucide-react";
 import { useMemo, useState, type InputHTMLAttributes } from "react";
-import type { Customer, Person, TargetAllocation, TargetAllocationType } from "@/data/mockData";
+import type { Customer, TargetAllocation, TargetAllocationType } from "@/data/mockData";
 import { PageHeader } from "@/components/shared/page-header";
 import { ErrorNotice, SuccessNotice } from "@/components/shared/success-notice";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useDeliveryStore } from "@/store/delivery-store";
 import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears } from "@/lib/customer-targets";
 import { formatCurrency } from "@/lib/utils";
-import { isCustomerManagerProfile, isHunterRole, isTargetAssignableRole } from "@/lib/roles";
+import { isTargetAssignableRole } from "@/lib/roles";
 
 const currentYear = defaultTargetYear;
 
@@ -78,11 +78,9 @@ export function PersonTargetAssignment() {
       year,
       targetAllocations,
       drafts[customer.id],
-      people,
-      selectedPerson,
       getRowSource(customer.id, selectedPerson?.clientIds ?? [], targetAllocations, effectivePersonId, year, extraCustomerIds),
     )),
-    [drafts, effectivePersonId, extraCustomerIds, people, scopedVisibleCustomers, selectedPerson, targetAllocations, year],
+    [drafts, effectivePersonId, extraCustomerIds, scopedVisibleCustomers, selectedPerson?.clientIds, targetAllocations, year],
   );
   const totals = useMemo(() => rows.reduce((summary, row) => ({
     hunter: summary.hunter + row.hunterAmount,
@@ -349,14 +347,13 @@ export function PersonTargetAssignment() {
           </div>
         </div>
         <div className="overflow-x-auto">
-          <Table className="min-w-[1980px]">
+          <Table className="min-w-[1720px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Cliente</TableHead>
                 <TableHead>Origem</TableHead>
                 <TableHead>Meta do Cliente</TableHead>
                 <TableHead>Já associado a outras pessoas</TableHead>
-                <TableHead>Hunters / Farmers</TableHead>
                 <TableHead>Gap após edição</TableHead>
                 <TableHead>Meta Hunter</TableHead>
                 <TableHead>Meta Renovação + Ampliação</TableHead>
@@ -396,9 +393,6 @@ export function PersonTargetAssignment() {
                       studio={row.otherPeopleStudioTotal}
                       total={row.otherPeopleTotal}
                     />
-                  </TableCell>
-                  <TableCell>
-                    <TargetPeopleSummary hunterPeople={row.hunterPeople} farmerRenewalPeople={row.farmerRenewalPeople} />
                   </TableCell>
                   <TableCell>
                     <TargetGapBreakdown
@@ -466,13 +460,6 @@ export function PersonTargetAssignment() {
 type PersonTargetRow = ReturnType<typeof buildRow>;
 type ClientStatus = "ok" | "pending" | "over";
 type RowSource = "assigned" | "existing_target" | "added";
-type TargetPerson = {
-  personId: string;
-  name: string;
-  roleType: string;
-  amount: number;
-  isDraft: boolean;
-};
 type BreakdownLineAction = {
   onClick: () => void;
   title: string;
@@ -540,42 +527,6 @@ function TargetGapBreakdown({ hunter, farmerRenewal, studio, total }: { hunter: 
   );
 }
 
-function TargetPeopleSummary({ hunterPeople, farmerRenewalPeople }: { hunterPeople: TargetPerson[]; farmerRenewalPeople: TargetPerson[] }) {
-  return (
-    <div className="min-w-56 space-y-3 text-xs">
-      <TargetPeopleGroup label="Hunters" people={hunterPeople} emptyLabel="Sem hunter alocado" tone="orange" />
-      <TargetPeopleGroup label="Farmers / Delivery" people={farmerRenewalPeople} emptyLabel="Sem farmer/delivery alocado" tone="purple" />
-    </div>
-  );
-}
-
-function TargetPeopleGroup({ label, people, emptyLabel, tone }: { label: string; people: TargetPerson[]; emptyLabel: string; tone: "orange" | "purple" | "blue" }) {
-  const toneClassName = tone === "orange"
-    ? "bg-orange-50 text-orange-800"
-    : tone === "blue"
-      ? "bg-sky-50 text-sky-700"
-      : "bg-purple-50 text-brq-purple";
-
-  return (
-    <div>
-      <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">{label}</p>
-      {people.length ? (
-        <div className="flex flex-wrap gap-1.5">
-          {people.map((person) => (
-            <span key={`${label}-${person.personId}`} className={`rounded-full px-2 py-1 font-semibold ${toneClassName}`} title={`${person.name} · ${formatCurrency(person.amount)}`}>
-              {person.name}
-              <span className="ml-1 opacity-70">{formatCurrency(person.amount)}</span>
-              {person.isDraft && <span className="ml-1 text-[10px] opacity-70">(edição)</span>}
-            </span>
-          ))}
-        </div>
-      ) : (
-        <p className="text-slate-400">{emptyLabel}</p>
-      )}
-    </div>
-  );
-}
-
 function BreakdownLine({
   label,
   value,
@@ -637,8 +588,6 @@ function buildRow(
   year: number,
   allocations: TargetAllocation[],
   draft: { hunter: string; farmerRenewal: string } | undefined,
-  people: Person[],
-  selectedPerson: Person | undefined,
   source: RowSource,
 ) {
   const hunterAllocation = findAllocation(allocations, customer.id, personId, year, "hunter");
@@ -656,9 +605,6 @@ function buildRow(
   const clientFarmerRenewalTotal = otherPeopleFarmerRenewalTotal + farmerRenewalAmount;
   const clientStudioTotal = otherPeopleStudioTotal + studioAmount;
   const clientTotal = clientHunterTotal + clientFarmerRenewalTotal + clientStudioTotal;
-  const hunterPeople = buildTargetPeople(allocations, people, customer.id, year, "hunter", selectedPerson, hunterAmount);
-  const farmerRenewalPeople = buildTargetPeople(allocations, people, customer.id, year, "farmer_renewal", selectedPerson, farmerRenewalAmount);
-  const studioPeople: TargetPerson[] = [];
 
   return {
     customerId: customer.id,
@@ -686,9 +632,6 @@ function buildRow(
     hunterAmount,
     farmerRenewalAmount,
     studioAmount,
-    hunterPeople,
-    farmerRenewalPeople,
-    studioPeople,
     hunterInput: getInputValue(hunterAllocation?.amount ?? 0),
     farmerRenewalInput: getInputValue(farmerRenewalAllocation?.amount ?? 0),
     studioInput: "0",
@@ -696,65 +639,6 @@ function buildRow(
     clientStatus: getClientStatus(targetBreakdown, { hunter: clientHunterTotal, farmerRenewal: clientFarmerRenewalTotal, studio: clientStudioTotal }),
     source,
   };
-}
-
-function buildTargetPeople(
-  allocations: TargetAllocation[],
-  people: Person[],
-  customerId: string,
-  year: number,
-  type: TargetAllocationType,
-  selectedPerson: Person | undefined,
-  selectedAmount: number,
-) {
-  const peopleById = new Map(people.map((person) => [person.id, person]));
-  const rowsByPerson = new Map<string, TargetPerson>();
-
-  people
-    .filter((person) =>
-      person.clientIds.includes(customerId)
-      && (type === "hunter"
-        ? isHunterRole(person.roleType)
-        : type === "farmer_renewal"
-          ? isCustomerManagerProfile(person.roleType, person.isManager)
-          : isTargetAssignableRole(person.roleType))
-    )
-    .forEach((person) => {
-      rowsByPerson.set(person.id, {
-        personId: person.id,
-        name: person.name,
-        roleType: person.roleType,
-        amount: 0,
-        isDraft: false,
-      });
-    });
-
-  allocations
-    .filter((allocation) => allocation.customerId === customerId && allocation.year === year && allocation.type === type)
-    .forEach((allocation) => {
-      const person = peopleById.get(allocation.personId);
-      const amount = selectedPerson?.id === allocation.personId ? selectedAmount : allocation.amount;
-      rowsByPerson.set(allocation.personId, {
-        personId: allocation.personId,
-        name: person?.name ?? allocation.personId,
-        roleType: person?.roleType ?? "Sem perfil",
-        amount,
-        isDraft: selectedPerson?.id === allocation.personId && Math.abs(selectedAmount - allocation.amount) > 0.01,
-      });
-    });
-
-  if (selectedPerson && selectedAmount > 0.01 && !rowsByPerson.has(selectedPerson.id)) {
-    rowsByPerson.set(selectedPerson.id, {
-      personId: selectedPerson.id,
-      name: selectedPerson.name,
-      roleType: selectedPerson.roleType,
-      amount: selectedAmount,
-      isDraft: true,
-    });
-  }
-
-  return Array.from(rowsByPerson.values())
-    .sort((first, second) => second.amount - first.amount || first.name.localeCompare(second.name));
 }
 
 function findAllocation(
