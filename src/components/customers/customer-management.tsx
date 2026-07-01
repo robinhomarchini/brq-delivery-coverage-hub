@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, Pencil, Plus, Star, Trash2 } from "lucide-react";
+import { Building2, Info, Pencil, Plus, Star, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import type { Area, Customer, Person, StudioTargetAllocation, TargetAllocation } from "@/data/mockData";
@@ -542,12 +542,17 @@ function Field({ label, className, children }: { label: string; className?: stri
 
 function TargetBreakdownView({ breakdown, compact = false }: { breakdown: CustomerTargetBreakdown; compact?: boolean }) {
   const containerClassName = compact
-    ? "mt-3 grid gap-2 text-sm md:grid-cols-4"
+    ? "mt-3 grid gap-2 text-sm md:grid-cols-5"
     : "grid min-w-56 gap-1 text-sm";
   return (
     <div className={containerClassName}>
       <MoneyLine label="Hunter" value={breakdown.hunter} />
-      <MoneyLine label="Studio Hunter" value={breakdown.studioHunter} />
+      <MoneyLine
+        label="Studio Hunter"
+        value={breakdown.studioHunter}
+        included
+        helpText="Studio Hunter é uma abertura da meta Hunter do cliente. Ele está contido em Hunter e não soma novamente no Total."
+      />
       <MoneyLine label="Renov. + Ampl." value={breakdown.farmerRenewal} />
       <MoneyLine label="Studio Manut." value={breakdown.studio} />
       <MoneyLine label="Total" value={breakdown.total} strong />
@@ -555,10 +560,36 @@ function TargetBreakdownView({ breakdown, compact = false }: { breakdown: Custom
   );
 }
 
-function MoneyLine({ label, value, strong = false }: { label: string; value: number; strong?: boolean }) {
+function MoneyLine({
+  label,
+  value,
+  strong = false,
+  included = false,
+  helpText,
+}: {
+  label: string;
+  value: number;
+  strong?: boolean;
+  included?: boolean;
+  helpText?: string;
+}) {
+  const lineClassName = strong
+    ? "border-t border-slate-200 pt-1 font-bold text-slate-950"
+    : included
+      ? "rounded-lg border border-sky-100 bg-sky-50/80 px-2 py-1 text-sky-900"
+      : "text-slate-600";
+  const labelClassName = included ? "text-sky-600" : "text-slate-400";
+
   return (
-    <div className={`flex items-center justify-between gap-3 ${strong ? "border-t border-slate-200 pt-1 font-bold text-slate-950" : "text-slate-600"}`}>
-      <span className="text-xs uppercase tracking-wide text-slate-400">{label}</span>
+    <div
+      className={`flex items-center justify-between gap-3 ${helpText ? "cursor-help" : ""} ${lineClassName}`}
+      title={helpText}
+      aria-label={helpText ? `${label}: ${formatCurrency(value)}. ${helpText}` : `${label}: ${formatCurrency(value)}`}
+    >
+      <span className={`inline-flex items-center gap-1 text-xs uppercase tracking-wide ${labelClassName}`}>
+        {label}
+        {included && <Info className="h-3 w-3" aria-hidden="true" />}
+      </span>
       <span>{formatCurrency(value)}</span>
     </div>
   );
