@@ -15,6 +15,7 @@ Use Spec Driven Development (SDD). Read the feature specification in
 - Preserve local mock repositories until Supabase is explicitly introduced.
 - Reuse components from `src/components/ui/` for interface primitives.
 - Run `npm run lint`, `npm run typecheck`, and `npm run build` after material changes.
+- Run `npm run smoke:critical` before deploy when touching customer/person/target persistence flows.
 - Use `$project-quality-gate` for non-trivial implementation, bug fixing, and handoff.
 - Use `$domain-modeling-data-structure` before model changes involving people, customers, areas/studios, targets, imports, ownership, financial facts, or operational defaults.
 - Use `$database-normalization-audit` for schema, Supabase, RLS, migrations, source-of-truth, and cross-screen data consistency work.

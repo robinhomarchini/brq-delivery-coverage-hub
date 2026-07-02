@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "smoke:critical": "node scripts/smoke-critical.mjs",
     "audit:background": "powershell -ExecutionPolicy Bypass -File scripts/audit-background.ps1",
     "db:migrations:check": "node scripts/check-supabase-migration-history.mjs"
   },

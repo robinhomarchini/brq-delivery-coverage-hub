@@ -30,6 +30,17 @@ Aprendizado:
 Promover para agente:
 - `database-normalization-audit`, `deployment-production-readiness` e instruções locais do projeto.
 
+## 2026-07-02 - QA precisa validar fluxo, nao so build
+
+Contexto:
+- Um erro de producao passou por typecheck/lint/build porque a tela de Cliente sincronizava Hunter pelo caminho de salvar Pessoa.
+
+Aprendizado:
+- Mudancas em CRUD/persistencia precisam de smoke minimo do fluxo salvo -> refletido -> recarregado. Quando um erro real acontece, criar regressao barata antes do proximo deploy.
+
+Promover para agente:
+- `qa`, `crud-ux` e `project-quality-gate`.
+
 ## 2026-06-18 - Recharts e prerender
 
 Contexto:
