@@ -101,8 +101,8 @@ export function SubjectManagement() {
                   <TableCell><StatusBadge status={subject.status} /></TableCell>
                   <TableCell><Badge variant={subject.strategic ? "default" : "secondary"}>{subject.strategic ? "Sim" : "Não"}</Badge></TableCell>
                   <TableCell onDoubleClick={(event) => event.stopPropagation()}><div className="flex justify-end gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => openForm(subject)}><Pencil className="h-4 w-4" /></Button>
-                    <Button variant="ghost" size="icon" className="text-red-600" onClick={() => {
+                    <Button variant="ghost" size="icon" onClick={() => openForm(subject)} aria-label={`Editar assunto ${subject.name}`}><Pencil className="h-4 w-4" /></Button>
+                    <Button variant="ghost" size="icon" className="text-red-600" aria-label={`Excluir assunto ${subject.name}`} onClick={() => {
                       if (window.confirm(`Excluir o assunto ${subject.name}?`)) void deleteSubject(subject.id).catch(() => undefined);
                     }}><Trash2 className="h-4 w-4" /></Button>
                   </div></TableCell>

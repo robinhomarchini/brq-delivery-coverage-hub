@@ -385,7 +385,6 @@ export function PersonTargetAssignment() {
                     <TargetBreakdown
                       hunter={row.customerHunterTarget}
                       farmerRenewal={row.customerFarmerRenewalTarget}
-                      studio={row.customerStudioTarget}
                       total={row.customerTarget}
                       hunterAction={{
                         onClick: () => quickAllocateCustomerTarget(row, "hunter"),
@@ -401,7 +400,6 @@ export function PersonTargetAssignment() {
                     <TargetBreakdown
                       hunter={row.otherPeopleHunterTotal}
                       farmerRenewal={row.otherPeopleFarmerRenewalTotal}
-                      studio={row.otherPeopleStudioTotal}
                       total={row.otherPeopleTotal}
                     />
                   </TableCell>
@@ -409,7 +407,6 @@ export function PersonTargetAssignment() {
                     <TargetGapBreakdown
                       hunter={row.hunterGap}
                       farmerRenewal={row.farmerRenewalGap}
-                      studio={row.studioGap}
                       total={row.customerTarget - row.clientTotal}
                     />
                   </TableCell>
@@ -503,36 +500,30 @@ function SourceBadge({ source }: { source: RowSource }) {
 function TargetBreakdown({
   hunter,
   farmerRenewal,
-  studio,
   total,
   hunterAction,
   farmerRenewalAction,
-  studioAction,
 }: {
   hunter: number;
   farmerRenewal: number;
-  studio: number;
   total: number;
   hunterAction?: BreakdownLineAction;
   farmerRenewalAction?: BreakdownLineAction;
-  studioAction?: BreakdownLineAction;
 }) {
   return (
     <div className="min-w-40 space-y-1 text-xs">
       <BreakdownLine label="Hunter" value={hunter} action={hunterAction} />
       <BreakdownLine label="Renov. + Ampl." value={farmerRenewal} action={farmerRenewalAction} />
-      <BreakdownLine label="Áreas / Studios" value={studio} action={studioAction} />
       <div className="border-t pt-1 font-bold text-slate-950">{formatCurrency(total)}</div>
     </div>
   );
 }
 
-function TargetGapBreakdown({ hunter, farmerRenewal, studio, total }: { hunter: number; farmerRenewal: number; studio: number; total: number }) {
+function TargetGapBreakdown({ hunter, farmerRenewal, total }: { hunter: number; farmerRenewal: number; total: number }) {
   return (
     <div className="min-w-40 space-y-1 text-xs">
       <BreakdownLine label="Hunter" value={hunter} tone={getGapTone(hunter)} />
       <BreakdownLine label="Renov. + Ampl." value={farmerRenewal} tone={getGapTone(farmerRenewal)} />
-      <BreakdownLine label="Áreas / Studios" value={studio} tone={getGapTone(studio)} />
       <div className={`border-t pt-1 font-bold ${getGapClassName(total)}`}>{formatCurrency(total)}</div>
     </div>
   );
@@ -605,17 +596,14 @@ function buildRow(
   const farmerRenewalAllocation = findAllocation(allocations, customer.id, personId, year, "farmer_renewal");
   const hunterAmount = parseAmount(draft?.hunter ?? getInputValue(hunterAllocation?.amount ?? 0));
   const farmerRenewalAmount = parseAmount(draft?.farmerRenewal ?? getInputValue(farmerRenewalAllocation?.amount ?? 0));
-  const studioAmount = 0;
   const targetBreakdown = getCustomerTargetBreakdown(customer, allocations, year);
   const otherPeopleHunterTotal = sumOtherPeopleAllocations(allocations, customer.id, personId, year, "hunter");
   const otherPeopleFarmerRenewalTotal = sumOtherPeopleAllocations(allocations, customer.id, personId, year, "farmer_renewal");
-  const otherPeopleStudioTotal = 0;
-  const otherPeopleTotal = otherPeopleHunterTotal + otherPeopleFarmerRenewalTotal + otherPeopleStudioTotal;
+  const otherPeopleTotal = otherPeopleHunterTotal + otherPeopleFarmerRenewalTotal;
   const customerTarget = getCustomerTarget(customer);
   const clientHunterTotal = otherPeopleHunterTotal + hunterAmount;
   const clientFarmerRenewalTotal = otherPeopleFarmerRenewalTotal + farmerRenewalAmount;
-  const clientStudioTotal = otherPeopleStudioTotal + studioAmount;
-  const clientTotal = clientHunterTotal + clientFarmerRenewalTotal + clientStudioTotal;
+  const clientTotal = clientHunterTotal + clientFarmerRenewalTotal;
 
   return {
     customerId: customer.id,
@@ -625,29 +613,22 @@ function buildRow(
     customerTarget,
     customerHunterTarget: targetBreakdown.hunter,
     customerFarmerRenewalTarget: targetBreakdown.farmerRenewal,
-    customerStudioTarget: targetBreakdown.studio,
     otherPeopleHunterTotal,
     otherPeopleFarmerRenewalTotal,
-    otherPeopleStudioTotal,
     otherPeopleTotal,
     clientHunterTotal,
     clientFarmerRenewalTotal,
-    clientStudioTotal,
     clientTotal,
     hunterGap: targetBreakdown.hunter - clientHunterTotal,
     farmerRenewalGap: targetBreakdown.farmerRenewal - clientFarmerRenewalTotal,
-    studioGap: targetBreakdown.studio - clientStudioTotal,
     hunterAllocation,
     farmerRenewalAllocation,
-    studioAllocation: undefined,
     hunterAmount,
     farmerRenewalAmount,
-    studioAmount,
     hunterInput: getInputValue(hunterAllocation?.amount ?? 0),
     farmerRenewalInput: getInputValue(farmerRenewalAllocation?.amount ?? 0),
-    studioInput: "0",
-    personTotal: hunterAmount + farmerRenewalAmount + studioAmount,
-    clientStatus: getClientStatus(targetBreakdown, { hunter: clientHunterTotal, farmerRenewal: clientFarmerRenewalTotal, studio: clientStudioTotal }),
+    personTotal: hunterAmount + farmerRenewalAmount,
+    clientStatus: getClientStatus(targetBreakdown, { hunter: clientHunterTotal, farmerRenewal: clientFarmerRenewalTotal }),
     source,
   };
 }
@@ -718,24 +699,22 @@ function getRowSource(
 }
 
 function getClientStatus(
-  target: { hunter: number; farmerRenewal: number; studio: number },
-  allocated: { hunter: number; farmerRenewal: number; studio: number },
+  target: { hunter: number; farmerRenewal: number },
+  allocated: { hunter: number; farmerRenewal: number },
 ): ClientStatus {
   if (
     allocated.hunter > target.hunter + 0.01
     || allocated.farmerRenewal > target.farmerRenewal + 0.01
-    || allocated.studio > target.studio + 0.01
   ) return "over";
   if (
     Math.abs(target.hunter - allocated.hunter) <= 0.01
     && Math.abs(target.farmerRenewal - allocated.farmerRenewal) <= 0.01
-    && Math.abs(target.studio - allocated.studio) <= 0.01
   ) return "ok";
   return "pending";
 }
 
 function getCustomerTarget(customer: Customer) {
-  return roundCurrency(customer.hunterTarget + customer.farmerRenewalTarget + customer.studioTarget);
+  return roundCurrency(customer.hunterTarget + customer.farmerRenewalTarget);
 }
 
 function getCustomerTargetBreakdown(customer: Customer, allocations: TargetAllocation[], year: number) {
@@ -744,7 +723,6 @@ function getCustomerTargetBreakdown(customer: Customer, allocations: TargetAlloc
   return {
     hunter: roundCurrency(customer.hunterTarget),
     farmerRenewal: roundCurrency(customer.farmerRenewalTarget),
-    studio: roundCurrency(customer.studioTarget),
   };
 }
 

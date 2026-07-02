@@ -426,8 +426,8 @@ export function CustomerManagement() {
                     </TableCell>
                     <TableCell>{customer.strategicAccount ? <Badge><Star className="mr-1 h-3 w-3 fill-current" /> Sim</Badge> : <Badge variant="secondary">Não</Badge>}</TableCell>
                     <TableCell onDoubleClick={(event) => event.stopPropagation()}><div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => openForm(customer)}><Pencil className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="icon" className="text-red-600" onClick={() => {
+                      <Button variant="ghost" size="icon" onClick={() => openForm(customer)} aria-label={`Editar cliente ${customer.name}`}><Pencil className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" className="text-red-600" aria-label={`Excluir cliente ${customer.name}`} onClick={() => {
                         if (window.confirm(`Excluir o cliente ${customer.name}?`)) void deleteCustomer(customer.id).catch(() => undefined);
                       }}><Trash2 className="h-4 w-4" /></Button>
                     </div></TableCell>

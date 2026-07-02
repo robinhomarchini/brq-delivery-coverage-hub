@@ -391,11 +391,12 @@ export function TargetManagement() {
                   <TableCell className="max-w-xs truncate text-slate-500">{allocation.notes || "—"}</TableCell>
                   <TableCell onDoubleClick={(event) => event.stopPropagation()}>
                     <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => openForm(allocation)}><Pencil className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => openForm(allocation)} aria-label={`Editar meta de ${personName(people, allocation.personId)} em ${customerName(customers, allocation.customerId)}`}><Pencil className="h-4 w-4" /></Button>
                       <Button
                         variant="ghost"
                         size="icon"
                         className="text-red-600"
+                        aria-label={`Excluir meta de ${personName(people, allocation.personId)} em ${customerName(customers, allocation.customerId)}`}
                         onClick={() => {
                           if (window.confirm("Excluir esta meta?")) {
                             void deleteTargetAllocation(allocation.id).catch(() => undefined);
@@ -422,17 +423,20 @@ export function TargetManagement() {
           </DialogHeader>
           <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-2">
             <Field label="Cliente">
-              <Select name="customerId" defaultValue={editing?.customerId ?? customers[0]?.id} required>
+              <Select name="customerId" defaultValue={editing?.customerId ?? ""} required>
+                <option value="">Selecione</option>
                 {customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}</option>)}
               </Select>
             </Field>
             <Field label="Pessoa">
-              <Select name="personId" defaultValue={editing?.personId ?? targetAssignablePeople[0]?.id} required>
+              <Select name="personId" defaultValue={editing?.personId ?? ""} required>
+                <option value="">Selecione</option>
                 {targetAssignablePeople.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}
               </Select>
             </Field>
             <Field label="Tipo de meta">
-              <Select name="type" defaultValue={editing?.type ?? "farmer_renewal"} required>
+              <Select name="type" defaultValue={editing?.type ?? ""} required>
+                <option value="">Selecione</option>
                 <option value="farmer_renewal">Renovação + Ampliação</option>
                 <option value="hunter">Hunter</option>
               </Select>

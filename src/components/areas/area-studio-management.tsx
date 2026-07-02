@@ -139,8 +139,8 @@ export function AreaStudioManagement() {
                   <TableCell>{getAreaUsage(areaUsages, area.id).territoryCount}</TableCell>
                   <TableCell onDoubleClick={(event) => event.stopPropagation()}>
                     <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => openForm(area)}><Pencil className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="icon" className="text-red-600" onClick={() => void handleDelete(area)}><Trash2 className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => openForm(area)} aria-label={`Editar área/studio ${area.name}`}><Pencil className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" className="text-red-600" onClick={() => void handleDelete(area)} aria-label={`Excluir área/studio ${area.name}`}><Trash2 className="h-4 w-4" /></Button>
                     </div>
                   </TableCell>
                 </TableRow>
