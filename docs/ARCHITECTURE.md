@@ -51,6 +51,13 @@ O total financeiro exibido em Clientes, Metas, Dashboard, Insights e Relatórios
 Campos legados em `customers` existem como cache de compatibilidade; a fonte
 anual normalizada é `customer_target_years`.
 
+O baseline aprovado pelo board é tratado como fato de referência anual separado
+do cadastro operacional. Para 2026, `metageralinicial.xlsx` fornece a foto
+inicial: Cliente na coluna A, Meta Hunter na coluna I, Meta Renovação +
+Ampliação na coluna L e Meta Total na coluna M. O baseline alimenta Dashboard e
+Comparativo Baseline; alterações operacionais continuam em `customer_target_years`
+e são comparadas contra essa referência, não sobrescrevem a foto aprovada.
+
 Enquanto a migration não estiver aplicada, o adaptador Supabase preserva fallback
 compatível para não interromper homologação, mas o caminho recomendado é aplicar
 a RPC.

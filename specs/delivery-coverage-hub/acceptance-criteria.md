@@ -105,6 +105,15 @@
 - O Dashboard Executivo deriva a visão financeira de Clientes/metas anuais e
   mostra Hunter, Renovação + Ampliação e Áreas / Studios sem usar fonte
   financeira paralela.
+- O Dashboard Executivo exibe os totais do board para 2026 como baseline oficial:
+  Hunter R$ 110.525.090, Renovação + Ampliação R$ 427.744.200 e Total
+  R$ 538.269.290, além do total cadastrado no sistema e diferença.
+- A rota Comparativo Baseline compara `metageralinicial.xlsx` contra o cadastro
+  operacional por Cliente, Hunter e Hunter + Farmer.
+- A rota Comparativo Baseline permite filtrar por ano, status e busca por
+  cliente, e exporta CSV/Excel com valores numéricos.
+- A importação de Insights aceita planilha sem coluna `resp` e trata total
+  textual como Hunter + Renovação + Ampliação na linha afetada.
 - A navegação não apresenta Territórios e mostra Assuntos como item
   desabilitado/pausado.
 - A rota direta `/assuntos` renderiza uma mensagem de módulo em avaliação, sem

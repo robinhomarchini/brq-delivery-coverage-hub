@@ -31,6 +31,7 @@ import { exportDeliveryDataAsCsv, exportElementAsPdf } from "@/lib/export";
 import { formatCurrency } from "@/lib/utils";
 import { translateRole } from "@/lib/roles";
 import { applyCustomerTargetsForYear, defaultTargetYear } from "@/lib/customer-targets";
+import { getBoardTargetBaselineTotals, getRegisteredTargetTotals } from "@/lib/board-target-baseline";
 
 const COLORS = ["#15171B", "#7F2EC9", "#EE7C38", "#2563EB", "#F97316", "#A3A3A3"];
 
@@ -47,14 +48,10 @@ export function ExecutiveDashboard() {
   const farmers = activePeople.filter((person) => person.roleType === "Farmer");
   const hunterFarmers = activePeople.filter((person) => person.roleType === "Hunter + Farmer");
   const staff = activePeople.filter((person) => person.roleType === "Staff");
-  const totalRevenue = financialCustomers.reduce((total, customer) => total + getCustomerTarget(customer), 0);
-  const financialTotals = financialCustomers.reduce((totals, customer) => ({
-    revenueCurrent: totals.revenueCurrent + customer.revenue,
-    revenueTarget: totals.revenueTarget + getCustomerTarget(customer),
-    hunterRevenue: totals.hunterRevenue + customer.hunterTarget,
-    deliveryFarmerRevenue: totals.deliveryFarmerRevenue + customer.farmerRenewalTarget,
-    studioRevenue: totals.studioRevenue + customer.studioTarget,
-  }), { revenueCurrent: 0, revenueTarget: 0, hunterRevenue: 0, deliveryFarmerRevenue: 0, studioRevenue: 0 });
+  const boardTotals = getBoardTargetBaselineTotals(defaultTargetYear);
+  const registeredTotals = getRegisteredTargetTotals(financialCustomers);
+  const totalRevenue = boardTotals.totalTarget;
+  const registeredDelta = registeredTotals.totalTarget - boardTotals.totalTarget;
   const financialByCustomer = financialCustomers
     .map((customer) => ({
       customerCluster: customer.name,
@@ -140,7 +137,7 @@ export function ExecutiveDashboard() {
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2" data-no-print="true">
           <div className="mr-1 rounded-lg border bg-white px-4 py-2 text-right">
-            <p className="text-[10px] uppercase tracking-wider text-slate-400">Receita do portfólio</p>
+            <p className="text-[10px] uppercase tracking-wider text-slate-400">Meta Board 2026</p>
             <p className="text-lg font-bold text-brq-purple">{formatCurrency(totalRevenue)}</p>
           </div>
             <Button variant="outline" onClick={() => exportDeliveryDataAsCsv(people, customers)}>
@@ -170,11 +167,11 @@ export function ExecutiveDashboard() {
         </section>
 
         <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-          <FinancialKpi label="Receita Atual" value={formatCurrency(financialTotals.revenueCurrent)} icon={TrendingUp} />
-          <FinancialKpi label="Meta Prevista" value={formatCurrency(financialTotals.revenueTarget)} icon={Target} />
-          <FinancialKpi label="Receita Hunter" value={formatCurrency(financialTotals.hunterRevenue)} icon={UserCog} />
-          <FinancialKpi label="Delivery/Farmer" value={formatCurrency(financialTotals.deliveryFarmerRevenue)} icon={BriefcaseBusiness} />
-          <FinancialKpi label="Áreas / Studios" value={formatCurrency(financialTotals.studioRevenue)} icon={Building2} />
+          <FinancialKpi label="Meta Board 2026" value={formatCurrency(boardTotals.totalTarget)} icon={Target} />
+          <FinancialKpi label="Board Hunter" value={formatCurrency(boardTotals.hunterTarget)} icon={UserCog} />
+          <FinancialKpi label="Board Renov. + Ampl." value={formatCurrency(boardTotals.farmerRenewalTarget)} icon={BriefcaseBusiness} />
+          <FinancialKpi label="Cadastrado no sistema" value={formatCurrency(registeredTotals.totalTarget)} icon={Building2} />
+          <FinancialKpi label="Diferença cadastro vs board" value={formatCurrency(registeredDelta)} icon={TrendingUp} tone={registeredDelta < -0.01 ? "danger" : registeredDelta > 0.01 ? "warning" : "ok"} />
         </section>
 
         <ChartCard title="Visão Financeira por Cliente">
@@ -271,11 +268,36 @@ function ChartPlaceholder() {
   return <div className="h-full w-full animate-pulse rounded-xl bg-slate-100" />;
 }
 
-function FinancialKpi({ label, value, icon: Icon }: { label: string; value: string; icon: React.ElementType }) {
+function FinancialKpi({
+  label,
+  value,
+  icon: Icon,
+  tone = "default",
+}: {
+  label: string;
+  value: string;
+  icon: React.ElementType;
+  tone?: "default" | "ok" | "warning" | "danger";
+}) {
+  const toneClassName = tone === "ok"
+    ? "border-emerald-100 bg-gradient-to-br from-white to-emerald-50/60"
+    : tone === "warning"
+      ? "border-amber-100 bg-gradient-to-br from-white to-amber-50/60"
+      : tone === "danger"
+        ? "border-red-100 bg-gradient-to-br from-white to-red-50/60"
+        : "border-purple-100 bg-gradient-to-br from-white to-purple-50/50";
+  const iconClassName = tone === "ok"
+    ? "bg-emerald-600"
+    : tone === "warning"
+      ? "bg-amber-600"
+      : tone === "danger"
+        ? "bg-red-600"
+        : "bg-brq-purple";
+
   return (
-    <Card className="overflow-hidden border-purple-100 bg-gradient-to-br from-white to-purple-50/50">
+    <Card className={`overflow-hidden ${toneClassName}`}>
       <CardContent className="flex items-center gap-3 p-4">
-        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-brq-purple text-white">
+        <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg text-white ${iconClassName}`}>
           <Icon className="h-5 w-5" />
         </div>
         <div>

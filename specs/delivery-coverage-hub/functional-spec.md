@@ -4,7 +4,7 @@
 
 Sidebar com Dashboard Executivo, Organograma, Pessoas, Áreas / Studios,
 Clientes, Portfólio de Clientes, Metas, Metas por Pessoa, Relatório de Metas,
-Insights, Assuntos, Mapa de Cobertura, Configurações e Ajuda. O item Assuntos
+Comparativo Baseline, Insights, Assuntos, Mapa de Cobertura, Configurações e Ajuda. O item Assuntos
 fica visível como pausado/desabilitado até nova definição do modelo.
 Ao navegar pelo menu ou mudar a rota/query, telas contextuais devem ser
 remontadas para fechar modais, limpar filtros temporários e evitar que uma tela
@@ -281,8 +281,9 @@ pessoas compõem Áreas / Studios, incluindo valores por pessoa. Quando a pessoa
 linha deve indicar que aquela composição está em edição.
 
 A rota Insights permite importar uma planilha `.xlsx` de baseline de metas com
-as colunas Cliente, BU, Target RL Hunter, Target RL Farmer, Total RL 2026 e
-resp, aceitando uma coluna opcional de Áreas / Studios. A importação não sobrescreve a base automaticamente. Primeiro o sistema
+as colunas Cliente, BU, Target RL Hunter, Target RL Farmer e Total RL 2026,
+aceitando uma coluna opcional de `resp` e uma coluna opcional de Áreas /
+Studios. A importação não sobrescreve a base automaticamente. Primeiro o sistema
 compara cliente a cliente contra `customer_target_years` do ano selecionado e
 valida se o responsável Hunter da planilha está consistente com as pessoas e
 metas Hunter cadastradas. As divergências aparecem em uma grade com checkbox por
@@ -293,15 +294,27 @@ Ampliação e a coluna opcional de Áreas / Studios compara com Meta Áreas /
 Studios. Quando essa coluna não existir, o saldo entre Total, Hunter e
 Renovação + Ampliação é tratado como Áreas / Studios. O campo `resp` identifica
 o responsável informado na planilha para análise, mas não reclassifica
-automaticamente valores entre os componentes.
+automaticamente valores entre os componentes. Se a coluna Total vier com texto
+não numérico em uma linha, o sistema deve usar Hunter + Renovação + Ampliação
+como total efetivo daquela linha.
+
+A rota Comparativo Baseline apresenta a foto inicial aprovada pelo board para o
+ano de referência e compara essa foto contra o cadastro operacional atual. Para
+2026, a fonte inicial é `metageralinicial.xlsx`: coluna A para Cliente, coluna I
+para Meta Hunter, coluna L para Meta Renovação + Ampliação e coluna M para Meta
+Total. O baseline do board não é editável nessa tela; ele é referência fixa
+para análise. A tela permite alternar entre visão por Cliente, visão Hunter e
+visão Hunter + Farmer, exibindo baseline, cadastrado, diferença, status e
+exportação CSV/Excel.
 
 A rota Ajuda deve disponibilizar um guia rápido simples em PDF, publicado como
 link estático, com instruções de uso para homologadores.
 
 O Dashboard Executivo também apresenta uma visão financeira resumida dos clientes
-Financial, com Receita Atual, Meta Prevista, Receita Hunter, Receita
-Delivery/Farmer, Áreas / Studios, ranking de clientes por meta, abertura por
-Diretor e abertura por subordinado/manager.
+Financial, com os totais de baseline aprovados pelo board destacados como alvo
+oficial do ano, o total cadastrado no sistema e a diferença cadastro vs board.
+As visões analíticas continuam exibindo ranking de clientes por meta, abertura
+por Diretor e abertura por subordinado/manager.
 
 Entidades do módulo:
 

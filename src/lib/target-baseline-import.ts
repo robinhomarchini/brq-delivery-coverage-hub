@@ -45,10 +45,10 @@ const requiredHeaders = {
   hunterTarget: ["target rl hunter", "meta hunter", "hunter"],
   farmerRenewalTarget: ["target rl farmer", "meta farmer", "renovacao", "renovação", "renovacao ampliacao", "renovação ampliação"],
   totalTarget: ["total rl 2026", "meta total", "total"],
-  responsibleCode: ["resp", "responsavel", "responsável", "hunter responsavel", "hunter responsável"],
 };
 
 const optionalHeaders = {
+  responsibleCode: ["resp", "responsavel", "responsável", "hunter responsavel", "hunter responsável"],
   studioTarget: [
     "target rl areas",
     "target rl areas studios",
@@ -92,14 +92,17 @@ export function parseTargetBaselineRows(rows: SpreadsheetCell[][]): TargetBaseli
     farmerRenewalTarget: findHeaderIndex(headers, requiredHeaders.farmerRenewalTarget, "Target RL Farmer"),
     studioTarget: findOptionalHeaderIndex(headers, optionalHeaders.studioTarget),
     totalTarget: findHeaderIndex(headers, requiredHeaders.totalTarget, "Total RL 2026"),
-    responsibleCode: findHeaderIndex(headers, requiredHeaders.responsibleCode, "resp"),
+    responsibleCode: findOptionalHeaderIndex(headers, optionalHeaders.responsibleCode),
   };
 
   return rows.slice(1)
     .map((row, index) => {
       const hunterTarget = parseMoney(row[indexes.hunterTarget]);
       const farmerRenewalTarget = parseMoney(row[indexes.farmerRenewalTarget]);
-      const totalTarget = parseMoney(row[indexes.totalTarget]);
+      const parsedTotalTarget = parseMoney(row[indexes.totalTarget]);
+      const totalTarget = parsedTotalTarget > 0
+        ? parsedTotalTarget
+        : roundCurrency(hunterTarget + farmerRenewalTarget);
       const studioTarget = indexes.studioTarget >= 0
         ? parseMoney(row[indexes.studioTarget])
         : Math.max(roundCurrency(totalTarget - hunterTarget - farmerRenewalTarget), 0);
@@ -112,7 +115,7 @@ export function parseTargetBaselineRows(rows: SpreadsheetCell[][]): TargetBaseli
         farmerRenewalTarget,
         studioTarget,
         totalTarget,
-        responsibleCode: String(row[indexes.responsibleCode] ?? "").trim(),
+        responsibleCode: indexes.responsibleCode >= 0 ? String(row[indexes.responsibleCode] ?? "").trim() : "",
       };
     })
     .filter((row) => row.customerName);

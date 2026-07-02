@@ -122,7 +122,8 @@ export function TargetBaselineImport() {
               Baseline de metas por planilha
             </div>
             <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-500">
-              Faça upload da planilha com Cliente, Target RL Hunter, Target RL Farmer, Total RL 2026 e resp.
+              Faça upload da planilha com Cliente, Target RL Hunter, Target RL Farmer e Total RL 2026.
+              A coluna resp é opcional.
               A coluna de Áreas / Studios é opcional; se não existir, o saldo entre total, Hunter e Renovação será usado.
               A tela compara contra o Supabase e só atualiza os clientes marcados por você.
             </p>
