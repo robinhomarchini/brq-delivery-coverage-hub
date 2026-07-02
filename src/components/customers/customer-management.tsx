@@ -9,6 +9,7 @@ import { ReportExportActions, type ReportColumn } from "@/components/shared/repo
 import { FilterBar } from "@/components/shared/filter-bar";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorNotice, SuccessNotice } from "@/components/shared/success-notice";
+import { SortableTableHead, type SortDirection, type SortState } from "@/components/shared/sortable-table-head";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -111,6 +112,7 @@ type CustomerCoverageSignal = {
   title: string;
   difference?: number;
 };
+type CustomerSortKey = "customer" | "director" | "allocated" | "target" | "margin" | "strategic";
 
 export function CustomerManagement() {
   const initialCustomerId = useMemo(() => getInitialCustomerId(), []);
@@ -153,6 +155,7 @@ export function CustomerManagement() {
   const [formStudioTarget, setFormStudioTarget] = useState(getInputValue(initialCustomer?.studioTarget ?? 0));
   const [successMessage, setSuccessMessage] = useState("");
   const [formError, setFormError] = useState("");
+  const [sortState, setSortState] = useState<SortState<CustomerSortKey>>({ key: "customer", direction: "asc" });
   const directors = useMemo(() => people
     .filter((person) => person.active && person.roleType === "Director")
     .sort((first, second) => first.name.localeCompare(second.name)),
@@ -176,6 +179,10 @@ export function CustomerManagement() {
       && (!manager || customer.managerResponsibleIds.includes(manager))
       && (!strategic || String(customer.strategicAccount) === strategic);
   }), [yearCustomers, director, manager, search, strategic]);
+  const sortedCustomers = useMemo(
+    () => sortCustomerRows(filtered, sortState, people, areas, targetAllocations, studioTargetAllocations, year),
+    [areas, filtered, people, sortState, studioTargetAllocations, targetAllocations, year],
+  );
   const formHunterAmount = parseAmount(formHunterTarget);
   const formFarmerRenewalAmount = parseAmount(formFarmerRenewalTarget);
   const formStudioHunterAmount = parseAmount(formStudioHunterTarget);
@@ -192,7 +199,7 @@ export function CustomerManagement() {
       total: totals.total + breakdown.total,
     };
   }, { hunter: 0, farmerRenewal: 0, studioHunter: 0, studio: 0, total: 0 });
-  const customerReportRows = useMemo(() => filtered.map((customer) => {
+  const customerReportRows = useMemo(() => sortedCustomers.map((customer) => {
     const breakdown = getCustomerTargetBreakdown(customer);
     const targetPeople = getCustomerTargetPeople(customer, people, targetAllocations, year);
     const coverage = getCustomerCoverageStatus(customer, people, areas, targetAllocations, studioTargetAllocations, year);
@@ -219,7 +226,7 @@ export function CustomerManagement() {
       difference: coverage.difference ?? 0,
       year,
     };
-  }), [areas, filtered, people, studioTargetAllocations, targetAllocations, year]);
+  }), [areas, people, sortedCustomers, studioTargetAllocations, targetAllocations, year]);
   const customerReportColumns = useMemo<ReportColumn<(typeof customerReportRows)[number]>[]>(() => [
     { key: "customerName", label: "Cliente", value: (row) => row.customerName },
     { key: "industry", label: "Indústria", value: (row) => row.industry },
@@ -433,7 +440,7 @@ export function CustomerManagement() {
       {formError && <ErrorNotice message={formError} floating onClose={() => setFormError("")} />}
 
       <section className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
-        <Summary label="Clientes filtrados" value={String(filtered.length)} />
+        <Summary label="Clientes filtrados" value={String(sortedCustomers.length)} />
         <Summary label={`Meta Hunter · ${year}`} value={formatCurrency(targetTotals.hunter)} />
         <Summary label={`Renovação + Ampliação · ${year}`} value={formatCurrency(targetTotals.farmerRenewal)} />
         <Summary label={`Studio Hunter · ${year}`} value={formatCurrency(targetTotals.studioHunter)} />
@@ -453,11 +460,16 @@ export function CustomerManagement() {
         <div className="overflow-x-auto">
           <Table>
             <TableHeader><TableRow>
-              <TableHead>Cliente</TableHead><TableHead>Diretor responsável</TableHead>
-              <TableHead>Alocado por pessoas</TableHead><TableHead>Meta do cliente</TableHead><TableHead>Margem alvo</TableHead><TableHead>Estratégica</TableHead><TableHead className="text-right">Ações</TableHead>
+              <SortableTableHead label="Cliente" sortKey="customer" sortState={sortState} onSort={setSortState} />
+              <SortableTableHead label="Diretor responsável" sortKey="director" sortState={sortState} onSort={setSortState} />
+              <SortableTableHead label="Alocado por pessoas" sortKey="allocated" sortState={sortState} onSort={setSortState} />
+              <SortableTableHead label="Meta do cliente" sortKey="target" sortState={sortState} onSort={setSortState} />
+              <SortableTableHead label="Margem alvo" sortKey="margin" sortState={sortState} onSort={setSortState} />
+              <SortableTableHead label="Estratégica" sortKey="strategic" sortState={sortState} onSort={setSortState} />
+              <TableHead className="text-right">Ações</TableHead>
             </TableRow></TableHeader>
             <TableBody>
-              {filtered.map((customer) => {
+              {sortedCustomers.map((customer) => {
                 const breakdown = getCustomerTargetBreakdown(customer);
                 const targetPeople = getCustomerTargetPeople(customer, people, targetAllocations, year);
                 const coverage = getCustomerCoverageStatus(customer, people, areas, targetAllocations, studioTargetAllocations, year);
@@ -494,7 +506,7 @@ export function CustomerManagement() {
             </TableBody>
           </Table>
         </div>
-        {!filtered.length && <EmptyState />}
+        {!sortedCustomers.length && <EmptyState />}
       </Card>
 
       <Dialog open={open} onOpenChange={(nextOpen) => (nextOpen ? setManualOpen(true) : closeForm())}>
@@ -1502,6 +1514,63 @@ function getCustomerTargetPeopleByType(
   return Array.from(totalsByPerson.values())
     .map((person) => ({ ...person, amount: roundCurrency(person.amount) }))
     .sort((first, second) => second.amount - first.amount || first.name.localeCompare(second.name));
+}
+
+function sortCustomerRows(
+  rows: Customer[],
+  sortState: SortState<CustomerSortKey>,
+  people: Person[],
+  areas: Area[],
+  allocations: TargetAllocation[],
+  studioAllocations: StudioTargetAllocation[],
+  year: number,
+) {
+  if (!sortState) return rows;
+  return sortRows(rows, sortState.direction, (first, second) => {
+    if (sortState.key === "customer") return compareText(first.name, second.name);
+    if (sortState.key === "director") return compareText(getCustomerDirectorName(first, people), getCustomerDirectorName(second, people));
+    if (sortState.key === "allocated") {
+      return compareNumber(
+        getCustomerCoverageAllocatedTotal(first, people, allocations, studioAllocations, year),
+        getCustomerCoverageAllocatedTotal(second, people, allocations, studioAllocations, year),
+      );
+    }
+    if (sortState.key === "target") return compareNumber(getCustomerTargetBreakdown(first).total, getCustomerTargetBreakdown(second).total);
+    if (sortState.key === "margin") return compareNumber(first.margin, second.margin);
+    return compareNumber(first.strategicAccount ? 1 : 0, second.strategicAccount ? 1 : 0);
+  });
+}
+
+function getCustomerDirectorName(customer: Customer, people: Person[]) {
+  return displayDirectorName(people.find((person) => person.id === customer.directorResponsibleId)?.name ?? customer.directorResponsibleId);
+}
+
+function getCustomerCoverageAllocatedTotal(
+  customer: Customer,
+  people: Person[],
+  allocations: TargetAllocation[],
+  studioAllocations: StudioTargetAllocation[],
+  year: number,
+) {
+  const breakdown = getCustomerTargetBreakdown(customer);
+  const peopleComposition = getCustomerAllocationComposition(customer, people, allocations, year, breakdown);
+  const studioComposition = getCustomerStudioComposition(customer.id, customer.studioTarget, customer.studioHunterTarget, [], studioAllocations, year);
+  return peopleComposition.allocatedTotal + studioComposition.allocatedTotal;
+}
+
+function sortRows<T>(rows: T[], direction: SortDirection, compare: (first: T, second: T) => number) {
+  return [...rows].sort((first, second) => {
+    const result = compare(first, second);
+    return direction === "asc" ? result : -result;
+  });
+}
+
+function compareText(first: string, second: string) {
+  return first.localeCompare(second, "pt-BR", { sensitivity: "base", numeric: true });
+}
+
+function compareNumber(first: number, second: number) {
+  return first - second;
 }
 
 function getInputValue(value: number) {
