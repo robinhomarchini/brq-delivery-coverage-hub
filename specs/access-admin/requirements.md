@@ -21,7 +21,13 @@ service role no navegador.
 - Admin pode criar, atualizar e desativar acessos por e-mail, papel e status
   ativo/inativo.
 - Um convite pendente deve virar registro em `app_users` quando o usuário
-  autenticado fizer login.
+  autenticado fizer login, porém ainda sem acesso ativo.
+- Após o primeiro login, o usuário deve aparecer como "Aguardando aprovação" na
+  tela Configurações.
+- Apenas um administrador pode aprovar o usuário para transformar
+  `app_users.active` em `true`.
+- Administradores devem ver um alerta global quando houver usuários aguardando
+  aprovação.
 - O frontend usa somente a chave anônima do Supabase e depende de RLS/RPC para
   enforcement.
 
@@ -35,8 +41,8 @@ service role no navegador.
 - `viewer` não consegue alterar dados do domínio por RLS; `editor` e `admin`
   conseguem.
 - Funções `security definer` usam `search_path` seguro.
-- Configurações lista usuários ativos e convites pendentes e salva com feedback
-  de sucesso/erro.
+- Configurações lista usuários ativos, pré-cadastros e usuários aguardando
+  aprovação, com ação explícita de "Aprovar" e feedback de sucesso/erro.
 
 ## Riscos e validação
 

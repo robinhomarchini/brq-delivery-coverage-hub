@@ -16,15 +16,16 @@ import {
   Settings,
   Target,
   LogOut,
+  ShieldAlert,
   UsersRound,
   X,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { useDeliveryStore } from "@/store/delivery-store";
 import { ErrorNotice } from "@/components/shared/success-notice";
-import { translateAccessRole } from "@/lib/access-control";
+import { listAccessUsers, translateAccessRole } from "@/lib/access-control";
 import { useAccess } from "@/lib/access-context";
 
 const navigation = [
@@ -49,6 +50,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
   const { accessUser, isAdmin } = useAccess();
   const visibleNavigation = navigation.filter((item) => !item.adminOnly || isAdmin);
   const current = visibleNavigation.find((item) => item.href === pathname) ?? navigation[0];
@@ -62,6 +64,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       ? { label: "Configuração pendente", className: "bg-amber-500" }
       : { label: "Dados demonstrativos", className: "bg-emerald-500" };
   const routeKey = `${pathname}?${searchParams.toString()}`;
+
+  useEffect(() => {
+    if (!client || !isAdmin) {
+      return;
+    }
+
+    let mounted = true;
+    listAccessUsers(client)
+      .then((users) => {
+        if (!mounted) return;
+        setPendingApprovalCount(users.filter((user) => user.status === "approval_pending").length);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setPendingApprovalCount(0);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, [client, isAdmin, pathname]);
 
   return (
     <div className="min-h-screen">
@@ -149,6 +172,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </header>
         <main className="mx-auto min-h-[calc(100vh-3.5rem)] max-w-[1680px] p-4 sm:p-6">
+          {isAdmin && pendingApprovalCount > 0 && (
+            <Link
+              href="/configuracoes"
+              className="mb-4 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 shadow-sm transition hover:bg-amber-100"
+            >
+              <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0" />
+              <span>
+                <strong>{pendingApprovalCount} usuário(s) aguardando aprovação.</strong>{" "}
+                Clique para revisar e liberar acesso em Configurações.
+              </span>
+            </Link>
+          )}
           {error && <ErrorNotice message={error} floating onClose={clearError} />}
           <div key={routeKey}>{children}</div>
         </main>

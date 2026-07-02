@@ -1,6 +1,6 @@
 "use client";
 
-import { LoaderCircle, Pencil, ShieldAlert, ShieldCheck, Trash2, UserPlus } from "lucide-react";
+import { CheckCircle2, LoaderCircle, Pencil, ShieldAlert, ShieldCheck, Trash2, UserPlus } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { ErrorNotice, SuccessNotice } from "@/components/shared/success-notice";
@@ -12,6 +12,7 @@ import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   accessRoles,
+  approveAccessUser,
   deactivateAccessUser,
   deleteAccessUser,
   isBrqEmail,
@@ -20,6 +21,7 @@ import {
   saveAccessUser,
   translateAccessRole,
   type AccessRole,
+  type AccessStatus,
   type AccessUser,
 } from "@/lib/access-control";
 import { useAccess } from "@/lib/access-context";
@@ -145,6 +147,25 @@ export default function SettingsPage() {
     }
   }
 
+  async function handleApprove(user: AccessUser) {
+    if (!client) return;
+    setNotice("");
+    setError("");
+    setSaving(true);
+    try {
+      await approveAccessUser(client, user);
+      await Promise.all([loadUsers(), refreshAccess()]);
+      setNotice(`Acesso de ${user.email} aprovado com sucesso.`);
+      if (editingEmail === user.email) {
+        setForm({ ...form, active: true });
+      }
+    } catch (approveError) {
+      setError(getErrorMessage(approveError, "Não foi possível aprovar o usuário."));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function handleDelete(user: AccessUser) {
     if (!client) return;
     const confirmed = window.confirm(`Excluir o acesso de ${user.email}?\n\nSe for uma conta já autenticada, ela perderá acesso ao hub. O sistema manterá pelo menos um administrador ativo.`);
@@ -190,7 +211,7 @@ export default function SettingsPage() {
       <PageHeader
         eyebrow="Administração"
         title="Configurações"
-        description="Gerencie o acesso corporativo ao Delivery Coverage Hub com papéis e pré-cadastro no Supabase."
+        description="Gerencie o acesso corporativo ao Delivery Coverage Hub com pré-cadastro, primeiro login e aprovação final."
       />
 
       {notice && <SuccessNotice message={notice} floating />}
@@ -205,7 +226,7 @@ export default function SettingsPage() {
               </div>
               <div>
                 <CardTitle>{editingEmail ? "Editar usuário" : "Pré-cadastrar usuário"}</CardTitle>
-                <CardDescription className="mt-1">Use apenas e-mails corporativos BRQ.</CardDescription>
+                <CardDescription className="mt-1">Use apenas e-mails corporativos BRQ. O usuário ainda precisará do seu OK após o primeiro login.</CardDescription>
               </div>
             </div>
           </CardHeader>
@@ -248,7 +269,7 @@ export default function SettingsPage() {
                   onChange={(event) => setForm((current) => ({ ...current, active: event.target.checked }))}
                   disabled={saving}
                 />
-                Ativo
+                Convite habilitado / usuário aprovado
               </label>
 
               <div className="flex flex-wrap gap-2">
@@ -268,7 +289,7 @@ export default function SettingsPage() {
           <CardHeader className="flex-row items-start justify-between gap-4 space-y-0">
             <div>
               <CardTitle>Usuários e convites</CardTitle>
-              <CardDescription className="mt-1">Status ativo indica login já convertido em `app_users`; pendente indica pré-cadastro.</CardDescription>
+              <CardDescription className="mt-1">Pré-cadastrado aguarda primeiro login. Aguardando aprovação exige seu OK final para liberar acesso.</CardDescription>
             </div>
             <Button type="button" variant="secondary" onClick={loadUsers} disabled={loading || saving}>
               {loading ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}
@@ -309,21 +330,27 @@ export default function SettingsPage() {
                     <TableRow key={user.email}>
                       <TableCell>
                         <div className="font-semibold text-slate-900">{user.email}</div>
-                        <div className="text-xs text-slate-400">{user.userId ? "Conta autenticada" : "Aguardando primeiro login"}</div>
+                        <div className="text-xs text-slate-400">{getAccessHelperText(user)}</div>
                       </TableCell>
                       <TableCell>{translateAccessRole(user.role)}</TableCell>
                       <TableCell>
-                        <Badge variant={user.status === "active" ? "success" : "secondary"}>
-                          {user.status === "active" ? "Ativo" : "Pendente"}
+                        <Badge variant={getAccessStatusVariant(user.status)}>
+                          {translateAccessStatus(user.status)}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={user.active ? "success" : "secondary"}>
-                          {user.active ? "Liberado" : "Inativo"}
+                        <Badge variant={user.active ? "success" : user.status === "approval_pending" ? "warning" : "secondary"}>
+                          {user.active ? "Liberado" : user.status === "approval_pending" ? "Aguardando OK" : "Sem acesso"}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
+                          {user.status === "approval_pending" && (
+                            <Button type="button" variant="default" onClick={() => handleApprove(user)} disabled={saving}>
+                              <CheckCircle2 className="h-4 w-4" />
+                              Aprovar
+                            </Button>
+                          )}
                           <Button type="button" variant="secondary" onClick={() => startEditing(user)} disabled={saving}>
                             <Pencil className="h-4 w-4" />
                             Editar
@@ -357,4 +384,30 @@ function getErrorMessage(error: unknown, fallback: string) {
     return String((error as { message?: unknown }).message || fallback);
   }
   return fallback;
+}
+
+function translateAccessStatus(status: AccessStatus) {
+  const labels: Record<AccessStatus, string> = {
+    active: "Ativo",
+    invited: "Pré-cadastrado",
+    approval_pending: "Aguardando aprovação",
+    blocked: "Bloqueado",
+    pending: "Pré-cadastrado",
+  };
+
+  return labels[status] ?? "Pendente";
+}
+
+function getAccessStatusVariant(status: AccessStatus) {
+  if (status === "active") return "success";
+  if (status === "approval_pending") return "warning";
+  if (status === "blocked") return "destructive";
+  return "secondary";
+}
+
+function getAccessHelperText(user: AccessUser) {
+  if (user.status === "active") return "Conta autenticada e aprovada";
+  if (user.status === "approval_pending") return "Primeiro login realizado; aguardando aprovação";
+  if (user.status === "blocked") return user.userId ? "Conta autenticada sem acesso" : "Convite bloqueado";
+  return "Aguardando primeiro login";
 }

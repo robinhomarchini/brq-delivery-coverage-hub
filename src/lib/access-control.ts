@@ -7,17 +7,19 @@ export interface AccessUser {
   email: string;
   role: AccessRole;
   active: boolean;
-  status: "active" | "pending";
+  status: AccessStatus;
   createdAt?: string;
   updatedAt?: string;
 }
+
+export type AccessStatus = "active" | "invited" | "approval_pending" | "blocked" | "pending";
 
 interface AppUserRow {
   user_id?: string | null;
   email: string;
   role: AccessRole;
   active: boolean;
-  status?: "active" | "pending";
+  status?: AccessStatus;
   created_at?: string;
   updated_at?: string;
 }
@@ -90,6 +92,14 @@ export async function deactivateAccessUser(client: SupabaseClient, email: string
   });
 }
 
+export async function approveAccessUser(client: SupabaseClient, user: Pick<AccessUser, "email" | "role">) {
+  return saveAccessUser(client, {
+    email: user.email,
+    role: user.role,
+    active: true,
+  });
+}
+
 export async function deleteAccessUser(client: SupabaseClient, email: string) {
   const normalizedEmail = normalizeAccessEmail(email);
   if (!isBrqEmail(normalizedEmail)) {
@@ -109,7 +119,7 @@ function fromAppUserRow(row: AppUserRow): AccessUser {
     email: row.email,
     role: row.role,
     active: row.active,
-    status: row.status ?? "active",
+    status: row.status ?? (row.active ? "active" : "blocked"),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
