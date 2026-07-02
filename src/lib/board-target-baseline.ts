@@ -79,7 +79,7 @@ export function getBoardComparisonStatusLabel(status: BoardTargetComparisonRow["
   if (status === "above") return "Acima do baseline";
   if (status === "below") return "Abaixo do baseline";
   if (status === "missing_customer") return "Cliente não cadastrado";
-  return "Fora do baseline";
+  return "Cliente / receita nova";
 }
 
 function buildComparisonRow(

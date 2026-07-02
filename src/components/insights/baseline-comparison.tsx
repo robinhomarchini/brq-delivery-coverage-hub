@@ -132,7 +132,7 @@ export function BaselineComparison() {
           <option value="above">Acima do baseline</option>
           <option value="below">Abaixo do baseline</option>
           <option value="missing_customer">Cliente não cadastrado</option>
-          <option value="extra_customer">Fora do baseline</option>
+          <option value="extra_customer">Cliente / receita nova</option>
         </Select>
       </FilterBar>
 
@@ -224,7 +224,7 @@ function StatusBadge({ status }: { status: ComparisonRow["status"] }) {
   if (status === "above") return <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Acima</Badge>;
   if (status === "below") return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Abaixo</Badge>;
   if (status === "missing_customer") return <Badge variant="destructive">Cliente ausente</Badge>;
-  return <Badge variant="secondary">Fora do baseline</Badge>;
+  return <Badge className="bg-sky-100 text-sky-800 hover:bg-sky-100">Cliente / receita nova</Badge>;
 }
 
 function isVisibleForMode(row: ComparisonRow, mode: BaselineComparisonMode) {

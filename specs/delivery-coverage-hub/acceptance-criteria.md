@@ -112,6 +112,8 @@
   operacional por Cliente, Hunter e Hunter + Farmer.
 - A rota Comparativo Baseline permite filtrar por ano, status e busca por
   cliente, e exporta CSV/Excel com valores numéricos.
+- No Comparativo Baseline, clientes existentes no cadastro mas ausentes do
+  baseline aparecem como "Cliente / receita nova", em azul.
 - A importação de Insights aceita planilha sem coluna `resp` e trata total
   textual como Hunter + Renovação + Ampliação na linha afetada.
 - A navegação não apresenta Territórios e mostra Assuntos como item
