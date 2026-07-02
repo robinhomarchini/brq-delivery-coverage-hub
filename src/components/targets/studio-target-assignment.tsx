@@ -1,12 +1,12 @@
 "use client";
 
 import { Building2, Pencil, Plus, Save, Target, Trash2 } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Area, Customer, StudioTargetAllocation } from "@/data/mockData";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorNotice, SuccessNotice } from "@/components/shared/success-notice";
-import { FilterBar } from "@/components/shared/filter-bar";
 import { PageHeader } from "@/components/shared/page-header";
+import { SortableTableHead, type SortDirection, type SortState } from "@/components/shared/sortable-table-head";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -22,10 +22,12 @@ import { formatCurrency, makeId } from "@/lib/utils";
 
 const currentYear = defaultTargetYear;
 
+type ReconciliationSortKey = "customer" | "target" | "allocated" | "areas" | "status";
+type AllocationSortKey = "customer" | "area" | "year" | "hunter" | "maintenance" | "total";
+
 export function StudioTargetAssignment() {
   const initialParams = useMemo(() => getInitialStudioTargetParams(), []);
   const { areas, customers, customerTargets, studioTargetAllocations, saveCustomer, saveStudioTargetAllocation, deleteStudioTargetAllocation } = useDeliveryStore();
-  const [search, setSearch] = useState("");
   const [customerId, setCustomerId] = useState(initialParams.customerId);
   const [areaId, setAreaId] = useState("");
   const [year, setYear] = useState(String(initialParams.year ?? currentYear));
@@ -33,6 +35,8 @@ export function StudioTargetAssignment() {
   const [open, setOpen] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [formError, setFormError] = useState("");
+  const [reconciliationSort, setReconciliationSort] = useState<SortState<ReconciliationSortKey>>(null);
+  const [allocationSort, setAllocationSort] = useState<SortState<AllocationSortKey>>(null);
 
   const effectiveYear = Number(year) || currentYear;
   const years = useMemo(
@@ -40,28 +44,34 @@ export function StudioTargetAssignment() {
     [customerTargets, studioTargetAllocations],
   );
   const yearCustomers = useMemo(() => applyCustomerTargetsForYear(customers, customerTargets, effectiveYear), [customerTargets, customers, effectiveYear]);
+  const selectableCustomers = useMemo(
+    () => yearCustomers.slice().sort((first, second) => first.name.localeCompare(second.name, "pt-BR", { sensitivity: "base", numeric: true })),
+    [yearCustomers],
+  );
   const allocationsForYear = useMemo(
     () => studioTargetAllocations.filter((allocation) => allocation.year === effectiveYear),
     [effectiveYear, studioTargetAllocations],
   );
   const filteredRows = useMemo(() => allocationsForYear.filter((allocation) => {
-    const customer = findCustomer(yearCustomers, allocation.customerId);
-    const area = findArea(areas, allocation.areaId);
-    const query = search.toLowerCase();
-    return (!query || `${customer?.name ?? ""} ${area?.name ?? ""} ${allocation.notes ?? ""}`.toLowerCase().includes(query))
-      && (!customerId || allocation.customerId === customerId)
+    return (!customerId || allocation.customerId === customerId)
       && (!areaId || allocation.areaId === areaId);
-  }), [allocationsForYear, areaId, areas, customerId, search, yearCustomers]);
+  }), [allocationsForYear, areaId, customerId]);
   const reconciliation = useMemo(
     () => buildReconciliation(yearCustomers, areas, allocationsForYear),
     [allocationsForYear, areas, yearCustomers],
   );
   const visibleReconciliation = useMemo(() => reconciliation.filter((row) => {
-    const query = search.toLowerCase();
-    return (!query || `${row.customerName} ${row.areaNames.join(" ")}`.toLowerCase().includes(query))
-      && (!customerId || row.customerId === customerId)
+    return (!customerId || row.customerId === customerId)
       && (!areaId || row.areaIds.includes(areaId));
-  }), [areaId, customerId, reconciliation, search]);
+  }), [areaId, customerId, reconciliation]);
+  const sortedReconciliation = useMemo(
+    () => sortReconciliationRows(visibleReconciliation, reconciliationSort),
+    [reconciliationSort, visibleReconciliation],
+  );
+  const sortedAllocations = useMemo(
+    () => sortAllocationRows(filteredRows, allocationSort, yearCustomers, areas),
+    [allocationSort, areas, filteredRows, yearCustomers],
+  );
   const totals = useMemo(() => visibleReconciliation.reduce((summary, row) => ({
     targetHunter: summary.targetHunter + row.targetHunter,
     targetMaintenance: summary.targetMaintenance + row.targetMaintenance,
@@ -78,6 +88,11 @@ export function StudioTargetAssignment() {
   }, []);
 
   useCloseOnNavigation(closeForm);
+
+  useEffect(() => {
+    if (!initialParams.consumedFromUrl || typeof window === "undefined") return;
+    window.history.replaceState(null, "", window.location.pathname);
+  }, [initialParams.consumedFromUrl]);
 
   function openForm(allocation?: StudioTargetAllocation, presetCustomerId = "") {
     setEditing(allocation ?? null);
@@ -139,48 +154,64 @@ export function StudioTargetAssignment() {
         <Summary label="Em aberto" value={formatCurrency(totals.open)} />
       </section>
 
-      <FilterBar search={search} onSearchChange={setSearch}>
-        <Select value={year} onChange={(event) => setYear(event.target.value)}>
-          {years.map((item) => <option key={item} value={item}>{item}</option>)}
-        </Select>
-        <Select value={customerId} onChange={(event) => setCustomerId(event.target.value)}>
-          <option value="">Todos os clientes</option>
-          {yearCustomers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}</option>)}
-        </Select>
-        <Select value={areaId} onChange={(event) => setAreaId(event.target.value)}>
-          <option value="">Todas as áreas/studios</option>
-          {areas.map((area) => <option key={area.id} value={area.id}>{area.name}</option>)}
-        </Select>
-      </FilterBar>
+      <Card className="mb-5 grid gap-3 p-4 shadow-sm md:grid-cols-2 xl:grid-cols-6">
+        <Field label="Cliente em foco" className="xl:col-span-3">
+          <Select value={customerId} onChange={(event) => setCustomerId(event.target.value)}>
+            <option value="">Todos os clientes</option>
+            {selectableCustomers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}</option>)}
+          </Select>
+          <span className="mt-1 block text-xs text-slate-400">Ao escolher um cliente, a conciliação e as alocações abaixo são atualizadas automaticamente.</span>
+        </Field>
+        <Field label="Ano">
+          <Select value={year} onChange={(event) => setYear(event.target.value)}>
+            {years.map((item) => <option key={item} value={item}>{item}</option>)}
+          </Select>
+        </Field>
+        <Field label="Área / Studio">
+          <Select value={areaId} onChange={(event) => setAreaId(event.target.value)}>
+            <option value="">Todas as áreas/studios</option>
+            {areas.map((area) => <option key={area.id} value={area.id}>{area.name}</option>)}
+          </Select>
+        </Field>
+        <div className="flex items-end">
+          <Button type="button" variant="outline" className="w-full" onClick={() => {
+            setCustomerId("");
+            setAreaId("");
+          }}>
+            Limpar filtros
+          </Button>
+        </div>
+      </Card>
 
       <Card className="mb-5 overflow-hidden shadow-sm">
         <div className="border-b bg-white p-5">
           <h2 className="text-base font-bold text-slate-900">Conciliação por cliente</h2>
-          <p className="mt-1 text-xs text-slate-500">Diferenças entre alocado e meta aparecem como conciliação. Ao salvar acima do subtotal atual, você escolhe se aumenta a meta do cliente ou mantém a pendência visível.</p>
+          <p className="mt-1 text-xs text-slate-500">Manutenção/Renovação sem alocação aparece como pendência. Studio Hunter é uma abertura contida na meta Hunter; quando não estiver totalmente detalhado, fica apenas informativo.</p>
         </div>
         <div className="overflow-x-auto">
           <Table className="min-w-[900px]">
             <TableHeader>
               <TableRow>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Meta do Cliente</TableHead>
-                <TableHead>Alocado em Studios</TableHead>
-                <TableHead>Áreas/Studios</TableHead>
-                <TableHead>Status</TableHead>
+                <SortableTableHead label="Cliente" sortKey="customer" sortState={reconciliationSort} onSort={setReconciliationSort} />
+                <SortableTableHead label="Meta do Cliente" sortKey="target" sortState={reconciliationSort} onSort={setReconciliationSort} />
+                <SortableTableHead label="Alocado em Studios" sortKey="allocated" sortState={reconciliationSort} onSort={setReconciliationSort} />
+                <SortableTableHead label="Áreas/Studios" sortKey="areas" sortState={reconciliationSort} onSort={setReconciliationSort} />
+                <SortableTableHead label="Status" sortKey="status" sortState={reconciliationSort} onSort={setReconciliationSort} />
                 <TableHead className="text-right">Ação</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {visibleReconciliation.map((row) => (
+              {sortedReconciliation.map((row) => (
                 <TableRow key={row.customerId} className="cursor-pointer" onDoubleClick={() => openForm(undefined, row.customerId)}>
                   <TableCell className="font-semibold text-slate-900">{row.customerName}</TableCell>
                   <TableCell>
-                    <p>Hunter: {formatCurrency(row.targetHunter)}</p>
+                    <p>Studio Hunter: {formatCurrency(row.targetHunter)}</p>
                     <p>Manut.: {formatCurrency(row.targetMaintenance)}</p>
                   </TableCell>
                   <TableCell>
-                    <p>Hunter: {formatCurrency(row.allocatedHunter)}</p>
+                    <p>Studio Hunter: {formatCurrency(row.allocatedHunter)}</p>
                     <p>Manut.: {formatCurrency(row.allocatedMaintenance)}</p>
+                    {row.hunterNotDetailed > 0.01 && <p className="text-xs text-sky-700">Não detalhado: {formatCurrency(row.hunterNotDetailed)}</p>}
                   </TableCell>
                   <TableCell>{row.areaNames.join(", ") || "Sem área/studio alocado"}</TableCell>
                   <TableCell><StatusBadge status={row.status} /></TableCell>
@@ -202,18 +233,18 @@ export function StudioTargetAssignment() {
           <Table className="min-w-[920px]">
             <TableHeader>
               <TableRow>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Área / Studio</TableHead>
-                <TableHead>Ano</TableHead>
-                <TableHead>Hunter</TableHead>
-                <TableHead>Manutenção</TableHead>
-                <TableHead>Total</TableHead>
+                <SortableTableHead label="Cliente" sortKey="customer" sortState={allocationSort} onSort={setAllocationSort} />
+                <SortableTableHead label="Área / Studio" sortKey="area" sortState={allocationSort} onSort={setAllocationSort} />
+                <SortableTableHead label="Ano" sortKey="year" sortState={allocationSort} onSort={setAllocationSort} />
+                <SortableTableHead label="Hunter" sortKey="hunter" sortState={allocationSort} onSort={setAllocationSort} />
+                <SortableTableHead label="Manutenção" sortKey="maintenance" sortState={allocationSort} onSort={setAllocationSort} />
+                <SortableTableHead label="Total" sortKey="total" sortState={allocationSort} onSort={setAllocationSort} />
                 <TableHead>Observações</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredRows.map((allocation) => (
+              {sortedAllocations.map((allocation) => (
                 <TableRow key={allocation.id} className="cursor-pointer" onDoubleClick={() => openForm(allocation)}>
                   <TableCell className="font-semibold text-slate-900">{findCustomer(yearCustomers, allocation.customerId)?.name ?? allocation.customerId}</TableCell>
                   <TableCell>
@@ -249,7 +280,7 @@ export function StudioTargetAssignment() {
             </TableBody>
           </Table>
         </div>
-        {!filteredRows.length && <EmptyState />}
+        {!sortedAllocations.length && <EmptyState />}
       </Card>
 
       <Dialog open={open} onOpenChange={(nextOpen) => (nextOpen ? setOpen(true) : closeForm())}>
@@ -315,10 +346,11 @@ function Field({ label, children, className = "" }: { label: string; children: R
   );
 }
 
-function StatusBadge({ status }: { status: "ok" | "pending" | "over" | "empty" }) {
+function StatusBadge({ status }: { status: "ok" | "pending" | "over" | "empty" | "partial" }) {
   if (status === "ok") return <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">Fechado</Badge>;
   if (status === "over") return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Acima</Badge>;
   if (status === "empty") return <Badge className="bg-slate-100 text-slate-600 hover:bg-slate-100">Sem meta</Badge>;
+  if (status === "partial") return <Badge className="bg-sky-100 text-sky-800 hover:bg-sky-100">Hunter parcial</Badge>;
   return <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Pendente</Badge>;
 }
 
@@ -334,7 +366,8 @@ function buildReconciliation(customers: Customer[], areas: Area[], allocations: 
       const maintenanceDifference = roundCurrency(customer.studioTarget - allocatedMaintenance);
       const areaIds = customerAllocations.map((allocation) => allocation.areaId);
       const overTotal = Math.max(0, -hunterDifference) + Math.max(0, -maintenanceDifference);
-      const openTotal = Math.max(0, hunterDifference) + Math.max(0, maintenanceDifference);
+      const hunterNotDetailed = Math.max(0, hunterDifference);
+      const openTotal = Math.max(0, maintenanceDifference);
       return {
         customerId: customer.id,
         customerName: customer.name,
@@ -344,6 +377,7 @@ function buildReconciliation(customers: Customer[], areas: Area[], allocations: 
         allocatedMaintenance,
         openHunter: Math.max(0, hunterDifference),
         openMaintenance: Math.max(0, maintenanceDifference),
+        hunterNotDetailed,
         overHunter: Math.max(0, -hunterDifference),
         overMaintenance: Math.max(0, -maintenanceDifference),
         openTotal,
@@ -354,15 +388,67 @@ function buildReconciliation(customers: Customer[], areas: Area[], allocations: 
           ? "empty" as const
           : overTotal > 0.01
             ? "over" as const
-            : openTotal <= 0.01
-              ? "ok" as const
-              : "pending" as const,
+            : openTotal > 0.01
+              ? "pending" as const
+              : hunterNotDetailed > 0.01
+                ? "partial" as const
+                : "ok" as const,
       };
     })
     .sort((first, second) =>
       (second.targetHunter + second.targetMaintenance) - (first.targetHunter + first.targetMaintenance)
       || first.customerName.localeCompare(second.customerName, "pt-BR")
     );
+}
+
+type ReconciliationRow = ReturnType<typeof buildReconciliation>[number];
+
+function sortReconciliationRows(rows: ReconciliationRow[], sortState: SortState<ReconciliationSortKey>) {
+  if (!sortState) return rows;
+  return sortRows(rows, sortState.direction, (first, second) => {
+    if (sortState.key === "customer") return compareText(first.customerName, second.customerName);
+    if (sortState.key === "target") return compareNumber(first.targetHunter + first.targetMaintenance, second.targetHunter + second.targetMaintenance);
+    if (sortState.key === "allocated") return compareNumber(first.allocatedHunter + first.allocatedMaintenance, second.allocatedHunter + second.allocatedMaintenance);
+    if (sortState.key === "areas") return compareText(first.areaNames.join(", "), second.areaNames.join(", "));
+    return compareNumber(getStatusRank(first), getStatusRank(second))
+      || compareNumber(first.openTotal + first.overTotal, second.openTotal + second.overTotal)
+      || compareText(first.customerName, second.customerName);
+  });
+}
+
+function sortAllocationRows(rows: StudioTargetAllocation[], sortState: SortState<AllocationSortKey>, customers: Customer[], areas: Area[]) {
+  if (!sortState) return rows;
+  return sortRows(rows, sortState.direction, (first, second) => {
+    if (sortState.key === "customer") return compareText(findCustomer(customers, first.customerId)?.name ?? first.customerId, findCustomer(customers, second.customerId)?.name ?? second.customerId);
+    if (sortState.key === "area") return compareText(findArea(areas, first.areaId)?.name ?? first.areaId, findArea(areas, second.areaId)?.name ?? second.areaId);
+    if (sortState.key === "year") return compareNumber(first.year, second.year);
+    if (sortState.key === "hunter") return compareNumber(first.hunterAmount, second.hunterAmount);
+    if (sortState.key === "maintenance") return compareNumber(first.maintenanceAmount, second.maintenanceAmount);
+    return compareNumber(first.hunterAmount + first.maintenanceAmount, second.hunterAmount + second.maintenanceAmount);
+  });
+}
+
+function sortRows<T>(rows: T[], direction: SortDirection, compare: (first: T, second: T) => number) {
+  return [...rows].sort((first, second) => {
+    const result = compare(first, second);
+    return direction === "asc" ? result : -result;
+  });
+}
+
+function compareText(first: string, second: string) {
+  return first.localeCompare(second, "pt-BR", { sensitivity: "base", numeric: true });
+}
+
+function compareNumber(first: number, second: number) {
+  return first - second;
+}
+
+function getStatusRank(row: ReconciliationRow) {
+  if (row.status === "over") return 0;
+  if (row.status === "pending") return 1;
+  if (row.status === "partial") return 2;
+  if (row.status === "empty") return 3;
+  return 4;
 }
 
 function sumStudioAllocations(allocations: StudioTargetAllocation[], customerId: string, year: number, exceptId: string, type: "hunter" | "maintenance") {
@@ -459,11 +545,13 @@ function getFormErrorMessage(error: unknown) {
 }
 
 function getInitialStudioTargetParams() {
-  if (typeof window === "undefined") return { customerId: "", year: undefined as number | undefined };
+  if (typeof window === "undefined") return { customerId: "", year: undefined as number | undefined, consumedFromUrl: false };
   const params = new URLSearchParams(window.location.search);
   const year = Number(params.get("year"));
+  const customerId = params.get("customerId") ?? "";
   return {
-    customerId: params.get("customerId") ?? "",
+    customerId,
     year: Number.isFinite(year) && year >= 2020 && year <= 2100 ? year : undefined,
+    consumedFromUrl: Boolean(customerId || params.get("year")),
   };
 }

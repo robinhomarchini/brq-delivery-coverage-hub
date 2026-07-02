@@ -16,6 +16,9 @@ Cada tela de gestão apresenta busca/filtros, tabela responsiva e modal de cadas
 ou edição. Exclusões exigem confirmação do navegador.
 Nas tabelas/listas editáveis, um duplo clique na linha abre a edição do item ou
 leva diretamente para a tela operacional de ajuste correspondente.
+Quando uma lista operacional tiver cabeçalhos clicáveis, a ordenação deve atuar
+apenas sobre os itens já filtrados e indicar visualmente a direção crescente ou
+decrescente.
 
 ## Clientes BU Financial
 

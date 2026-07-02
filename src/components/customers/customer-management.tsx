@@ -370,7 +370,7 @@ export function CustomerManagement() {
               {filtered.map((customer) => {
                 const breakdown = getCustomerTargetBreakdown(customer);
                 const targetPeople = getCustomerTargetPeople(customer, people, targetAllocations, year);
-                const coverage = getCustomerCoverageStatus(customer, people, targetAllocations, studioTargetAllocations, year);
+                const coverage = getCustomerCoverageStatus(customer, people, areas, targetAllocations, studioTargetAllocations, year);
                 return (
                   <TableRow
                     key={customer.id}
@@ -870,6 +870,7 @@ function CustomerAllocationWarning({ warning }: { warning: CustomerAllocationWar
 function getCustomerCoverageStatus(
   customer: Customer,
   people: Person[],
+  areas: Area[],
   allocations: TargetAllocation[],
   studioAllocations: StudioTargetAllocation[],
   year: number,
@@ -895,11 +896,28 @@ function getCustomerCoverageStatus(
     .reduce((total, allocation) => total + allocation.maintenanceAmount, 0));
   const allocated = roundCurrency(allocatedHunter + allocatedFarmerRenewal + allocatedStudioMaintenance);
   const difference = roundCurrency(breakdown.total - allocated);
+  const compositionTitle = buildCustomerReconciliationTitle({
+    year,
+    breakdown,
+    allocatedHunter,
+    allocatedFarmerRenewal,
+    allocatedStudioMaintenance,
+    allocated,
+    difference,
+    hunterPeople: getAllocationPeopleTitleRows(customerAllocations, people, "hunter"),
+    farmerRenewalPeople: getAllocationPeopleTitleRows(customerAllocations, people, "farmer_renewal"),
+    studioHunterAreas: getStudioAllocationTitleRows(customerStudioAllocations, areas, "hunter"),
+    studioMaintenanceAreas: getStudioAllocationTitleRows(customerStudioAllocations, areas, "maintenance"),
+  });
 
   if (breakdown.total <= 0.01 && !customer.managerResponsibleIds.length && !assignedPeople.length && !customerAllocations.length && !customerStudioAllocations.length) {
     return {
       status: "empty",
-      title: "Cliente sem associação ou meta cadastrada no ano selecionado.",
+      title: [
+        "Cliente sem associação ou meta cadastrada no ano selecionado.",
+        "",
+        compositionTitle,
+      ].join("\n"),
       difference: 0,
     };
   }
@@ -907,15 +925,7 @@ function getCustomerCoverageStatus(
   if (Math.abs(difference) > 0.01) {
     return {
       status: "mismatch",
-      title: buildCustomerReconciliationTitle({
-        year,
-        breakdown,
-        allocatedHunter,
-        allocatedFarmerRenewal,
-        allocatedStudioMaintenance,
-        allocated,
-        difference,
-      }),
+      title: compositionTitle,
       difference,
     };
   }
@@ -923,14 +933,22 @@ function getCustomerCoverageStatus(
   if (!customer.managerResponsibleIds.length && breakdown.total > 0.01) {
     return {
       status: "issue",
-      title: "Cliente com meta reconciliada, mas sem manager responsável cadastrado no ano selecionado.",
+      title: [
+        "Cliente com meta reconciliada, mas sem manager responsável cadastrado no ano selecionado.",
+        "",
+        compositionTitle,
+      ].join("\n"),
       difference: 0,
     };
   }
 
   return {
     status: "ok",
-    title: "Cliente reconciliado no ano selecionado.",
+    title: [
+      "Cliente reconciliado no ano selecionado.",
+      "",
+      compositionTitle,
+    ].join("\n"),
     difference: 0,
   };
 }
@@ -950,6 +968,10 @@ function buildCustomerReconciliationTitle({
   allocatedStudioMaintenance,
   allocated,
   difference,
+  hunterPeople,
+  farmerRenewalPeople,
+  studioHunterAreas,
+  studioMaintenanceAreas,
 }: {
   year: number;
   breakdown: CustomerTargetBreakdown;
@@ -958,10 +980,20 @@ function buildCustomerReconciliationTitle({
   allocatedStudioMaintenance: number;
   allocated: number;
   difference: number;
+  hunterPeople: string[];
+  farmerRenewalPeople: string[];
+  studioHunterAreas: string[];
+  studioMaintenanceAreas: string[];
 }) {
-  const direction = difference > 0 ? "em aberto" : "acima da meta";
+  const direction = Math.abs(difference) <= 0.01
+    ? "reconciliado"
+    : difference > 0
+      ? "em aberto"
+      : "acima da meta";
   return [
-    `Diferença de metas em ${year}: ${formatCurrency(Math.abs(difference))} ${direction}.`,
+    Math.abs(difference) <= 0.01
+      ? `Diferença de metas em ${year}: ${formatCurrency(0)} reconciliado.`
+      : `Diferença de metas em ${year}: ${formatCurrency(Math.abs(difference))} ${direction}.`,
     "",
     "Meta do cliente:",
     `Hunter: ${formatCurrency(breakdown.hunter)}`,
@@ -975,8 +1007,73 @@ function buildCustomerReconciliationTitle({
     `Studio Manut.: ${formatCurrency(allocatedStudioMaintenance)}`,
     `Total alocado: ${formatCurrency(allocated)}`,
     "",
+    "Composição por pessoa/área:",
+    "Hunters:",
+    ...formatTitleRows(hunterPeople),
+    "Renov. + Ampl.:",
+    ...formatTitleRows(farmerRenewalPeople),
+    "Studio Hunter (contido em Hunter):",
+    ...formatTitleRows(studioHunterAreas),
+    "Studio Manut.:",
+    ...formatTitleRows(studioMaintenanceAreas),
+    "",
     `Studio Hunter: ${formatCurrency(breakdown.studioHunter)} fica contido em Hunter e não soma novamente no Total.`,
   ].join("\n");
+}
+
+function getAllocationPeopleTitleRows(
+  allocations: TargetAllocation[],
+  people: Person[],
+  type: "hunter" | "farmer_renewal",
+) {
+  const peopleById = new Map(people.map((person) => [person.id, person]));
+  const totalsByPerson = new Map<string, { name: string; amount: number }>();
+
+  allocations
+    .filter((allocation) => allocation.type === type)
+    .forEach((allocation) => {
+      const person = peopleById.get(allocation.personId);
+      const current = totalsByPerson.get(allocation.personId) ?? {
+        name: person?.name ?? allocation.personId,
+        amount: 0,
+      };
+      current.amount += allocation.amount;
+      totalsByPerson.set(allocation.personId, current);
+    });
+
+  return Array.from(totalsByPerson.values())
+    .map((row) => ({ ...row, amount: roundCurrency(row.amount) }))
+    .sort((first, second) => second.amount - first.amount || first.name.localeCompare(second.name, "pt-BR"))
+    .map((row) => `${row.name}: ${formatCurrency(row.amount)}`);
+}
+
+function getStudioAllocationTitleRows(
+  allocations: StudioTargetAllocation[],
+  areas: Area[],
+  type: "hunter" | "maintenance",
+) {
+  const areaNamesById = new Map(areas.map((area) => [area.id, area.name]));
+  const totalsByArea = new Map<string, { name: string; amount: number }>();
+
+  allocations.forEach((allocation) => {
+    const current = totalsByArea.get(allocation.areaId) ?? {
+      name: areaNamesById.get(allocation.areaId) ?? allocation.areaId,
+      amount: 0,
+    };
+    current.amount += type === "hunter" ? allocation.hunterAmount : allocation.maintenanceAmount;
+    totalsByArea.set(allocation.areaId, current);
+  });
+
+  return Array.from(totalsByArea.values())
+    .map((row) => ({ ...row, amount: roundCurrency(row.amount) }))
+    .filter((row) => hasVisibleCurrencyAmount(row.amount))
+    .sort((first, second) => second.amount - first.amount || first.name.localeCompare(second.name, "pt-BR"))
+    .map((row) => `${row.name}: ${formatCurrency(row.amount)}`);
+}
+
+function formatTitleRows(rows: string[]) {
+  if (!rows.length) return ["- Sem alocação cadastrada"];
+  return rows.map((row) => `- ${row}`);
 }
 
 function getFormErrorMessage(error: unknown) {
