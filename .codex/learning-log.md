@@ -19,6 +19,17 @@ Promover para agente:
 - Nome do agente, se aplicavel.
 ```
 
+## 2026-07-02 - Supabase sempre via CLI no projeto
+
+Contexto:
+- A automação tentou caminhos alternativos para operações Supabase mesmo depois de o CLI já estar configurado e funcional no ambiente.
+
+Aprendizado:
+- Neste projeto, operações de Supabase devem usar sempre o Supabase CLI. Se `npx supabase ...` falhar por cache/EPERM no sandbox, repetir o mesmo comando com a aprovação já disponível, sem mudar para navegador, SQL manual ou outro fluxo.
+
+Promover para agente:
+- `database-normalization-audit`, `deployment-production-readiness` e instruções locais do projeto.
+
 ## 2026-06-18 - Recharts e prerender
 
 Contexto:

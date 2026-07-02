@@ -7,6 +7,8 @@ Use Spec Driven Development (SDD). Read the feature specification in
 
 ## Project conventions
 
+- Canonical project root: `C:\Users\rmarchini\projetos\OrgBRQDelivery`.
+  Before changing files, verify that `.git`, `package.json`, `src/`, and `supabase/` exist in the working directory. Do not edit the OneDrive stub path `C:\Users\rmarchini\OneDrive - BRQ\Documentos\OrgBRQDelivery` unless the user explicitly asks for it.
 - User-facing copy is Portuguese (pt-BR).
 - Source code, identifiers, components, functions, and comments are English.
 - Keep domain data access behind `src/lib/repositories/`.
@@ -18,9 +20,11 @@ Use Spec Driven Development (SDD). Read the feature specification in
 - Use `$database-normalization-audit` for schema, Supabase, RLS, migrations, source-of-truth, and cross-screen data consistency work.
 - Use `$crud-ux-persistence-check` for CRUD forms, save flows, multi-select assignment UX, and persistence feedback.
 - Use `$parallel-agent-orchestration` for broad audits, multi-skill reviews, release readiness, and safe parallel validation.
+- Use `$performance-usability-review` as a parallel pre-deploy UX/CX gate for dashboard, CRUD, KPI, table, modal, and executive 16:9 changes. Treat broken KPI alignment, unreadable currency totals, stale modal state, confusing filters, and misplaced feedback as release blockers for touched screens.
 - Prefer a single normalized source of truth. Relationship fields shown in UI should be derived from the canonical model whenever possible.
 - Do not hardcode operational people, clients, managers, hunters, farmers, areas, studios, or owners in UI components.
 - For Supabase CLI automation, prefer the simplest read-only command that already worked in this repo before trying alternatives. Use `npx --no-install supabase migration list --linked` locally, parse migration versions, and only use `repair` after confirming the schema was applied. Treat cache/network/PostHog transport failures as transient CLI failures, not as migration drift.
+- For this project, Supabase operations must go through the Supabase CLI. If the sandboxed `npx supabase ...` path fails with npm cache/EPERM, rerun the same CLI command with approved escalation instead of switching to browser/manual SQL or inventing a new path.
 - Automation scripts must use local/project cache paths, bounded retries, and clear failure messages. Do not keep changing command strategy after one path has produced a reliable result.
 
 ## Architecture

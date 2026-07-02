@@ -23,6 +23,7 @@ import {
   type CoverageAssignment,
 } from "@/lib/coverage-sync";
 import { isCustomerManagerProfile, isHunterRole, isTargetAssignableRole } from "@/lib/roles";
+import { normalizeBusinessName } from "@/lib/utils";
 
 type AreaRow = {
   id: string;
@@ -167,6 +168,7 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
 
   async saveCustomer(customer: Customer, targetYear = 2026) {
     const validated = validateCustomer(customer);
+    await this.assertUniqueCustomerName(validated);
     const { error } = await this.client.from("customers").upsert(toCustomerRow(validated));
     if (error) throw error;
     await this.upsertCustomerTarget(validated, targetYear);
@@ -367,9 +369,10 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
 
     const { data, error } = await this.client
       .from("person_customer_assignments")
-      .select("customer_id, people!inner(id, name, role_type)")
+      .select("customer_id, people!inner(id, name, role_type, active)")
       .in("customer_id", person.clientIds)
       .neq("person_id", person.id)
+      .eq("people.active", true)
       .in("people.role_type", ["Hunter", "Hunter + Farmer"]);
 
     if (error) throw error;
@@ -377,6 +380,18 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
 
     const conflictingCustomers = new Set((data as unknown as { customer_id: string }[]).map((item) => item.customer_id));
     throw new Error(`Cliente(s) já associado(s) a outro Hunter: ${Array.from(conflictingCustomers).join(", ")}.`);
+  }
+
+  private async assertUniqueCustomerName(customer: Customer) {
+    const { data, error } = await this.client.from("customers").select("id, name");
+    if (error) throw error;
+    const normalized = normalizeBusinessName(customer.name);
+    const duplicate = (data as Pick<CustomerRow, "id" | "name">[] | null)?.find((item) =>
+      item.id !== customer.id && normalizeBusinessName(item.name) === normalized
+    );
+    if (duplicate) {
+      throw new Error(`Já existe um cliente cadastrado com este nome: ${duplicate.name}.`);
+    }
   }
 
   private async replaceCustomerManagerAssignments(customerId: string, managerIds: string[]) {
@@ -550,7 +565,7 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
       if (assignmentError) throw assignmentError;
     }
 
-    if (nextFarmerRenewalAmount <= 0) {
+    if (!isHunterRole(personRole) && nextFarmerRenewalAmount <= 0) {
       const { error: assignmentDeleteError } = await this.client
         .from("person_customer_assignments")
         .delete()
@@ -645,6 +660,7 @@ function fromPersonRow(row: PersonRow): Person {
     photoUrl: row.photo_url ?? undefined,
     notes: row.notes ?? undefined,
     active: row.active,
+    lifecycleStatus: row.active ? "active" : "inactive",
     isManager: row.is_manager,
     hierarchyLevel: row.hierarchy_level as 1 | 2 | 3,
   };
@@ -690,6 +706,7 @@ function fromCustomerRow(row: CustomerRow): Customer {
     revenue: roundCurrency(hunterTarget + farmerRenewalTarget + studioTarget),
     margin: Number(row.margin),
     strategicAccount: row.strategic_account,
+    lifecycleStatus: "active",
   };
 }
 

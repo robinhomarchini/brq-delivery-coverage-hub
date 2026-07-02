@@ -113,7 +113,19 @@ type CustomerCoverageSignal = {
 
 export function CustomerManagement() {
   const initialCustomerId = useMemo(() => getInitialCustomerId(), []);
-  const { areas, customers, customerTargets, people, studioTargetAllocations, targetAllocations, savePerson, saveCustomer, deleteCustomer } = useDeliveryStore();
+  const {
+    areas,
+    customers,
+    customerTargets,
+    people,
+    studioTargetAllocations,
+    targetAllocations,
+    savePerson,
+    saveCustomer,
+    deleteCustomer,
+    saveTargetAllocation,
+    deleteTargetAllocation,
+  } = useDeliveryStore();
   const [year, setYear] = useState(currentYear);
   const years = useMemo(
     () => Array.from(new Set([
@@ -194,6 +206,7 @@ export function CustomerManagement() {
     revenue: formRevenue,
     margin: linkedEditing?.margin ?? 0,
     strategicAccount: linkedEditing?.strategicAccount ?? true,
+    lifecycleStatus: linkedEditing?.lifecycleStatus ?? "active",
   });
   const allocationComposition = linkedEditing
     ? getCustomerAllocationComposition(
@@ -301,8 +314,11 @@ export function CustomerManagement() {
         revenue: formRevenue,
         margin: Number(formData.get("margin")),
         strategicAccount: formData.get("strategicAccount") === "true",
+        lifecycleStatus: linkedEditing?.lifecycleStatus ?? "active",
+        closedAt: linkedEditing?.closedAt,
+        closedReason: linkedEditing?.closedReason,
       }, year);
-      await syncCustomerHunterAssignment(customerId);
+      await syncCustomerHunterAssignmentAndTarget(customerId);
       closeForm();
       setSuccessMessage(`Cliente ${customerName} salvo com sucesso.`);
       window.setTimeout(() => setSuccessMessage(""), 4000);
@@ -311,9 +327,21 @@ export function CustomerManagement() {
     }
   }
 
-  async function syncCustomerHunterAssignment(customerId: string) {
+  async function syncCustomerHunterAssignmentAndTarget(customerId: string) {
     const currentHunters = hunters.filter((person) => person.clientIds.includes(customerId));
     const selectedHunter = hunters.find((person) => person.id === formHunterId);
+    const staleHunterAllocations = targetAllocations.filter((allocation) =>
+      allocation.customerId === customerId
+      && allocation.year === year
+      && allocation.type === "hunter"
+      && allocation.personId !== formHunterId
+    );
+    const selectedHunterAllocation = targetAllocations.find((allocation) =>
+      allocation.customerId === customerId
+      && allocation.year === year
+      && allocation.type === "hunter"
+      && allocation.personId === formHunterId
+    );
 
     for (const person of currentHunters.filter((item) => item.id !== formHunterId)) {
       await savePerson({
@@ -322,11 +350,33 @@ export function CustomerManagement() {
       });
     }
 
+    for (const allocation of staleHunterAllocations) {
+      await deleteTargetAllocation(allocation.id);
+    }
+
     if (selectedHunter && !selectedHunter.clientIds.includes(customerId)) {
       await savePerson({
         ...selectedHunter,
         clientIds: [...selectedHunter.clientIds, customerId],
       });
+    }
+
+    if (!selectedHunter) {
+      return;
+    }
+
+    if (formHunterAmount > 0) {
+      await saveTargetAllocation({
+        id: selectedHunterAllocation?.id ?? `target-${customerId}-${selectedHunter.id}-hunter-${year}`,
+        customerId,
+        personId: selectedHunter.id,
+        type: "hunter",
+        year,
+        amount: formHunterAmount,
+        notes: "Meta Hunter sincronizada pela tela Clientes.",
+      });
+    } else if (selectedHunterAllocation) {
+      await deleteTargetAllocation(selectedHunterAllocation.id);
     }
   }
 
@@ -342,7 +392,7 @@ export function CustomerManagement() {
       {successMessage && <SuccessNotice message={successMessage} floating />}
       {formError && <ErrorNotice message={formError} floating onClose={() => setFormError("")} />}
 
-      <section className="mb-5 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
+      <section className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
         <Summary label="Clientes filtrados" value={String(filtered.length)} />
         <Summary label={`Meta Hunter · ${year}`} value={formatCurrency(targetTotals.hunter)} />
         <Summary label={`Renovação + Ampliação · ${year}`} value={formatCurrency(targetTotals.farmerRenewal)} />
@@ -438,7 +488,7 @@ export function CustomerManagement() {
                 {hunters.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
               </Select>
               <span className="mt-1 block text-xs text-slate-400">
-                O vínculo do Hunter é cadastral. O valor por pessoa/ano continua em Metas por Pessoa.
+                Ao salvar, o vínculo e a meta Hunter da pessoa/ano são sincronizados automaticamente. Valor zero mantém apenas o vínculo.
               </span>
             </Field>
             <Field label="Conta estratégica"><Select name="strategicAccount" defaultValue={String(linkedEditing?.strategicAccount ?? true)}><option value="true">Sim</option><option value="false">Não</option></Select></Field>
@@ -538,7 +588,12 @@ export function CustomerManagement() {
 }
 
 function Summary({ label, value }: { label: string; value: string }) {
-  return <Card className="p-5 shadow-sm"><p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{label}</p><p className="mt-2 text-2xl font-black text-slate-900">{value}</p></Card>;
+  return (
+    <Card className="flex min-h-[136px] flex-col justify-between p-5 shadow-sm">
+      <p className="min-h-10 text-xs font-semibold uppercase leading-5 tracking-wider text-slate-400">{label}</p>
+      <p className="mt-3 break-words text-[1.65rem] font-black leading-tight tracking-tight text-slate-900 tabular-nums">{value}</p>
+    </Card>
+  );
 }
 
 function Field({ label, className, children }: { label: string; className?: string; children: React.ReactNode }) {
@@ -895,7 +950,10 @@ function getCustomerCoverageStatus(
   const allocatedStudioMaintenance = roundCurrency(customerStudioAllocations
     .reduce((total, allocation) => total + allocation.maintenanceAmount, 0));
   const allocated = roundCurrency(allocatedHunter + allocatedFarmerRenewal + allocatedStudioMaintenance);
-  const difference = roundCurrency(breakdown.total - allocated);
+  const hunterGap = roundCurrency(breakdown.hunter - allocatedHunter);
+  const farmerRenewalGap = roundCurrency(breakdown.farmerRenewal - allocatedFarmerRenewal);
+  const studioMaintenanceGap = roundCurrency(breakdown.studio - allocatedStudioMaintenance);
+  const difference = roundCurrency(hunterGap + farmerRenewalGap + studioMaintenanceGap);
   const compositionTitle = buildCustomerReconciliationTitle({
     year,
     breakdown,
@@ -904,6 +962,9 @@ function getCustomerCoverageStatus(
     allocatedStudioMaintenance,
     allocated,
     difference,
+    hunterGap,
+    farmerRenewalGap,
+    studioMaintenanceGap,
     hunterPeople: getAllocationPeopleTitleRows(customerAllocations, people, "hunter"),
     farmerRenewalPeople: getAllocationPeopleTitleRows(customerAllocations, people, "farmer_renewal"),
     studioHunterAreas: getStudioAllocationTitleRows(customerStudioAllocations, areas, "hunter"),
@@ -925,7 +986,18 @@ function getCustomerCoverageStatus(
   if (Math.abs(difference) > 0.01) {
     return {
       status: "mismatch",
-      title: compositionTitle,
+      title: [
+        getPrimaryReconciliationIssueLabel({
+          hunterGap,
+          farmerRenewalGap,
+          studioMaintenanceGap,
+          hunterPeople: getAllocationPeopleTitleRows(customerAllocations, people, "hunter"),
+          farmerRenewalPeople: getAllocationPeopleTitleRows(customerAllocations, people, "farmer_renewal"),
+          studioMaintenanceAreas: getStudioAllocationTitleRows(customerStudioAllocations, areas, "maintenance"),
+        }),
+        "",
+        compositionTitle,
+      ].join("\n"),
       difference,
     };
   }
@@ -968,6 +1040,9 @@ function buildCustomerReconciliationTitle({
   allocatedStudioMaintenance,
   allocated,
   difference,
+  hunterGap,
+  farmerRenewalGap,
+  studioMaintenanceGap,
   hunterPeople,
   farmerRenewalPeople,
   studioHunterAreas,
@@ -980,6 +1055,9 @@ function buildCustomerReconciliationTitle({
   allocatedStudioMaintenance: number;
   allocated: number;
   difference: number;
+  hunterGap: number;
+  farmerRenewalGap: number;
+  studioMaintenanceGap: number;
   hunterPeople: string[];
   farmerRenewalPeople: string[];
   studioHunterAreas: string[];
@@ -1007,6 +1085,11 @@ function buildCustomerReconciliationTitle({
     `Studio Manut.: ${formatCurrency(allocatedStudioMaintenance)}`,
     `Total alocado: ${formatCurrency(allocated)}`,
     "",
+    "Gaps por componente:",
+    `Hunter: ${formatGap(hunterGap)}`,
+    `Renov. + Ampl.: ${formatGap(farmerRenewalGap)}`,
+    `Studio Manut.: ${formatGap(studioMaintenanceGap)}`,
+    "",
     "Composição por pessoa/área:",
     "Hunters:",
     ...formatTitleRows(hunterPeople),
@@ -1019,6 +1102,49 @@ function buildCustomerReconciliationTitle({
     "",
     `Studio Hunter: ${formatCurrency(breakdown.studioHunter)} fica contido em Hunter e não soma novamente no Total.`,
   ].join("\n");
+}
+
+function getPrimaryReconciliationIssueLabel({
+  hunterGap,
+  farmerRenewalGap,
+  studioMaintenanceGap,
+  hunterPeople,
+  farmerRenewalPeople,
+  studioMaintenanceAreas,
+}: {
+  hunterGap: number;
+  farmerRenewalGap: number;
+  studioMaintenanceGap: number;
+  hunterPeople: string[];
+  farmerRenewalPeople: string[];
+  studioMaintenanceAreas: string[];
+}) {
+  if (hunterGap > 0.01 && !hunterPeople.length) {
+    return `Falta Hunter alocado: ${formatCurrency(hunterGap)}.`;
+  }
+  if (farmerRenewalGap > 0.01 && !farmerRenewalPeople.length) {
+    return `Falta Farmer/Delivery alocado: ${formatCurrency(farmerRenewalGap)}.`;
+  }
+  if (studioMaintenanceGap > 0.01 && !studioMaintenanceAreas.length) {
+    return `Falta Área/Studio de manutenção alocada: ${formatCurrency(studioMaintenanceGap)}.`;
+  }
+  if (hunterGap < -0.01) {
+    return `Hunter alocado acima da meta: ${formatCurrency(Math.abs(hunterGap))}.`;
+  }
+  if (farmerRenewalGap < -0.01) {
+    return `Renovação + Ampliação alocada acima da meta: ${formatCurrency(Math.abs(farmerRenewalGap))}.`;
+  }
+  if (studioMaintenanceGap < -0.01) {
+    return `Área/Studio de manutenção acima da meta: ${formatCurrency(Math.abs(studioMaintenanceGap))}.`;
+  }
+  return "Há diferença entre a meta do cliente e as alocações cadastradas.";
+}
+
+function formatGap(value: number) {
+  if (Math.abs(value) <= 0.01) return `${formatCurrency(0)} reconciliado`;
+  return value > 0
+    ? `${formatCurrency(value)} em aberto`
+    : `${formatCurrency(Math.abs(value))} acima`;
 }
 
 function getAllocationPeopleTitleRows(

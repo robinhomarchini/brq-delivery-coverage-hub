@@ -6,6 +6,7 @@ import {
   splitAmount,
 } from "@/lib/financial-customers";
 import { targetMarginPercent } from "@/lib/financial-targets";
+import type { LifecycleStatus } from "@/lib/lifecycle";
 
 export type RoleType =
   | "Executive"
@@ -38,6 +39,9 @@ export interface Person {
   photoUrl?: string;
   notes?: string;
   active: boolean;
+  lifecycleStatus: LifecycleStatus;
+  closedAt?: string;
+  closedReason?: string;
   isManager: boolean;
   hierarchyLevel: 1 | 2 | 3;
 }
@@ -55,6 +59,9 @@ export interface Customer {
   revenue: number;
   margin: number;
   strategicAccount: boolean;
+  lifecycleStatus: LifecycleStatus;
+  closedAt?: string;
+  closedReason?: string;
 }
 
 export interface CustomerTarget {
@@ -124,6 +131,7 @@ export const customers: Customer[] = financialSourceCustomerNames.map((name) => 
   revenue: getFinancialCustomerMetric(name, "revenueTarget"),
   margin: targetMarginPercent,
   strategicAccount: true,
+  lifecycleStatus: "active",
 }));
 
 export const customerTargets: CustomerTarget[] = customers.map((customer) => ({
@@ -208,6 +216,7 @@ const manager = (
   areaId: managerArea[id],
   clientIds: clientIdsFor(id),
   active: true,
+  lifecycleStatus: "active",
   isManager: true,
   hierarchyLevel: 3,
 });
@@ -223,6 +232,7 @@ export const people: Person[] = [
     clientIds: customers.map((customer) => customer.id),
     notes: "Responsável executivo pela organização de Delivery.",
     active: true,
+    lifecycleStatus: "active",
     isManager: false,
     hierarchyLevel: 1,
   },
@@ -236,6 +246,7 @@ export const people: Person[] = [
     areaId: "area-corporate",
     clientIds: customers.filter((item) => item.directorResponsibleId === "ane").map((item) => item.id),
     active: true,
+    lifecycleStatus: "active",
     isManager: false,
     hierarchyLevel: 2,
   },
@@ -249,6 +260,7 @@ export const people: Person[] = [
     areaId: "area-corporate",
     clientIds: customers.filter((item) => item.directorResponsibleId === "ca").map((item) => item.id),
     active: true,
+    lifecycleStatus: "active",
     isManager: false,
     hierarchyLevel: 2,
   },
@@ -263,6 +275,7 @@ export const people: Person[] = [
     clientIds: [],
     notes: "Papel de staff ligado diretamente à direção executiva.",
     active: true,
+    lifecycleStatus: "active",
     isManager: false,
     hierarchyLevel: 2,
   },

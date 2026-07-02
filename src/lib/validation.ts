@@ -1,11 +1,19 @@
 import { z } from "zod";
 import type { Area, Customer, Person, StudioTargetAllocation, Subject, TargetAllocation } from "@/data/mockData";
+import { getActiveFromLifecycle } from "@/lib/lifecycle";
 
 const safeText = (label: string, max: number) =>
   z.string().trim().min(1, `${label} é obrigatório.`).max(max, `${label} excede ${max} caracteres.`);
 
 const optionalText = (max: number) =>
   z.string().trim().max(max).optional().transform((value) => value || undefined);
+
+const lifecycleFields = {
+  lifecycleStatus: z.enum(["active", "inactive", "closed"]).default("active"),
+  closedAt: z.union([z.iso.date("Data de encerramento inválida."), z.literal(""), z.undefined()])
+    .transform((value) => value || undefined),
+  closedReason: optionalText(500),
+};
 
 const optionalEmail = z.union([
   z.email("E-mail inválido.").max(254),
@@ -30,9 +38,13 @@ const personSchema = z.object({
   ]).transform((value) => value || undefined),
   notes: optionalText(2000),
   active: z.boolean(),
+  ...lifecycleFields,
   isManager: z.boolean(),
   hierarchyLevel: z.union([z.literal(1), z.literal(2), z.literal(3)]),
-});
+}).superRefine(addLifecycleClosureIssue).transform((value) => ({
+  ...value,
+  active: getActiveFromLifecycle(value.lifecycleStatus),
+}));
 
 const areaSchema = z.object({
   id: safeText("Identificador", 120),
@@ -53,7 +65,8 @@ const customerSchema = z.object({
   revenue: z.number().finite().min(0, "Receita não pode ser negativa.").max(999999999999),
   margin: z.number().finite().min(0, "Margem não pode ser negativa.").max(100, "Margem não pode exceder 100%."),
   strategicAccount: z.boolean(),
-});
+  ...lifecycleFields,
+}).superRefine(addLifecycleClosureIssue);
 
 const subjectSchema = z.object({
   id: safeText("Identificador", 120),
@@ -113,4 +126,16 @@ function parse<T>(schema: z.ZodType<T>, value: T): T {
   const result = schema.safeParse(value);
   if (result.success) return result.data;
   throw new Error(result.error.issues[0]?.message ?? "Dados inválidos.");
+}
+
+function addLifecycleClosureIssue(
+  value: { lifecycleStatus: "active" | "inactive" | "closed"; closedAt?: string },
+  context: z.RefinementCtx,
+) {
+  if (value.lifecycleStatus !== "closed" || value.closedAt) return;
+  context.addIssue({
+    code: "custom",
+    path: ["closedAt"],
+    message: "Data de encerramento é obrigatória para status Encerrado.",
+  });
 }

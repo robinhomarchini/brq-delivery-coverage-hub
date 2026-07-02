@@ -104,6 +104,9 @@ export function PeopleManagement() {
       photoUrl: String(formData.get("photoUrl") || "") || undefined,
       notes: String(formData.get("notes") || "") || undefined,
       active: formData.get("active") === "true",
+      lifecycleStatus: formData.get("active") === "true" ? "active" : "inactive",
+      closedAt: editing?.closedAt,
+      closedReason: editing?.closedReason,
       isManager: isDeliveryManagerRole(selectedRole),
       hierarchyLevel: getHierarchyLevelForRole(selectedRole),
     };

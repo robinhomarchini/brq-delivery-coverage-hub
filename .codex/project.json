@@ -24,6 +24,10 @@
     "mock_data": "src/data/mockData.ts",
     "feature_spec": "specs/delivery-coverage-hub/requirements.md"
   },
+  "canonical_root": "C:\\Users\\rmarchini\\projetos\\OrgBRQDelivery",
+  "invalid_roots": [
+    "C:\\Users\\rmarchini\\OneDrive - BRQ\\Documentos\\OrgBRQDelivery"
+  ],
   "important_paths": [
     "src/app",
     "src/components",
@@ -69,10 +73,23 @@
     "production_change": [
       "arquiteto",
       "security",
+      "performance-usability",
       "deploy",
       "observabilidade",
       "qa",
       "documentador"
+    ],
+    "pre_deploy_quality_gate": [
+      "qa",
+      "security",
+      "performance-usability",
+      "deploy",
+      "documentador"
+    ],
+    "post_deploy_smoke": [
+      "observabilidade",
+      "performance-usability",
+      "qa"
     ],
     "new_project_bootstrap": [
       "arquiteto",

@@ -9,6 +9,7 @@ import {
   type CoverageAssignment,
 } from "@/lib/coverage-sync";
 import { isCustomerManagerProfile, isHunterRole, isTargetAssignableRole } from "@/lib/roles";
+import { normalizeBusinessName } from "@/lib/utils";
 
 export class LocalDeliveryRepository implements DeliveryRepository {
   private data: DeliveryData = {
@@ -69,6 +70,7 @@ export class LocalDeliveryRepository implements DeliveryRepository {
 
   async saveCustomer(customer: Customer, targetYear = 2026) {
     customer = validateCustomer(customer);
+    ensureUniqueCustomerName(this.data.customers, customer);
     const managerIds = new Set(this.data.people
       .filter((person) => isCustomerManagerProfile(person.roleType, person.isManager))
       .map((person) => person.id));
@@ -334,7 +336,7 @@ function getCustomerTarget(customer: Customer) {
 function ensureHunterAssignmentsAvailable(people: Person[], assignments: CoverageAssignment[], person: Person) {
   if (!isHunterRole(person.roleType) || !person.clientIds.length) return;
   const hunterIds = new Set(people
-    .filter((item) => item.id !== person.id && isHunterRole(item.roleType))
+    .filter((item) => item.id !== person.id && item.active && isHunterRole(item.roleType))
     .map((item) => item.id));
   const conflicts = assignments.filter((assignment) =>
     hunterIds.has(assignment.personId) && person.clientIds.includes(assignment.customerId)
@@ -342,6 +344,14 @@ function ensureHunterAssignmentsAvailable(people: Person[], assignments: Coverag
 
   if (conflicts.length) {
     throw new Error(`Cliente(s) já associado(s) a outro Hunter: ${Array.from(new Set(conflicts.map((item) => item.customerId))).join(", ")}.`);
+  }
+}
+
+function ensureUniqueCustomerName(customers: Customer[], customer: Customer) {
+  const normalized = normalizeBusinessName(customer.name);
+  const duplicate = customers.find((item) => item.id !== customer.id && normalizeBusinessName(item.name) === normalized);
+  if (duplicate) {
+    throw new Error(`Já existe um cliente cadastrado com este nome: ${duplicate.name}.`);
   }
 }
 

@@ -25,9 +25,12 @@ formularios e fluxos executivos.
 - Manter filtros visiveis e estado resetavel ao trocar menu.
 - Evitar recalculos pesados duplicados em componentes.
 - Garantir valores monetarios em pt-BR e ano visivel em dados financeiros.
+- Validar cards/KPIs em grade executiva: altura uniforme, valores alinhados, `tabular-nums`, labels sem quebra ruim, moeda grande legivel e comportamento bom em 16:9.
+- Tratar desalinhamento visual evidente em dashboards e portfólios como bloqueador de deploy da tela alterada.
 - Indicar status visual: OK, pendente, divergente, sem cadastro.
 - Garantir foco visivel, labels e navegação por teclado quando viavel.
 - Testar area 16:9 para apresentacao e screenshot.
+- Rodar como trilha paralela antes do deploy e como smoke visual depois do deploy quando houver mudança de tela.
 
 ## Criterios de aceite
 

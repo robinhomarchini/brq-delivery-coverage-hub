@@ -89,10 +89,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen">
       <aside className={cn(
-        "fixed inset-y-0 left-0 z-40 w-64 border-r bg-white text-slate-700 transition-transform lg:translate-x-0",
+        "fixed inset-y-0 left-0 z-40 flex w-72 flex-col border-r bg-white text-slate-700 shadow-sm transition-transform lg:translate-x-0",
         mobileOpen ? "translate-x-0" : "-translate-x-full",
       )}>
-        <div className="flex h-16 items-center justify-between border-b px-4">
+        <div className="flex h-16 shrink-0 items-center justify-between border-b px-5">
           <Link href="/" className="flex items-center gap-3" onClick={() => setMobileOpen(false)}>
             <div className="text-[25px] font-black tracking-[-0.18em] text-brq-ink" aria-label="BRQ">brq</div>
             <div>
@@ -104,7 +104,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <X className="h-5 w-5" />
           </button>
         </div>
-        <nav className="space-y-1 p-3">
+        <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto px-3 py-4">
           <p className="px-3 pb-2 pt-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">Navegação</p>
           {visibleNavigation.map((item) => {
             const Icon = item.icon;
@@ -114,12 +114,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <div
                   key={item.href}
                   aria-disabled="true"
-                  className="flex cursor-not-allowed items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-slate-300"
+                  className="flex cursor-not-allowed items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-300"
                   title="Módulo em avaliação"
                 >
-                  <Icon className="h-4 w-4" />
-                  <span className="flex-1">{item.label}</span>
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-400">Pausado</span>
+                  <Icon className="h-4 w-4 shrink-0" />
+                  <span className="min-w-0 flex-1 leading-snug">{item.label}</span>
+                  <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-400">Pausado</span>
                 </div>
               );
             }
@@ -129,17 +129,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 href={item.href}
                 onClick={() => setMobileOpen(false)}
                 className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                  active ? "bg-purple-50 text-brq-purple" : "text-slate-600 hover:bg-slate-50 hover:text-slate-950",
+                  "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors",
+                  active ? "bg-purple-50 text-brq-purple shadow-sm ring-1 ring-purple-100" : "text-slate-600 hover:bg-slate-50 hover:text-slate-950",
                 )}
               >
-                <Icon className="h-4 w-4" />
-                <span className="flex-1">{item.label}</span>
+                <Icon className="h-4 w-4 shrink-0" />
+                <span className="min-w-0 flex-1 leading-snug">{item.label}</span>
               </Link>
             );
           })}
         </nav>
-        <div className="absolute bottom-0 left-0 right-0 border-t bg-white p-3">
+        <div className="relative shrink-0 border-t bg-white p-3">
           <div className="flex items-center gap-3 pr-9">
             <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-purple-100 text-xs font-bold text-brq-purple">{userInitials}</div>
             <div className="min-w-0">
@@ -155,7 +155,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {mobileOpen && <button aria-label="Fechar menu" className="fixed inset-0 z-30 bg-slate-950/40 lg:hidden" onClick={() => setMobileOpen(false)} />}
 
-      <div className="lg:pl-64">
+      <div className="lg:pl-72">
         <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b bg-white/85 px-4 backdrop-blur-xl sm:px-6">
           <div className="flex items-center gap-3">
             <button className="rounded-xl border p-2.5 text-slate-600 lg:hidden" onClick={() => setMobileOpen(true)} aria-label="Abrir menu">
