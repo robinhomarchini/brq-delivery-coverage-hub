@@ -120,11 +120,10 @@ export function CustomerManagement() {
     people,
     studioTargetAllocations,
     targetAllocations,
-    savePerson,
     saveCustomer,
     deleteCustomer,
-    saveTargetAllocation,
-    deleteTargetAllocation,
+    savePersonCustomerTargets,
+    removePersonCustomerTargets,
   } = useDeliveryStore();
   const [year, setYear] = useState(currentYear);
   const years = useMemo(
@@ -336,28 +335,15 @@ export function CustomerManagement() {
       && allocation.type === "hunter"
       && allocation.personId !== formHunterId
     );
-    const selectedHunterAllocation = targetAllocations.find((allocation) =>
-      allocation.customerId === customerId
-      && allocation.year === year
-      && allocation.type === "hunter"
-      && allocation.personId === formHunterId
-    );
+    const staleHunterPersonIds = new Set([
+      ...currentHunters.filter((item) => item.id !== formHunterId).map((person) => person.id),
+      ...staleHunterAllocations.map((allocation) => allocation.personId),
+    ]);
 
-    for (const person of currentHunters.filter((item) => item.id !== formHunterId)) {
-      await savePerson({
-        ...person,
-        clientIds: person.clientIds.filter((clientId) => clientId !== customerId),
-      });
-    }
-
-    for (const allocation of staleHunterAllocations) {
-      await deleteTargetAllocation(allocation.id);
-    }
-
-    if (selectedHunter && !selectedHunter.clientIds.includes(customerId)) {
-      await savePerson({
-        ...selectedHunter,
-        clientIds: [...selectedHunter.clientIds, customerId],
+    for (const personId of staleHunterPersonIds) {
+      await removePersonCustomerTargets({
+        customerId,
+        personId,
       });
     }
 
@@ -365,19 +351,16 @@ export function CustomerManagement() {
       return;
     }
 
-    if (formHunterAmount > 0) {
-      await saveTargetAllocation({
-        id: selectedHunterAllocation?.id ?? `target-${customerId}-${selectedHunter.id}-hunter-${year}`,
+    await savePersonCustomerTargets({
         customerId,
         personId: selectedHunter.id,
-        type: "hunter",
         year,
-        amount: formHunterAmount,
+        hunterAmount: formHunterAmount,
+        farmerRenewalAmount: 0,
+        studioAmount: 0,
+        increaseCustomerTarget: false,
         notes: "Meta Hunter sincronizada pela tela Clientes.",
       });
-    } else if (selectedHunterAllocation) {
-      await deleteTargetAllocation(selectedHunterAllocation.id);
-    }
   }
 
   return (
