@@ -171,7 +171,7 @@ export function ExecutiveDashboard() {
           <FinancialKpi label="Board Hunter" value={formatCurrency(boardTotals.hunterTarget)} icon={UserCog} />
           <FinancialKpi label="Board Renov. + Ampl." value={formatCurrency(boardTotals.farmerRenewalTarget)} icon={BriefcaseBusiness} />
           <FinancialKpi label="Cadastrado no sistema" value={formatCurrency(registeredTotals.totalTarget)} icon={Building2} />
-          <FinancialKpi label="Diferença cadastro vs board" value={formatCurrency(registeredDelta)} icon={TrendingUp} tone={registeredDelta < -0.01 ? "danger" : registeredDelta > 0.01 ? "warning" : "ok"} />
+          <FinancialKpi label="Diferença cadastro vs board" value={formatCurrency(registeredDelta)} icon={TrendingUp} tone={registeredDelta < -0.01 ? "danger" : registeredDelta > 0.01 ? "ok" : "default"} />
         </section>
 
         <ChartCard title="Visão Financeira por Cliente">

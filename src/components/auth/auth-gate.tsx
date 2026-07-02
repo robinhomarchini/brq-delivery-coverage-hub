@@ -10,12 +10,15 @@ import { fetchCurrentAccessUser, type AccessUser } from "@/lib/access-control";
 import { AccessContextProvider } from "@/lib/access-context";
 import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
 
+type AuthMode = "password" | "first_access";
+
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [accessUser, setAccessUser] = useState<AccessUser | null>(null);
   const [loading, setLoading] = useState(isSupabaseConfigured());
   const [loadingAccess, setLoadingAccess] = useState(false);
   const [sending, setSending] = useState(false);
+  const [authMode, setAuthMode] = useState<AuthMode>("password");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const client = getSupabaseBrowserClient();
@@ -106,26 +109,71 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     };
   }, [client]);
 
-  async function signIn(formData: FormData) {
+  async function submitAccess(formData: FormData) {
+    if (authMode === "first_access") {
+      await createPasswordAccess(formData);
+      return;
+    }
+    await signInWithPassword(formData);
+  }
+
+  async function signInWithPassword(formData: FormData) {
     if (!client) return;
     const email = String(formData.get("email") ?? "").trim().toLowerCase();
+    const password = String(formData.get("password") ?? "");
     setError("");
     setMessage("");
     if (!email.endsWith("@brq.com")) {
       setError("Use seu e-mail corporativo @brq.com.");
       return;
     }
+    if (password.length < 8) {
+      setError("Informe a senha cadastrada. Ela deve ter pelo menos 8 caracteres.");
+      return;
+    }
     setSending(true);
-    const { error: signInError } = await client.auth.signInWithOtp({
+    const { error: signInError } = await client.auth.signInWithPassword({
       email,
-      options: { emailRedirectTo: window.location.origin },
+      password,
     });
     setSending(false);
     if (signInError) {
-      setError("Não foi possível enviar o link de acesso. Tente novamente.");
+      setError("Não foi possível entrar. Verifique e-mail, senha e se o acesso já foi aprovado.");
       return;
     }
-    setMessage("Link de acesso enviado. Verifique seu e-mail corporativo.");
+  }
+
+  async function createPasswordAccess(formData: FormData) {
+    if (!client) return;
+    const email = String(formData.get("email") ?? "").trim().toLowerCase();
+    const password = String(formData.get("password") ?? "");
+    const confirmPassword = String(formData.get("confirmPassword") ?? "");
+    setError("");
+    setMessage("");
+    if (!email.endsWith("@brq.com")) {
+      setError("Use seu e-mail corporativo @brq.com.");
+      return;
+    }
+    if (password.length < 8) {
+      setError("A senha precisa ter pelo menos 8 caracteres.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError("A confirmação de senha não confere.");
+      return;
+    }
+    setSending(true);
+    const { error: signUpError } = await client.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: window.location.origin },
+    });
+    setSending(false);
+    if (signUpError) {
+      setError("Não foi possível criar seu primeiro acesso. Verifique se o usuário foi pré-cadastrado ou peça apoio ao administrador.");
+      return;
+    }
+    setMessage("Senha cadastrada. Agora aguarde a aprovação final do administrador e depois entre com e-mail e senha.");
   }
 
   async function refreshAccess() {
@@ -170,12 +218,42 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
             <div><p className="text-2xl font-black tracking-[-0.08em]">brq</p><p className="text-sm text-slate-500">Delivery Coverage Hub</p></div>
           </div>
           <h1 className="text-2xl font-bold">Acesso corporativo</h1>
-          <p className="mt-2 text-sm leading-6 text-slate-500">Receba um link seguro no seu e-mail BRQ. Não é necessário cadastrar senha.</p>
-          <form action={signIn} className="mt-6 space-y-4">
+          <p className="mt-2 text-sm leading-6 text-slate-500">Entre com e-mail BRQ e senha. No primeiro acesso, crie sua senha e aguarde o OK final do administrador.</p>
+
+          <div className="mt-6 grid grid-cols-2 rounded-2xl bg-slate-100 p-1 text-sm font-semibold">
+            <button
+              type="button"
+              className={`rounded-xl px-3 py-2 transition ${authMode === "password" ? "bg-white text-brq-purple shadow-sm" : "text-slate-500"}`}
+              onClick={() => {
+                setAuthMode("password");
+                setError("");
+                setMessage("");
+              }}
+            >
+              Entrar
+            </button>
+            <button
+              type="button"
+              className={`rounded-xl px-3 py-2 transition ${authMode === "first_access" ? "bg-white text-brq-purple shadow-sm" : "text-slate-500"}`}
+              onClick={() => {
+                setAuthMode("first_access");
+                setError("");
+                setMessage("");
+              }}
+            >
+              Primeiro acesso
+            </button>
+          </div>
+
+          <form action={submitAccess} className="mt-5 space-y-4">
             <Input name="email" type="email" placeholder="nome@brq.com" autoComplete="email" maxLength={254} required />
+            <Input name="password" type="password" placeholder="Senha" autoComplete={authMode === "password" ? "current-password" : "new-password"} minLength={8} required />
+            {authMode === "first_access" && (
+              <Input name="confirmPassword" type="password" placeholder="Confirmar senha" autoComplete="new-password" minLength={8} required />
+            )}
             <Button className="w-full" disabled={sending}>
               {sending ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />}
-              {sending ? "Enviando..." : "Enviar link de acesso"}
+              {sending ? "Processando..." : authMode === "password" ? "Entrar" : "Criar senha"}
             </Button>
           </form>
           {error && <p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}

@@ -198,7 +198,7 @@ function Summary({ label, value, tone = "neutral" }: { label: string; value: str
   return (
     <Card className={cn(
       "p-5 shadow-sm",
-      tone === "above" && "border-amber-200 bg-amber-50",
+      tone === "above" && "border-emerald-200 bg-emerald-50",
       tone === "below" && "border-red-200 bg-red-50",
       tone === "ok" && "border-emerald-200 bg-emerald-50",
     )}>
@@ -221,7 +221,7 @@ function MoneyStack({ main, lines = [] }: { main: number; lines?: Array<[string,
 
 function StatusBadge({ status }: { status: ComparisonRow["status"] }) {
   if (status === "ok") return <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">OK</Badge>;
-  if (status === "above") return <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Acima</Badge>;
+  if (status === "above") return <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">Acima</Badge>;
   if (status === "below") return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Abaixo</Badge>;
   if (status === "missing_customer") return <Badge variant="destructive">Cliente ausente</Badge>;
   return <Badge className="bg-sky-100 text-sky-800 hover:bg-sky-100">Cliente / receita nova</Badge>;
@@ -280,7 +280,7 @@ function getDeltaTone(value: number) {
 }
 
 function getDeltaClassName(value: number) {
-  if (value > 0.01) return "text-amber-700";
+  if (value > 0.01) return "text-emerald-700";
   if (value < -0.01) return "text-red-700";
   return "text-emerald-700";
 }

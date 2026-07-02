@@ -25,6 +25,7 @@ import {
   type AccessUser,
 } from "@/lib/access-control";
 import { useAccess } from "@/lib/access-context";
+import { notifyAccessUsersChanged } from "@/lib/access-events";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
 const initialForm = {
@@ -35,7 +36,7 @@ const initialForm = {
 
 export default function SettingsPage() {
   const client = getSupabaseBrowserClient();
-  const { isAdmin, loadingAccess, refreshAccess } = useAccess();
+  const { accessUser, isAdmin, loadingAccess, refreshAccess } = useAccess();
   const [users, setUsers] = useState<AccessUser[]>([]);
   const [form, setForm] = useState(initialForm);
   const [editingEmail, setEditingEmail] = useState<string | null>(null);
@@ -97,6 +98,11 @@ export default function SettingsPage() {
     }
   }
 
+  async function refreshUsersAndAccess() {
+    await Promise.all([loadUsers(), refreshAccess()]);
+    notifyAccessUsersChanged();
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!client) return;
@@ -112,12 +118,13 @@ export default function SettingsPage() {
 
     setSaving(true);
     try {
+      const mustRemainActive = editingEmail === accessUser?.email;
       await saveAccessUser(client, {
         email,
         role: form.role,
-        active: form.active,
+        active: mustRemainActive ? true : form.active,
       });
-      await Promise.all([loadUsers(), refreshAccess()]);
+      await refreshUsersAndAccess();
       setNotice(editingEmail ? "Acesso atualizado com sucesso." : "Usuário pré-cadastrado com sucesso.");
       setForm(initialForm);
       setEditingEmail(null);
@@ -130,12 +137,16 @@ export default function SettingsPage() {
 
   async function handleDeactivate(user: AccessUser) {
     if (!client) return;
+    if (user.email === accessUser?.email) {
+      setError("O usuário ativo atual deve ser mantido. Peça a outro administrador para alterar seu acesso, se necessário.");
+      return;
+    }
     setNotice("");
     setError("");
     setSaving(true);
     try {
       await deactivateAccessUser(client, user.email, user.role);
-      await Promise.all([loadUsers(), refreshAccess()]);
+      await refreshUsersAndAccess();
       setNotice("Usuário desativado com sucesso.");
       if (editingEmail === user.email) {
         setForm({ ...form, active: false });
@@ -154,7 +165,7 @@ export default function SettingsPage() {
     setSaving(true);
     try {
       await approveAccessUser(client, user);
-      await Promise.all([loadUsers(), refreshAccess()]);
+      await refreshUsersAndAccess();
       setNotice(`Acesso de ${user.email} aprovado com sucesso.`);
       if (editingEmail === user.email) {
         setForm({ ...form, active: true });
@@ -168,6 +179,10 @@ export default function SettingsPage() {
 
   async function handleDelete(user: AccessUser) {
     if (!client) return;
+    if (user.email === accessUser?.email) {
+      setError("O usuário ativo atual deve ser mantido. Não é possível excluir a própria conta em uso.");
+      return;
+    }
     const confirmed = window.confirm(`Excluir o acesso de ${user.email}?\n\nSe for uma conta já autenticada, ela perderá acesso ao hub. O sistema manterá pelo menos um administrador ativo.`);
     if (!confirmed) return;
 
@@ -176,7 +191,7 @@ export default function SettingsPage() {
     setSaving(true);
     try {
       await deleteAccessUser(client, user.email);
-      await Promise.all([loadUsers(), refreshAccess()]);
+      await refreshUsersAndAccess();
       setNotice("Usuário excluído com sucesso.");
       if (editingEmail === user.email) {
         resetForm();
@@ -193,7 +208,7 @@ export default function SettingsPage() {
     setForm({
       email: user.email,
       role: user.role,
-      active: user.active,
+      active: user.email === accessUser?.email ? true : user.active,
     });
     setNotice("");
     setError("");
@@ -205,6 +220,8 @@ export default function SettingsPage() {
     setNotice("");
     setError("");
   }
+
+  const editingCurrentUser = editingEmail === accessUser?.email;
 
   return (
     <>
@@ -265,11 +282,11 @@ export default function SettingsPage() {
                 <input
                   type="checkbox"
                   className="h-4 w-4 rounded border-slate-300 text-brq-purple focus:ring-brq-purple"
-                  checked={form.active}
+                  checked={editingCurrentUser ? true : form.active}
                   onChange={(event) => setForm((current) => ({ ...current, active: event.target.checked }))}
-                  disabled={saving}
+                  disabled={saving || editingCurrentUser}
                 />
-                Convite habilitado / usuário aprovado
+                {editingCurrentUser ? "Usuário atual mantido ativo" : "Convite habilitado / usuário aprovado"}
               </label>
 
               <div className="flex flex-wrap gap-2">
@@ -355,15 +372,20 @@ export default function SettingsPage() {
                             <Pencil className="h-4 w-4" />
                             Editar
                           </Button>
-                          {user.active && (
+                          {user.email === accessUser?.email && (
+                            <Badge variant="secondary" className="self-center">Usuário atual</Badge>
+                          )}
+                          {user.active && user.email !== accessUser?.email && (
                             <Button type="button" variant="destructive" onClick={() => handleDeactivate(user)} disabled={saving}>
                               Desativar
                             </Button>
                           )}
-                          <Button type="button" variant="ghost" className="text-red-600 hover:bg-red-50 hover:text-red-700" onClick={() => handleDelete(user)} disabled={saving}>
-                            <Trash2 className="h-4 w-4" />
-                            Excluir
-                          </Button>
+                          {user.email !== accessUser?.email && (
+                            <Button type="button" variant="ghost" className="text-red-600 hover:bg-red-50 hover:text-red-700" onClick={() => handleDelete(user)} disabled={saving}>
+                              <Trash2 className="h-4 w-4" />
+                              Excluir
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>

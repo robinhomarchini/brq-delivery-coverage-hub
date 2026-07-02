@@ -28,6 +28,7 @@ import { useDeliveryStore } from "@/store/delivery-store";
 import { ErrorNotice } from "@/components/shared/success-notice";
 import { listAccessUsers, translateAccessRole } from "@/lib/access-control";
 import { useAccess } from "@/lib/access-context";
+import { accessUsersChangedEvent } from "@/lib/access-events";
 
 const navigation = [
   { href: "/", label: "Dashboard Executivo", icon: LayoutDashboard },
@@ -73,18 +74,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
 
     let mounted = true;
-    listAccessUsers(client)
-      .then((users) => {
-        if (!mounted) return;
-        setPendingApprovalCount(users.filter((user) => user.status === "approval_pending").length);
-      })
-      .catch(() => {
-        if (!mounted) return;
-        setPendingApprovalCount(0);
-      });
+    const refreshPendingApprovals = () => {
+      listAccessUsers(client)
+        .then((users) => {
+          if (!mounted) return;
+          setPendingApprovalCount(users.filter((user) => user.status === "approval_pending").length);
+        })
+        .catch(() => {
+          if (!mounted) return;
+          setPendingApprovalCount(0);
+        });
+    };
+
+    refreshPendingApprovals();
+    window.addEventListener(accessUsersChangedEvent, refreshPendingApprovals);
 
     return () => {
       mounted = false;
+      window.removeEventListener(accessUsersChangedEvent, refreshPendingApprovals);
     };
   }, [client, isAdmin, pathname]);
 
