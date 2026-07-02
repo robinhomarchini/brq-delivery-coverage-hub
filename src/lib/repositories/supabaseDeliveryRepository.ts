@@ -11,6 +11,7 @@ import {
   type TargetAllocation,
   type TargetAllocationType,
 } from "@/data/mockData";
+import { boardTargetBaselineRows as fallbackBoardTargetBaselineRows, type BoardTargetBaselineRow } from "@/data/boardTargetBaseline";
 import type { DeliveryData, DeliveryRepository } from "./types";
 import type { PersonCustomerRemovalInput, PersonCustomerTargetsInput } from "./types";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -115,6 +116,15 @@ type StudioTargetAllocationRow = {
 type TerritoryAreaRow = {
   id: string;
   area_id: string | null;
+};
+
+type BoardTargetBaselineDbRow = {
+  baseline_year: number;
+  customer_name: string;
+  business_unit: string;
+  hunter_target: number | string;
+  farmer_renewal_target: number | string;
+  total_target: number | string;
 };
 
 export class SupabaseDeliveryRepository implements DeliveryRepository {
@@ -251,7 +261,7 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
   }
 
   private async fetchAll(): Promise<DeliveryData> {
-    const [areasResult, peopleResult, customersResult, customerTargetsResult, subjectsResult, assignmentsResult, targetAllocationsResult, studioTargetAllocationsResult, territoriesResult] = await Promise.all([
+    const [areasResult, peopleResult, customersResult, customerTargetsResult, subjectsResult, assignmentsResult, targetAllocationsResult, studioTargetAllocationsResult, territoriesResult, boardTargetBaselinesResult] = await Promise.all([
       this.client.from("areas").select("*").order("name"),
       this.client.from("people").select("*").order("hierarchy_level").order("name"),
       this.client.from("customers").select("*").order("name"),
@@ -261,6 +271,7 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
       this.client.from("revenue_target_allocations").select("*").order("target_year", { ascending: false }).order("customer_id"),
       this.client.from("studio_target_allocations").select("*").order("target_year", { ascending: false }).order("customer_id"),
       this.client.from("territories").select("id, area_id"),
+      this.client.from("board_target_baselines").select("*").eq("approved", true).order("baseline_year", { ascending: false }).order("customer_name"),
     ]);
 
     const error = areasResult.error ?? peopleResult.error ?? customersResult.error ?? subjectsResult.error;
@@ -292,6 +303,9 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
       studioTargetAllocations: studioTargetAllocationsResult.error
         ? []
         : (studioTargetAllocationsResult.data as StudioTargetAllocationRow[]).map(fromStudioTargetAllocationRow),
+      boardTargetBaselines: boardTargetBaselinesResult.error
+        ? fallbackBoardTargetBaselineRows
+        : (boardTargetBaselinesResult.data as BoardTargetBaselineDbRow[]).map(fromBoardTargetBaselineDbRow),
     };
   }
 
@@ -864,6 +878,17 @@ function fromStudioTargetAllocationRow(row: StudioTargetAllocationRow): StudioTa
     hunterAmount: legacyAmountIsUnsplitHunter ? legacyAmount : hunterAmount,
     maintenanceAmount,
     notes: row.notes ?? undefined,
+  };
+}
+
+function fromBoardTargetBaselineDbRow(row: BoardTargetBaselineDbRow): BoardTargetBaselineRow {
+  return {
+    year: row.baseline_year,
+    customerName: row.customer_name,
+    businessUnit: row.business_unit,
+    hunterTarget: Number(row.hunter_target),
+    farmerRenewalTarget: Number(row.farmer_renewal_target),
+    totalTarget: Number(row.total_target),
   };
 }
 

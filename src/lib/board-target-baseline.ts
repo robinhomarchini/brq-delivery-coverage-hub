@@ -32,12 +32,18 @@ export interface BoardTargetComparisonRow {
   status: "ok" | "above" | "below" | "missing_customer" | "extra_customer";
 }
 
-export function getBoardTargetBaselineRows(year = boardTargetBaselineSource.year) {
-  return boardTargetBaselineRows.filter((row) => row.year === year);
+export function getBoardTargetBaselineRows(
+  year = boardTargetBaselineSource.year,
+  rows: BoardTargetBaselineRow[] = boardTargetBaselineRows,
+) {
+  return rows.filter((row) => row.year === year);
 }
 
-export function getBoardTargetBaselineTotals(year = boardTargetBaselineSource.year): BoardTargetBaselineTotals {
-  return getBoardTargetBaselineRows(year).reduce((totals, row) => ({
+export function getBoardTargetBaselineTotals(
+  year = boardTargetBaselineSource.year,
+  rows: BoardTargetBaselineRow[] = boardTargetBaselineRows,
+): BoardTargetBaselineTotals {
+  return getBoardTargetBaselineRows(year, rows).reduce((totals, row) => ({
     hunterTarget: roundCurrency(totals.hunterTarget + row.hunterTarget),
     farmerRenewalTarget: roundCurrency(totals.farmerRenewalTarget + row.farmerRenewalTarget),
     totalTarget: roundCurrency(totals.totalTarget + row.totalTarget),
@@ -55,9 +61,10 @@ export function getRegisteredTargetTotals(customers: Customer[]): BoardTargetBas
 export function buildBoardTargetComparisonRows(
   customers: Customer[],
   year = boardTargetBaselineSource.year,
+  rows: BoardTargetBaselineRow[] = boardTargetBaselineRows,
 ): BoardTargetComparisonRow[] {
   const customersByName = new Map(customers.map((customer) => [normalizeBusinessName(customer.name), customer]));
-  const baselineRows = getBoardTargetBaselineRows(year);
+  const baselineRows = getBoardTargetBaselineRows(year, rows);
   const matchedCustomerIds = new Set<string>();
 
   const baselineComparisons = baselineRows.map((baselineRow) => {

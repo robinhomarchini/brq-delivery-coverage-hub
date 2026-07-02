@@ -1,4 +1,5 @@
 import { areas, customers, customerTargets, people, studioTargetAllocations, subjects, targetAllocations } from "@/data/mockData";
+import { boardTargetBaselineRows } from "@/data/boardTargetBaseline";
 import type { Area, Customer, Person, StudioTargetAllocation, Subject, TargetAllocation } from "@/data/mockData";
 import type { DeliveryData, DeliveryRepository, PersonCustomerRemovalInput, PersonCustomerTargetsInput } from "./types";
 import { validateArea, validateCustomer, validatePerson, validateStudioTargetAllocation, validateSubject, validateTargetAllocation } from "@/lib/validation";
@@ -21,6 +22,7 @@ export class LocalDeliveryRepository implements DeliveryRepository {
     areaUsages: buildAreaUsages(people),
     targetAllocations: structuredClone(targetAllocations),
     studioTargetAllocations: structuredClone(studioTargetAllocations),
+    boardTargetBaselines: structuredClone(boardTargetBaselineRows),
   };
   private assignments: CoverageAssignment[] = buildAssignmentsFromCoverage(this.data.people, this.data.customers);
 

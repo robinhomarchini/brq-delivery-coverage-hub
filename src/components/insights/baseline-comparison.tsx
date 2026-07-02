@@ -24,7 +24,7 @@ import { cn, formatCurrency } from "@/lib/utils";
 type ComparisonRow = ReturnType<typeof buildBoardTargetComparisonRows>[number];
 
 export function BaselineComparison() {
-  const { customers, customerTargets } = useDeliveryStore();
+  const { customers, customerTargets, boardTargetBaselines } = useDeliveryStore();
   const [year, setYear] = useState(defaultTargetYear);
   const [search, setSearch] = useState("");
   const [mode, setMode] = useState<BaselineComparisonMode>("client");
@@ -32,9 +32,9 @@ export function BaselineComparison() {
 
   const years = useMemo(() => getAvailableTargetYears(customerTargets, defaultTargetYear), [customerTargets]);
   const yearCustomers = useMemo(() => applyCustomerTargetsForYear(customers, customerTargets, year), [customerTargets, customers, year]);
-  const baselineTotals = useMemo(() => getBoardTargetBaselineTotals(year), [year]);
+  const baselineTotals = useMemo(() => getBoardTargetBaselineTotals(year, boardTargetBaselines), [boardTargetBaselines, year]);
   const registeredTotals = useMemo(() => getRegisteredTargetTotals(yearCustomers), [yearCustomers]);
-  const rows = useMemo(() => buildBoardTargetComparisonRows(yearCustomers, year), [year, yearCustomers]);
+  const rows = useMemo(() => buildBoardTargetComparisonRows(yearCustomers, year, boardTargetBaselines), [boardTargetBaselines, year, yearCustomers]);
   const filteredRows = useMemo(() => rows.filter((row) => {
     const query = search.toLowerCase();
     return (!query || `${row.customerName} ${row.registeredCustomerName}`.toLowerCase().includes(query))

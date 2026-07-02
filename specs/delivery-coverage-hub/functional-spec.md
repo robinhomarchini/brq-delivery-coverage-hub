@@ -302,10 +302,14 @@ A rota Comparativo Baseline apresenta a foto inicial aprovada pelo board para o
 ano de referência e compara essa foto contra o cadastro operacional atual. Para
 2026, a fonte inicial é `metageralinicial.xlsx`: coluna A para Cliente, coluna I
 para Meta Hunter, coluna L para Meta Renovação + Ampliação e coluna M para Meta
-Total. O baseline do board não é editável nessa tela; ele é referência fixa
-para análise. A tela permite alternar entre visão por Cliente, visão Hunter e
-visão Hunter + Farmer, exibindo baseline, cadastrado, diferença, status e
-exportação CSV/Excel.
+Total. Depois de aprovado, esse baseline é persistido em
+`board_target_baselines`, com grão Cliente + Ano + Cenário, e passa a ser a fonte
+canônica de leitura para Dashboard Executivo e Comparativo Baseline. O arquivo
+local versionado permanece apenas como fallback técnico de desenvolvimento e
+semente idempotente da migração. O baseline do board não é editável nessa tela;
+ele é referência fixa para análise. A tela permite alternar entre visão por
+Cliente, visão Hunter e visão Hunter + Farmer, exibindo baseline, cadastrado,
+diferença, status e exportação CSV/Excel.
 
 A rota Ajuda deve disponibilizar um guia rápido simples em PDF, publicado como
 link estático, com instruções de uso para homologadores.

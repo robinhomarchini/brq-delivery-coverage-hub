@@ -37,7 +37,7 @@ const COLORS = ["#15171B", "#7F2EC9", "#EE7C38", "#2563EB", "#F97316", "#A3A3A3"
 
 export function ExecutiveDashboard() {
   const chartsReady = useSyncExternalStore(subscribeToHydration, () => true, () => false);
-  const { people, customers, customerTargets } = useDeliveryStore();
+  const { people, customers, customerTargets, boardTargetBaselines } = useDeliveryStore();
   const financialCustomers = applyCustomerTargetsForYear(customers, customerTargets, defaultTargetYear);
   const activePeople = people.filter((person) => person.active);
   const directors = activePeople.filter((person) => person.roleType === "Director" || person.roleType === "Executive");
@@ -48,7 +48,7 @@ export function ExecutiveDashboard() {
   const farmers = activePeople.filter((person) => person.roleType === "Farmer");
   const hunterFarmers = activePeople.filter((person) => person.roleType === "Hunter + Farmer");
   const staff = activePeople.filter((person) => person.roleType === "Staff");
-  const boardTotals = getBoardTargetBaselineTotals(defaultTargetYear);
+  const boardTotals = getBoardTargetBaselineTotals(defaultTargetYear, boardTargetBaselines);
   const registeredTotals = getRegisteredTargetTotals(financialCustomers);
   const totalRevenue = boardTotals.totalTarget;
   const registeredDelta = registeredTotals.totalTarget - boardTotals.totalTarget;

@@ -108,6 +108,12 @@
 - O Dashboard Executivo exibe os totais do board para 2026 como baseline oficial:
   Hunter R$ 110.525.090, Renovação + Ampliação R$ 427.744.200 e Total
   R$ 538.269.290, além do total cadastrado no sistema e diferença.
+- O baseline oficial do board é persistido em `board_target_baselines` com chave
+  lógica Cliente + Ano + Cenário, separado das metas operacionais editáveis em
+  `customer_target_years`.
+- Dashboard Executivo e Comparativo Baseline leem o baseline persistido pelo
+  repositório; o arquivo local `boardTargetBaseline.ts` é apenas fallback técnico
+  e seed idempotente da migration.
 - A rota Comparativo Baseline compara `metageralinicial.xlsx` contra o cadastro
   operacional por Cliente, Hunter e Hunter + Farmer.
 - A rota Comparativo Baseline permite filtrar por ano, status e busca por

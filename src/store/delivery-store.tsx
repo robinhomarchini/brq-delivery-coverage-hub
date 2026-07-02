@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { areas as initialAreas, customers as initialCustomers, customerTargets as initialCustomerTargets, people as initialPeople, studioTargetAllocations as initialStudioTargetAllocations, subjects as initialSubjects, targetAllocations as initialTargetAllocations } from "@/data/mockData";
 import type { Area, Customer, CustomerTarget, Person, StudioTargetAllocation, Subject, TargetAllocation } from "@/data/mockData";
+import { boardTargetBaselineRows as initialBoardTargetBaselines, type BoardTargetBaselineRow } from "@/data/boardTargetBaseline";
 import { createSupabaseDeliveryRepository, localDeliveryRepository } from "@/lib/repositories";
 import type { AreaUsage, DeliveryRepository, PersonCustomerRemovalInput, PersonCustomerTargetsInput } from "@/lib/repositories";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
@@ -17,6 +18,7 @@ interface DeliveryStoreValue {
   areaUsages: AreaUsage[];
   targetAllocations: TargetAllocation[];
   studioTargetAllocations: StudioTargetAllocation[];
+  boardTargetBaselines: BoardTargetBaselineRow[];
   loading: boolean;
   error: string;
   clearError: () => void;
@@ -49,6 +51,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
   const [areaUsages, setAreaUsages] = useState<AreaUsage[]>(productionWithoutSupabase ? [] : buildAreaUsages(initialPeople));
   const [targetAllocations, setTargetAllocations] = useState<TargetAllocation[]>(productionWithoutSupabase ? [] : initialTargetAllocations);
   const [studioTargetAllocations, setStudioTargetAllocations] = useState<StudioTargetAllocation[]>(productionWithoutSupabase ? [] : initialStudioTargetAllocations);
+  const [boardTargetBaselines, setBoardTargetBaselines] = useState<BoardTargetBaselineRow[]>(productionWithoutSupabase ? [] : initialBoardTargetBaselines);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const repository = useMemo(
@@ -69,6 +72,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setAreaUsages(data.areaUsages);
         setTargetAllocations(data.targetAllocations);
         setStudioTargetAllocations(data.studioTargetAllocations);
+        setBoardTargetBaselines(data.boardTargetBaselines);
         setError("");
       })
       .catch((error) => setError(`Não foi possível carregar os dados persistidos. Nenhuma alteração será considerada salva. ${getErrorMessage(error)}`))
@@ -87,6 +91,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
     areaUsages,
     targetAllocations,
     studioTargetAllocations,
+    boardTargetBaselines,
     loading,
     error,
     clearError: () => setError(""),
@@ -101,6 +106,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setAreaUsages(data.areaUsages);
         setTargetAllocations(data.targetAllocations);
         setStudioTargetAllocations(data.studioTargetAllocations);
+        setBoardTargetBaselines(data.boardTargetBaselines);
         setError("");
       } catch (error) {
         const message = `Não foi possível salvar a área/studio. ${getErrorMessage(error)}`;
@@ -119,6 +125,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setAreaUsages(data.areaUsages);
         setTargetAllocations(data.targetAllocations);
         setStudioTargetAllocations(data.studioTargetAllocations);
+        setBoardTargetBaselines(data.boardTargetBaselines);
         setError("");
       } catch (error) {
         const message = `Não foi possível excluir a área/studio. ${getErrorMessage(error)}`;
@@ -137,6 +144,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setAreaUsages(data.areaUsages);
         setTargetAllocations(data.targetAllocations);
         setStudioTargetAllocations(data.studioTargetAllocations);
+        setBoardTargetBaselines(data.boardTargetBaselines);
         setError("");
       } catch (error) {
         const message = `Não foi possível salvar a pessoa. ${getErrorMessage(error)}`;
@@ -167,6 +175,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setAreaUsages(data.areaUsages);
         setTargetAllocations(data.targetAllocations);
         setStudioTargetAllocations(data.studioTargetAllocations);
+        setBoardTargetBaselines(data.boardTargetBaselines);
         setError("");
       } catch (error) {
         const message = `Não foi possível salvar o cliente. ${getErrorMessage(error)}`;
@@ -185,6 +194,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setAreaUsages(data.areaUsages);
         setTargetAllocations(data.targetAllocations);
         setStudioTargetAllocations(data.studioTargetAllocations);
+        setBoardTargetBaselines(data.boardTargetBaselines);
         setError("");
       } catch (error) {
         const message = `Não foi possível atualizar os clientes. ${getErrorMessage(error)}`;
@@ -283,6 +293,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setAreaUsages(data.areaUsages);
         setTargetAllocations(data.targetAllocations);
         setStudioTargetAllocations(data.studioTargetAllocations);
+        setBoardTargetBaselines(data.boardTargetBaselines);
         setError("");
       } catch (error) {
         const message = `Não foi possível salvar as metas da pessoa. ${getErrorMessage(error)}`;
@@ -301,6 +312,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setAreaUsages(data.areaUsages);
         setTargetAllocations(data.targetAllocations);
         setStudioTargetAllocations(data.studioTargetAllocations);
+        setBoardTargetBaselines(data.boardTargetBaselines);
         setError("");
       } catch (error) {
         const message = `Não foi possível remover o cliente da pessoa. ${getErrorMessage(error)}`;
@@ -308,7 +320,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         throw new Error(message);
       }
     },
-  }), [areaUsages, areas, customerTargets, customers, error, loading, people, repository, studioTargetAllocations, subjects, targetAllocations]);
+  }), [areaUsages, areas, boardTargetBaselines, customerTargets, customers, error, loading, people, repository, studioTargetAllocations, subjects, targetAllocations]);
 
   return <DeliveryStoreContext.Provider value={value}>{children}</DeliveryStoreContext.Provider>;
 }

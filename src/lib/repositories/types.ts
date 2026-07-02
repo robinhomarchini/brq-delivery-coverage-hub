@@ -1,4 +1,5 @@
 import type { Area, Customer, CustomerTarget, Person, StudioTargetAllocation, Subject, TargetAllocation } from "@/data/mockData";
+import type { BoardTargetBaselineRow } from "@/data/boardTargetBaseline";
 
 export interface AreaUsage {
   areaId: string;
@@ -31,6 +32,7 @@ export interface DeliveryData {
   areaUsages: AreaUsage[];
   targetAllocations: TargetAllocation[];
   studioTargetAllocations: StudioTargetAllocation[];
+  boardTargetBaselines: BoardTargetBaselineRow[];
 }
 
 export interface DeliveryRepository {
