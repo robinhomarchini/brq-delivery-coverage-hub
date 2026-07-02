@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import type { Area, Customer, Person, StudioTargetAllocation, TargetAllocation } from "@/data/mockData";
 import { PageHeader } from "@/components/shared/page-header";
+import { ReportExportActions, type ReportColumn } from "@/components/shared/report-export-actions";
 import { FilterBar } from "@/components/shared/filter-bar";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorNotice, SuccessNotice } from "@/components/shared/success-notice";
@@ -191,6 +192,52 @@ export function CustomerManagement() {
       total: totals.total + breakdown.total,
     };
   }, { hunter: 0, farmerRenewal: 0, studioHunter: 0, studio: 0, total: 0 });
+  const customerReportRows = useMemo(() => filtered.map((customer) => {
+    const breakdown = getCustomerTargetBreakdown(customer);
+    const targetPeople = getCustomerTargetPeople(customer, people, targetAllocations, year);
+    const coverage = getCustomerCoverageStatus(customer, people, areas, targetAllocations, studioTargetAllocations, year);
+    const directorName = displayDirectorName(people.find((item) => item.id === customer.directorResponsibleId)?.name ?? customer.directorResponsibleId);
+    const managerNames = customer.managerResponsibleIds
+      .map((managerId) => people.find((person) => person.id === managerId)?.name ?? managerId)
+      .join(", ");
+
+    return {
+      customerName: customer.name,
+      industry: customer.industry,
+      directorName,
+      managerNames,
+      hunterPeople: targetPeople.hunterPeople.map((person) => `${person.name} (${formatCurrency(person.amount)})`).join(", "),
+      farmerRenewalPeople: targetPeople.farmerRenewalPeople.map((person) => `${person.name} (${formatCurrency(person.amount)})`).join(", "),
+      hunterTarget: breakdown.hunter,
+      studioHunterTarget: breakdown.studioHunter,
+      farmerRenewalTarget: breakdown.farmerRenewal,
+      studioTarget: breakdown.studio,
+      totalTarget: breakdown.total,
+      margin: customer.margin,
+      strategicAccount: customer.strategicAccount ? "Sim" : "Não",
+      status: getCoverageStatusLabel(coverage.status),
+      difference: coverage.difference ?? 0,
+      year,
+    };
+  }), [areas, filtered, people, studioTargetAllocations, targetAllocations, year]);
+  const customerReportColumns = useMemo<ReportColumn<(typeof customerReportRows)[number]>[]>(() => [
+    { key: "customerName", label: "Cliente", value: (row) => row.customerName },
+    { key: "industry", label: "Indústria", value: (row) => row.industry },
+    { key: "directorName", label: "Diretor responsável", value: (row) => row.directorName },
+    { key: "managerNames", label: "Managers responsáveis", value: (row) => row.managerNames },
+    { key: "hunterPeople", label: "Hunters alocados", value: (row) => row.hunterPeople },
+    { key: "farmerRenewalPeople", label: "Farmers / Delivery alocados", value: (row) => row.farmerRenewalPeople },
+    { key: "hunterTarget", label: "Meta Hunter", value: (row) => row.hunterTarget, format: "currency", align: "right" },
+    { key: "studioHunterTarget", label: "Studio Hunter", value: (row) => row.studioHunterTarget, format: "currency", align: "right" },
+    { key: "farmerRenewalTarget", label: "Renovação + Ampliação", value: (row) => row.farmerRenewalTarget, format: "currency", align: "right" },
+    { key: "studioTarget", label: "Studio Manutenção", value: (row) => row.studioTarget, format: "currency", align: "right" },
+    { key: "totalTarget", label: "Meta total", value: (row) => row.totalTarget, format: "currency", align: "right" },
+    { key: "margin", label: "Margem alvo (%)", value: (row) => row.margin, format: "percent", align: "right" },
+    { key: "strategicAccount", label: "Conta estratégica", value: (row) => row.strategicAccount, align: "center" },
+    { key: "status", label: "Status", value: (row) => row.status },
+    { key: "difference", label: "Diferença", value: (row) => row.difference, format: "currency", align: "right" },
+    { key: "year", label: "Ano", value: (row) => row.year, format: "number", align: "center" },
+  ], []);
   const averageMargin = filtered.length ? filtered.reduce((sum, customer) => sum + customer.margin, 0) / filtered.length : 0;
   const formBreakdown = getCustomerTargetBreakdown({
     id: linkedEditing?.id ?? "",
@@ -369,7 +416,17 @@ export function CustomerManagement() {
         eyebrow="Portfólio executivo"
         title="Clientes"
         description="Acompanhe responsáveis, metas financeiras, margem e relevância estratégica das contas."
-        actions={<Button onClick={() => openForm()}><Plus className="h-4 w-4" /> Novo cliente</Button>}
+        actions={(
+          <>
+            <ReportExportActions
+              title={`Relatório de Clientes · ${year}`}
+              filename={`relatorio-clientes-${year}`}
+              rows={customerReportRows}
+              columns={customerReportColumns}
+            />
+            <Button onClick={() => openForm()}><Plus className="h-4 w-4" /> Novo cliente</Button>
+          </>
+        )}
       />
 
       {successMessage && <SuccessNotice message={successMessage} floating />}
@@ -1013,6 +1070,13 @@ function getCustomerStatusIconClassName(status: CustomerCoverageStatus) {
   if (status === "mismatch") return "bg-red-50 text-red-700";
   if (status === "issue") return "bg-blue-50 text-blue-700";
   return "bg-slate-100 text-slate-400";
+}
+
+function getCoverageStatusLabel(status: CustomerCoverageStatus) {
+  if (status === "ok") return "Reconciliado";
+  if (status === "mismatch") return "Diferença de valores";
+  if (status === "issue") return "Pendente de responsável";
+  return "Sem dados";
 }
 
 function buildCustomerReconciliationTitle({

@@ -4,6 +4,7 @@ import { Plus, Save, Target, Trash2, UserRound } from "lucide-react";
 import { useMemo, useState, type InputHTMLAttributes } from "react";
 import type { Customer, TargetAllocation, TargetAllocationType } from "@/data/mockData";
 import { PageHeader } from "@/components/shared/page-header";
+import { ReportExportActions, type ReportColumn } from "@/components/shared/report-export-actions";
 import { ErrorNotice, SuccessNotice } from "@/components/shared/success-notice";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -86,6 +87,48 @@ export function PersonTargetAssignment() {
     hunter: summary.hunter + row.hunterAmount,
     farmerRenewal: summary.farmerRenewal + row.farmerRenewalAmount,
   }), { hunter: 0, farmerRenewal: 0 }), [rows]);
+  const personTargetReportRows = useMemo(() => rows.map((row) => ({
+    personName: selectedPerson?.name ?? "",
+    roleType: selectedPerson?.roleType ?? "",
+    customerName: row.customerName,
+    industry: row.industry,
+    source: getSourceLabel(row.source),
+    customerHunterTarget: row.customerHunterTarget,
+    customerFarmerRenewalTarget: row.customerFarmerRenewalTarget,
+    customerTarget: row.customerTarget,
+    otherPeopleHunterTotal: row.otherPeopleHunterTotal,
+    otherPeopleFarmerRenewalTotal: row.otherPeopleFarmerRenewalTotal,
+    otherPeopleTotal: row.otherPeopleTotal,
+    hunterGap: row.hunterGap,
+    farmerRenewalGap: row.farmerRenewalGap,
+    customerGap: row.customerTarget - row.clientTotal,
+    personHunterTarget: row.hunterAmount,
+    personFarmerRenewalTarget: row.farmerRenewalAmount,
+    personTotal: row.personTotal,
+    clientStatus: getClientStatusLabel(row.clientStatus),
+    year,
+  })), [rows, selectedPerson?.name, selectedPerson?.roleType, year]);
+  const personTargetReportColumns = useMemo<ReportColumn<(typeof personTargetReportRows)[number]>[]>(() => [
+    { key: "personName", label: "Pessoa", value: (row) => row.personName },
+    { key: "roleType", label: "Perfil", value: (row) => row.roleType },
+    { key: "customerName", label: "Cliente", value: (row) => row.customerName },
+    { key: "industry", label: "Indústria", value: (row) => row.industry },
+    { key: "source", label: "Origem", value: (row) => row.source },
+    { key: "customerHunterTarget", label: "Meta Hunter Cliente", value: (row) => row.customerHunterTarget, format: "currency", align: "right" },
+    { key: "customerFarmerRenewalTarget", label: "Meta Renovação Cliente", value: (row) => row.customerFarmerRenewalTarget, format: "currency", align: "right" },
+    { key: "customerTarget", label: "Meta Total Cliente", value: (row) => row.customerTarget, format: "currency", align: "right" },
+    { key: "otherPeopleHunterTotal", label: "Hunter já associado a outras pessoas", value: (row) => row.otherPeopleHunterTotal, format: "currency", align: "right" },
+    { key: "otherPeopleFarmerRenewalTotal", label: "Renovação já associada a outras pessoas", value: (row) => row.otherPeopleFarmerRenewalTotal, format: "currency", align: "right" },
+    { key: "otherPeopleTotal", label: "Total já associado a outras pessoas", value: (row) => row.otherPeopleTotal, format: "currency", align: "right" },
+    { key: "hunterGap", label: "Gap Hunter", value: (row) => row.hunterGap, format: "currency", align: "right" },
+    { key: "farmerRenewalGap", label: "Gap Renovação", value: (row) => row.farmerRenewalGap, format: "currency", align: "right" },
+    { key: "customerGap", label: "Gap Total", value: (row) => row.customerGap, format: "currency", align: "right" },
+    { key: "personHunterTarget", label: "Meta Hunter Pessoa", value: (row) => row.personHunterTarget, format: "currency", align: "right" },
+    { key: "personFarmerRenewalTarget", label: "Meta Renovação Pessoa", value: (row) => row.personFarmerRenewalTarget, format: "currency", align: "right" },
+    { key: "personTotal", label: "Total da Pessoa", value: (row) => row.personTotal, format: "currency", align: "right" },
+    { key: "clientStatus", label: "Status do Cliente", value: (row) => row.clientStatus },
+    { key: "year", label: "Ano", value: (row) => row.year, format: "number", align: "center" },
+  ], []);
 
   function updateDraft(customerId: string, field: AllocationField, value: string) {
     setDrafts((current) => ({
@@ -261,6 +304,14 @@ export function PersonTargetAssignment() {
         eyebrow="BU Financial"
         title="Metas por Pessoa"
         description="Associe metas por pessoa lançável, cliente e ano. Robinson, Ane e CA consolidam subordinados e não recebem metas diretas nesta tela."
+        actions={(
+          <ReportExportActions
+            title={`Relatório de Metas por Pessoa · ${selectedPerson?.name ?? "Pessoa não selecionada"} · ${year}`}
+            filename={`relatorio-metas-pessoa-${year}`}
+            rows={personTargetReportRows}
+            columns={personTargetReportColumns}
+          />
+        )}
       />
 
       {successMessage && <SuccessNotice message={successMessage} floating />}
@@ -491,10 +542,22 @@ function ClientStatusBadge({ status }: { status: ClientStatus }) {
   return <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Pendente</Badge>;
 }
 
+function getClientStatusLabel(status: ClientStatus) {
+  if (status === "ok") return "Fechado";
+  if (status === "over") return "Acima";
+  return "Pendente";
+}
+
 function SourceBadge({ source }: { source: RowSource }) {
   if (source === "assigned") return <Badge className="bg-sky-100 text-sky-800 hover:bg-sky-100">Cliente associado</Badge>;
   if (source === "existing_target") return <Badge className="bg-purple-100 text-brq-purple hover:bg-purple-100">Meta existente</Badge>;
   return <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100">Incluído agora</Badge>;
+}
+
+function getSourceLabel(source: RowSource) {
+  if (source === "assigned") return "Cliente associado";
+  if (source === "existing_target") return "Meta existente";
+  return "Incluído agora";
 }
 
 function TargetBreakdown({
