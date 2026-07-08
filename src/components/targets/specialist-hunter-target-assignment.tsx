@@ -17,7 +17,25 @@ import { formatCurrency } from "@/lib/utils";
 
 const currentYear = defaultTargetYear;
 
-export function SpecialistHunterTargetAssignment() {
+type SpecialistHunterTargetAssignmentProps = {
+  initialPersonId?: string;
+  initialYear?: number;
+};
+
+type SpecialistSelectionRow = {
+  id: string;
+  personId: string;
+  customerId: string;
+  customerName: string;
+  areaName: string;
+  hunterAmount: number;
+  maintenanceAmount: number;
+  total: number;
+  notes?: string;
+  pending: boolean;
+};
+
+export function SpecialistHunterTargetAssignment({ initialPersonId = "", initialYear }: SpecialistHunterTargetAssignmentProps) {
   const {
     people,
     customers,
@@ -40,9 +58,10 @@ export function SpecialistHunterTargetAssignment() {
     ])).sort((first, second) => second - first),
     [customerTargets, studioTargetAllocations],
   );
-  const [personId, setPersonId] = useState("");
+  const initialSafeYear = initialYear && Number.isFinite(initialYear) ? initialYear : currentYear;
+  const [personId, setPersonId] = useState(initialPersonId);
   const [customerId, setCustomerId] = useState("");
-  const [year, setYear] = useState(currentYear);
+  const [year, setYear] = useState(initialSafeYear);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
@@ -51,6 +70,7 @@ export function SpecialistHunterTargetAssignment() {
   const selectedPerson = specialistHunters.find((person) => person.id === personId);
   const yearCustomers = useMemo(() => applyCustomerTargetsForYear(customers, customerTargets, year), [customerTargets, customers, year]);
   const areasById = useMemo(() => new Map(areas.map((area) => [area.id, area.name])), [areas]);
+  const customersById = useMemo(() => new Map(yearCustomers.map((customer) => [customer.id, customer])), [yearCustomers]);
   const customersWithStudios = useMemo(() => {
     const customerIds = new Set(studioTargetAllocations
       .filter((allocation) => allocation.year === year && allocation.hunterAmount + allocation.maintenanceAmount > 0)
@@ -78,10 +98,58 @@ export function SpecialistHunterTargetAssignment() {
     .sort((first, second) => first.areaName.localeCompare(second.areaName, "pt-BR")),
   [areasById, selectedCustomerId, studioTargetAllocations, year]);
   const selectedRows = studioRows.filter((row) => selectedIds.has(row.id));
+  const savedSelectionRows = useMemo<SpecialistSelectionRow[]>(() => {
+    const allocationsById = new Map(studioTargetAllocations.map((allocation) => [allocation.id, allocation]));
+
+    return specialistHunterStudioAssignments
+      .filter((assignment) => assignment.personId === personId && assignment.year === year)
+      .reduce<SpecialistSelectionRow[]>((rows, assignment) => {
+        const allocation = allocationsById.get(assignment.studioTargetAllocationId);
+        if (!allocation || allocation.hunterAmount + allocation.maintenanceAmount <= 0) return rows;
+        rows.push({
+          id: allocation.id,
+          personId,
+          customerId: allocation.customerId,
+          customerName: customersById.get(allocation.customerId)?.name ?? allocation.customerId,
+          areaName: areasById.get(allocation.areaId) ?? allocation.areaId,
+          hunterAmount: allocation.hunterAmount,
+          maintenanceAmount: allocation.maintenanceAmount,
+          total: allocation.hunterAmount + allocation.maintenanceAmount,
+          notes: allocation.notes,
+          pending: false,
+        });
+        return rows;
+      }, [])
+      .sort((first, second) =>
+        first.customerName.localeCompare(second.customerName, "pt-BR")
+        || first.areaName.localeCompare(second.areaName, "pt-BR"));
+  }, [areasById, customersById, personId, specialistHunterStudioAssignments, studioTargetAllocations, year]);
+  const savedSelectionIds = useMemo(() => new Set(savedSelectionRows.map((row) => row.id)), [savedSelectionRows]);
+  const pendingSelectionRows = useMemo<SpecialistSelectionRow[]>(() => selectedRows
+    .filter((row) => !savedSelectionIds.has(row.id))
+    .map((row) => ({
+      id: row.id,
+      personId,
+      customerId: row.customerId,
+      customerName: customersById.get(row.customerId)?.name ?? row.customerId,
+      areaName: row.areaName,
+      hunterAmount: row.hunterAmount,
+      maintenanceAmount: row.maintenanceAmount,
+      total: row.total,
+      notes: row.notes,
+      pending: true,
+    })),
+  [customersById, personId, savedSelectionIds, selectedRows]);
+  const selectionSummaryRows = useMemo(
+    () => [...savedSelectionRows, ...pendingSelectionRows].sort((first, second) =>
+      first.customerName.localeCompare(second.customerName, "pt-BR")
+      || first.areaName.localeCompare(second.areaName, "pt-BR")),
+    [pendingSelectionRows, savedSelectionRows],
+  );
+  const selectedTotal = selectionSummaryRows.reduce((total, row) => total + row.total, 0);
+  const selectedHunterTotal = selectionSummaryRows.reduce((total, row) => total + row.hunterAmount, 0);
+  const selectedMaintenanceTotal = selectionSummaryRows.reduce((total, row) => total + row.maintenanceAmount, 0);
   const availableTotal = studioRows.reduce((total, row) => total + row.total, 0);
-  const selectedTotal = selectedRows.reduce((total, row) => total + row.total, 0);
-  const selectedHunterTotal = selectedRows.reduce((total, row) => total + row.hunterAmount, 0);
-  const selectedMaintenanceTotal = selectedRows.reduce((total, row) => total + row.maintenanceAmount, 0);
 
   function getSavedSelectionIds(nextPersonId: string, nextCustomerId: string, nextYear: number) {
     const studioIdsForCustomer = new Set(studioTargetAllocations
@@ -160,6 +228,7 @@ export function SpecialistHunterTargetAssignment() {
         studioTargetAllocationIds: Array.from(selectedIds),
       });
       setSuccessMessage(`Meta gerencial de ${selectedPerson?.name ?? "Hunter Especializado"} salva para o cliente selecionado.`);
+      setSelectedIds(new Set(selectedIds));
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Não foi possível salvar a seleção.");
     } finally {
@@ -178,7 +247,7 @@ export function SpecialistHunterTargetAssignment() {
       {successMessage && <SuccessNotice message={successMessage} floating />}
       {errorMessage && <ErrorNotice message={errorMessage} floating onClose={() => setErrorMessage("")} />}
 
-      <Card className="grid gap-4 p-4 shadow-sm lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_12rem_auto] lg:items-end">
+      <Card className="grid gap-4 p-4 shadow-sm lg:grid-cols-[minmax(0,1fr)_12rem] lg:items-end">
         <label className="grid gap-1.5">
           <span className="text-sm font-semibold text-slate-700">Hunter Especializado</span>
           <Select value={personId} onChange={(event) => handlePersonChange(event.target.value)}>
@@ -189,24 +258,11 @@ export function SpecialistHunterTargetAssignment() {
           </Select>
         </label>
         <label className="grid gap-1.5">
-          <span className="text-sm font-semibold text-slate-700">Cliente</span>
-          <Select value={selectedCustomerId} onChange={(event) => handleCustomerChange(event.target.value)} disabled={!customersWithStudios.length}>
-            <option value="">{customersWithStudios.length ? "Selecione um cliente" : "Sem clientes com Studio no ano"}</option>
-            {customersWithStudios.map((customer) => (
-              <option key={customer.id} value={customer.id}>{customer.name}</option>
-            ))}
-          </Select>
-        </label>
-        <label className="grid gap-1.5">
           <span className="text-sm font-semibold text-slate-700">Ano</span>
           <Select value={String(year)} onChange={(event) => handleYearChange(Number(event.target.value))}>
             {years.map((item) => <option key={item} value={item}>{item}</option>)}
           </Select>
         </label>
-        <Button type="button" onClick={saveSelection} disabled={saving || !personId || !selectedCustomerId}>
-          <Save className="h-4 w-4" />
-          {saving ? "Salvando..." : "Salvar seleção"}
-        </Button>
       </Card>
 
       <div className="grid gap-3 md:grid-cols-4">
@@ -216,62 +272,129 @@ export function SpecialistHunterTargetAssignment() {
         <KpiSummaryCard label="Disponível no cliente" currencyValue={availableTotal} icon={UsersRound} tone="neutral" />
       </div>
 
-      <Card className="overflow-hidden shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
-          <div>
-            <h2 className="text-base font-bold text-slate-950">Studios do cliente</h2>
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+        <Card className="overflow-hidden shadow-sm">
+          <div className="border-b px-5 py-4">
+            <h2 className="text-base font-bold text-slate-950">Nova inclusão</h2>
             <p className="text-sm text-slate-500">
-              Marque as linhas que compõem a leitura gerencial do Hunter Especializado.
+              Escolha um cliente e marque as linhas de Studio que entram na meta gerencial.
             </p>
           </div>
-          <Badge variant="secondary">{selectedRows.length} de {studioRows.length} linha(s)</Badge>
-        </div>
-        <div className="overflow-x-auto">
-          <Table className="min-w-[880px]">
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-16">Usar</TableHead>
-                <TableHead>Área / Studio</TableHead>
-                <TableHead className="text-right">Studio Hunter</TableHead>
-                <TableHead className="text-right">Manutenção</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-                <TableHead>Observações</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {studioRows.map((row) => {
-                const checked = selectedIds.has(row.id);
+          <div className="grid gap-4 p-5">
+            <label className="grid gap-1.5">
+              <span className="text-sm font-semibold text-slate-700">Cliente</span>
+              <Select value={selectedCustomerId} onChange={(event) => handleCustomerChange(event.target.value)} disabled={!personId || !customersWithStudios.length}>
+                <option value="">{customersWithStudios.length ? "Selecione um cliente" : "Sem clientes com Studio no ano"}</option>
+                {customersWithStudios.map((customer) => (
+                  <option key={customer.id} value={customer.id}>{customer.name}</option>
+                ))}
+              </Select>
+            </label>
+            <div className="overflow-x-auto rounded-lg border border-slate-200">
+              <Table className="min-w-[760px]">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-16">Usar</TableHead>
+                    <TableHead>Área / Studio</TableHead>
+                    <TableHead className="text-right">Studio Hunter</TableHead>
+                    <TableHead className="text-right">Manutenção</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {studioRows.map((row) => {
+                    const checked = selectedIds.has(row.id);
 
-                return (
-                  <TableRow key={row.id} className={checked ? "bg-purple-50/50" : undefined}>
+                    return (
+                      <TableRow key={row.id} className={checked ? "bg-purple-50/50" : undefined}>
+                        <TableCell>
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-slate-300 accent-brq-purple"
+                            checked={checked}
+                            onChange={() => toggleSelection(row.id)}
+                            aria-label={`Incluir ${row.areaName} na meta gerencial`}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <p className="font-semibold text-slate-950">{row.areaName}</p>
+                          {row.notes && <p className="mt-0.5 max-w-md truncate text-xs text-slate-500" title={row.notes}>{row.notes}</p>}
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">{formatCurrency(row.hunterAmount)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{formatCurrency(row.maintenanceAmount)}</TableCell>
+                        <TableCell className="text-right font-bold tabular-nums text-slate-950">{formatCurrency(row.total)}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {!studioRows.length && (
+                    <TableRow>
+                      <TableCell colSpan={5} className="py-8 text-center text-slate-500">
+                        Selecione um cliente com metas de Studio cadastradas para montar a meta gerencial.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <Badge variant="secondary">{selectedRows.length} de {studioRows.length} linha(s) selecionada(s) no cliente</Badge>
+              <Button type="button" onClick={saveSelection} disabled={saving || !personId || !selectedCustomerId}>
+                <Save className="h-4 w-4" />
+                {saving ? "Salvando..." : "Salvar inclusão"}
+              </Button>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="overflow-hidden shadow-sm">
+          <div className="border-b px-5 py-4">
+            <h2 className="text-base font-bold text-slate-950">Seleções cadastradas</h2>
+            <p className="text-sm text-slate-500">
+              Lista consolidada da pessoa no ano. Linhas em prévia ainda dependem do botão Salvar inclusão.
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <Table className="min-w-[760px]">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Área / Studio</TableHead>
+                  <TableHead className="text-right">Hunter</TableHead>
+                  <TableHead className="text-right">Manutenção</TableHead>
+                  <TableHead className="text-right">Total</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {selectionSummaryRows.map((row) => (
+                  <TableRow key={`${row.pending ? "pending" : "saved"}-${row.id}`} className={row.pending ? "bg-amber-50/60" : undefined}>
+                    <TableCell className="font-semibold text-slate-950">{row.customerName}</TableCell>
                     <TableCell>
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 rounded border-slate-300 accent-brq-purple"
-                        checked={checked}
-                        onChange={() => toggleSelection(row.id)}
-                        aria-label={`Incluir ${row.areaName} na meta gerencial`}
-                      />
+                      <p className="font-medium text-slate-900">{row.areaName}</p>
+                      {row.notes && <p className="mt-0.5 max-w-xs truncate text-xs text-slate-500" title={row.notes}>{row.notes}</p>}
                     </TableCell>
-                    <TableCell className="font-semibold text-slate-950">{row.areaName}</TableCell>
                     <TableCell className="text-right tabular-nums">{formatCurrency(row.hunterAmount)}</TableCell>
                     <TableCell className="text-right tabular-nums">{formatCurrency(row.maintenanceAmount)}</TableCell>
                     <TableCell className="text-right font-bold tabular-nums text-slate-950">{formatCurrency(row.total)}</TableCell>
-                    <TableCell className="max-w-sm truncate text-slate-500" title={row.notes ?? ""}>{row.notes ?? "—"}</TableCell>
+                    <TableCell>
+                      {row.pending
+                        ? <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Prévia</Badge>
+                        : <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">Salvo</Badge>}
+                    </TableCell>
                   </TableRow>
-                );
-              })}
-              {!studioRows.length && (
-                <TableRow>
-                  <TableCell colSpan={6} className="py-8 text-center text-slate-500">
-                    Selecione um cliente com metas de Studio cadastradas para montar a meta gerencial.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </Card>
+                ))}
+                {!selectionSummaryRows.length && (
+                  <TableRow>
+                    <TableCell colSpan={6} className="py-8 text-center text-slate-500">
+                      Nenhuma meta gerencial cadastrada para essa pessoa no ano.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </Card>
+      </div>
     </div>
   );
 }

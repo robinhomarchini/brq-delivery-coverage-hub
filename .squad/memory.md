@@ -2,7 +2,7 @@
 
 ## Current Task Objective
 
-Criar tela dedicada para cadastrar meta gerencial de Hunter Especializado por seleção de metas de Studio do cliente.
+Melhorar o fluxo de cadastro de meta gerencial de Hunter Especializado: guiar a partir de Metas por Pessoa e mostrar cadastro incremental com lista do que ja esta salvo.
 
 ## Execution Checklist
 
@@ -43,6 +43,9 @@ Criar tela dedicada para cadastrar meta gerencial de Hunter Especializado por se
 - [x] Criar rota/tela Metas Hunter Especializado com filtros, checkboxes e totalizador.
 - [x] Ajustar Relatorio de Metas para usar somente as linhas selecionadas de Hunter Especializado.
 - [x] Rodar db:migrations:check, typecheck, lint, smoke critico e build.
+- [x] Ao selecionar Hunter Especializado em Metas por Pessoa, orientar abertura da tela dedicada com pessoa/ano no contexto.
+- [x] Redesenhar Metas Hunter Especializado com bloco Nova inclusao e bloco Selecoes cadastradas, incluindo pre-visualizacao de linhas ainda nao salvas.
+- [x] Rodar typecheck, lint, smoke critico e build apos o ajuste de UX.
 
 ## Previous Completed Work
 
@@ -148,7 +151,7 @@ Criar tela dedicada para cadastrar meta gerencial de Hunter Especializado por se
 
 ## Next Pending Step
 
-Próximo passo: publicar a nova tela em produção se o usuário quiser disponibilizar imediatamente; a migration já foi aplicada e validada no Supabase remoto.
+Próximo passo: validar e publicar o ajuste de UX de Metas Hunter Especializado em produção.
 
 ## Discovered Commands
 

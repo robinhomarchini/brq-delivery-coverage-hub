@@ -260,9 +260,16 @@
 - A rota Metas Hunter Especializado permite selecionar Hunter Especializado,
   Cliente e Ano, listar as metas de Studio do cliente, marcar linhas por
   checkbox e salvar a seleção gerencial.
+- Ao selecionar uma pessoa Hunter Especializado em Metas por Pessoa, a aplicação
+  orienta a ida para Metas Hunter Especializado, mantendo pessoa e ano como
+  contexto inicial.
+- A rota Metas Hunter Especializado mostra dois blocos: Nova inclusão por
+  Cliente e Seleções cadastradas por pessoa/ano. A lista cadastrada deve exibir
+  as linhas já persistidas e destacar como prévia as linhas marcadas antes de
+  salvar.
 - O card totalizador da rota Metas Hunter Especializado atualiza Total
   selecionado, Studio Hunter selecionado, Studio Manutenção selecionado e Total
-  disponível conforme os checkboxes mudam.
+  disponível conforme os checkboxes mudam e conforme a lista consolidada muda.
 - A seleção de Hunter Especializado é persistida em
   `specialist_hunter_studio_assignments` e o Relatório de Metas usa somente as
   linhas selecionadas para a visão Hunters Especializados.

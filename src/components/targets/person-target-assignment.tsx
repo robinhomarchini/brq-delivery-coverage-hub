@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Plus, Save, Target, Trash2, UserRound } from "lucide-react";
 import { useMemo, useState, type InputHTMLAttributes } from "react";
 import type { Customer, RoleType, StudioTargetAllocation, TargetAllocation, TargetAllocationType } from "@/data/mockData";
@@ -25,6 +25,7 @@ type DraftAmounts = Record<string, { hunter: string; farmerRenewal: string }>;
 type AllocationField = "hunter" | "farmerRenewal";
 
 export function PersonTargetAssignment() {
+  const router = useRouter();
   const initialParams = useMemo(() => getInitialTargetParams(), []);
   const { people, customers, customerTargets, targetAllocations, studioTargetAllocations, savePersonCustomerTargets, removePersonCustomerTargets } = useDeliveryStore();
   const activePeople = useMemo(() => people.filter((person) => person.active), [people]);
@@ -163,6 +164,7 @@ export function PersonTargetAssignment() {
   }
 
   function changePerson(nextPersonId: string) {
+    const nextPerson = assignablePeople.find((person) => person.id === nextPersonId);
     setPersonId(nextPersonId);
     setDrafts({});
     setSelectedCustomerId("");
@@ -172,6 +174,15 @@ export function PersonTargetAssignment() {
     setRemovingCustomerId("");
     setErrorMessage("");
     setSuccessMessage("");
+
+    if (nextPerson && isSpecialistHunterRole(nextPerson.roleType)) {
+      const shouldOpenSpecialistScreen = window.confirm(
+        `${nextPerson.name} é Hunter Especializado.\n\nEsse perfil não recebe lançamento direto nesta tela. Abrir a tela própria para selecionar as metas de Studio?`,
+      );
+      if (shouldOpenSpecialistScreen) {
+        router.push(`/metas-hunters-especializados?personId=${encodeURIComponent(nextPerson.id)}&year=${year}`);
+      }
+    }
   }
 
   async function saveCustomerTargets(row: PersonTargetRow) {
@@ -412,12 +423,12 @@ export function PersonTargetAssignment() {
           </div>
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
             {selectedPersonIsSpecialistHunter && (
-              <Button asChild className="mb-3 w-full justify-center">
-                <Link href="/metas-hunters-especializados">
-                  <Target className="h-4 w-4" />
-                  Abrir meta especializada
-                </Link>
-              </Button>
+              <div className="mb-3 rounded-lg border border-purple-100 bg-white p-3 text-sm text-slate-600">
+                <p className="font-semibold text-slate-900">Meta especializada em tela própria</p>
+                <p className="mt-1 text-xs leading-5">
+                  Ao selecionar esse perfil, use a tela de Hunter Especializado para escolher os Studios do cliente.
+                </p>
+              </div>
             )}
             <label>
               <span className="mb-1.5 block text-sm font-semibold text-slate-700">{selectedPersonIsSpecialistHunter ? "Incluir cliente para consulta" : "Incluir cliente para meta"}</span>

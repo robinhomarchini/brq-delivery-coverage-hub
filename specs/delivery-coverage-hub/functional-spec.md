@@ -455,12 +455,16 @@ Renovação ficam inibidos, e atalhos de clique para alocar meta do cliente ou
 salvar/remover meta direta ficam desabilitados. A visão não altera totais
 oficiais de cliente, pessoa, dashboard, baseline ou análise de desafio.
 Para cadastrar a meta gerencial, a rota Metas Hunter Especializado deve usar uma
-tela dedicada: o usuário seleciona Hunter Especializado, Cliente e Ano, visualiza
-as linhas de `studio_target_allocations` daquele cliente e marca por checkbox
-quais linhas entram na meta gerencial. A seleção é persistida na relação
-`specialist_hunter_studio_assignments` e os totais do topo são recalculados pela
-soma das linhas marcadas. Essa seleção não cria `revenue_target_allocations` e
-não altera subtotais oficiais do cliente.
+tela dedicada. Quando o usuário escolhe um Hunter Especializado em Metas por
+Pessoa, a aplicação deve orientar a abertura dessa rota porque esse perfil não
+recebe lançamento direto. Na rota dedicada, o usuário seleciona Hunter
+Especializado e Ano, usa um bloco de nova inclusão para escolher Cliente e marcar
+por checkbox as linhas de `studio_target_allocations` daquele cliente, e enxerga
+em um segundo bloco a lista consolidada das seleções já cadastradas para a
+pessoa/ano. Os totais do topo são recalculados pela soma da lista consolidada,
+incluindo prévias ainda não salvas de forma visualmente distinta. A seleção é
+persistida na relação `specialist_hunter_studio_assignments`. Essa seleção não
+cria `revenue_target_allocations` e não altera subtotais oficiais do cliente.
 Na visão de Áreas / Studios, a tabela deve permitir selecionar um ou mais
 Studios por checkbox; com seleção ativa, a tela mostra e exporta o detalhe
 explodido por Studio + cliente + segmento + Hunter Studio. Na visão por pessoa,
