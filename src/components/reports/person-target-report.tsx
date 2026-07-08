@@ -166,7 +166,7 @@ export function PersonTargetReport() {
   const filteredHunterClientRows = useMemo(() => {
     const query = search.toLowerCase();
     return hunterClientRows.filter((row) =>
-      !query || `${row.hunterName} ${row.customerName} ${row.areaName} ${row.segment}`.toLowerCase().includes(query)
+      !query || `${row.hunterName} ${row.customerName} ${row.detailName} ${row.segment}`.toLowerCase().includes(query)
     );
   }, [hunterClientRows, search]);
   const hunterClientGroups = useMemo(() => buildHunterClientGroups(filteredHunterClientRows), [filteredHunterClientRows]);
@@ -921,7 +921,7 @@ export function PersonTargetReport() {
           <div className="border-b border-slate-200 px-5 py-4">
             <p className="text-sm font-bold text-slate-900">Hunter x Clientes</p>
             <p className="text-xs text-slate-500">
-              Escolha um Hunter para ver Meta própria, Studio Hunter e Studio Manutenção por cliente e área/studio. Manutenção aparece para leitura operacional e não soma na meta Hunter.
+              Escolha um Hunter para ver Meta própria, Studio Hunter, Studio Manutenção e Renovação + Ampliação por cliente. Manutenção/Renovação aparece para leitura operacional e não soma na meta Hunter.
             </p>
           </div>
           <div className="overflow-x-auto">
@@ -929,11 +929,11 @@ export function PersonTargetReport() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Cliente</TableHead>
-                  <TableHead>Área / Studio</TableHead>
+                  <TableHead>Área / Studio / Pessoa</TableHead>
                   <TableHead>Origem</TableHead>
                   <TableHead>Hunter efetivo</TableHead>
                   <TableHead className="text-right">Studio Hunter</TableHead>
-                  <TableHead className="text-right">Manutenção</TableHead>
+                  <TableHead className="text-right">Manutenção / Renovação</TableHead>
                   <TableHead className="text-right">Total da linha</TableHead>
                 </TableRow>
               </TableHeader>
@@ -950,7 +950,7 @@ export function PersonTargetReport() {
                           </Badge>
                           {group.maintenanceAmount > 0 && (
                             <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100">
-                              Manutenção {formatCurrency(group.maintenanceAmount)}
+                              Manut./Renov. {formatCurrency(group.maintenanceAmount)}
                             </Badge>
                           )}
                         </div>
@@ -963,7 +963,7 @@ export function PersonTargetReport() {
                       <TableRow key={row.id}>
                         <TableCell />
                         <TableCell>
-                          <p className="font-semibold text-slate-900">{row.areaName}</p>
+                          <p className="font-semibold text-slate-900">{row.detailName}</p>
                           {row.observations && <p className="max-w-xl text-xs text-slate-500">{row.observations}</p>}
                         </TableCell>
                         <TableCell>
@@ -1723,6 +1723,7 @@ function buildHunterClientRows({
   const hunterName = hunter?.name ?? "Hunter não encontrado";
   const studioByHunterCustomer = buildStudioHunterTotalsByHunterCustomer(studioAllocations, year, people, allocations);
   const rows: HunterClientRow[] = [];
+  const hunterCustomerIds = new Set<string>();
 
   allocations
     .filter((allocation) =>
@@ -1735,6 +1736,7 @@ function buildHunterClientRows({
       const studioHunterForCustomer = studioByHunterCustomer.get(`${hunterId}:${allocation.customerId}`) ?? 0;
       const ownAmount = getHunterOwnAmount(allocation, studioHunterForCustomer);
       if (ownAmount <= 0.01) return;
+      hunterCustomerIds.add(allocation.customerId);
 
       rows.push({
         id: allocation.id,
@@ -1742,7 +1744,7 @@ function buildHunterClientRows({
         hunterName,
         customerId: allocation.customerId,
         customerName: customerNames.get(allocation.customerId) ?? allocation.customerId,
-        areaName: hunterBaseWithoutStudioLabel,
+        detailName: hunterBaseWithoutStudioLabel,
         segment: "Meta própria Hunter",
         hunterAmount: ownAmount,
         maintenanceAmount: 0,
@@ -1759,13 +1761,14 @@ function buildHunterClientRows({
         && allocation.hunterAmount + allocation.maintenanceAmount > 0;
     })
     .forEach((allocation) => {
+      hunterCustomerIds.add(allocation.customerId);
       rows.push({
         id: allocation.id,
         hunterId,
         hunterName,
         customerId: allocation.customerId,
         customerName: customerNames.get(allocation.customerId) ?? allocation.customerId,
-        areaName: areaNames.get(allocation.areaId) ?? allocation.areaId,
+        detailName: areaNames.get(allocation.areaId) ?? allocation.areaId,
         segment: getStudioTargetTypeLabel(allocation.hunterAmount, allocation.maintenanceAmount),
         hunterAmount: allocation.hunterAmount,
         maintenanceAmount: allocation.maintenanceAmount,
@@ -1774,10 +1777,34 @@ function buildHunterClientRows({
       });
     });
 
+  allocations
+    .filter((allocation) =>
+      allocation.year === year
+      && allocation.type === "farmer_renewal"
+      && allocation.amount > 0
+      && hunterCustomerIds.has(allocation.customerId)
+    )
+    .forEach((allocation) => {
+      const person = peopleById.get(allocation.personId);
+      rows.push({
+        id: `${allocation.id}-farmer-renewal`,
+        hunterId,
+        hunterName,
+        customerId: allocation.customerId,
+        customerName: customerNames.get(allocation.customerId) ?? allocation.customerId,
+        detailName: person?.name ?? "Pessoa não encontrada",
+        segment: "Renovação + Ampliação",
+        hunterAmount: 0,
+        maintenanceAmount: allocation.amount,
+        total: allocation.amount,
+        observations: person?.roleType ? `Alocado em ${person.roleType}` : "",
+      });
+    });
+
   return rows.sort((first, second) =>
     first.customerName.localeCompare(second.customerName, "pt-BR")
     || getHunterClientSegmentSortValue(first.segment) - getHunterClientSegmentSortValue(second.segment)
-    || first.areaName.localeCompare(second.areaName, "pt-BR")
+    || first.detailName.localeCompare(second.detailName, "pt-BR")
   );
 }
 
@@ -1807,7 +1834,7 @@ function buildHunterClientGroups(rows: HunterClientRow[]) {
       ...group,
       rows: group.rows.sort((first, second) =>
         getHunterClientSegmentSortValue(first.segment) - getHunterClientSegmentSortValue(second.segment)
-        || first.areaName.localeCompare(second.areaName, "pt-BR")
+        || first.detailName.localeCompare(second.detailName, "pt-BR")
       ),
     }))
     .sort((first, second) => first.customerName.localeCompare(second.customerName, "pt-BR"));
@@ -1816,6 +1843,7 @@ function buildHunterClientGroups(rows: HunterClientRow[]) {
 function getHunterClientSegmentSortValue(segment: string) {
   if (segment === "Meta própria Hunter") return 0;
   if (segment.includes("Studio Hunter")) return 1;
+  if (segment === "Renovação + Ampliação") return 2;
   return 2;
 }
 
@@ -1948,11 +1976,11 @@ function getViewTotals(
       count: customerIds.size,
       firstLabel: "Studio Hunter",
       first: summary.first + row.hunterAmount,
-      secondLabel: "Manutenção",
+      secondLabel: "Manut. / Renov.",
       second: summary.second + row.maintenanceAmount,
       totalLabel: "Total detalhado",
       total: summary.total + row.total,
-    }), emptyTotals("Clientes do Hunter", "Studio Hunter", "Manutenção", "Total detalhado"));
+    }), emptyTotals("Clientes do Hunter", "Studio Hunter", "Manut. / Renov.", "Total detalhado"));
   }
   if (view === "directors") {
     const personIds = new Set(directorDetailRows.map((row) => row.personId));
@@ -2073,10 +2101,10 @@ const hunterDetailReportColumns: ReportColumn<HunterDetailRow>[] = [
 const hunterClientReportColumns: ReportColumn<HunterClientRow>[] = [
   { key: "hunterName", label: "Hunter", value: (row) => row.hunterName },
   { key: "customerName", label: "Cliente", value: (row) => row.customerName },
-  { key: "areaName", label: "Área / Studio", value: (row) => row.areaName },
+  { key: "detailName", label: "Área / Studio / Pessoa", value: (row) => row.detailName },
   { key: "segment", label: "Origem", value: (row) => row.segment },
   { key: "hunterAmount", label: "Studio Hunter", value: (row) => row.hunterAmount, format: "currency", align: "right" },
-  { key: "maintenanceAmount", label: "Manutenção", value: (row) => row.maintenanceAmount, format: "currency", align: "right" },
+  { key: "maintenanceAmount", label: "Manutenção / Renovação", value: (row) => row.maintenanceAmount, format: "currency", align: "right" },
   { key: "total", label: "Total da linha", value: (row) => row.total, format: "currency", align: "right" },
   { key: "observations", label: "Observações", value: (row) => row.observations },
 ];
@@ -2437,7 +2465,7 @@ type HunterClientRow = {
   hunterName: string;
   customerId: string;
   customerName: string;
-  areaName: string;
+  detailName: string;
   segment: string;
   hunterAmount: number;
   maintenanceAmount: number;

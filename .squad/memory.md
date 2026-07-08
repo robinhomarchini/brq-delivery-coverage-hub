@@ -2,7 +2,7 @@
 
 ## Current Task Objective
 
-Melhorar agentes/skills locais e globais com revisoes UX Quality, Reuse & Componentization e Database Performance.
+Corrigir visão Hunter x Clientes para incluir Renovação + Ampliação alocada em Delivery Managers/Farmers no total do cliente.
 
 ## Execution Checklist
 
@@ -63,6 +63,8 @@ Melhorar agentes/skills locais e globais com revisoes UX Quality, Reuse & Compon
 - [x] Criar agentes locais `ux-quality-reviewer`, `reuse-componentization-reviewer` e `database-performance-reviewer`.
 - [x] Atualizar `.codex/project.json`, `.codex/README.md`, `AGENTS.md` e `.squad/config.yaml` com o novo fluxo de revisao.
 - [x] Aplicar o mesmo padrao global em `C:\Users\rmarchini\.codex` para valer para todos os projetos.
+- [x] Ajustar Hunter x Clientes para somar Renovacao + Ampliacao de pessoas nos clientes do Hunter.
+- [x] Manter Manutencao/Renovacao como coluna operacional, sem alterar Meta Hunter.
 
 ## Previous Completed Work
 

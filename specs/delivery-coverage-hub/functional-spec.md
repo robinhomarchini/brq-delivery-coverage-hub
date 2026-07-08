@@ -450,8 +450,11 @@ por Cliente + Área/Studio + Ano, com linhas de Meta própria Hunter quando
 existirem e linhas de Studio separando Studio Hunter e Studio
 Manutenção/Renovação. Essa visão usa o Hunter efetivo da linha: Hunter
 associado ao Studio ou, se vazio, Hunter principal cadastrado no cliente.
-Studio Manutenção aparece para leitura operacional do cliente e não altera a
-meta Hunter. A prévia e exportação usam o mesmo grão detalhado exibido em tela.
+O total do cliente nessa visão também inclui metas de Renovação + Ampliação
+alocadas em Delivery Managers/Farmers para os clientes do Hunter. Studio
+Manutenção e Renovação + Ampliação aparecem para leitura operacional do cliente
+e não alteram a meta Hunter. A prévia e exportação usam o mesmo grão detalhado
+exibido em tela.
 Na visão de Hunters Especializados, a tela mostra uma leitura gerencial cross.
 Esse papel não possui Meta própria lançável nem Meta Renovação + Ampliação: os
 valores são sempre derivados das alocações de Studios dos clientes vinculados à
