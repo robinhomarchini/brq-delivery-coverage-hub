@@ -19,13 +19,19 @@ pitfalls and next pending step when work changes project behavior. Keep
 `.squad/config.yaml` aligned with actual project standards. Do not replace the
 existing SDD/specs/skills flow; the squad model complements it.
 
+## Lean enterprise engineering mode
+
+This repository inherits the global lean enterprise engineering defaults from
+`C:\Users\rmarchini\.codex\AGENTS.md`. Project-local rules below are stricter
+where they mention this app's Supabase, repository, target and UX conventions.
+
 For final handoff after implementation or review, use this structure:
 
 - Summary
-- Impacted Areas
+- Files Changed
 - Evidence
-- Risks / Pending Items
-- Suggested Next Step
+- Risks / Pending
+- Next Step
 
 ## Project conventions
 
@@ -46,6 +52,10 @@ For final handoff after implementation or review, use this structure:
 - Use `$performance-usability-review` as a parallel pre-deploy UX/CX gate for dashboard, CRUD, KPI, table, modal, and executive 16:9 changes. Treat broken KPI alignment, unreadable currency totals, stale modal state, confusing filters, and misplaced feedback as release blockers for touched screens.
 - Prefer a single normalized source of truth. Relationship fields shown in UI should be derived from the canonical model whenever possible.
 - Do not hardcode operational people, clients, managers, hunters, farmers, areas, studios, or owners in UI components.
+- Do not duplicate business rules only in UI. Repository, API, RPC, RLS and/or
+  migrations must enforce production-relevant rules when applicable.
+- Run `npm run db:migrations:check` when database, migrations, RLS or RPC
+  behavior is touched.
 - For Supabase CLI automation, use the already-proven project path first:
   `npx --cache .npm-cache --yes supabase <command> --linked`, from the canonical
   project root. Do not start with `npx --no-install supabase ...` in this repo;

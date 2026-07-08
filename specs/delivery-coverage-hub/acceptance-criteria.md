@@ -217,6 +217,9 @@
 - Ao editar uma alocação em Metas por Área/Studio, o seletor Hunter associado
   traz o Hunter salvo na linha e os Hunters associados ao cliente por metas
   Hunter diretas, vínculo cadastral ou Studio Hunter no ano.
+- Em Metas por Área/Studio, é permitido salvar Valor Hunter sem Hunter
+  associado; o valor fica como Studio Hunter a detalhar, aparece na conciliação
+  do cliente/studio e não soma no total de nenhuma pessoa até associação futura.
 - A grade de Metas por Área/Studio separa visualmente Studio Hunter e Studio
   Manutenção, indicando que Studio Hunter é uma abertura contida na meta
   própria do Hunter e Studio Manutenção não soma no Hunter.
@@ -241,17 +244,23 @@
   composição detalhada da seleção com cliente, segmento, área/studio quando
   aplicável, valor alocado, subtotais por Hunter + cliente e total selecionado.
 - O total do Hunter em relatórios e na Análise de Desafio usa a Meta Hunter
-  atual derivada. Studio Hunter aparece como abertura contida nesse número e não
-  deve ser somado novamente quando já houver Meta Hunter atual cadastrada.
+  atual derivada como Meta própria + Meta herdada de Studios.
+- No detalhe de Hunters do Relatório de Metas, existe uma linha de Meta própria
+  e linhas de Meta herdada de Studios por cliente/studio, sem duplicar Studio
+  como novo lançamento direto.
 - Na visão Hunters do Relatório de Metas, tela, prévia, CSV, Excel e Planilha
-  oficial devem comunicar que Studio Hunter está contido na Meta própria do
-  Hunter e não representa uma segunda soma.
+  oficial devem comunicar que a Meta herdada de Studios compõe a Meta Hunter
+  atual e não representa uma segunda soma.
 - O Relatório de Metas possui visão "Hunters Especializados" que explode valores
   por Hunter Especializado, Cliente e Área/Studio, sempre derivados de
   `studio_target_allocations` dos clientes vinculados à pessoa.
 - A visão "Hunters Especializados" é apenas gerencial: não possui Meta própria,
   não exporta valores como total oficial e não altera dashboards, conciliações,
   baseline ou Análise de Desafio.
+- Em Metas por Pessoa, Hunter Especializado aparece somente em modo consulta:
+  total por cliente vem dos Studios do cliente, limitado à meta de Studios do
+  cliente, sem Meta Renovação + Ampliação editável, sem clique de alocação rápida
+  e sem botão ativo para salvar/remover meta direta.
 - A exportação/prévia da visão Hunters usa o consolidado quando nenhum Hunter
   está selecionado e o detalhe explodido quando há um ou mais Hunters
   selecionados.
@@ -307,9 +316,8 @@
   uma nova meta mantendo a original separada.
 - Em Metas por Área/Studio, as grades de conciliação e alocações abrem
   ordenadas por Cliente em ordem crescente.
-- Ao salvar uma meta por Área/Studio, a tela valida cliente, área, ano e Hunter
-  obrigatório para Studio Hunter antes de chamar o repositório, sem enviar
-  campos obrigatórios como `undefined`.
+- Ao salvar uma meta por Área/Studio, a tela valida cliente, área e ano antes de
+  chamar o repositório; Hunter associado é opcional somente nesta tela.
 - A tela Metas por Área/Studio salva apenas a alocação normalizada em
   `studio_target_allocations`; diferenças contra subtotais do cliente aparecem
   na conciliação, sem disparar atualização automática de Cliente durante o
@@ -319,6 +327,13 @@
 - Ao salvar uma meta com sucesso, a tela exibe mensagem flutuante de
   confirmação.
 - Erros ao salvar meta aparecem como aviso flutuante sem exigir scroll.
+- Se uma pessoa estiver associada a um cliente apenas por Studio Hunter em
+  `studio_target_allocations`, a tela Metas por Pessoa mostra esse cliente e
+  soma o valor como Studio herdado no total da pessoa.
+- Na tela Clientes, a lista de Hunters alocados e a distribuição por pessoa
+  exibem Hunters vindos de Studio Hunter; quando a pessoa também possui Meta
+  Hunter direta, a leitura usa o maior valor entre meta direta e Studio Hunter
+  para não duplicar o mesmo componente.
 - As metas editáveis são persistidas em tabela normalizada
   `revenue_target_allocations` e não em campos duplicados de cliente ou pessoa.
 - O Dashboard Executivo exibe uma visão financeira resumida dos clientes

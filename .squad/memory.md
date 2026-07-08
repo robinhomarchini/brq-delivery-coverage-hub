@@ -2,7 +2,7 @@
 
 ## Current Task Objective
 
-Corrigir Metas por Area/Studio para sugerir o Hunter associado do cliente ao abrir uma nova meta e preservar valores quando o Hunter associado for trocado durante edicao.
+Promover o modo lean enterprise engineering para todos os projetos VS Code/Codex, mantendo este projeto como consumidor do padrão global.
 
 ## Execution Checklist
 
@@ -27,6 +27,16 @@ Corrigir Metas por Area/Studio para sugerir o Hunter associado do cliente ao abr
 - [x] Ao trocar Área/Studio em uma alocacao existente, perguntar se a meta existente deve ser movida ou se a edicao deve virar nova meta.
 - [x] Sugerir o Hunter associado ao cliente ou com Meta Hunter no ano ao abrir nova meta por Area/Studio.
 - [x] Preservar Valor Hunter, Valor Manutencao/Renovacao e Observacoes ao trocar apenas o Hunter durante edicao, carregando linha existente somente quando a combinacao ja existir.
+- [x] Remover bloqueio de Hunter obrigatorio em Metas por Area/Studio e documentar que Hunter vazio fica como Studio Hunter a detalhar.
+- [x] Separar Meta propria e Meta herdada de Studios na visao/detalhe/export de Hunters.
+- [x] Mostrar Hunter Especializado em Metas por Pessoa somente como consulta derivada dos Studios do cliente, com Renovacao e acoes diretas inibidas.
+- [x] Fazer Metas por Pessoa incluir clientes vindos de `studio_target_allocations` quando a pessoa e Hunter associada ao Studio.
+- [x] Fazer Clientes considerar Studio Hunter por pessoa na lista de Hunters alocados e na distribuicao por pessoa, usando max(Meta Hunter direta, Studio Hunter) para nao duplicar.
+- [x] Rodar typecheck, lint, smoke critico e build apos a correcao SICREDI/Gabriela.
+- [x] Atualizar `AGENTS.md` com o modo lean enterprise engineering e novo formato final.
+- [x] Atualizar `.squad/config.yaml` com ladder enxuto, regras de producao/Supabase e contrato de handoff.
+- [x] Atualizar `C:\Users\rmarchini\.codex\AGENTS.md` para aplicar o modo lean enterprise engineering globalmente.
+- [x] Reduzir duplicacao no `AGENTS.md` local, deixando o projeto herdar o padrao global.
 
 ## Previous Completed Work
 
@@ -132,7 +142,7 @@ Corrigir Metas por Area/Studio para sugerir o Hunter associado do cliente ao abr
 
 ## Next Pending Step
 
-Próximo passo: se o usuario confirmar em tela, consolidar o worktree sujo em um commit/snapshot seguro para simplificar o historico daqui para frente.
+Próximo passo: usar o modo lean enterprise engineering em todos os projetos VS Code/Codex, mantendo diffs pequenos e evidencia antes de handoff.
 
 ## Discovered Commands
 

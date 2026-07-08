@@ -438,15 +438,22 @@ comercial individual.
 Na visão de Hunters, sem Hunter selecionado, a tela mostra o consolidado por
 Hunter. A tabela deve permitir selecionar um ou mais Hunters por checkbox; com
 seleção ativa, a tela mostra o relatório detalhado no grão Hunter + cliente +
-segmento + área/studio quando aplicável, separando Hunter próprio de Studio
-Hunter, com subtotais por Hunter + cliente e total selecionado. A prévia e
+segmento + área/studio quando aplicável, separando Meta própria de Meta herdada
+de Studios, com subtotais por Hunter + cliente e total selecionado. Meta Hunter
+atual é a soma de Meta própria + Meta herdada de Studios; a linha herdada é
+derivada de `studio_target_allocations` e não deve ser interpretada como novo
+lançamento direto. A prévia e
 exportação devem usar exatamente o modo ativo: consolidado quando não houver
 Hunter selecionado e detalhado/explodido quando houver seleção.
 Na visão de Hunters Especializados, a tela mostra uma leitura gerencial cross.
-Esse papel não possui meta própria lançável: os valores são sempre derivados das
-alocações de Studios dos clientes vinculados à pessoa, explodidos por Hunter
-Especializado, Cliente e Área/Studio. A visão não altera totais oficiais de
-cliente, pessoa, dashboard, baseline ou análise de desafio.
+Esse papel não possui Meta própria lançável nem Meta Renovação + Ampliação: os
+valores são sempre derivados das alocações de Studios dos clientes vinculados à
+pessoa, explodidos por Hunter Especializado, Cliente e Área/Studio. Em Metas por
+Pessoa, Hunter Especializado aparece apenas em modo de consulta derivada; o valor
+por cliente é limitado à meta de Studios do cliente, os campos de Meta própria e
+Renovação ficam inibidos, e atalhos de clique para alocar meta do cliente ou
+salvar/remover meta direta ficam desabilitados. A visão não altera totais
+oficiais de cliente, pessoa, dashboard, baseline ou análise de desafio.
 Na visão de Áreas / Studios, a tabela deve permitir selecionar um ou mais
 Studios por checkbox; com seleção ativa, a tela mostra e exporta o detalhe
 explodido por Studio + cliente + segmento + Hunter Studio. Na visão por pessoa,
@@ -496,7 +503,10 @@ hardcoded. A lista também deve incluir Hunters já associados ao cliente por
 alocações de Studio Hunter no ano, e ao editar uma linha deve manter disponível
 o Hunter gravado na própria linha mesmo que o filtro global esteja em outro
 cliente. Dados legados sem Hunter devem continuar legíveis como "Hunter não
-informado"; novas linhas com `hunter_amount` maior que zero devem exigir Hunter.
+informado". Somente nesta tela, novas linhas com `hunter_amount` maior que zero
+podem ser salvas sem Hunter associado; nesses casos o valor fica como Studio
+Hunter a detalhar, entra na conciliação do cliente/studio e não soma no total de
+nenhuma pessoa até que um Hunter seja associado.
 Ao abrir uma nova meta para um cliente que já possui Hunter associado no cadastro
 ou Meta Hunter no ano, o campo Hunter associado deve vir sugerido como default,
 sem alterar filtros globais nem gravar nada automaticamente.
@@ -720,6 +730,14 @@ Regras do cadastro de Metas:
   `revenue_target_allocations` e por Cliente + Área/Studio + Hunter + Ano em
   `studio_target_allocations`, sem trigger de exclusividade Hunter em
   `person_customer_assignments`.
+- Quando uma alocação de `studio_target_allocations` tiver Hunter associado, a
+  pessoa deve enxergar o cliente em Metas por Pessoa mesmo sem meta direta em
+  `revenue_target_allocations`. O valor aparece como Studio herdado e compõe a
+  Meta Hunter atual da pessoa sem duplicar a Meta própria.
+- Na tela de Clientes, a distribuição por pessoa e a lista de Hunters alocados
+  devem considerar Studio Hunter atribuído a pessoas. A cobertura Hunter por
+  pessoa usa `max(Meta Hunter direta, soma de Studio Hunter da pessoa)` para
+  preservar o conceito de Studio contido em Hunter.
 - O campo Cargo continua editável como texto livre, mas deve sugerir "Diretor
   Comercial", "Gerente Executivo de Vendas" e "Executivo de Negócios".
 - Quando um cluster financeiro possui mais de um cliente-fonte, a carga inicial

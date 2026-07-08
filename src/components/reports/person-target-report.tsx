@@ -24,7 +24,7 @@ import { isOtherDirectorId } from "@/lib/director-governance";
 
 const currentYear = 2026;
 const hunterOwnTotalLabel = "Meta Hunter atual";
-const hunterStudioContainedLabel = "Studio Hunter contido";
+const hunterStudioContainedLabel = "Meta herdada de Studios";
 const hunterBaseWithoutStudioLabel = "Meta própria";
 
 type ReportView = "people" | "areas" | "hunters" | "specialistHunters" | "directors";
@@ -784,7 +784,7 @@ export function PersonTargetReport() {
                       <TableCell className="text-sky-700">
                         <div className="flex flex-col items-end gap-0.5">
                           <span>{formatCurrency(row.studioHunter)}</span>
-                          <span className="text-[11px] font-medium text-sky-600">contido na meta</span>
+                          <span className="text-[11px] font-medium text-sky-600">herdada dos Studios</span>
                         </div>
                       </TableCell>
                       <TableCell className="text-right tabular-nums">{formatCurrency(getHunterBaseWithoutStudio(row))}</TableCell>
@@ -793,7 +793,7 @@ export function PersonTargetReport() {
                           {row.studioBreakdown.length === 0 && <span className="text-sm text-slate-400">Sem abertura Studio</span>}
                           {row.studioBreakdown.map((item) => (
                             <Badge key={item.areaId} className="bg-sky-100 text-sky-800 hover:bg-sky-100">
-                              {item.areaName} · {formatCurrency(item.amount)} contido
+                              {item.areaName} · {formatCurrency(item.amount)} herdado
                             </Badge>
                           ))}
                         </div>
@@ -809,7 +809,7 @@ export function PersonTargetReport() {
             <div className={hunterConsultOnly ? "" : "border-t border-slate-200"}>
               <div className="px-5 py-4">
                 <p className="text-sm font-bold text-slate-900">Detalhe explodido da seleção</p>
-                <p className="text-xs text-slate-500">A meta própria do Hunter já contém Studio Hunter; a abertura de Studio é informativa e não soma novamente no total.</p>
+                <p className="text-xs text-slate-500">A meta do Hunter é composta por Meta própria + Meta herdada de Studios. A herdada não deve ser lançada novamente como meta própria.</p>
               </div>
               <div className="overflow-x-auto">
               <Table className="min-w-[1120px]">
@@ -838,7 +838,7 @@ export function PersonTargetReport() {
                             <span>{formatCurrency(group.total)}</span>
                             {group.studioHunterTotal > 0 && (
                               <span className="text-[11px] font-medium text-sky-700">
-                                {formatCurrency(group.studioHunterTotal)} em Studio contido
+                                {formatCurrency(group.studioHunterTotal)} herdado de Studios
                               </span>
                             )}
                           </div>
@@ -850,7 +850,7 @@ export function PersonTargetReport() {
                           <TableCell>{row.customerName}</TableCell>
                           <TableCell>
                             {row.segment}
-                            {isHunterStudioContainedSegment(row.segment) && <span className="ml-2 text-xs text-sky-700">(contido)</span>}
+                            {isHunterStudioContainedSegment(row.segment) && <span className="ml-2 text-xs text-sky-700">(herdado)</span>}
                           </TableCell>
                           <TableCell>{row.areaName || "—"}</TableCell>
                           <TableCell className="text-right font-semibold tabular-nums text-slate-950">{formatCurrency(row.amount)}</TableCell>
@@ -1316,13 +1316,14 @@ function buildAreaStudioDetailRows({
 
 function buildHunterRows(
   people: Array<{ id: string; name: string; roleType: RoleType }>,
-  allocations: Array<{ customerId: string; personId: string; type: string; year: number; amount: number }>,
+  allocations: Array<{ customerId: string; personId: string; type: string; year: number; amount: number; ownAmount?: number }>,
   studioAllocations: Array<{ customerId: string; areaId: string; hunterPersonId?: string; year: number; hunterAmount: number }>,
   areaNames: Map<string, string>,
   year: number,
 ) {
   const peopleById = new Map(people.map((person) => [person.id, person]));
   const rows = new Map<string, HunterRow>();
+  const studioByHunterCustomer = buildStudioHunterTotalsByHunterCustomer(studioAllocations, year);
 
   studioAllocations
     .filter((allocation) => allocation.year === year && allocation.hunterAmount > 0 && allocation.hunterPersonId)
@@ -1370,7 +1371,8 @@ function buildHunterRows(
         customerCount: 0,
         studioBreakdown: [],
       } satisfies HunterRow;
-      row.ownHunter += allocation.amount;
+      const studioHunterForCustomer = studioByHunterCustomer.get(`${allocation.personId}:${allocation.customerId}`) ?? 0;
+      row.ownHunter += getHunterOwnAmount(allocation, studioHunterForCustomer);
       row.customerIds.add(allocation.customerId);
       row.totalHunter = getContainedHunterTotal(row.ownHunter, row.studioHunter);
       rows.set(allocation.personId, row);
@@ -1384,6 +1386,27 @@ function buildHunterRows(
   }));
 }
 
+function buildStudioHunterTotalsByHunterCustomer(
+  studioAllocations: Array<{ customerId: string; hunterPersonId?: string; year: number; hunterAmount: number }>,
+  year: number,
+) {
+  const totals = new Map<string, number>();
+  studioAllocations
+    .filter((allocation) => allocation.year === year && allocation.hunterPersonId && allocation.hunterAmount > 0)
+    .forEach((allocation) => {
+      const key = `${allocation.hunterPersonId}:${allocation.customerId}`;
+      totals.set(key, (totals.get(key) ?? 0) + allocation.hunterAmount);
+    });
+  return totals;
+}
+
+function getHunterOwnAmount(
+  allocation: { amount: number; ownAmount?: number },
+  studioHunterAmount: number,
+) {
+  return Math.max(allocation.ownAmount ?? allocation.amount - studioHunterAmount, 0);
+}
+
 function buildHunterDetailRows({
   people,
   allocations,
@@ -1394,7 +1417,7 @@ function buildHunterDetailRows({
   year,
 }: {
   people: Array<{ id: string; name: string; roleType: RoleType }>;
-  allocations: Array<{ id: string; customerId: string; personId: string; type: string; year: number; amount: number }>;
+  allocations: Array<{ id: string; customerId: string; personId: string; type: string; year: number; amount: number; ownAmount?: number }>;
   studioAllocations: Array<{ id: string; customerId: string; areaId: string; hunterPersonId?: string; year: number; hunterAmount: number }>;
   customerNames: Map<string, string>;
   areaNames: Map<string, string>;
@@ -1404,6 +1427,7 @@ function buildHunterDetailRows({
   if (!hunterIds.size) return [];
 
   const peopleById = new Map(people.map((person) => [person.id, person]));
+  const studioByHunterCustomer = buildStudioHunterTotalsByHunterCustomer(studioAllocations, year);
   const rows: HunterDetailRow[] = [];
 
   allocations
@@ -1415,15 +1439,18 @@ function buildHunterDetailRows({
     )
     .forEach((allocation) => {
       const hunter = peopleById.get(allocation.personId);
+      const studioHunterForCustomer = studioByHunterCustomer.get(`${allocation.personId}:${allocation.customerId}`) ?? 0;
+      const ownAmount = getHunterOwnAmount(allocation, studioHunterForCustomer);
+      if (ownAmount <= 0.01) return;
       rows.push({
         id: allocation.id,
         hunterId: allocation.personId,
         hunterName: hunter?.name ?? "Hunter não encontrado",
         roleType: hunter?.roleType ?? "Hunter",
         customerName: customerNames.get(allocation.customerId) ?? allocation.customerId,
-        segment: hunterOwnTotalLabel,
+        segment: hunterBaseWithoutStudioLabel,
         areaName: "",
-        amount: allocation.amount,
+        amount: ownAmount,
       });
     });
 
@@ -1472,10 +1499,9 @@ function buildHunterDetailGroups(rows: HunterDetailRow[]) {
     if (isHunterStudioContainedSegment(row.segment)) {
       group.studioHunterTotal += row.amount;
     } else if (isHunterOwnSegment(row.segment)) {
-      group.total += row.amount;
+      group.ownTotal += row.amount;
     }
-    group.total = getContainedHunterTotal(group.total, group.studioHunterTotal);
-    group.ownTotal = Math.max(group.total - group.studioHunterTotal, 0);
+    group.total = getContainedHunterTotal(group.ownTotal, group.studioHunterTotal);
     groups.set(groupKey, group);
   });
 
@@ -1589,7 +1615,7 @@ function getViewTotals(
       secondLabel: hunterStudioContainedLabel,
       second: summary.second + row.studioHunter,
       total: summary.total + row.totalHunter,
-    }), emptyTotals("Hunters com meta", hunterBaseWithoutStudioLabel, hunterStudioContainedLabel, hunterOwnTotalLabel));
+  }), emptyTotals("Hunters com meta", hunterBaseWithoutStudioLabel, hunterStudioContainedLabel, hunterOwnTotalLabel));
   }
   if (view === "specialistHunters") {
     const peopleIds = new Set(specialistHunterRows.map((row) => row.personId));
@@ -1634,7 +1660,7 @@ function emptyTotals(countLabel: string, firstLabel: string, secondLabel: string
 }
 
 function getContainedHunterTotal(ownTotal: number, studioHunterTotal: number) {
-  return Math.max(ownTotal, studioHunterTotal);
+  return ownTotal + studioHunterTotal;
 }
 
 function getHunterBaseWithoutStudio(row: HunterRow) {
@@ -1642,7 +1668,7 @@ function getHunterBaseWithoutStudio(row: HunterRow) {
 }
 
 function isHunterOwnSegment(segment: string) {
-  return segment === hunterOwnTotalLabel || segment === "Hunter próprio";
+  return segment === hunterBaseWithoutStudioLabel || segment === hunterOwnTotalLabel || segment === "Hunter próprio";
 }
 
 function isHunterStudioContainedSegment(segment: string) {
@@ -1651,13 +1677,13 @@ function isHunterStudioContainedSegment(segment: string) {
 
 function summarizeHunterDetailTotals(rows: HunterDetailRow[]) {
   type HunterContainedTotals = { ownTotal: number; studioHunterTotal: number; total: number };
-  const byHunterAndCustomer = new Map<string, { directTotal: number; studioHunterTotal: number }>();
+  const byHunterAndCustomer = new Map<string, { ownTotal: number; studioHunterTotal: number }>();
 
   rows.forEach((row) => {
     const key = `${row.hunterId}:${row.customerName}`;
-    const current = byHunterAndCustomer.get(key) ?? { directTotal: 0, studioHunterTotal: 0 };
+    const current = byHunterAndCustomer.get(key) ?? { ownTotal: 0, studioHunterTotal: 0 };
     if (isHunterOwnSegment(row.segment)) {
-      current.directTotal += row.amount;
+      current.ownTotal += row.amount;
     } else if (isHunterStudioContainedSegment(row.segment)) {
       current.studioHunterTotal += row.amount;
     }
@@ -1665,9 +1691,9 @@ function summarizeHunterDetailTotals(rows: HunterDetailRow[]) {
   });
 
   return Array.from(byHunterAndCustomer.values()).reduce<HunterContainedTotals>((summary, item) => ({
-    ownTotal: summary.ownTotal + Math.max(getContainedHunterTotal(item.directTotal, item.studioHunterTotal) - item.studioHunterTotal, 0),
+    ownTotal: summary.ownTotal + item.ownTotal,
     studioHunterTotal: summary.studioHunterTotal + item.studioHunterTotal,
-    total: summary.total + getContainedHunterTotal(item.directTotal, item.studioHunterTotal),
+    total: summary.total + getContainedHunterTotal(item.ownTotal, item.studioHunterTotal),
   }), { ownTotal: 0, studioHunterTotal: 0, total: 0 });
 }
 
@@ -1707,7 +1733,7 @@ const hunterReportColumns: ReportColumn<HunterRow>[] = [
   { key: "totalHunter", label: hunterOwnTotalLabel, value: (row) => row.totalHunter, format: "currency", align: "right" },
   { key: "studioHunter", label: hunterStudioContainedLabel, value: (row) => row.studioHunter, format: "currency", align: "right" },
   { key: "baseWithoutStudio", label: hunterBaseWithoutStudioLabel, value: (row) => getHunterBaseWithoutStudio(row), format: "currency", align: "right" },
-  { key: "studioBreakdown", label: "Abertura Studio contida", value: (row) => row.studioBreakdown.map((item) => `${item.areaName}: ${formatCurrency(item.amount)} contido`).join(" | ") },
+  { key: "studioBreakdown", label: "Meta herdada por Studio", value: (row) => row.studioBreakdown.map((item) => `${item.areaName}: ${formatCurrency(item.amount)} herdado`).join(" | ") },
 ];
 
 const hunterDetailReportColumns: ReportColumn<HunterDetailRow>[] = [

@@ -236,7 +236,7 @@ export function CustomerManagement() {
   }, { hunter: 0, farmerRenewal: 0, studioHunter: 0, studio: 0, total: 0 });
   const customerReportRows = useMemo(() => sortedCustomers.map((customer) => {
     const breakdown = getCustomerTargetBreakdown(customer);
-    const targetPeople = getCustomerTargetPeople(customer, people, targetAllocations, year);
+    const targetPeople = getCustomerTargetPeople(customer, people, targetAllocations, studioTargetAllocations, year);
     const coverage = getCustomerCoverageStatus(customer, people, areas, targetAllocations, studioTargetAllocations, year);
     const directorName = displayDirectorName(people.find((item) => item.id === customer.directorResponsibleId)?.name ?? customer.directorResponsibleId);
     const managerNames = customer.managerResponsibleIds
@@ -310,6 +310,7 @@ export function CustomerManagement() {
       },
       people,
       targetAllocations,
+      studioTargetAllocations,
       year,
       formBreakdown,
     )
@@ -577,7 +578,7 @@ export function CustomerManagement() {
             <TableBody>
               {sortedCustomers.map((customer) => {
                 const breakdown = getCustomerTargetBreakdown(customer);
-                const targetPeople = getCustomerTargetPeople(customer, people, targetAllocations, year);
+                const targetPeople = getCustomerTargetPeople(customer, people, targetAllocations, studioTargetAllocations, year);
                 const coverage = getCustomerCoverageStatus(customer, people, areas, targetAllocations, studioTargetAllocations, year);
                 return (
                   <TableRow
@@ -1457,6 +1458,14 @@ function getCustomerAllocationWarning(
   const involvedIds = new Set([
     ...customer.managerResponsibleIds,
     ...customerAllocations.map((allocation) => allocation.personId),
+    ...studioAllocations
+      .filter((allocation) =>
+        allocation.customerId === customer.id
+        && allocation.year === year
+        && allocation.hunterPersonId
+        && allocation.hunterAmount > 0
+      )
+      .map((allocation) => allocation.hunterPersonId as string),
   ]);
   const involvedPeople = people
     .filter((person) => involvedIds.has(person.id) && person.active && isTargetAssignableRole(person.roleType))
@@ -1479,11 +1488,13 @@ function getCustomerAllocationComposition(
   customer: Customer,
   people: Person[],
   allocations: TargetAllocation[],
+  studioAllocations: StudioTargetAllocation[],
   year: number,
   targetBreakdown: CustomerTargetBreakdown,
 ): CustomerAllocationCompositionData {
   const peopleById = new Map(people.map((person) => [person.id, person]));
   const rowsByPerson = new Map<string, CustomerAllocationPersonRow>();
+  const studioHunterByPerson = new Map<string, number>();
 
   allocations
     .filter((allocation) => allocation.customerId === customer.id && allocation.year === year && allocation.type !== "studio")
@@ -1508,6 +1519,39 @@ function getCustomerAllocationComposition(
       current.total = current.hunter + current.farmerRenewal + current.studio;
       rowsByPerson.set(allocation.personId, current);
     });
+
+  studioAllocations
+    .filter((allocation) =>
+      allocation.customerId === customer.id
+      && allocation.year === year
+      && allocation.hunterPersonId
+      && allocation.hunterAmount > 0
+    )
+    .forEach((allocation) => {
+      const personId = allocation.hunterPersonId as string;
+      studioHunterByPerson.set(
+        personId,
+        roundCurrency((studioHunterByPerson.get(personId) ?? 0) + allocation.hunterAmount),
+      );
+    });
+
+  studioHunterByPerson.forEach((studioHunterAmount, personId) => {
+    const person = peopleById.get(personId);
+    const current = rowsByPerson.get(personId) ?? {
+      personId,
+      personName: person?.name ?? personId,
+      jobTitle: person?.jobTitle ?? "Pessoa não encontrada",
+      roleType: person?.roleType ?? "Sem perfil",
+      hunter: 0,
+      farmerRenewal: 0,
+      studio: 0,
+      total: 0,
+    };
+
+    current.hunter = Math.max(current.hunter, studioHunterAmount);
+    current.total = current.hunter + current.farmerRenewal + current.studio;
+    rowsByPerson.set(personId, current);
+  });
 
   const rows = Array.from(rowsByPerson.values())
     .map((row) => ({
@@ -1550,10 +1594,10 @@ function getCustomerAllocationComposition(
   };
 }
 
-function getCustomerTargetPeople(customer: Customer, people: Person[], allocations: TargetAllocation[], year: number) {
+function getCustomerTargetPeople(customer: Customer, people: Person[], allocations: TargetAllocation[], studioAllocations: StudioTargetAllocation[], year: number) {
   return {
-    hunterPeople: getCustomerTargetPeopleByType(customer, people, allocations, year, "hunter"),
-    farmerRenewalPeople: getCustomerTargetPeopleByType(customer, people, allocations, year, "farmer_renewal"),
+    hunterPeople: getCustomerTargetPeopleByType(customer, people, allocations, studioAllocations, year, "hunter"),
+    farmerRenewalPeople: getCustomerTargetPeopleByType(customer, people, allocations, studioAllocations, year, "farmer_renewal"),
   };
 }
 
@@ -1611,6 +1655,7 @@ function getCustomerTargetPeopleByType(
   customer: Customer,
   people: Person[],
   allocations: TargetAllocation[],
+  studioAllocations: StudioTargetAllocation[],
   year: number,
   type: "hunter" | "farmer_renewal" | "studio",
 ) {
@@ -1650,6 +1695,36 @@ function getCustomerTargetPeopleByType(
       current.amount += allocation.amount;
       totalsByPerson.set(allocation.personId, current);
     });
+
+  if (type === "hunter") {
+    const studioHunterByPerson = new Map<string, number>();
+    studioAllocations
+      .filter((allocation) =>
+        allocation.customerId === customer.id
+        && allocation.year === year
+        && allocation.hunterPersonId
+        && allocation.hunterAmount > 0
+      )
+      .forEach((allocation) => {
+        const personId = allocation.hunterPersonId as string;
+        studioHunterByPerson.set(
+          personId,
+          roundCurrency((studioHunterByPerson.get(personId) ?? 0) + allocation.hunterAmount),
+        );
+      });
+
+    studioHunterByPerson.forEach((studioHunterAmount, personId) => {
+      const person = peopleById.get(personId);
+      const current = totalsByPerson.get(personId) ?? {
+        personId,
+        name: person?.name ?? personId,
+        roleType: person?.roleType ?? "Sem perfil",
+        amount: 0,
+      };
+      current.amount = Math.max(current.amount, studioHunterAmount);
+      totalsByPerson.set(personId, current);
+    });
+  }
 
   return Array.from(totalsByPerson.values())
     .map((person) => ({ ...person, amount: roundCurrency(person.amount) }))
@@ -1693,7 +1768,7 @@ function getCustomerCoverageAllocatedTotal(
   year: number,
 ) {
   const breakdown = getCustomerTargetBreakdown(customer);
-  const peopleComposition = getCustomerAllocationComposition(customer, people, allocations, year, breakdown);
+  const peopleComposition = getCustomerAllocationComposition(customer, people, allocations, studioAllocations, year, breakdown);
   const studioComposition = getCustomerStudioComposition(customer.id, customer.studioTarget, customer.studioHunterTarget, [], people, studioAllocations, year);
   return peopleComposition.allocatedTotal + studioComposition.allocatedTotal;
 }

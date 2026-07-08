@@ -16,7 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useDeliveryStore } from "@/store/delivery-store";
 import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears } from "@/lib/customer-targets";
 import { formatCurrency, toFileSlug } from "@/lib/utils";
-import { isHunterRole, isTargetAssignableRole } from "@/lib/roles";
+import { isHunterRole, isSpecialistHunterRole, isTargetAssignableRole } from "@/lib/roles";
 
 const currentYear = defaultTargetYear;
 
@@ -28,7 +28,7 @@ export function PersonTargetAssignment() {
   const { people, customers, customerTargets, targetAllocations, studioTargetAllocations, savePersonCustomerTargets, removePersonCustomerTargets } = useDeliveryStore();
   const activePeople = useMemo(() => people.filter((person) => person.active), [people]);
   const assignablePeople = useMemo(() =>
-    activePeople.filter((person) => isTargetAssignableRole(person.roleType)),
+    activePeople.filter((person) => isTargetAssignableRole(person.roleType) || isSpecialistHunterRole(person.roleType)),
     [activePeople],
   );
   const years = useMemo(
@@ -55,9 +55,10 @@ export function PersonTargetAssignment() {
     ? personId
     : "";
   const selectedPerson = assignablePeople.find((person) => person.id === effectivePersonId);
+  const selectedPersonIsSpecialistHunter = Boolean(selectedPerson && isSpecialistHunterRole(selectedPerson.roleType));
   const visibleCustomerIds = useMemo(
-    () => buildVisibleCustomerIds(selectedPerson?.clientIds ?? [], targetAllocations, effectivePersonId, year, extraCustomerIds),
-    [effectivePersonId, extraCustomerIds, selectedPerson?.clientIds, targetAllocations, year],
+    () => buildVisibleCustomerIds(selectedPerson?.clientIds ?? [], targetAllocations, studioTargetAllocations, effectivePersonId, year, extraCustomerIds),
+    [effectivePersonId, extraCustomerIds, selectedPerson?.clientIds, studioTargetAllocations, targetAllocations, year],
   );
   const visibleCustomers = useMemo(
     () => yearCustomers.filter((customer) => visibleCustomerIds.has(customer.id)),
@@ -83,9 +84,10 @@ export function PersonTargetAssignment() {
       targetAllocations,
       studioTargetAllocations,
       drafts[customer.id],
-      getRowSource(customer.id, selectedPerson?.clientIds ?? [], targetAllocations, effectivePersonId, year, extraCustomerIds),
+      getRowSource(customer.id, selectedPerson?.clientIds ?? [], targetAllocations, studioTargetAllocations, effectivePersonId, year, extraCustomerIds),
+      selectedPerson?.roleType,
     )),
-    [drafts, effectivePersonId, extraCustomerIds, scopedVisibleCustomers, selectedPerson?.clientIds, studioTargetAllocations, targetAllocations, year],
+    [drafts, effectivePersonId, extraCustomerIds, scopedVisibleCustomers, selectedPerson?.clientIds, selectedPerson?.roleType, studioTargetAllocations, targetAllocations, year],
   );
   const totals = useMemo(() => rows.reduce((summary, row) => ({
     hunter: summary.hunter + row.hunterAmount,
@@ -129,7 +131,7 @@ export function PersonTargetAssignment() {
     { key: "customerTarget", label: "Meta Total Cliente", value: (row) => row.customerTarget, format: "currency", align: "right" },
     { key: "otherPeopleHunterTotal", label: "Hunter já associado a outras pessoas", value: (row) => row.otherPeopleHunterTotal, format: "currency", align: "right" },
     { key: "personHunterOwnTarget", label: "Meta própria Hunter", value: (row) => row.personHunterOwnTarget, format: "currency", align: "right" },
-    { key: "personStudioHunterTarget", label: "Studio Hunter contido", value: (row) => row.personStudioHunterTarget, format: "currency", align: "right" },
+    { key: "personStudioHunterTarget", label: "Meta herdada de Studios", value: (row) => row.personStudioHunterTarget, format: "currency", align: "right" },
     { key: "otherPeopleFarmerRenewalTotal", label: "Renovação já associada a outras pessoas", value: (row) => row.otherPeopleFarmerRenewalTotal, format: "currency", align: "right" },
     { key: "otherPeopleTotal", label: "Total já associado a outras pessoas", value: (row) => row.otherPeopleTotal, format: "currency", align: "right" },
     { key: "hunterGap", label: "Gap Hunter", value: (row) => row.hunterGap, format: "currency", align: "right" },
@@ -174,6 +176,10 @@ export function PersonTargetAssignment() {
   async function saveCustomerTargets(row: PersonTargetRow) {
     if (!effectivePersonId) {
       setErrorMessage("Selecione uma pessoa antes de salvar.");
+      return;
+    }
+    if (selectedPersonIsSpecialistHunter) {
+      setErrorMessage("Hunter Especializado não recebe lançamento direto. Ajuste os valores na tela Metas por Área/Studio.");
       return;
     }
 
@@ -223,6 +229,10 @@ export function PersonTargetAssignment() {
       setErrorMessage("Selecione uma pessoa antes de alocar a meta.");
       return;
     }
+    if (selectedPersonIsSpecialistHunter) {
+      setErrorMessage("Hunter Especializado não recebe lançamento direto. A meta dele é derivada dos Studios do cliente.");
+      return;
+    }
 
     const label = field === "hunter" ? "Hunter" : "Renovação + Ampliação";
     const availableAmount = roundCurrency(Math.max(0, field === "hunter"
@@ -257,6 +267,10 @@ export function PersonTargetAssignment() {
   ) {
     if (!effectivePersonId) {
       setErrorMessage("Selecione uma pessoa antes de salvar.");
+      return;
+    }
+    if (selectedPersonIsSpecialistHunter) {
+      setErrorMessage("Hunter Especializado não recebe lançamento direto. Ajuste os valores na tela Metas por Área/Studio.");
       return;
     }
 
@@ -382,19 +396,23 @@ export function PersonTargetAssignment() {
               <p className="text-xs font-semibold uppercase leading-4 tracking-normal text-slate-500">
                 Total da pessoa · {selectedPerson?.name ?? "selecione uma pessoa"} · {year}
               </p>
-              <p className="text-xs text-slate-400">Meta Hunter atual = meta própria + Studio Hunter</p>
+              <p className="text-xs text-slate-400">
+                {selectedPersonIsSpecialistHunter
+                  ? "Hunter Especializado é somente consulta: total derivado dos Studios do cliente."
+                  : "Meta Hunter atual = meta própria + meta herdada de Studios"}
+              </p>
             </div>
             <div className="grid gap-3 md:grid-cols-4">
               <KpiSummaryCard label="Base esperada das contas" currencyValue={expectedBaseTotal} icon={Target} tone="neutral" />
-              <KpiSummaryCard label="Meta Hunter atual" currencyValue={totals.hunter} icon={Target} tone="purple" />
-              <KpiSummaryCard label="Renovação + Ampliação" currencyValue={totals.farmerRenewal} icon={Target} tone="blue" />
+              <KpiSummaryCard label={selectedPersonIsSpecialistHunter ? "Meta derivada dos Studios" : "Meta Hunter atual"} currencyValue={totals.hunter} icon={Target} tone="purple" />
+              <KpiSummaryCard label="Renovação + Ampliação" currencyValue={selectedPersonIsSpecialistHunter ? 0 : totals.farmerRenewal} icon={Target} tone="blue" />
               <KpiSummaryCard label="Total da pessoa" currencyValue={totals.hunter + totals.farmerRenewal} icon={Target} tone="dark" />
             </div>
           </div>
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
             <label>
-              <span className="mb-1.5 block text-sm font-semibold text-slate-700">Incluir cliente para meta</span>
-              <Select value={effectiveCustomerToAdd} onChange={(event) => setCustomerToAdd(event.target.value)} disabled={!effectivePersonId || !availableCustomersToAdd.length}>
+              <span className="mb-1.5 block text-sm font-semibold text-slate-700">{selectedPersonIsSpecialistHunter ? "Incluir cliente para consulta" : "Incluir cliente para meta"}</span>
+              <Select value={effectiveCustomerToAdd} onChange={(event) => setCustomerToAdd(event.target.value)} disabled={!effectivePersonId || selectedPersonIsSpecialistHunter || !availableCustomersToAdd.length}>
                 {!effectivePersonId ? (
                   <option value="">Selecione uma pessoa primeiro</option>
                 ) : !availableCustomersToAdd.length ? (
@@ -411,7 +429,7 @@ export function PersonTargetAssignment() {
               type="button"
               variant="outline"
               className="mt-3 w-full justify-center"
-              disabled={!effectivePersonId || !effectiveCustomerToAdd}
+              disabled={!effectivePersonId || selectedPersonIsSpecialistHunter || !effectiveCustomerToAdd}
               onClick={() => {
                 if (!effectiveCustomerToAdd) return;
                 setExtraCustomerIds((current) => current.includes(effectiveCustomerToAdd) ? current : [...current, effectiveCustomerToAdd]);
@@ -419,7 +437,7 @@ export function PersonTargetAssignment() {
               }}
             >
               <Plus className="h-4 w-4" />
-              Incluir cliente
+              {selectedPersonIsSpecialistHunter ? "Consulta derivada" : "Incluir cliente"}
             </Button>
           </div>
         </div>
@@ -466,11 +484,13 @@ export function PersonTargetAssignment() {
                       hunter={row.customerHunterTarget}
                       farmerRenewal={row.customerFarmerRenewalTarget}
                       total={row.customerTarget}
-                      hunterAction={{
+                      hunterLabel={selectedPersonIsSpecialistHunter ? "Meta Studios" : "Hunter"}
+                      farmerRenewalLabel={selectedPersonIsSpecialistHunter ? "Renovação inibida" : "Renov. + Ampl."}
+                      hunterAction={selectedPersonIsSpecialistHunter ? undefined : {
                         onClick: () => quickAllocateCustomerTarget(row, "hunter"),
                         title: `Clique para alocar o saldo Hunter em ${selectedPerson?.name ?? "pessoa selecionada"}`,
                       }}
-                      farmerRenewalAction={{
+                      farmerRenewalAction={selectedPersonIsSpecialistHunter ? undefined : {
                         onClick: () => quickAllocateCustomerTarget(row, "farmerRenewal"),
                         title: `Clique para alocar o saldo de Renovação + Ampliação em ${selectedPerson?.name ?? "pessoa selecionada"}`,
                       }}
@@ -495,9 +515,10 @@ export function PersonTargetAssignment() {
                       value={drafts[row.customerId]?.hunter ?? row.hunterInput}
                       onChange={(event) => updateDraft(row.customerId, "hunter", event.target.value)}
                       aria-label={`Meta própria Hunter para ${row.customerName}`}
+                      disabled={selectedPersonIsSpecialistHunter}
                     />
                     <div className="mt-2 space-y-0.5 text-xs text-slate-500">
-                      <p>Studio contido: <span className="font-semibold text-sky-700">{formatCurrency(row.studioHunterAmount)}</span></p>
+                      <p>{selectedPersonIsSpecialistHunter ? "Total Studios" : "Studio herdado"}: <span className="font-semibold text-sky-700">{formatCurrency(row.studioHunterAmount)}</span></p>
                       <p>Total atual: <span className="font-bold text-slate-900">{formatCurrency(row.hunterAmount)}</span></p>
                     </div>
                   </TableCell>
@@ -506,6 +527,7 @@ export function PersonTargetAssignment() {
                       value={drafts[row.customerId]?.farmerRenewal ?? row.farmerRenewalInput}
                       onChange={(event) => updateDraft(row.customerId, "farmerRenewal", event.target.value)}
                       aria-label={`Meta Renovação + Ampliação para ${row.customerName}`}
+                      disabled={selectedPersonIsSpecialistHunter}
                     />
                   </TableCell>
                   <TableCell className="font-bold text-slate-950">{formatCurrency(row.personTotal)}</TableCell>
@@ -517,7 +539,7 @@ export function PersonTargetAssignment() {
                         variant="outline"
                         className="text-red-700 hover:text-red-800"
                         onClick={() => removeCustomerFromPerson(row)}
-                        disabled={savingCustomerId === row.customerId || removingCustomerId === row.customerId}
+                        disabled={selectedPersonIsSpecialistHunter || savingCustomerId === row.customerId || removingCustomerId === row.customerId}
                       >
                         <Trash2 className="h-4 w-4" />
                         {removingCustomerId === row.customerId ? "Removendo..." : "Remover"}
@@ -525,7 +547,7 @@ export function PersonTargetAssignment() {
                       <Button
                         size="sm"
                         onClick={() => saveCustomerTargets(row)}
-                        disabled={savingCustomerId === row.customerId || removingCustomerId === row.customerId}
+                        disabled={selectedPersonIsSpecialistHunter || savingCustomerId === row.customerId || removingCustomerId === row.customerId}
                       >
                         <Save className="h-4 w-4" />
                         {savingCustomerId === row.customerId ? "Salvando..." : "Salvar"}
@@ -585,19 +607,23 @@ function TargetBreakdown({
   hunter,
   farmerRenewal,
   total,
+  hunterLabel = "Hunter",
+  farmerRenewalLabel = "Renov. + Ampl.",
   hunterAction,
   farmerRenewalAction,
 }: {
   hunter: number;
   farmerRenewal: number;
   total: number;
+  hunterLabel?: string;
+  farmerRenewalLabel?: string;
   hunterAction?: BreakdownLineAction;
   farmerRenewalAction?: BreakdownLineAction;
 }) {
   return (
     <div className="min-w-40 space-y-1 text-xs">
-      <BreakdownLine label="Hunter" value={hunter} action={hunterAction} />
-      <BreakdownLine label="Renov. + Ampl." value={farmerRenewal} action={farmerRenewalAction} />
+      <BreakdownLine label={hunterLabel} value={hunter} action={hunterAction} />
+      <BreakdownLine label={farmerRenewalLabel} value={farmerRenewal} action={farmerRenewalAction} />
       <div className="border-t pt-1 font-bold text-slate-950">{formatCurrency(total)}</div>
     </div>
   );
@@ -676,19 +702,26 @@ function buildRow(
   studioAllocations: StudioTargetAllocation[],
   draft: { hunter: string; farmerRenewal: string } | undefined,
   source: RowSource,
+  roleType?: RoleType,
 ) {
+  const isSpecialistHunter = Boolean(roleType && isSpecialistHunterRole(roleType));
   const hunterAllocation = findAllocation(allocations, customer.id, personId, year, "hunter");
   const farmerRenewalAllocation = findAllocation(allocations, customer.id, personId, year, "farmer_renewal");
-  const studioHunterAmount = sumStudioHunterAllocations(studioAllocations, customer.id, personId, year);
+  const targetBreakdown = getCustomerTargetBreakdown(customer, allocations, year, isSpecialistHunter);
+  const rawStudioHunterAmount = isSpecialistHunter
+    ? sumSpecialistStudioAllocations(studioAllocations, customer.id, year)
+    : sumStudioHunterAllocations(studioAllocations, customer.id, personId, year);
+  const studioHunterAmount = isSpecialistHunter
+    ? Math.min(rawStudioHunterAmount, targetBreakdown.hunter)
+    : rawStudioHunterAmount;
   const savedHunterOwnAmount = hunterAllocation?.ownAmount ?? Math.max((hunterAllocation?.amount ?? 0) - studioHunterAmount, 0);
-  const hunterOwnAmount = parseAmount(draft?.hunter ?? getInputValue(savedHunterOwnAmount));
-  const hunterAmount = roundCurrency(hunterOwnAmount + studioHunterAmount);
-  const farmerRenewalAmount = parseAmount(draft?.farmerRenewal ?? getInputValue(farmerRenewalAllocation?.amount ?? 0));
-  const targetBreakdown = getCustomerTargetBreakdown(customer, allocations, year);
-  const otherPeopleHunterTotal = sumOtherPeopleAllocations(allocations, customer.id, personId, year, "hunter");
-  const otherPeopleFarmerRenewalTotal = sumOtherPeopleAllocations(allocations, customer.id, personId, year, "farmer_renewal");
+  const hunterOwnAmount = isSpecialistHunter ? 0 : parseAmount(draft?.hunter ?? getInputValue(savedHunterOwnAmount));
+  const hunterAmount = isSpecialistHunter ? studioHunterAmount : roundCurrency(hunterOwnAmount + studioHunterAmount);
+  const farmerRenewalAmount = isSpecialistHunter ? 0 : parseAmount(draft?.farmerRenewal ?? getInputValue(farmerRenewalAllocation?.amount ?? 0));
+  const otherPeopleHunterTotal = isSpecialistHunter ? 0 : sumOtherPeopleAllocations(allocations, customer.id, personId, year, "hunter");
+  const otherPeopleFarmerRenewalTotal = isSpecialistHunter ? 0 : sumOtherPeopleAllocations(allocations, customer.id, personId, year, "farmer_renewal");
   const otherPeopleTotal = otherPeopleHunterTotal + otherPeopleFarmerRenewalTotal;
-  const customerTarget = getCustomerTarget(customer);
+  const customerTarget = isSpecialistHunter ? roundCurrency(targetBreakdown.hunter + targetBreakdown.farmerRenewal) : getCustomerTarget(customer);
   const clientHunterTotal = otherPeopleHunterTotal + hunterAmount;
   const clientFarmerRenewalTotal = otherPeopleFarmerRenewalTotal + farmerRenewalAmount;
   const clientTotal = clientHunterTotal + clientFarmerRenewalTotal;
@@ -738,6 +771,19 @@ function sumStudioHunterAllocations(
     .reduce((total, allocation) => total + allocation.hunterAmount, 0));
 }
 
+function sumSpecialistStudioAllocations(
+  allocations: StudioTargetAllocation[],
+  customerId: string,
+  year: number,
+) {
+  return roundCurrency(allocations
+    .filter((allocation) =>
+      allocation.customerId === customerId
+      && allocation.year === year
+    )
+    .reduce((total, allocation) => total + allocation.hunterAmount + allocation.maintenanceAmount, 0));
+}
+
 function findAllocation(
   allocations: TargetAllocation[],
   customerId: string,
@@ -773,6 +819,7 @@ function sumOtherPeopleAllocations(
 function buildVisibleCustomerIds(
   assignedCustomerIds: string[],
   allocations: TargetAllocation[],
+  studioAllocations: StudioTargetAllocation[],
   personId: string,
   year: number,
   extraCustomerIds: string[],
@@ -783,6 +830,13 @@ function buildVisibleCustomerIds(
     ...allocations
       .filter((allocation) => allocation.personId === personId && allocation.year === year && allocation.type !== "studio")
       .map((allocation) => allocation.customerId),
+    ...studioAllocations
+      .filter((allocation) =>
+        allocation.hunterPersonId === personId
+        && allocation.year === year
+        && allocation.hunterAmount > 0
+      )
+      .map((allocation) => allocation.customerId),
     ...extraCustomerIds,
   ]);
 }
@@ -791,12 +845,21 @@ function getRowSource(
   customerId: string,
   assignedCustomerIds: string[],
   allocations: TargetAllocation[],
+  studioAllocations: StudioTargetAllocation[],
   personId: string,
   year: number,
   extraCustomerIds: string[],
 ): RowSource {
   if (assignedCustomerIds.includes(customerId)) return "assigned";
   if (allocations.some((allocation) => allocation.customerId === customerId && allocation.personId === personId && allocation.year === year && allocation.type !== "studio")) {
+    return "existing_target";
+  }
+  if (studioAllocations.some((allocation) =>
+    allocation.customerId === customerId
+    && allocation.hunterPersonId === personId
+    && allocation.year === year
+    && allocation.hunterAmount > 0
+  )) {
     return "existing_target";
   }
   if (extraCustomerIds.includes(customerId)) return "added";
@@ -822,9 +885,15 @@ function getCustomerTarget(customer: Customer) {
   return roundCurrency(customer.hunterTarget + customer.farmerRenewalTarget);
 }
 
-function getCustomerTargetBreakdown(customer: Customer, allocations: TargetAllocation[], year: number) {
+function getCustomerTargetBreakdown(customer: Customer, allocations: TargetAllocation[], year: number, specialistHunter = false) {
   void allocations;
   void year;
+  if (specialistHunter) {
+    return {
+      hunter: roundCurrency(customer.studioHunterTarget + customer.studioTarget),
+      farmerRenewal: 0,
+    };
+  }
   return {
     hunter: roundCurrency(customer.hunterTarget),
     farmerRenewal: roundCurrency(customer.farmerRenewalTarget),
@@ -833,6 +902,7 @@ function getCustomerTargetBreakdown(customer: Customer, allocations: TargetAlloc
 
 function getExpectedBaseTotalForPerson(roleType: RoleType, rows: PersonTargetRow[]) {
   return rows.reduce((total, row) => {
+    if (isSpecialistHunterRole(roleType)) return total + row.customerTarget;
     const hunterBase = isHunterRole(roleType) ? row.customerHunterTarget : 0;
     const deliveryBase = roleType === "Hunter" ? 0 : row.customerFarmerRenewalTarget;
     return total + hunterBase + deliveryBase;

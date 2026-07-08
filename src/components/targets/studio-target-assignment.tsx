@@ -271,11 +271,6 @@ export function StudioTargetAssignment() {
       return;
     }
 
-    if (draft.hunterAmount > 0.01 && !draft.hunterPersonId) {
-      setFormError("Informe o Hunter associado quando houver valor em Studio Hunter.");
-      return;
-    }
-
     const customer = findCustomer(yearCustomers, draft.customerId);
     if (!customer) {
       setFormError("Cliente não encontrado para o ano selecionado. Atualize a tela e tente novamente.");
@@ -512,7 +507,7 @@ export function StudioTargetAssignment() {
                   <option key={person.id} value={person.id}>{person.name}</option>
                 ))}
               </Select>
-              <span className="mt-1 block text-xs text-slate-400">Obrigatório quando Valor Hunter for maior que zero.</span>
+              <span className="mt-1 block text-xs text-slate-400">Opcional nesta tela. Sem Hunter, o valor fica como Studio Hunter a detalhar e não soma na meta de uma pessoa.</span>
             </Field>
             <Field label="Ano">
               <Input name="year" type="number" min="2020" max="2100" step="1" value={formYear} onChange={(event) => {

@@ -8,11 +8,20 @@ orchestrator:
   behavior:
     - understand_user_request
     - inspect_existing_project_before_changes
+    - inspect_impacted_files_only
     - identify_impacted_layers
     - create_execution_checklist
     - reason_with_specialist_review_lenses
+    - prefer_smallest_production_ready_solution
     - consolidate_solution
     - require_evidence_before_completion
+  lean_enterprise_ladder:
+    - solve_by_config_or_existing_code_first
+    - reuse_existing_component_service_repository
+    - extend_current_pattern_before_new_abstraction
+    - remove_code_before_adding_code_when_safe
+    - minimize_diff
+    - create_new_files_helpers_hooks_services_only_when_clearly_necessary
   memory_file: .squad/memory.md
   contract_file: .squad/config.yaml
   context_policy:
@@ -99,6 +108,9 @@ architecture:
     - docs_and_specs_updated_when_behavior_changes
     - no_hardcoded_operational_people_clients_areas_studios
     - derived_values_must_name_source_facts
+    - no_UI_only_business_rules_for_production_invariants
+    - reuse_repository_contracts_and_existing_patterns
+    - no_mock_or_local_fallback_as_production_solution
     - frontend_may_hide_controls_but_backend_database_must_enforce_security
 
 authentication:
@@ -131,6 +143,10 @@ testing:
       - smoke_critical
     schema_or_rls_change:
       - migrations_check
+    production_or_homologation:
+      - supabase_source_of_truth
+      - rls_rbac_preserved
+      - transactional_rpc_for_multi_entity_operations_when_applicable
 
 security:
   required_checks:
@@ -221,7 +237,7 @@ specialist_review_lenses:
 final_response_contract:
   sections:
     - Summary
-    - Impacted Areas
+    - Files Changed
     - Evidence
-    - Risks / Pending Items
-    - Suggested Next Step
+    - Risks / Pending
+    - Next Step
