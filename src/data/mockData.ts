@@ -7,6 +7,7 @@ import {
 } from "@/lib/financial-customers";
 import { targetMarginPercent } from "@/lib/financial-targets";
 import type { LifecycleStatus } from "@/lib/lifecycle";
+import { OTHER_DIRECTOR_ID, OTHER_DIRECTOR_NAME } from "@/lib/director-governance";
 
 export type RoleType =
   | "Executive"
@@ -14,6 +15,7 @@ export type RoleType =
   | "Farmer + Delivery"
   | "Delivery"
   | "Hunter"
+  | "Hunter Especializado"
   | "Farmer"
   | "Hunter + Farmer"
   | "Staff";
@@ -44,6 +46,15 @@ export interface Person {
   closedReason?: string;
   isManager: boolean;
   hierarchyLevel: 1 | 2 | 3;
+}
+
+export interface PersonCompensation {
+  personId: string;
+  annualSalary: number;
+  currency: "BRL";
+  effectiveFrom: string;
+  notes?: string;
+  updatedAt?: string;
 }
 
 export interface Customer {
@@ -93,6 +104,7 @@ export interface TargetAllocation {
   type: TargetAllocationType;
   year: number;
   amount: number;
+  ownAmount?: number;
   notes?: string;
 }
 
@@ -100,6 +112,7 @@ export interface StudioTargetAllocation {
   id: string;
   customerId: string;
   areaId: string;
+  hunterPersonId?: string;
   year: number;
   hunterAmount: number;
   maintenanceAmount: number;
@@ -259,6 +272,20 @@ export const people: Person[] = [
     roleType: "Director",
     areaId: "area-corporate",
     clientIds: customers.filter((item) => item.directorResponsibleId === "ca").map((item) => item.id),
+    active: true,
+    lifecycleStatus: "active",
+    isManager: false,
+    hierarchyLevel: 2,
+  },
+  {
+    id: OTHER_DIRECTOR_ID,
+    name: OTHER_DIRECTOR_NAME,
+    email: "outros@brq.com",
+    jobTitle: "Diretoria a definir",
+    roleType: "Director",
+    areaId: "area-corporate",
+    clientIds: customers.filter((item) => item.directorResponsibleId === OTHER_DIRECTOR_ID).map((item) => item.id),
+    notes: "Bucket transitório para clientes ainda sem diretoria definida. Não recebe meta direta.",
     active: true,
     lifecycleStatus: "active",
     isManager: false,

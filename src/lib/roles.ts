@@ -6,13 +6,14 @@ export const roleTypes: RoleType[] = [
   "Farmer + Delivery",
   "Delivery",
   "Hunter",
+  "Hunter Especializado",
   "Farmer",
   "Hunter + Farmer",
   "Staff",
 ];
 
 export const deliveryManagerRoleTypes: RoleType[] = ["Farmer + Delivery", "Delivery"];
-export const nonTargetAssignableRoleTypes: RoleType[] = ["Executive", "Director", "Staff"];
+export const nonTargetAssignableRoleTypes: RoleType[] = ["Executive", "Director", "Staff", "Hunter Especializado"];
 
 export function translateRole(role: RoleType) {
   const labels: Record<RoleType, string> = {
@@ -21,6 +22,7 @@ export function translateRole(role: RoleType) {
     "Farmer + Delivery": "Farmer + Delivery",
     Delivery: "Delivery",
     Hunter: "Hunter",
+    "Hunter Especializado": "Hunter Especializado",
     Farmer: "Farmer",
     "Hunter + Farmer": "Hunter + Farmer",
     Staff: "Staff",
@@ -45,6 +47,10 @@ export function isHunterRole(role: RoleType) {
   return role === "Hunter" || role === "Hunter + Farmer";
 }
 
+export function isSpecialistHunterRole(role: RoleType) {
+  return role === "Hunter Especializado";
+}
+
 export function getHierarchyLevelForRole(role: RoleType): 1 | 2 | 3 {
   if (role === "Executive") return 1;
   if (role === "Director" || role === "Staff") return 2;
@@ -54,7 +60,7 @@ export function getHierarchyLevelForRole(role: RoleType): 1 | 2 | 3 {
 export function getRoleBadgeVariant(role: RoleType) {
   if (role === "Staff") return "warning" as const;
   if (role === "Farmer + Delivery") return "navy" as const;
-  if (role === "Hunter" || role === "Hunter + Farmer") return "commercial" as const;
+  if (role === "Hunter" || role === "Hunter + Farmer" || role === "Hunter Especializado") return "commercial" as const;
   if (role === "Farmer") return "farmer" as const;
   return "default" as const;
 }

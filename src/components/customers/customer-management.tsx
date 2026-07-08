@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import type { Area, Customer, Person, StudioTargetAllocation, TargetAllocation } from "@/data/mockData";
 import { PageHeader } from "@/components/shared/page-header";
+import { KpiSummaryCard } from "@/components/shared/kpi-summary-card";
 import { ReportExportActions, type ReportColumn } from "@/components/shared/report-export-actions";
 import { FilterBar } from "@/components/shared/filter-bar";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -19,12 +20,16 @@ import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { DualListSelector } from "@/components/shared/dual-list-selector";
 import { useDeliveryStore } from "@/store/delivery-store";
+import { useAccess } from "@/lib/access-context";
+import { isHunterConsultAccess, normalizeAccessEmail } from "@/lib/access-control";
 import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears } from "@/lib/customer-targets";
 import { getFinancialCustomerMetric } from "@/lib/financial-customers";
 import { formatPercentPtBr, targetMarginPercent } from "@/lib/financial-targets";
 import { isCustomerManagerProfile, isHunterRole, isTargetAssignableRole } from "@/lib/roles";
 import { formatCurrency, makeId } from "@/lib/utils";
 import { useCloseOnNavigation } from "@/lib/use-close-on-navigation";
+import { displayDirectorName, OTHER_DIRECTOR_ID, OTHER_DIRECTOR_NAME } from "@/lib/director-governance";
+import { getContainedHunterAllocation } from "@/lib/customer-hunter-reconciliation";
 
 const currentYear = defaultTargetYear;
 
@@ -83,6 +88,7 @@ interface CustomerStudioCompositionData {
 interface CustomerStudioAllocationRow {
   id: string;
   areaName: string;
+  hunterPersonName: string;
   hunterAmount: number;
   maintenanceAmount: number;
   total: number;
@@ -116,6 +122,7 @@ type CustomerSortKey = "customer" | "director" | "allocated" | "target" | "margi
 
 export function CustomerManagement() {
   const initialCustomerId = useMemo(() => getInitialCustomerId(), []);
+  const { accessUser, canEdit } = useAccess();
   const {
     areas,
     customers,
@@ -125,8 +132,10 @@ export function CustomerManagement() {
     targetAllocations,
     saveCustomer,
     deleteCustomer,
+    deleteTargetAllocation,
+    saveStudioTargetAllocation,
+    deleteStudioTargetAllocation,
     savePersonCustomerTargets,
-    removePersonCustomerTargets,
   } = useDeliveryStore();
   const [year, setYear] = useState(currentYear);
   const years = useMemo(
@@ -137,8 +146,31 @@ export function CustomerManagement() {
     [customerTargets, studioTargetAllocations],
   );
   const yearCustomers = useMemo(() => applyCustomerTargetsForYear(customers, customerTargets, year), [customerTargets, customers, year]);
+  const hunterConsultOnly = isHunterConsultAccess(accessUser);
+  const accessEmail = accessUser?.email ?? "";
+  const scopedHunterPerson = useMemo(() => {
+    if (!hunterConsultOnly || !accessEmail) return null;
+    const email = normalizeAccessEmail(accessEmail);
+    return people.find((person) => person.email && normalizeAccessEmail(person.email) === email && isHunterRole(person.roleType)) ?? null;
+  }, [accessEmail, hunterConsultOnly, people]);
+  const scopedCustomerIds = useMemo(() => {
+    if (!hunterConsultOnly || !scopedHunterPerson) return null;
+    return new Set([
+      ...scopedHunterPerson.clientIds,
+      ...targetAllocations
+        .filter((allocation) => allocation.personId === scopedHunterPerson.id && allocation.type === "hunter")
+        .map((allocation) => allocation.customerId),
+      ...studioTargetAllocations
+        .filter((allocation) => allocation.hunterPersonId === scopedHunterPerson.id)
+        .map((allocation) => allocation.customerId),
+    ]);
+  }, [hunterConsultOnly, scopedHunterPerson, studioTargetAllocations, targetAllocations]);
+  const scopedYearCustomers = useMemo(
+    () => scopedCustomerIds ? yearCustomers.filter((customer) => scopedCustomerIds.has(customer.id)) : yearCustomers,
+    [scopedCustomerIds, yearCustomers],
+  );
   const initialCustomer = yearCustomers.find((customer) => customer.id === initialCustomerId);
-  const [search, setSearch] = useState(initialCustomer?.name ?? "");
+  const [search, setSearch] = useState("");
   const [director, setDirector] = useState("");
   const [manager, setManager] = useState("");
   const [strategic, setStrategic] = useState("");
@@ -156,10 +188,13 @@ export function CustomerManagement() {
   const [successMessage, setSuccessMessage] = useState("");
   const [formError, setFormError] = useState("");
   const [sortState, setSortState] = useState<SortState<CustomerSortKey>>({ key: "customer", direction: "asc" });
-  const directors = useMemo(() => people
-    .filter((person) => person.active && person.roleType === "Director")
-    .sort((first, second) => first.name.localeCompare(second.name)),
-  [people]);
+  const directors = useMemo(() => {
+    const activeDirectors = people
+      .filter((person) => person.active && person.roleType === "Director")
+      .sort((first, second) => first.name.localeCompare(second.name));
+    if (activeDirectors.some((person) => person.id === OTHER_DIRECTOR_ID)) return activeDirectors;
+    return [...activeDirectors, makeOtherDirectorOption()];
+  }, [people]);
   const managers = useMemo(() => people
     .filter((person) => person.active && isCustomerManagerProfile(person.roleType, person.isManager))
     .sort((first, second) => first.name.localeCompare(second.name)),
@@ -172,13 +207,13 @@ export function CustomerManagement() {
   const linkedEditing = editing ?? (!dismissInitialOpen ? initialCustomer ?? null : null);
   const open = manualOpen || Boolean(linkedEditing && !dismissInitialOpen);
 
-  const filtered = useMemo(() => yearCustomers.filter((customer) => {
+  const filtered = useMemo(() => scopedYearCustomers.filter((customer) => {
     const query = search.toLowerCase();
     return (!query || `${customer.name} ${customer.industry}`.toLowerCase().includes(query))
       && (!director || customer.directorResponsibleId === director)
       && (!manager || customer.managerResponsibleIds.includes(manager))
       && (!strategic || String(customer.strategicAccount) === strategic);
-  }), [yearCustomers, director, manager, search, strategic]);
+  }), [scopedYearCustomers, director, manager, search, strategic]);
   const sortedCustomers = useMemo(
     () => sortCustomerRows(filtered, sortState, people, areas, targetAllocations, studioTargetAllocations, year),
     [areas, filtered, people, sortState, studioTargetAllocations, targetAllocations, year],
@@ -285,6 +320,7 @@ export function CustomerManagement() {
       formStudioAmount,
       formStudioHunterAmount,
       areas,
+      people,
       studioTargetAllocations,
       year,
     )
@@ -303,6 +339,7 @@ export function CustomerManagement() {
       },
       people,
       targetAllocations,
+      studioTargetAllocations,
       year,
     )
     : null;
@@ -317,6 +354,7 @@ export function CustomerManagement() {
   useCloseOnNavigation(closeForm);
 
   function openForm(item?: Customer) {
+    if (hunterConsultOnly || !canEdit) return;
     setEditing(item ?? null);
     const defaults = getCustomerDefaults(item?.name ?? "", directors);
     setFormName(item?.name ?? "");
@@ -347,6 +385,10 @@ export function CustomerManagement() {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (hunterConsultOnly || !canEdit) {
+      setFormError("Seu perfil permite apenas consulta de clientes.");
+      return;
+    }
     const formData = new FormData(event.currentTarget);
     const customerName = String(formData.get("name"));
     const defaults = getCustomerDefaults(customerName, directors);
@@ -381,31 +423,31 @@ export function CustomerManagement() {
   }
 
   async function syncCustomerHunterAssignmentAndTarget(customerId: string) {
-    const currentHunters = hunters.filter((person) => person.clientIds.includes(customerId));
     const selectedHunter = hunters.find((person) => person.id === formHunterId);
+    const previousHunterId = getPrimaryHunterIdForCustomer(customerId, people);
+    const hunterChanged = Boolean(previousHunterId && previousHunterId !== formHunterId);
     const staleHunterAllocations = targetAllocations.filter((allocation) =>
       allocation.customerId === customerId
       && allocation.year === year
       && allocation.type === "hunter"
+      && allocation.personId === previousHunterId
       && allocation.personId !== formHunterId
     );
-    const staleHunterPersonIds = new Set([
-      ...currentHunters.filter((item) => item.id !== formHunterId).map((person) => person.id),
-      ...staleHunterAllocations.map((allocation) => allocation.personId),
-    ]);
-
-    for (const personId of staleHunterPersonIds) {
-      await removePersonCustomerTargets({
-        customerId,
-        personId,
-      });
-    }
+    const staleStudioAllocations = studioTargetAllocations.filter((allocation) =>
+      allocation.customerId === customerId
+      && allocation.year === year
+      && allocation.hunterPersonId
+      && allocation.hunterPersonId === previousHunterId
+      && allocation.hunterPersonId !== formHunterId
+      && allocation.hunterAmount > 0
+    );
 
     if (!selectedHunter) {
       return;
     }
 
-    await savePersonCustomerTargets({
+    if (!hunterChanged) {
+      await savePersonCustomerTargets({
         customerId,
         personId: selectedHunter.id,
         year,
@@ -415,6 +457,70 @@ export function CustomerManagement() {
         increaseCustomerTarget: false,
         notes: "Meta Hunter sincronizada pela tela Clientes.",
       });
+      return;
+    }
+
+    const hasTransferableTargets = staleHunterAllocations.length > 0 || staleStudioAllocations.length > 0;
+    const shouldTransferTargets = hunterChanged && hasTransferableTargets
+      ? window.confirm(
+        `O Hunter responsável foi alterado para ${selectedHunter.name}.\n\nDeseja transferir automaticamente a Meta Hunter e os Studios Hunter do Hunter responsável anterior para o novo Hunter?\n\nOK: transfere apenas os valores do responsável anterior.\nCancelar: mantém os valores com o Hunter atual e preserva os demais Hunters/Farmers associados.`,
+      )
+      : true;
+
+    if (hasTransferableTargets && shouldTransferTargets) {
+      for (const allocation of staleStudioAllocations) {
+        await transferStudioHunterAllocation(allocation, selectedHunter.id);
+      }
+    }
+
+    const transferredHunterAmount = staleHunterAllocations.reduce((total, allocation) => total + allocation.amount, 0);
+    await savePersonCustomerTargets({
+        customerId,
+        personId: selectedHunter.id,
+        year,
+        hunterAmount: shouldTransferTargets && transferredHunterAmount > 0 ? transferredHunterAmount : formHunterAmount,
+        farmerRenewalAmount: 0,
+        studioAmount: 0,
+        increaseCustomerTarget: false,
+        notes: hasTransferableTargets && shouldTransferTargets
+          ? "Meta Hunter transferida pela tela Clientes."
+          : "Meta Hunter sincronizada pela tela Clientes.",
+      });
+
+    if (hasTransferableTargets && shouldTransferTargets) {
+      for (const allocation of staleHunterAllocations) {
+        await deleteTargetAllocation(allocation.id);
+      }
+    }
+  }
+
+  async function transferStudioHunterAllocation(allocation: StudioTargetAllocation, nextHunterPersonId: string) {
+    const existingForNewHunter = studioTargetAllocations.find((item) =>
+      item.id !== allocation.id
+      && item.customerId === allocation.customerId
+      && item.areaId === allocation.areaId
+      && item.year === allocation.year
+      && item.hunterPersonId === nextHunterPersonId
+    );
+
+    if (existingForNewHunter) {
+      await saveStudioTargetAllocation({
+        ...existingForNewHunter,
+        hunterAmount: roundCurrency(existingForNewHunter.hunterAmount + allocation.hunterAmount),
+        maintenanceAmount: roundCurrency(existingForNewHunter.maintenanceAmount + allocation.maintenanceAmount),
+        notes: [existingForNewHunter.notes, allocation.notes, "Studio Hunter transferido pela tela Clientes."]
+          .filter(Boolean)
+          .join(" | "),
+      });
+      await deleteStudioTargetAllocation(allocation.id);
+      return;
+    }
+
+    await saveStudioTargetAllocation({
+      ...allocation,
+      hunterPersonId: nextHunterPersonId,
+      notes: allocation.notes || "Studio Hunter transferido pela tela Clientes.",
+    });
   }
 
   return (
@@ -431,7 +537,7 @@ export function CustomerManagement() {
               rows={customerReportRows}
               columns={customerReportColumns}
             />
-            <Button onClick={() => openForm()}><Plus className="h-4 w-4" /> Novo cliente</Button>
+            {!hunterConsultOnly && canEdit && <Button onClick={() => openForm()}><Plus className="h-4 w-4" /> Novo cliente</Button>}
           </>
         )}
       />
@@ -439,20 +545,20 @@ export function CustomerManagement() {
       {successMessage && <SuccessNotice message={successMessage} floating />}
       {formError && <ErrorNotice message={formError} floating onClose={() => setFormError("")} />}
 
-      <section className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
-        <Summary label="Clientes filtrados" value={String(sortedCustomers.length)} />
-        <Summary label={`Meta Hunter · ${year}`} value={formatCurrency(targetTotals.hunter)} />
-        <Summary label={`Renovação + Ampliação · ${year}`} value={formatCurrency(targetTotals.farmerRenewal)} />
-        <Summary label={`Studio Hunter · ${year}`} value={formatCurrency(targetTotals.studioHunter)} />
-        <Summary label={`Studio Manutenção · ${year}`} value={formatCurrency(targetTotals.studio)} />
-        <Summary label={`Meta total · ${year}`} value={formatCurrency(targetTotals.total)} />
-        <Summary label="Margem média" value={formatPercentPtBr(averageMargin)} />
+      <section className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <KpiSummaryCard label="Clientes filtrados" value={sortedCustomers.length} />
+        <KpiSummaryCard label={`Meta Hunter · ${year}`} currencyValue={targetTotals.hunter} />
+        <KpiSummaryCard label={`Renovação + Ampliação · ${year}`} currencyValue={targetTotals.farmerRenewal} />
+        <KpiSummaryCard label={`Studio Hunter · ${year}`} currencyValue={targetTotals.studioHunter} />
+        <KpiSummaryCard label={`Studio Manutenção · ${year}`} currencyValue={targetTotals.studio} />
+        <KpiSummaryCard label={`Meta total · ${year}`} currencyValue={targetTotals.total} />
+        <KpiSummaryCard label="Margem média" value={formatPercentPtBr(averageMargin)} />
       </section>
 
       <FilterBar search={search} onSearchChange={setSearch}>
         <Select value={String(year)} onChange={(event) => setYear(Number(event.target.value))}>{years.map((item) => <option key={item} value={item}>{item}</option>)}</Select>
-        <Select value={director} onChange={(event) => setDirector(event.target.value)}><option value="">Todos os diretores</option>{directors.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</Select>
-        <Select value={manager} onChange={(event) => setManager(event.target.value)}><option value="">Todos os managers</option>{managers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</Select>
+        {!hunterConsultOnly && <Select value={director} onChange={(event) => setDirector(event.target.value)}><option value="">Todos os diretores</option>{directors.map((item) => <option key={item.id} value={item.id}>{displayDirectorName(item.name)}</option>)}</Select>}
+        {!hunterConsultOnly && <Select value={manager} onChange={(event) => setManager(event.target.value)}><option value="">Todos os managers</option>{managers.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</Select>}
         <Select value={strategic} onChange={(event) => setStrategic(event.target.value)}><option value="">Todas as contas</option><option value="true">Estratégicas</option><option value="false">Não estratégicas</option></Select>
       </FilterBar>
 
@@ -466,7 +572,7 @@ export function CustomerManagement() {
               <SortableTableHead label="Meta do cliente" sortKey="target" sortState={sortState} onSort={setSortState} />
               <SortableTableHead label="Margem alvo" sortKey="margin" sortState={sortState} onSort={setSortState} />
               <SortableTableHead label="Estratégica" sortKey="strategic" sortState={sortState} onSort={setSortState} />
-              <TableHead className="text-right">Ações</TableHead>
+              {!hunterConsultOnly && canEdit && <TableHead className="text-right">Ações</TableHead>}
             </TableRow></TableHeader>
             <TableBody>
               {sortedCustomers.map((customer) => {
@@ -476,11 +582,11 @@ export function CustomerManagement() {
                 return (
                   <TableRow
                     key={customer.id}
-                    className="cursor-pointer"
-                    title="Dê duplo clique para editar o cliente"
+                    className={hunterConsultOnly || !canEdit ? "" : "cursor-pointer"}
+                    title={hunterConsultOnly || !canEdit ? "Consulta em modo leitura" : "Dê duplo clique para editar o cliente"}
                     onDoubleClick={() => openForm(customer)}
                   >
-                    <TableCell><div className="flex items-center gap-3"><div className={`grid h-10 w-10 place-items-center rounded-xl ${getCustomerStatusIconClassName(coverage.status)}`} title={coverage.title} aria-label={coverage.title}><Building2 className="h-5 w-5" /></div><div><p className="font-semibold">{customer.name}</p><p className="text-xs text-slate-400">{customer.industry}</p>{coverage.status === "mismatch" && typeof coverage.difference === "number" && <p className="text-xs font-semibold text-red-600" title={coverage.title}>{coverage.difference > 0 ? "Em aberto" : "Acima"}: {formatCurrency(Math.abs(coverage.difference))}</p>}</div></div></TableCell>
+                    <TableCell><div className="flex items-center gap-3"><div className={`grid h-10 w-10 place-items-center rounded-xl ${getCustomerStatusIconClassName(coverage.status, coverage.difference)}`} title={coverage.title} aria-label={coverage.title}><Building2 className="h-5 w-5" /></div><div><p className="font-semibold">{customer.name}</p><p className="text-xs text-slate-400">{customer.industry}</p>{coverage.status === "mismatch" && typeof coverage.difference === "number" && <p className={`text-xs font-semibold ${coverage.difference > 0 ? "text-emerald-700" : "text-red-600"}`} title={coverage.title}>{coverage.difference > 0 ? "Acima" : "Abaixo"}: {formatCurrency(Math.abs(coverage.difference))}</p>}</div></div></TableCell>
                     <TableCell>
                       <p>{displayDirectorName(people.find((item) => item.id === customer.directorResponsibleId)?.name ?? customer.directorResponsibleId)}</p>
                       <p className="text-xs text-slate-400">Governança Delivery</p>
@@ -494,19 +600,23 @@ export function CustomerManagement() {
                       <p className="text-xs text-slate-400">Alvo {formatPercentPtBr(targetMarginPercent)}</p>
                     </TableCell>
                     <TableCell>{customer.strategicAccount ? <Badge><Star className="mr-1 h-3 w-3 fill-current" /> Sim</Badge> : <Badge variant="secondary">Não</Badge>}</TableCell>
-                    <TableCell onDoubleClick={(event) => event.stopPropagation()}><div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => openForm(customer)} aria-label={`Editar cliente ${customer.name}`}><Pencil className="h-4 w-4" /></Button>
-                      <Button variant="ghost" size="icon" className="text-red-600" aria-label={`Excluir cliente ${customer.name}`} onClick={() => {
-                        if (window.confirm(`Excluir o cliente ${customer.name}?`)) void deleteCustomer(customer.id).catch(() => undefined);
-                      }}><Trash2 className="h-4 w-4" /></Button>
-                    </div></TableCell>
+                    {!hunterConsultOnly && canEdit && (
+                      <TableCell onDoubleClick={(event) => event.stopPropagation()}><div className="flex justify-end gap-1">
+                        <Button variant="ghost" size="icon" onClick={() => openForm(customer)} aria-label={`Editar cliente ${customer.name}`}><Pencil className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" className="text-red-600" aria-label={`Excluir cliente ${customer.name}`} onClick={() => {
+                          if (window.confirm(`Excluir o cliente ${customer.name}?`)) void deleteCustomer(customer.id).catch(() => undefined);
+                        }}><Trash2 className="h-4 w-4" /></Button>
+                      </div></TableCell>
+                    )}
                   </TableRow>
                 );
               })}
             </TableBody>
           </Table>
         </div>
-        {!sortedCustomers.length && <EmptyState />}
+        {!sortedCustomers.length && (
+          <EmptyState message={hunterConsultOnly && !scopedHunterPerson ? "Seu e-mail de acesso ainda não está vinculado a uma pessoa Hunter ativa." : "Nenhum cliente encontrado para os filtros selecionados."} />
+        )}
       </Card>
 
       <Dialog open={open} onOpenChange={(nextOpen) => (nextOpen ? setManualOpen(true) : closeForm())}>
@@ -639,15 +749,6 @@ export function CustomerManagement() {
   );
 }
 
-function Summary({ label, value }: { label: string; value: string }) {
-  return (
-    <Card className="flex min-h-[136px] flex-col justify-between p-5 shadow-sm">
-      <p className="min-h-10 text-xs font-semibold uppercase leading-5 tracking-wider text-slate-400">{label}</p>
-      <p className="mt-3 break-words text-[1.65rem] font-black leading-tight tracking-tight text-slate-900 tabular-nums">{value}</p>
-    </Card>
-  );
-}
-
 function Field({ label, className, children }: { label: string; className?: string; children: React.ReactNode }) {
   return <label className={className}><span className="mb-1.5 block text-sm font-semibold text-slate-700">{label}</span>{children}</label>;
 }
@@ -769,8 +870,8 @@ function CustomerAllocationCompositionView({ composition }: { composition: Custo
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Distribuição por pessoa · {composition.year}</p>
           <p className="text-sm text-slate-500">
             Alocado: <span className="font-semibold text-slate-800">{formatCurrency(composition.allocatedTotal)}</span>
-            {hasOpenAmount && <> · Em aberto: <span className="font-semibold text-amber-700">{formatCurrency(composition.openTotal)}</span></>}
-            {hasOverAmount && <> · Acima da meta: <span className="font-semibold text-red-700">{formatCurrency(composition.overTotal)}</span></>}
+            {hasOpenAmount && <> · Abaixo da meta: <span className="font-semibold text-red-700">{formatCurrency(composition.openTotal)}</span></>}
+            {hasOverAmount && <> · Acima da meta: <span className="font-semibold text-emerald-700">{formatCurrency(composition.overTotal)}</span></>}
           </p>
         </div>
         <Button asChild variant="outline" size="sm">
@@ -810,35 +911,35 @@ function CustomerAllocationCompositionView({ composition }: { composition: Custo
               </tr>
             ))}
             {hasOpenAmount && (
-              <tr className="bg-amber-50/70">
+              <tr className="bg-red-50/70">
                 <td className="px-4 py-3">
-                  <p className="font-semibold text-amber-900">Em aberto sem pessoa alocada</p>
-                  <p className="text-xs text-amber-700">Distribua este saldo em Metas por Pessoa.</p>
+                  <p className="font-semibold text-red-900">Abaixo da meta sem pessoa alocada</p>
+                  <p className="text-xs text-red-700">Distribua este saldo em Metas por Pessoa.</p>
                 </td>
-                <td className="px-4 py-3 text-amber-700">Pendente</td>
-                <td className="px-4 py-3 text-right font-semibold text-amber-800">{formatCurrency(composition.openHunter)}</td>
-                <td className="px-4 py-3 text-right font-semibold text-amber-800">{formatCurrency(composition.openFarmerRenewal)}</td>
-                <td className="px-4 py-3 text-right font-bold text-amber-900">{formatCurrency(composition.openTotal)}</td>
+                <td className="px-4 py-3 text-red-700">Abaixo</td>
+                <td className="px-4 py-3 text-right font-semibold text-red-800">{formatCurrency(composition.openHunter)}</td>
+                <td className="px-4 py-3 text-right font-semibold text-red-800">{formatCurrency(composition.openFarmerRenewal)}</td>
+                <td className="px-4 py-3 text-right font-bold text-red-900">{formatCurrency(composition.openTotal)}</td>
                 <td className="px-4 py-3 text-right">
-                  <Link className="font-semibold text-amber-800 hover:underline" href={`/metas-pessoas?customerId=${encodeURIComponent(composition.customerId)}&year=${composition.year}`}>
+                  <Link className="font-semibold text-red-800 hover:underline" href={`/metas-pessoas?customerId=${encodeURIComponent(composition.customerId)}&year=${composition.year}`}>
                     Alocar
                   </Link>
                 </td>
               </tr>
             )}
             {hasOverAmount && (
-              <tr className="bg-red-50/70">
+              <tr className="bg-emerald-50/70">
                 <td className="px-4 py-3">
-                  <p className="font-semibold text-red-900">Acima da meta do cliente</p>
-                  <p className="text-xs text-red-700">Revise a meta total ou reduza a distribuição por pessoa.</p>
+                  <p className="font-semibold text-emerald-900">Acima da meta do cliente</p>
+                  <p className="text-xs text-emerald-700">Distribuição supera a meta cadastrada.</p>
                 </td>
-                <td className="px-4 py-3 text-red-700">Excedente</td>
-                <td className="px-4 py-3 text-right font-semibold text-red-800">{formatCurrency(composition.overHunter)}</td>
-                <td className="px-4 py-3 text-right font-semibold text-red-800">{formatCurrency(composition.overFarmerRenewal)}</td>
-                <td className="px-4 py-3 text-right font-bold text-red-900">{formatCurrency(composition.overTotal)}</td>
+                <td className="px-4 py-3 text-emerald-700">Superado</td>
+                <td className="px-4 py-3 text-right font-semibold text-emerald-800">{formatCurrency(composition.overHunter)}</td>
+                <td className="px-4 py-3 text-right font-semibold text-emerald-800">{formatCurrency(composition.overFarmerRenewal)}</td>
+                <td className="px-4 py-3 text-right font-bold text-emerald-900">{formatCurrency(composition.overTotal)}</td>
                 <td className="px-4 py-3 text-right">
-                  <Link className="font-semibold text-red-800 hover:underline" href={`/metas-pessoas?customerId=${encodeURIComponent(composition.customerId)}&year=${composition.year}`}>
-                    Revisar
+                  <Link className="font-semibold text-emerald-800 hover:underline" href={`/metas-pessoas?customerId=${encodeURIComponent(composition.customerId)}&year=${composition.year}`}>
+                    Ver
                   </Link>
                 </td>
               </tr>
@@ -868,11 +969,11 @@ function CustomerStudioCompositionView({ composition }: { composition: CustomerS
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Distribuição por área/studio · {composition.year}</p>
           <p className="text-sm text-slate-500">
             Alocado: <span className="font-semibold text-slate-800">{formatCurrency(composition.allocatedTotal)}</span>
-            {hasOpenAmount && <> · Em aberto: <span className="font-semibold text-amber-700">{formatCurrency(composition.openTotal)}</span></>}
-            {hasOverAmount && <> · Acima da meta: <span className="font-semibold text-red-700">{formatCurrency(composition.overTotal)}</span></>}
+            {hasOpenAmount && <> · Abaixo da meta: <span className="font-semibold text-red-700">{formatCurrency(composition.openTotal)}</span></>}
+            {hasOverAmount && <> · Acima da meta: <span className="font-semibold text-emerald-700">{formatCurrency(composition.overTotal)}</span></>}
           </p>
           <p className="mt-1 text-xs text-slate-400">
-            Hunter alocado {formatCurrency(composition.allocatedHunter)} de {formatCurrency(composition.targetHunter)} ·
+            Hunter detalhado {formatCurrency(composition.allocatedHunter)} de {formatCurrency(composition.targetHunter)} ·
             {" "}Manutenção alocada {formatCurrency(composition.allocatedMaintenance)} de {formatCurrency(composition.targetMaintenance)}
           </p>
         </div>
@@ -883,10 +984,11 @@ function CustomerStudioCompositionView({ composition }: { composition: CustomerS
         </Button>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[620px] text-left text-sm">
+        <table className="w-full min-w-[760px] text-left text-sm">
           <thead className="bg-cyan-50/60 text-xs uppercase tracking-wider text-slate-400">
             <tr>
               <th className="px-4 py-2 font-semibold">Área / Studio</th>
+              <th className="px-4 py-2 font-semibold">Hunter</th>
               <th className="px-4 py-2 text-right font-semibold">Hunter</th>
               <th className="px-4 py-2 text-right font-semibold">Manutenção</th>
               <th className="px-4 py-2 text-right font-semibold">Total</th>
@@ -897,6 +999,7 @@ function CustomerStudioCompositionView({ composition }: { composition: CustomerS
             {composition.rows.map((row) => (
               <tr key={row.id}>
                 <td className="px-4 py-3 font-semibold text-slate-900">{row.areaName}</td>
+                <td className="px-4 py-3 text-slate-600">{row.hunterPersonName}</td>
                 <td className="px-4 py-3 text-right">{formatCurrency(row.hunterAmount)}</td>
                 <td className="px-4 py-3 text-right">{formatCurrency(row.maintenanceAmount)}</td>
                 <td className="px-4 py-3 text-right font-bold text-slate-950">{formatCurrency(row.total)}</td>
@@ -909,33 +1012,35 @@ function CustomerStudioCompositionView({ composition }: { composition: CustomerS
             ))}
             {!composition.rows.length && (
               <tr>
-                <td className="px-4 py-4 text-slate-500" colSpan={5}>
+                <td className="px-4 py-4 text-slate-500" colSpan={6}>
                   Ainda não há meta associada a áreas/studios para este cliente no ano selecionado.
                 </td>
               </tr>
             )}
             {hasOpenAmount && (
-              <tr className="bg-amber-50/70">
-                <td className="px-4 py-3 font-semibold text-amber-900">Em aberto sem Área/Studio alocada</td>
-                <td className="px-4 py-3 text-right font-semibold text-amber-800">{formatCurrency(composition.openHunter)}</td>
-                <td className="px-4 py-3 text-right font-semibold text-amber-800">{formatCurrency(composition.openMaintenance)}</td>
-                <td className="px-4 py-3 text-right font-bold text-amber-900">{formatCurrency(composition.openTotal)}</td>
+              <tr className="bg-red-50/70">
+                <td className="px-4 py-3 font-semibold text-red-900">Abaixo da meta sem Área/Studio alocada</td>
+                <td className="px-4 py-3 text-red-800">-</td>
+                <td className="px-4 py-3 text-right font-semibold text-red-800">{formatCurrency(composition.openHunter)}</td>
+                <td className="px-4 py-3 text-right font-semibold text-red-800">{formatCurrency(composition.openMaintenance)}</td>
+                <td className="px-4 py-3 text-right font-bold text-red-900">{formatCurrency(composition.openTotal)}</td>
                 <td className="px-4 py-3 text-right">
-                  <Link className="font-semibold text-amber-800 hover:underline" href={`/metas-studios?customerId=${encodeURIComponent(composition.customerId)}&year=${composition.year}`}>
+                  <Link className="font-semibold text-red-800 hover:underline" href={`/metas-studios?customerId=${encodeURIComponent(composition.customerId)}&year=${composition.year}`}>
                     Alocar
                   </Link>
                 </td>
               </tr>
             )}
             {hasOverAmount && (
-              <tr className="bg-red-50/70">
-                <td className="px-4 py-3 font-semibold text-red-900">Acima da meta de Área/Studio</td>
-                <td className="px-4 py-3 text-right font-semibold text-red-800">{formatCurrency(composition.overHunter)}</td>
-                <td className="px-4 py-3 text-right font-semibold text-red-800">{formatCurrency(composition.overMaintenance)}</td>
-                <td className="px-4 py-3 text-right font-bold text-red-900">{formatCurrency(composition.overTotal)}</td>
+              <tr className="bg-emerald-50/70">
+                <td className="px-4 py-3 font-semibold text-emerald-900">Acima da meta de Área/Studio</td>
+                <td className="px-4 py-3 text-emerald-800">-</td>
+                <td className="px-4 py-3 text-right font-semibold text-emerald-800">{formatCurrency(composition.overHunter)}</td>
+                <td className="px-4 py-3 text-right font-semibold text-emerald-800">{formatCurrency(composition.overMaintenance)}</td>
+                <td className="px-4 py-3 text-right font-bold text-emerald-900">{formatCurrency(composition.overTotal)}</td>
                 <td className="px-4 py-3 text-right">
-                  <Link className="font-semibold text-red-800 hover:underline" href={`/metas-studios?customerId=${encodeURIComponent(composition.customerId)}&year=${composition.year}`}>
-                    Revisar
+                  <Link className="font-semibold text-emerald-800 hover:underline" href={`/metas-studios?customerId=${encodeURIComponent(composition.customerId)}&year=${composition.year}`}>
+                    Ver
                   </Link>
                 </td>
               </tr>
@@ -949,21 +1054,21 @@ function CustomerStudioCompositionView({ composition }: { composition: CustomerS
 
 function CustomerAllocationWarning({ warning }: { warning: CustomerAllocationWarningData }) {
   return (
-    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-amber-950 md:col-span-2">
-      <p className="font-semibold">Meta do cliente acima da distribuição por pessoa</p>
+    <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-950 md:col-span-2">
+      <p className="font-semibold">Distribuição por pessoa abaixo da meta do cliente</p>
       <p className="mt-1 text-sm">
-        Para {warning.year}, a meta total do cliente está {formatCurrency(warning.gap)} acima da soma já associada às pessoas:
+        Para {warning.year}, faltam {formatCurrency(warning.gap)} para a soma associada às pessoas bater com a meta:
         {" "}{formatCurrency(warning.target)} de meta vs. {formatCurrency(warning.allocated)} distribuído.
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
         {warning.people.length ? warning.people.map((person) => (
-          <Button key={person.id} asChild variant="outline" size="sm" className="border-amber-300 bg-white/80 text-amber-950 hover:bg-white">
+          <Button key={person.id} asChild variant="outline" size="sm" className="border-red-300 bg-white/80 text-red-950 hover:bg-white">
             <Link href={`/metas-pessoas?personId=${encodeURIComponent(person.id)}&customerId=${encodeURIComponent(warning.customerId)}&year=${warning.year}`}>
               Ajustar {person.name}
             </Link>
           </Button>
         )) : (
-          <Button asChild variant="outline" size="sm" className="border-amber-300 bg-white/80 text-amber-950 hover:bg-white">
+          <Button asChild variant="outline" size="sm" className="border-red-300 bg-white/80 text-red-950 hover:bg-white">
             <Link href={`/metas-pessoas?customerId=${encodeURIComponent(warning.customerId)}&year=${warning.year}`}>
               Abrir Metas por Pessoa
             </Link>
@@ -993,23 +1098,31 @@ function getCustomerCoverageStatus(
     && allocation.year === year
   );
   const assignedPeople = people.filter((person) => person.clientIds.includes(customer.id));
-  const allocatedHunter = roundCurrency(customerAllocations
-    .filter((allocation) => allocation.type === "hunter")
-    .reduce((total, allocation) => total + allocation.amount, 0));
+  const hunterAllocation = getContainedHunterAllocation({
+    customerId: customer.id,
+    year,
+    targetAllocations: allocations,
+    studioTargetAllocations: studioAllocations,
+  });
+  const allocatedDirectHunter = hunterAllocation.directHunter;
+  const allocatedStudioHunter = hunterAllocation.studioHunter;
+  const allocatedHunter = hunterAllocation.containedHunter;
   const allocatedFarmerRenewal = roundCurrency(customerAllocations
     .filter((allocation) => allocation.type === "farmer_renewal")
     .reduce((total, allocation) => total + allocation.amount, 0));
   const allocatedStudioMaintenance = roundCurrency(customerStudioAllocations
     .reduce((total, allocation) => total + allocation.maintenanceAmount, 0));
   const allocated = roundCurrency(allocatedHunter + allocatedFarmerRenewal + allocatedStudioMaintenance);
-  const hunterGap = roundCurrency(breakdown.hunter - allocatedHunter);
-  const farmerRenewalGap = roundCurrency(breakdown.farmerRenewal - allocatedFarmerRenewal);
-  const studioMaintenanceGap = roundCurrency(breakdown.studio - allocatedStudioMaintenance);
+  const hunterGap = roundCurrency(allocatedHunter - breakdown.hunter);
+  const farmerRenewalGap = roundCurrency(allocatedFarmerRenewal - breakdown.farmerRenewal);
+  const studioMaintenanceGap = roundCurrency(allocatedStudioMaintenance - breakdown.studio);
   const difference = roundCurrency(hunterGap + farmerRenewalGap + studioMaintenanceGap);
   const compositionTitle = buildCustomerReconciliationTitle({
     year,
     breakdown,
     allocatedHunter,
+    allocatedDirectHunter,
+    allocatedStudioHunter,
     allocatedFarmerRenewal,
     allocatedStudioMaintenance,
     allocated,
@@ -1045,6 +1158,7 @@ function getCustomerCoverageStatus(
           studioMaintenanceGap,
           hunterPeople: getAllocationPeopleTitleRows(customerAllocations, people, "hunter"),
           farmerRenewalPeople: getAllocationPeopleTitleRows(customerAllocations, people, "farmer_renewal"),
+          studioHunterAreas: getStudioAllocationTitleRows(customerStudioAllocations, areas, "hunter"),
           studioMaintenanceAreas: getStudioAllocationTitleRows(customerStudioAllocations, areas, "maintenance"),
         }),
         "",
@@ -1077,9 +1191,9 @@ function getCustomerCoverageStatus(
   };
 }
 
-function getCustomerStatusIconClassName(status: CustomerCoverageStatus) {
+function getCustomerStatusIconClassName(status: CustomerCoverageStatus, difference = 0) {
   if (status === "ok") return "bg-emerald-50 text-emerald-700";
-  if (status === "mismatch") return "bg-red-50 text-red-700";
+  if (status === "mismatch") return difference > 0.01 ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700";
   if (status === "issue") return "bg-blue-50 text-blue-700";
   return "bg-slate-100 text-slate-400";
 }
@@ -1095,6 +1209,8 @@ function buildCustomerReconciliationTitle({
   year,
   breakdown,
   allocatedHunter,
+  allocatedDirectHunter,
+  allocatedStudioHunter,
   allocatedFarmerRenewal,
   allocatedStudioMaintenance,
   allocated,
@@ -1110,6 +1226,8 @@ function buildCustomerReconciliationTitle({
   year: number;
   breakdown: CustomerTargetBreakdown;
   allocatedHunter: number;
+  allocatedDirectHunter: number;
+  allocatedStudioHunter: number;
   allocatedFarmerRenewal: number;
   allocatedStudioMaintenance: number;
   allocated: number;
@@ -1125,8 +1243,8 @@ function buildCustomerReconciliationTitle({
   const direction = Math.abs(difference) <= 0.01
     ? "reconciliado"
     : difference > 0
-      ? "em aberto"
-      : "acima da meta";
+      ? "acima da meta"
+      : "abaixo da meta";
   return [
     Math.abs(difference) <= 0.01
       ? `Diferença de metas em ${year}: ${formatCurrency(0)} reconciliado.`
@@ -1139,7 +1257,9 @@ function buildCustomerReconciliationTitle({
     `Total esperado: ${formatCurrency(breakdown.total)}`,
     "",
     "Alocado:",
-    `Hunter: ${formatCurrency(allocatedHunter)}`,
+    `Hunter para reconciliação: ${formatCurrency(allocatedHunter)} (soma por pessoa do maior valor entre Meta Hunter direta e Studio Hunter, sem duplicar)`,
+    `Meta Hunter direta: ${formatCurrency(allocatedDirectHunter)}`,
+    `Studio Hunter detalhado: ${formatCurrency(allocatedStudioHunter)} (contido em Hunter)`,
     `Renov. + Ampl.: ${formatCurrency(allocatedFarmerRenewal)}`,
     `Studio Manut.: ${formatCurrency(allocatedStudioMaintenance)}`,
     `Total alocado: ${formatCurrency(allocated)}`,
@@ -1154,7 +1274,7 @@ function buildCustomerReconciliationTitle({
     ...formatTitleRows(hunterPeople),
     "Renov. + Ampl.:",
     ...formatTitleRows(farmerRenewalPeople),
-    "Studio Hunter (contido em Hunter):",
+    "Studio Hunter (contido no Hunter alocado):",
     ...formatTitleRows(studioHunterAreas),
     "Studio Manut.:",
     ...formatTitleRows(studioMaintenanceAreas),
@@ -1169,6 +1289,7 @@ function getPrimaryReconciliationIssueLabel({
   studioMaintenanceGap,
   hunterPeople,
   farmerRenewalPeople,
+  studioHunterAreas,
   studioMaintenanceAreas,
 }: {
   hunterGap: number;
@@ -1176,25 +1297,26 @@ function getPrimaryReconciliationIssueLabel({
   studioMaintenanceGap: number;
   hunterPeople: string[];
   farmerRenewalPeople: string[];
+  studioHunterAreas: string[];
   studioMaintenanceAreas: string[];
 }) {
-  if (hunterGap > 0.01 && !hunterPeople.length) {
-    return `Falta Hunter alocado: ${formatCurrency(hunterGap)}.`;
+  if (hunterGap < -0.01 && !hunterPeople.length && !studioHunterAreas.length) {
+    return `Falta Hunter alocado: ${formatCurrency(Math.abs(hunterGap))}.`;
   }
-  if (farmerRenewalGap > 0.01 && !farmerRenewalPeople.length) {
-    return `Falta Farmer/Delivery alocado: ${formatCurrency(farmerRenewalGap)}.`;
+  if (farmerRenewalGap < -0.01 && !farmerRenewalPeople.length) {
+    return `Falta Farmer/Delivery alocado: ${formatCurrency(Math.abs(farmerRenewalGap))}.`;
   }
-  if (studioMaintenanceGap > 0.01 && !studioMaintenanceAreas.length) {
-    return `Falta Área/Studio de manutenção alocada: ${formatCurrency(studioMaintenanceGap)}.`;
+  if (studioMaintenanceGap < -0.01 && !studioMaintenanceAreas.length) {
+    return `Falta Área/Studio de manutenção alocada: ${formatCurrency(Math.abs(studioMaintenanceGap))}.`;
   }
-  if (hunterGap < -0.01) {
-    return `Hunter alocado acima da meta: ${formatCurrency(Math.abs(hunterGap))}.`;
+  if (hunterGap > 0.01) {
+    return `Hunter alocado acima da meta: ${formatCurrency(hunterGap)}.`;
   }
-  if (farmerRenewalGap < -0.01) {
-    return `Renovação + Ampliação alocada acima da meta: ${formatCurrency(Math.abs(farmerRenewalGap))}.`;
+  if (farmerRenewalGap > 0.01) {
+    return `Renovação + Ampliação alocada acima da meta: ${formatCurrency(farmerRenewalGap)}.`;
   }
-  if (studioMaintenanceGap < -0.01) {
-    return `Área/Studio de manutenção acima da meta: ${formatCurrency(Math.abs(studioMaintenanceGap))}.`;
+  if (studioMaintenanceGap > 0.01) {
+    return `Área/Studio de manutenção acima da meta: ${formatCurrency(studioMaintenanceGap)}.`;
   }
   return "Há diferença entre a meta do cliente e as alocações cadastradas.";
 }
@@ -1202,8 +1324,8 @@ function getPrimaryReconciliationIssueLabel({
 function formatGap(value: number) {
   if (Math.abs(value) <= 0.01) return `${formatCurrency(0)} reconciliado`;
   return value > 0
-    ? `${formatCurrency(value)} em aberto`
-    : `${formatCurrency(Math.abs(value))} acima`;
+    ? `${formatCurrency(value)} acima`
+    : `${formatCurrency(value)} abaixo`;
 }
 
 function getAllocationPeopleTitleRows(
@@ -1309,6 +1431,7 @@ function getCustomerAllocationWarning(
   customer: Customer,
   people: Person[],
   allocations: TargetAllocation[],
+  studioAllocations: StudioTargetAllocation[],
   year: number,
 ): CustomerAllocationWarningData | null {
   const target = roundCurrency(customer.hunterTarget + customer.farmerRenewalTarget);
@@ -1317,7 +1440,16 @@ function getCustomerAllocationWarning(
     && allocation.year === year
     && allocation.type !== "studio"
   );
-  const allocated = customerAllocations.reduce((sum, allocation) => sum + allocation.amount, 0);
+  const hunterAllocation = getContainedHunterAllocation({
+    customerId: customer.id,
+    year,
+    targetAllocations: allocations,
+    studioTargetAllocations: studioAllocations,
+  });
+  const allocatedFarmerRenewal = customerAllocations
+    .filter((allocation) => allocation.type === "farmer_renewal")
+    .reduce((sum, allocation) => sum + allocation.amount, 0);
+  const allocated = roundCurrency(hunterAllocation.containedHunter + allocatedFarmerRenewal);
   const gap = roundCurrency(target - allocated);
 
   if (gap <= 0.01) return null;
@@ -1430,15 +1562,20 @@ function getCustomerStudioComposition(
   studioTarget: number,
   studioHunterTarget: number,
   areas: Area[],
+  people: Person[],
   allocations: StudioTargetAllocation[],
   year: number,
 ): CustomerStudioCompositionData {
   const areaNamesById = new Map(areas.map((area) => [area.id, area.name]));
+  const peopleNamesById = new Map(people.map((person) => [person.id, person.name]));
   const rows = allocations
     .filter((allocation) => allocation.customerId === customerId && allocation.year === year)
     .map((allocation) => ({
       id: allocation.id,
       areaName: areaNamesById.get(allocation.areaId) ?? allocation.areaId,
+      hunterPersonName: allocation.hunterPersonId
+        ? peopleNamesById.get(allocation.hunterPersonId) ?? allocation.hunterPersonId
+        : "Hunter não informado",
       hunterAmount: roundCurrency(allocation.hunterAmount),
       maintenanceAmount: roundCurrency(allocation.maintenanceAmount),
       total: roundCurrency(allocation.hunterAmount + allocation.maintenanceAmount),
@@ -1448,6 +1585,9 @@ function getCustomerStudioComposition(
   const allocatedMaintenance = roundCurrency(rows.reduce((total, row) => total + row.maintenanceAmount, 0));
   const hunterDifference = roundCurrency(studioHunterTarget - allocatedHunter);
   const maintenanceDifference = roundCurrency(studioTarget - allocatedMaintenance);
+  const openHunter = Math.max(0, hunterDifference);
+  const openMaintenance = Math.max(0, maintenanceDifference);
+  const overMaintenance = Math.max(0, -maintenanceDifference);
 
   return {
     customerId,
@@ -1456,13 +1596,13 @@ function getCustomerStudioComposition(
     targetMaintenance: roundCurrency(studioTarget),
     allocatedHunter,
     allocatedMaintenance,
-    openHunter: Math.max(0, hunterDifference),
-    openMaintenance: Math.max(0, maintenanceDifference),
-    overHunter: Math.max(0, -hunterDifference),
-    overMaintenance: Math.max(0, -maintenanceDifference),
+    openHunter,
+    openMaintenance,
+    overHunter: 0,
+    overMaintenance,
     allocatedTotal: roundCurrency(allocatedHunter + allocatedMaintenance),
-    openTotal: roundCurrency(Math.max(0, hunterDifference) + Math.max(0, maintenanceDifference)),
-    overTotal: roundCurrency(Math.max(0, -hunterDifference) + Math.max(0, -maintenanceDifference)),
+    openTotal: roundCurrency(openHunter + openMaintenance),
+    overTotal: roundCurrency(overMaintenance),
     rows,
   };
 }
@@ -1554,7 +1694,7 @@ function getCustomerCoverageAllocatedTotal(
 ) {
   const breakdown = getCustomerTargetBreakdown(customer);
   const peopleComposition = getCustomerAllocationComposition(customer, people, allocations, year, breakdown);
-  const studioComposition = getCustomerStudioComposition(customer.id, customer.studioTarget, customer.studioHunterTarget, [], studioAllocations, year);
+  const studioComposition = getCustomerStudioComposition(customer.id, customer.studioTarget, customer.studioHunterTarget, [], people, studioAllocations, year);
   return peopleComposition.allocatedTotal + studioComposition.allocatedTotal;
 }
 
@@ -1625,11 +1765,24 @@ function normalizeName(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
 
-function displayDirectorName(name: string) {
-  return name.startsWith("Ane Knust") ? "Ane Knust" : name;
-}
-
 function getInitialCustomerId() {
   if (typeof window === "undefined") return "";
   return new URLSearchParams(window.location.search).get("customerId") ?? "";
+}
+
+function makeOtherDirectorOption(): Person {
+  return {
+    id: OTHER_DIRECTOR_ID,
+    name: OTHER_DIRECTOR_NAME,
+    email: "outros@brq.com",
+    jobTitle: "Diretoria a definir",
+    roleType: "Director",
+    areaId: "area-corporate",
+    clientIds: [],
+    notes: "Bucket transitório para clientes ainda sem diretoria definida. Não recebe meta direta.",
+    active: true,
+    lifecycleStatus: "active",
+    isManager: false,
+    hierarchyLevel: 2,
+  };
 }

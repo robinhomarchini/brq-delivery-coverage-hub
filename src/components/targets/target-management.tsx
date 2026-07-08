@@ -7,6 +7,7 @@ import type { Customer, Person, StudioTargetAllocation, TargetAllocation, Target
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorNotice, SuccessNotice } from "@/components/shared/success-notice";
 import { FilterBar } from "@/components/shared/filter-bar";
+import { KpiSummaryCard } from "@/components/shared/kpi-summary-card";
 import { PageHeader } from "@/components/shared/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,7 @@ import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears
 import { formatCurrency, makeId } from "@/lib/utils";
 import { isHunterRole, isTargetAssignableRole } from "@/lib/roles";
 import { useCloseOnNavigation } from "@/lib/use-close-on-navigation";
+import { getContainedHunterAllocation } from "@/lib/customer-hunter-reconciliation";
 
 const currentYear = defaultTargetYear;
 
@@ -149,19 +151,16 @@ export function TargetManagement() {
     const target = customer ? getCustomerTarget(customer) : 0;
     const allocated = sumAllocations(nextAllocations, studioTargetAllocations, draft.customerId, draft.year);
 
-    if (target > 0 && allocated > target + 0.01) {
-      setFormError(`A soma das metas das pessoas para este cliente ficaria acima da meta total. Meta do cliente: ${formatCurrency(target)}. Soma após salvar: ${formatCurrency(allocated)}.`);
-      return;
-    }
-
     try {
       setFormError("");
       await saveTargetAllocation(draft);
       closeForm();
-      const difference = target - allocated;
+      const difference = allocated - target;
       setSuccessMessage(Math.abs(difference) <= 0.01
         ? "Meta salva com sucesso. Cliente reconciliado com a meta total."
-        : `Meta salva. Ainda faltam ${formatCurrency(Math.max(difference, 0))} para fechar a meta total do cliente.`);
+        : difference > 0
+          ? `Meta salva. Cliente ficará ${formatCurrency(difference)} acima da meta.`
+          : `Meta salva. Ainda faltam ${formatCurrency(Math.abs(difference))} para fechar a meta total do cliente.`);
       window.setTimeout(() => setSuccessMessage(""), 4000);
     } catch (error) {
       setFormError(getFormErrorMessage(error));
@@ -189,9 +188,9 @@ export function TargetManagement() {
       {formError && <ErrorNotice message={formError} floating onClose={() => setFormError("")} />}
 
       <section className="mb-5 grid gap-4 md:grid-cols-3">
-        <Summary label={`Meta Hunter · ${effectiveYear}`} value={formatCurrency(totals.hunter)} tone="purple" />
-        <Summary label={`Meta Renovação + Ampliação · ${effectiveYear}`} value={formatCurrency(totals.farmerRenewal)} tone="blue" />
-        <Summary label={`Meta Total · ${effectiveYear}`} value={formatCurrency(totals.hunter + totals.farmerRenewal)} tone="dark" />
+        <KpiSummaryCard label={`Meta Hunter · ${effectiveYear}`} currencyValue={totals.hunter} icon={Target} tone="purple" />
+        <KpiSummaryCard label={`Meta Renovação + Ampliação · ${effectiveYear}`} currencyValue={totals.farmerRenewal} icon={Target} tone="blue" />
+        <KpiSummaryCard label={`Meta Total · ${effectiveYear}`} currencyValue={totals.hunter + totals.farmerRenewal} icon={Target} tone="dark" />
       </section>
 
       {assistantOpen && <TargetAssistantPanel assistant={assistant} />}
@@ -289,9 +288,9 @@ export function TargetManagement() {
       </Card>
 
       <section className="mb-5 grid gap-4 md:grid-cols-3">
-        <Summary label="Clientes reconciliados" value={String(reconciledCount)} tone="blue" />
-        <Summary label="Clientes pendentes" value={String(pendingCount)} tone="purple" />
-        <Summary label="Clientes acima da meta" value={String(overTargetCount)} tone="dark" />
+        <KpiSummaryCard label="Clientes reconciliados" value={reconciledCount} icon={Target} tone="blue" />
+        <KpiSummaryCard label="Clientes abaixo da meta" value={pendingCount} icon={Target} tone={pendingCount ? "danger" : "neutral"} />
+        <KpiSummaryCard label="Clientes acima da meta" value={overTargetCount} icon={Target} tone={overTargetCount ? "ok" : "neutral"} />
       </section>
 
       <Card className="mb-5 overflow-hidden shadow-sm">
@@ -323,7 +322,7 @@ export function TargetManagement() {
                   <TableCell className="font-semibold text-slate-900">{item.customerName}</TableCell>
                   <TableCell>{formatCurrency(item.target)}</TableCell>
                   <TableCell>{formatCurrency(item.allocated)}</TableCell>
-                  <TableCell className={item.difference < -0.01 ? "font-semibold text-red-700" : item.difference > 0.01 ? "font-semibold text-amber-700" : "font-semibold text-emerald-700"}>
+                  <TableCell className={item.difference > 0.01 ? "font-semibold text-emerald-700" : item.difference < -0.01 ? "font-semibold text-red-700" : "font-semibold text-slate-700"}>
                     {formatCurrency(item.difference)}
                   </TableCell>
                   <TableCell><ReconciliationBadge status={item.status} /></TableCell>
@@ -461,26 +460,6 @@ export function TargetManagement() {
   );
 }
 
-function Summary({ label, value, tone }: { label: string; value: string; tone: "purple" | "blue" | "sky" | "dark" }) {
-  const colors = {
-    purple: "bg-purple-50 text-brq-purple",
-    blue: "bg-sky-50 text-sky-700",
-    sky: "bg-cyan-50 text-cyan-700",
-    dark: "bg-slate-950 text-white",
-  };
-  return (
-    <Card className="flex items-center gap-4 p-5 shadow-sm">
-      <div className={`grid h-11 w-11 place-items-center rounded-xl ${colors[tone]}`}>
-        <Target className="h-5 w-5" />
-      </div>
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{label}</p>
-        <p className="mt-1 text-2xl font-black text-slate-900">{value}</p>
-      </div>
-    </Card>
-  );
-}
-
 function TargetAssistantPanel({ assistant }: { assistant: TargetAssistant }) {
   return (
     <Card className="mb-5 overflow-hidden border-purple-100 bg-purple-50/30 shadow-sm">
@@ -594,8 +573,8 @@ function TypeBadge({ type }: { type: TargetAllocationType }) {
 
 function ReconciliationBadge({ status }: { status: ReconciliationStatus }) {
   if (status === "ok") return <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">OK</Badge>;
-  if (status === "over") return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Acima da meta</Badge>;
-  return <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Pendente</Badge>;
+  if (status === "over") return <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">Acima da meta</Badge>;
+  return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Abaixo da meta</Badge>;
 }
 
 function PersonTargetBadge({ total }: { total: number }) {
@@ -626,7 +605,7 @@ function buildReconciliation(customers: Customer[], allocations: TargetAllocatio
   return customers.map((customer) => {
     const target = getCustomerTarget(customer);
     const allocated = sumAllocations(allocations, studioAllocations, customer.id, year);
-    const difference = target - allocated;
+    const difference = roundCurrency(allocated - target);
     return {
       customerId: customer.id,
       customerName: customer.name,
@@ -663,10 +642,13 @@ function buildTargetAssistant(customers: Customer[], allocations: TargetAllocati
     const target = getCustomerTarget(customer);
     const allocated = sumAllocations(allocations, studioAllocations, customer.id, year);
     const hunterExpected = customer.hunterTarget;
-    const hunterAllocated = allocations
-      .filter((allocation) => allocation.customerId === customer.id && allocation.year === year && allocation.type === "hunter")
-      .reduce((total, allocation) => total + allocation.amount, 0);
-    const difference = target - allocated;
+    const hunterAllocated = getContainedHunterAllocation({
+      customerId: customer.id,
+      year,
+      targetAllocations: allocations,
+      studioTargetAllocations: studioAllocations,
+    }).containedHunter;
+    const difference = roundCurrency(allocated - target);
 
     if (target <= 0.01) {
       missingTargetValue.push({
@@ -692,13 +674,11 @@ function buildTargetAssistant(customers: Customer[], allocations: TargetAllocati
       });
     }
 
-    if (target > 0.01 && Math.abs(difference) > 0.01) {
+    if (target > 0.01 && difference < -0.01) {
       reconciliationIssues.push({
         customerId: customer.id,
         customerName: customer.name,
-        detail: difference > 0
-          ? `Faltam ${formatCurrency(difference)} para a soma de pessoas e áreas/studios bater com a meta do cliente.`
-          : `A soma de pessoas e áreas/studios está ${formatCurrency(Math.abs(difference))} acima da meta do cliente.`,
+        detail: `Faltam ${formatCurrency(Math.abs(difference))} para a soma de pessoas e áreas/studios bater com a meta do cliente.`,
       });
     }
   }
@@ -839,13 +819,19 @@ function getReconciliationStatus(target: number, allocated: number): Reconciliat
 }
 
 function sumAllocations(allocations: TargetAllocation[], studioAllocations: StudioTargetAllocation[], customerId: string, year: number) {
-  const peopleTotal = allocations
-    .filter((allocation) => allocation.customerId === customerId && allocation.year === year && allocation.type !== "studio")
+  const hunterTotal = getContainedHunterAllocation({
+    customerId,
+    year,
+    targetAllocations: allocations,
+    studioTargetAllocations: studioAllocations,
+  }).containedHunter;
+  const farmerRenewalTotal = allocations
+    .filter((allocation) => allocation.customerId === customerId && allocation.year === year && allocation.type === "farmer_renewal")
     .reduce((total, allocation) => total + allocation.amount, 0);
-  const studioTotal = studioAllocations
+  const studioMaintenanceTotal = studioAllocations
     .filter((allocation) => allocation.customerId === customerId && allocation.year === year)
     .reduce((total, allocation) => total + allocation.maintenanceAmount, 0);
-  return peopleTotal + studioTotal;
+  return roundCurrency(hunterTotal + farmerRenewalTotal + studioMaintenanceTotal);
 }
 
 function getCustomerTarget(customer: Customer) {

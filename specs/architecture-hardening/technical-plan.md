@@ -37,10 +37,10 @@ duas edições simultâneas.
 ## Constraints e triggers
 
 - `person_customer_assignments` permanece a fonte de verdade da cobertura.
-- A migration de hardening adiciona trigger para impedir que um mesmo cliente
-  seja associado a mais de uma pessoa com papel Hunter/Hunter + Farmer.
-- A tabela `people` também valida mudanças de `role_type` para evitar que uma
-  pessoa vire Hunter mantendo assignments que conflitam com outro Hunter.
+- A exclusividade Hunter por cliente foi removida. Um mesmo cliente pode ser
+  associado a mais de uma pessoa com papel Hunter/Hunter + Farmer.
+- A distribuição financeira de Hunters é controlada pelas alocações anuais, não
+  por propriedade exclusiva em `person_customer_assignments`.
 
 ## Segurança
 

@@ -1,8 +1,24 @@
 node_modules
 .next
 out
+dist
+build
+coverage
+.cache
+playwright-report
+test-results
+storybook-static
+logs
+tmp
+temp
+output
+screenshots
+videos
 *.log
+*.tmp
+*.bak
 tsconfig.tsbuildinfo
+*.tsbuildinfo
 .env*
 !.env.example
 

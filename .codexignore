@@ -1,0 +1,71 @@
+# Codex / LLM context ignore policy
+#
+# This file is intentionally stricter than .gitignore. It is a project-local
+# context budget guide for agents and humans: do not load these paths into LLM
+# context unless the task explicitly requires the artifact itself.
+
+# Dependencies and package-manager caches
+node_modules/
+.npm-cache/
+.pnpm-store/
+.yarn/
+
+# Framework, compiler and bundler outputs
+.next/
+dist/
+build/
+out/
+coverage/
+.cache/
+storybook-static/
+tsconfig.tsbuildinfo
+*.tsbuildinfo
+
+# Test/browser artifacts
+playwright-report/
+test-results/
+screenshots/
+videos/
+traces/
+*.trace.zip
+
+# Runtime logs and temporary outputs
+logs/
+tmp/
+temp/
+output/
+*.log
+*.tmp
+*.bak
+
+# Local secrets and provider state
+.env*
+!.env.example
+.vercel/
+supabase/.temp/
+
+# Generated, compiled or bulky examples
+*.map
+*.min.js
+*.min.css
+*.generated.*
+generated/
+openapi.generated.*
+large-examples/
+
+# Binary/data artifacts. Inspect metadata first; only load when the task is
+# specifically about the file content.
+*.xlsx
+*.xls
+*.xlsm
+*.csv
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.zip
+
+# Lock files are useful for dependency audit, but avoid diffing them into LLM
+# context unless dependency resolution is the actual task.
+package-lock.json

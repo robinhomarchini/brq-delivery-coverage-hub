@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="BRQ Delivery Coverage Hub">
+  <rect width="64" height="64" rx="14" fill="#7a2bd6"/>
+  <path d="M15 42V20h14c5 0 8 3 8 7 0 2.3-1.2 4.3-3.2 5.4 2.8 1 4.5 3.2 4.5 6.1 0 4.4-3.4 7.5-8.7 7.5H15Zm8-13h5c1.6 0 2.5-.8 2.5-2.1 0-1.2-.9-2-2.5-2h-5v4.1Zm0 11h5.9c1.8 0 2.9-.9 2.9-2.4 0-1.4-1.1-2.3-2.9-2.3H23V40Z" fill="#fff"/>
+  <path d="M41 42V20h8v15h8v7H41Z" fill="#fff" opacity=".92"/>
+  <circle cx="48" cy="28" r="5" fill="#18c29c"/>
+</svg>

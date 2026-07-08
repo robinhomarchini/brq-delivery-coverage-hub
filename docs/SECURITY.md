@@ -9,20 +9,19 @@
 - O usuário `robinson.marchini@brq.com` é o administrador inicial.
 - A fonte de verdade de autorização é:
   - `public.app_users` para usuários que já autenticaram no app;
-  - `public.app_access_invites` para pré-cadastros pendentes.
+  - `public.app_access_invites` para pré-cadastros e bloqueios/liberações por e-mail.
 - A rota Configurações é visível e acessível apenas para `admin`.
 
 ## Provisionamento
 
 1. O admin pré-cadastra um e-mail `@brq.com`, papel e convite habilitado em
    Configurações.
-2. O usuário acessa por magic link.
-3. A RPC `accept_current_app_access()` valida o domínio e converte o convite
-   em registro de `app_users` ainda inativo.
-4. O usuário aparece em Configurações como "Aguardando aprovação".
-5. O admin aprova explicitamente o acesso; somente então `app_users.active`
-   vira `true`.
-6. Usuários sem convite, bloqueados ou ainda não aprovados ficam bloqueados pela
+2. O usuário cria a senha no primeiro acesso e autentica com e-mail corporativo.
+3. A RPC `accept_current_app_access()` valida o domínio e converte o
+   pré-cadastro ativo em registro de `app_users` ativo.
+4. Se o pré-cadastro estiver inativo, o usuário permanece bloqueado até o admin
+   reativar o acesso em Configurações.
+5. Usuários sem convite ou bloqueados ficam bloqueados pela
    UI e por RLS.
 
 O frontend usa somente `NEXT_PUBLIC_SUPABASE_ANON_KEY`; não há service role no
@@ -39,8 +38,8 @@ navegador. A administração usa as RPCs `list_app_access()` e
   - `is_delivery_admin()` para administração de acessos e leitura de auditoria.
 - Usuários autenticados leem apenas o próprio registro em `app_users`; admins
   leem e gerenciam todos os registros e convites.
-- O primeiro login não concede acesso automaticamente; a aprovação final é
-  feita por admin na tela Configurações.
+- O primeiro login concede acesso automaticamente apenas quando já existe
+  pré-cadastro ativo para o e-mail corporativo.
 - Convites aceitam somente e-mails `@brq.com`; usuários ativos em `app_users`
   também precisam ter e-mail corporativo.
 - Funções `security definer` usam `search_path` definido e referências

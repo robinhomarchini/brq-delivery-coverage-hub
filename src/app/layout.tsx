@@ -7,6 +7,11 @@ import { AuthGate } from "@/components/auth/auth-gate";
 export const metadata: Metadata = {
   title: "BRQ Delivery Coverage Hub",
   description: "Gestão executiva da cobertura da organização de Delivery.",
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

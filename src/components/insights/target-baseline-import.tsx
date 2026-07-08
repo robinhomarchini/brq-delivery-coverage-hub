@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { KpiSummaryCard } from "@/components/shared/kpi-summary-card";
 import { ErrorNotice, SuccessNotice } from "@/components/shared/success-notice";
 import { useDeliveryStore } from "@/store/delivery-store";
 import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears } from "@/lib/customer-targets";
@@ -24,7 +25,7 @@ const currentYear = defaultTargetYear;
 const maxFileSizeInBytes = 5 * 1024 * 1024;
 
 export function TargetBaselineImport() {
-  const { customers, customerTargets, people, targetAllocations, saveCustomers } = useDeliveryStore();
+  const { customers, customerTargets, people, studioTargetAllocations, targetAllocations, saveCustomers } = useDeliveryStore();
   const [year, setYear] = useState(currentYear);
   const [fileName, setFileName] = useState("");
   const [rows, setRows] = useState<TargetBaselineRow[]>([]);
@@ -37,8 +38,8 @@ export function TargetBaselineImport() {
   const years = useMemo(() => getAvailableTargetYears(customerTargets, currentYear), [customerTargets]);
   const yearCustomers = useMemo(() => applyCustomerTargetsForYear(customers, customerTargets, year), [customerTargets, customers, year]);
   const comparisons = useMemo(
-    () => buildTargetBaselineComparisons(rows, yearCustomers, people, targetAllocations, year),
-    [people, rows, targetAllocations, year, yearCustomers],
+    () => buildTargetBaselineComparisons(rows, yearCustomers, people, targetAllocations, studioTargetAllocations, year),
+    [people, rows, studioTargetAllocations, targetAllocations, year, yearCustomers],
   );
   const selectableComparisons = comparisons.filter(canApplyComparison);
   const selectedComparisons = comparisons.filter((comparison) => selectedKeys.has(comparison.key) && canApplyComparison(comparison));
@@ -152,11 +153,11 @@ export function TargetBaselineImport() {
       </Card>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-        <Summary label={`Ano de referência`} value={String(year)} />
-        <Summary label="Clientes divergentes" value={String(divergentCount)} />
-        <Summary label="Alertas de Hunter" value={String(hunterWarnings)} />
-        <Summary label="Clientes não encontrados" value={String(missingCustomers)} />
-        <Summary label="Selecionados" value={String(selectedComparisons.length)} />
+        <KpiSummaryCard label="Ano de referência" value={year} />
+        <KpiSummaryCard label="Clientes divergentes" value={divergentCount} tone={divergentCount ? "warning" : "neutral"} />
+        <KpiSummaryCard label="Alertas de Hunter" value={hunterWarnings} tone={hunterWarnings ? "warning" : "neutral"} />
+        <KpiSummaryCard label="Clientes não encontrados" value={missingCustomers} tone={missingCustomers ? "danger" : "neutral"} />
+        <KpiSummaryCard label="Selecionados" value={selectedComparisons.length} tone="purple" />
       </section>
 
       {rows.length > 0 && (
@@ -269,15 +270,6 @@ export function TargetBaselineImport() {
         </Card>
       )}
     </div>
-  );
-}
-
-function Summary({ label, value }: { label: string; value: string }) {
-  return (
-    <Card className="p-5 shadow-sm">
-      <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{label}</p>
-      <p className="mt-2 text-2xl font-black text-slate-950">{value}</p>
-    </Card>
   );
 }
 

@@ -10,6 +10,7 @@ const roleStyles: Record<RoleType, string> = {
   "Farmer + Delivery": "border-brq-navy bg-brq-navy text-white",
   Delivery: "border-purple-200 bg-purple-50 text-slate-800",
   Hunter: "border-orange-200 bg-orange-50 text-slate-800",
+  "Hunter Especializado": "border-sky-200 bg-sky-50 text-slate-800",
   Farmer: "border-blue-200 bg-blue-50 text-slate-800",
   "Hunter + Farmer": "border-orange-300 bg-gradient-to-br from-orange-50 to-blue-50 text-slate-800",
   Staff: "border-orange-300 bg-orange-50 text-slate-800",

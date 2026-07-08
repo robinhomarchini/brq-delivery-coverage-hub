@@ -2,10 +2,11 @@
 
 import { Plus, Save, Target, Trash2, UserRound } from "lucide-react";
 import { useMemo, useState, type InputHTMLAttributes } from "react";
-import type { Customer, TargetAllocation, TargetAllocationType } from "@/data/mockData";
+import type { Customer, RoleType, StudioTargetAllocation, TargetAllocation, TargetAllocationType } from "@/data/mockData";
 import { PageHeader } from "@/components/shared/page-header";
 import { ReportExportActions, type ReportColumn } from "@/components/shared/report-export-actions";
 import { ErrorNotice, SuccessNotice } from "@/components/shared/success-notice";
+import { KpiSummaryCard } from "@/components/shared/kpi-summary-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -14,8 +15,8 @@ import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useDeliveryStore } from "@/store/delivery-store";
 import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears } from "@/lib/customer-targets";
-import { formatCurrency } from "@/lib/utils";
-import { isTargetAssignableRole } from "@/lib/roles";
+import { formatCurrency, toFileSlug } from "@/lib/utils";
+import { isHunterRole, isTargetAssignableRole } from "@/lib/roles";
 
 const currentYear = defaultTargetYear;
 
@@ -24,15 +25,19 @@ type AllocationField = "hunter" | "farmerRenewal";
 
 export function PersonTargetAssignment() {
   const initialParams = useMemo(() => getInitialTargetParams(), []);
-  const { people, customers, customerTargets, targetAllocations, savePersonCustomerTargets, removePersonCustomerTargets } = useDeliveryStore();
+  const { people, customers, customerTargets, targetAllocations, studioTargetAllocations, savePersonCustomerTargets, removePersonCustomerTargets } = useDeliveryStore();
   const activePeople = useMemo(() => people.filter((person) => person.active), [people]);
   const assignablePeople = useMemo(() =>
     activePeople.filter((person) => isTargetAssignableRole(person.roleType)),
     [activePeople],
   );
   const years = useMemo(
-    () => Array.from(new Set([...getAvailableTargetYears(customerTargets, currentYear), ...targetAllocations.map((allocation) => allocation.year)])).sort((a, b) => b - a),
-    [customerTargets, targetAllocations],
+    () => Array.from(new Set([
+      ...getAvailableTargetYears(customerTargets, currentYear),
+      ...targetAllocations.map((allocation) => allocation.year),
+      ...studioTargetAllocations.map((allocation) => allocation.year),
+    ])).sort((a, b) => b - a),
+    [customerTargets, studioTargetAllocations, targetAllocations],
   );
   const [personId, setPersonId] = useState(initialParams.personId);
   const [year, setYear] = useState(initialParams.year ?? currentYear);
@@ -60,10 +65,8 @@ export function PersonTargetAssignment() {
   );
   const effectiveSelectedCustomerId = visibleCustomerIds.has(selectedCustomerId) ? selectedCustomerId : "";
   const scopedVisibleCustomers = useMemo(
-    () => effectiveSelectedCustomerId
-      ? visibleCustomers.filter((customer) => customer.id === effectiveSelectedCustomerId)
-      : visibleCustomers,
-    [effectiveSelectedCustomerId, visibleCustomers],
+    () => visibleCustomers,
+    [visibleCustomers],
   );
   const availableCustomersToAdd = useMemo(
     () => effectivePersonId ? yearCustomers.filter((customer) => !visibleCustomerIds.has(customer.id)) : [],
@@ -78,15 +81,20 @@ export function PersonTargetAssignment() {
       effectivePersonId,
       year,
       targetAllocations,
+      studioTargetAllocations,
       drafts[customer.id],
       getRowSource(customer.id, selectedPerson?.clientIds ?? [], targetAllocations, effectivePersonId, year, extraCustomerIds),
     )),
-    [drafts, effectivePersonId, extraCustomerIds, scopedVisibleCustomers, selectedPerson?.clientIds, targetAllocations, year],
+    [drafts, effectivePersonId, extraCustomerIds, scopedVisibleCustomers, selectedPerson?.clientIds, studioTargetAllocations, targetAllocations, year],
   );
   const totals = useMemo(() => rows.reduce((summary, row) => ({
     hunter: summary.hunter + row.hunterAmount,
     farmerRenewal: summary.farmerRenewal + row.farmerRenewalAmount,
   }), { hunter: 0, farmerRenewal: 0 }), [rows]);
+  const expectedBaseTotal = useMemo(
+    () => selectedPerson ? getExpectedBaseTotalForPerson(selectedPerson.roleType, rows) : 0,
+    [rows, selectedPerson],
+  );
   const personTargetReportRows = useMemo(() => rows.map((row) => ({
     personName: selectedPerson?.name ?? "",
     roleType: selectedPerson?.roleType ?? "",
@@ -97,11 +105,13 @@ export function PersonTargetAssignment() {
     customerFarmerRenewalTarget: row.customerFarmerRenewalTarget,
     customerTarget: row.customerTarget,
     otherPeopleHunterTotal: row.otherPeopleHunterTotal,
+    personHunterOwnTarget: row.hunterOwnAmount,
+    personStudioHunterTarget: row.studioHunterAmount,
     otherPeopleFarmerRenewalTotal: row.otherPeopleFarmerRenewalTotal,
     otherPeopleTotal: row.otherPeopleTotal,
     hunterGap: row.hunterGap,
     farmerRenewalGap: row.farmerRenewalGap,
-    customerGap: row.customerTarget - row.clientTotal,
+    customerGap: row.clientTotal - row.customerTarget,
     personHunterTarget: row.hunterAmount,
     personFarmerRenewalTarget: row.farmerRenewalAmount,
     personTotal: row.personTotal,
@@ -118,6 +128,8 @@ export function PersonTargetAssignment() {
     { key: "customerFarmerRenewalTarget", label: "Meta Renovação Cliente", value: (row) => row.customerFarmerRenewalTarget, format: "currency", align: "right" },
     { key: "customerTarget", label: "Meta Total Cliente", value: (row) => row.customerTarget, format: "currency", align: "right" },
     { key: "otherPeopleHunterTotal", label: "Hunter já associado a outras pessoas", value: (row) => row.otherPeopleHunterTotal, format: "currency", align: "right" },
+    { key: "personHunterOwnTarget", label: "Meta própria Hunter", value: (row) => row.personHunterOwnTarget, format: "currency", align: "right" },
+    { key: "personStudioHunterTarget", label: "Studio Hunter contido", value: (row) => row.personStudioHunterTarget, format: "currency", align: "right" },
     { key: "otherPeopleFarmerRenewalTotal", label: "Renovação já associada a outras pessoas", value: (row) => row.otherPeopleFarmerRenewalTotal, format: "currency", align: "right" },
     { key: "otherPeopleTotal", label: "Total já associado a outras pessoas", value: (row) => row.otherPeopleTotal, format: "currency", align: "right" },
     { key: "hunterGap", label: "Gap Hunter", value: (row) => row.hunterGap, format: "currency", align: "right" },
@@ -134,7 +146,7 @@ export function PersonTargetAssignment() {
     setDrafts((current) => ({
       ...current,
       [customerId]: {
-        hunter: current[customerId]?.hunter ?? getInputValue(rows.find((row) => row.customerId === customerId)?.hunterAmount ?? 0),
+        hunter: current[customerId]?.hunter ?? getInputValue(rows.find((row) => row.customerId === customerId)?.hunterOwnAmount ?? 0),
         farmerRenewal: current[customerId]?.farmerRenewal ?? getInputValue(rows.find((row) => row.customerId === customerId)?.farmerRenewalAmount ?? 0),
         [field]: value,
       },
@@ -165,9 +177,9 @@ export function PersonTargetAssignment() {
       return;
     }
 
-    const nextHunterAmount = parseAmount(drafts[row.customerId]?.hunter ?? row.hunterInput);
+    const nextHunterOwnAmount = parseAmount(drafts[row.customerId]?.hunter ?? row.hunterInput);
     const nextFarmerRenewalAmount = parseAmount(drafts[row.customerId]?.farmerRenewal ?? row.farmerRenewalInput);
-    await persistCustomerTargets(row, nextHunterAmount, nextFarmerRenewalAmount, 0);
+    await persistCustomerTargets(row, nextHunterOwnAmount, nextFarmerRenewalAmount, 0);
   }
 
   async function removeCustomerFromPerson(row: PersonTargetRow) {
@@ -229,7 +241,7 @@ export function PersonTargetAssignment() {
 
     await persistCustomerTargets(
       row,
-      field === "hunter" ? availableAmount : row.hunterAmount,
+      field === "hunter" ? Math.max(availableAmount - row.studioHunterAmount, 0) : row.hunterOwnAmount,
       field === "farmerRenewal" ? availableAmount : row.farmerRenewalAmount,
       0,
       `Meta ${label} de ${selectedPerson.name} em ${row.customerName} alocada com sucesso.`,
@@ -238,7 +250,7 @@ export function PersonTargetAssignment() {
 
   async function persistCustomerTargets(
     row: PersonTargetRow,
-    nextHunterAmount: number,
+    nextHunterOwnAmount: number,
     nextFarmerRenewalAmount: number,
     nextStudioAmount: number,
     successText?: string,
@@ -248,6 +260,7 @@ export function PersonTargetAssignment() {
       return;
     }
 
+    const nextHunterAmount = roundCurrency(nextHunterOwnAmount + row.studioHunterAmount);
     const currentOtherPeopleTotal = sumOtherPeopleAllocations(targetAllocations, row.customerId, effectivePersonId, year);
     const nextCustomerTotal = currentOtherPeopleTotal + nextHunterAmount + nextFarmerRenewalAmount + nextStudioAmount;
     const overAmount = nextCustomerTotal - row.customerTarget;
@@ -275,6 +288,7 @@ export function PersonTargetAssignment() {
         personId: effectivePersonId,
         year,
         hunterAmount: nextHunterAmount,
+        hunterOwnAmount: nextHunterOwnAmount,
         farmerRenewalAmount: nextFarmerRenewalAmount,
         studioAmount: nextStudioAmount,
         increaseCustomerTarget,
@@ -307,7 +321,7 @@ export function PersonTargetAssignment() {
         actions={(
           <ReportExportActions
             title={`Relatório de Metas por Pessoa · ${selectedPerson?.name ?? "Pessoa não selecionada"} · ${year}`}
-            filename={`relatorio-metas-pessoa-${year}`}
+            filename={`relatorio-metas-pessoa-${year}${selectedPerson ? `-${toFileSlug(selectedPerson.name)}` : ""}`}
             rows={personTargetReportRows}
             columns={personTargetReportColumns}
           />
@@ -317,82 +331,97 @@ export function PersonTargetAssignment() {
       {successMessage && <SuccessNotice message={successMessage} floating />}
       {errorMessage && <ErrorNotice message={errorMessage} floating onClose={() => setErrorMessage("")} />}
 
-      <Card className="mb-5 grid gap-4 p-5 shadow-sm lg:grid-cols-[2fr_2fr_1fr_1fr_1fr]">
-        <label>
-          <span className="mb-1.5 block text-sm font-semibold text-slate-700">Pessoa</span>
-          <Select value={effectivePersonId} onChange={(event) => changePerson(event.target.value)}>
-            <option value="">Selecione uma pessoa</option>
-            {assignablePeople.map((person) => (
-              <option key={person.id} value={person.id}>{person.name} · {person.roleType}</option>
-            ))}
-          </Select>
-          <span className="mt-1 block text-xs text-slate-400">Escolha uma pessoa lançável. Executivo, Diretores e Staff aparecem apenas nas consolidações.</span>
-        </label>
-        <label>
-          <span className="mb-1.5 block text-sm font-semibold text-slate-700">Cliente em foco</span>
-          <Select
-            value={effectivePersonId ? selectedCustomerId : ""}
-            onChange={(event) => changeFocusedCustomer(event.target.value)}
-            disabled={!effectivePersonId}
-          >
-            {!effectivePersonId ? (
-              <option value="">Selecione uma pessoa primeiro</option>
-            ) : (
-              <>
-                <option value="">Todos os clientes da pessoa</option>
-                {visibleCustomers.map((customer) => (
+      <Card className="sticky top-0 z-20 mb-5 overflow-hidden border-slate-200 bg-white/95 shadow-sm backdrop-blur">
+        <div className="border-b border-slate-100 p-4">
+          <div className="grid gap-3 xl:grid-cols-[1.5fr_1.5fr_0.7fr]">
+            <label className="min-w-0">
+              <span className="mb-1.5 block text-sm font-semibold text-slate-700">Pessoa</span>
+              <Select value={effectivePersonId} onChange={(event) => changePerson(event.target.value)}>
+                <option value="">Selecione uma pessoa</option>
+                {assignablePeople.map((person) => (
+                  <option key={person.id} value={person.id}>{person.name} · {person.roleType}</option>
+                ))}
+              </Select>
+            </label>
+            <label className="min-w-0">
+              <span className="mb-1.5 block text-sm font-semibold text-slate-700">Cliente em foco</span>
+              <Select
+                value={effectivePersonId ? effectiveSelectedCustomerId : ""}
+                onChange={(event) => changeFocusedCustomer(event.target.value)}
+                disabled={!effectivePersonId}
+              >
+                {!effectivePersonId ? (
+                  <option value="">Selecione uma pessoa primeiro</option>
+                ) : (
+                  <>
+                    <option value="">Todos os clientes da pessoa</option>
+                    {visibleCustomers.map((customer) => (
+                      <option key={customer.id} value={customer.id}>{customer.name}</option>
+                    ))}
+                  </>
+                )}
+              </Select>
+            </label>
+            <label className="min-w-0">
+              <span className="mb-1.5 block text-sm font-semibold text-slate-700">Ano</span>
+              <Select value={String(year)} onChange={(event) => {
+                setYear(Number(event.target.value));
+                setDrafts({});
+                const retainedCustomerId = selectedCustomerId || initialParams.customerId;
+                setExtraCustomerIds(retainedCustomerId ? [retainedCustomerId] : []);
+              }}>
+                {years.map((item) => <option key={item} value={item}>{item}</option>)}
+              </Select>
+            </label>
+          </div>
+        </div>
+
+        <div className="grid gap-4 p-4 xl:grid-cols-[1fr_360px] xl:items-end">
+          <div>
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs font-semibold uppercase leading-4 tracking-normal text-slate-500">
+                Total da pessoa · {selectedPerson?.name ?? "selecione uma pessoa"} · {year}
+              </p>
+              <p className="text-xs text-slate-400">Meta Hunter atual = meta própria + Studio Hunter</p>
+            </div>
+            <div className="grid gap-3 md:grid-cols-4">
+              <KpiSummaryCard label="Base esperada das contas" currencyValue={expectedBaseTotal} icon={Target} tone="neutral" />
+              <KpiSummaryCard label="Meta Hunter atual" currencyValue={totals.hunter} icon={Target} tone="purple" />
+              <KpiSummaryCard label="Renovação + Ampliação" currencyValue={totals.farmerRenewal} icon={Target} tone="blue" />
+              <KpiSummaryCard label="Total da pessoa" currencyValue={totals.hunter + totals.farmerRenewal} icon={Target} tone="dark" />
+            </div>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <label>
+              <span className="mb-1.5 block text-sm font-semibold text-slate-700">Incluir cliente para meta</span>
+              <Select value={effectiveCustomerToAdd} onChange={(event) => setCustomerToAdd(event.target.value)} disabled={!effectivePersonId || !availableCustomersToAdd.length}>
+                {!effectivePersonId ? (
+                  <option value="">Selecione uma pessoa primeiro</option>
+                ) : !availableCustomersToAdd.length ? (
+                  <option value="">Todos os clientes já estão na grade</option>
+                ) : (
+                  <option value="">Selecione um cliente</option>
+                )}
+                {availableCustomersToAdd.map((customer) => (
                   <option key={customer.id} value={customer.id}>{customer.name}</option>
                 ))}
-              </>
-            )}
-          </Select>
-          <span className="mt-1 block text-xs text-slate-400">Ao vir de Clientes, o cliente já fica selecionado aqui.</span>
-        </label>
-        <label>
-          <span className="mb-1.5 block text-sm font-semibold text-slate-700">Ano</span>
-          <Select value={String(year)} onChange={(event) => {
-            setYear(Number(event.target.value));
-            setDrafts({});
-            const retainedCustomerId = selectedCustomerId || initialParams.customerId;
-            setExtraCustomerIds(retainedCustomerId ? [retainedCustomerId] : []);
-          }}>
-            {years.map((item) => <option key={item} value={item}>{item}</option>)}
-          </Select>
-        </label>
-        <Summary label="Meta Hunter" value={formatCurrency(totals.hunter)} />
-        <Summary label="Renovação + Ampliação" value={formatCurrency(totals.farmerRenewal)} />
-      </Card>
-
-      <Card className="mb-5 grid gap-3 p-5 shadow-sm lg:grid-cols-[1fr_auto]">
-        <label>
-          <span className="mb-1.5 block text-sm font-semibold text-slate-700">Incluir cliente para meta</span>
-          <Select value={effectiveCustomerToAdd} onChange={(event) => setCustomerToAdd(event.target.value)} disabled={!effectivePersonId || !availableCustomersToAdd.length}>
-            {!effectivePersonId ? (
-              <option value="">Selecione uma pessoa primeiro</option>
-            ) : !availableCustomersToAdd.length ? (
-              <option value="">Todos os clientes já estão na grade</option>
-            ) : (
-              <option value="">Selecione um cliente</option>
-            )}
-            {availableCustomersToAdd.map((customer) => (
-              <option key={customer.id} value={customer.id}>{customer.name}</option>
-            ))}
-          </Select>
-        </label>
-        <div className="flex items-end">
-          <Button
-            type="button"
-            variant="outline"
-            disabled={!effectivePersonId || !effectiveCustomerToAdd}
-            onClick={() => {
-              if (!effectiveCustomerToAdd) return;
-              setExtraCustomerIds((current) => current.includes(effectiveCustomerToAdd) ? current : [...current, effectiveCustomerToAdd]);
-              setSelectedCustomerId(effectiveCustomerToAdd);
-            }}
-          >
-            <Plus className="h-4 w-4" />
-            Incluir cliente
-          </Button>
+              </Select>
+            </label>
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-3 w-full justify-center"
+              disabled={!effectivePersonId || !effectiveCustomerToAdd}
+              onClick={() => {
+                if (!effectiveCustomerToAdd) return;
+                setExtraCustomerIds((current) => current.includes(effectiveCustomerToAdd) ? current : [...current, effectiveCustomerToAdd]);
+                setSelectedCustomerId(effectiveCustomerToAdd);
+              }}
+            >
+              <Plus className="h-4 w-4" />
+              Incluir cliente
+            </Button>
+          </div>
         </div>
       </Card>
 
@@ -417,7 +446,7 @@ export function PersonTargetAssignment() {
                 <TableHead>Meta do Cliente</TableHead>
                 <TableHead>Já associado a outras pessoas</TableHead>
                 <TableHead>Gap após edição</TableHead>
-                <TableHead>Meta Hunter</TableHead>
+                <TableHead>Meta própria / Hunter atual</TableHead>
                 <TableHead>Meta Renovação + Ampliação</TableHead>
                 <TableHead>Total da Pessoa</TableHead>
                 <TableHead>Status do Cliente</TableHead>
@@ -458,15 +487,19 @@ export function PersonTargetAssignment() {
                     <TargetGapBreakdown
                       hunter={row.hunterGap}
                       farmerRenewal={row.farmerRenewalGap}
-                      total={row.customerTarget - row.clientTotal}
+                      total={row.clientTotal - row.customerTarget}
                     />
                   </TableCell>
                   <TableCell>
                     <MoneyInput
                       value={drafts[row.customerId]?.hunter ?? row.hunterInput}
                       onChange={(event) => updateDraft(row.customerId, "hunter", event.target.value)}
-                      aria-label={`Meta Hunter para ${row.customerName}`}
+                      aria-label={`Meta própria Hunter para ${row.customerName}`}
                     />
+                    <div className="mt-2 space-y-0.5 text-xs text-slate-500">
+                      <p>Studio contido: <span className="font-semibold text-sky-700">{formatCurrency(row.studioHunterAmount)}</span></p>
+                      <p>Total atual: <span className="font-bold text-slate-900">{formatCurrency(row.hunterAmount)}</span></p>
+                    </div>
                   </TableCell>
                   <TableCell>
                     <MoneyInput
@@ -524,28 +557,16 @@ type BreakdownLineAction = {
   title: string;
 };
 
-function Summary({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border bg-slate-50 p-4">
-      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
-        <Target className="h-4 w-4" />
-        {label}
-      </div>
-      <p className="mt-2 text-xl font-black text-slate-950">{value}</p>
-    </div>
-  );
-}
-
 function ClientStatusBadge({ status }: { status: ClientStatus }) {
   if (status === "ok") return <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">Fechado</Badge>;
-  if (status === "over") return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Acima</Badge>;
-  return <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Pendente</Badge>;
+  if (status === "over") return <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">Acima</Badge>;
+  return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Abaixo</Badge>;
 }
 
 function getClientStatusLabel(status: ClientStatus) {
   if (status === "ok") return "Fechado";
   if (status === "over") return "Acima";
-  return "Pendente";
+  return "Abaixo";
 }
 
 function SourceBadge({ source }: { source: RowSource }) {
@@ -606,9 +627,9 @@ function BreakdownLine({
   const toneClassName = tone === "ok"
     ? "text-emerald-700"
     : tone === "pending"
-      ? "text-amber-700"
+      ? "text-red-700"
       : tone === "over"
-        ? "text-red-700"
+        ? "text-emerald-700"
         : "text-slate-700";
 
   return (
@@ -652,12 +673,16 @@ function buildRow(
   personId: string,
   year: number,
   allocations: TargetAllocation[],
+  studioAllocations: StudioTargetAllocation[],
   draft: { hunter: string; farmerRenewal: string } | undefined,
   source: RowSource,
 ) {
   const hunterAllocation = findAllocation(allocations, customer.id, personId, year, "hunter");
   const farmerRenewalAllocation = findAllocation(allocations, customer.id, personId, year, "farmer_renewal");
-  const hunterAmount = parseAmount(draft?.hunter ?? getInputValue(hunterAllocation?.amount ?? 0));
+  const studioHunterAmount = sumStudioHunterAllocations(studioAllocations, customer.id, personId, year);
+  const savedHunterOwnAmount = hunterAllocation?.ownAmount ?? Math.max((hunterAllocation?.amount ?? 0) - studioHunterAmount, 0);
+  const hunterOwnAmount = parseAmount(draft?.hunter ?? getInputValue(savedHunterOwnAmount));
+  const hunterAmount = roundCurrency(hunterOwnAmount + studioHunterAmount);
   const farmerRenewalAmount = parseAmount(draft?.farmerRenewal ?? getInputValue(farmerRenewalAllocation?.amount ?? 0));
   const targetBreakdown = getCustomerTargetBreakdown(customer, allocations, year);
   const otherPeopleHunterTotal = sumOtherPeopleAllocations(allocations, customer.id, personId, year, "hunter");
@@ -682,18 +707,35 @@ function buildRow(
     clientHunterTotal,
     clientFarmerRenewalTotal,
     clientTotal,
-    hunterGap: targetBreakdown.hunter - clientHunterTotal,
-    farmerRenewalGap: targetBreakdown.farmerRenewal - clientFarmerRenewalTotal,
+    hunterGap: clientHunterTotal - targetBreakdown.hunter,
+    farmerRenewalGap: clientFarmerRenewalTotal - targetBreakdown.farmerRenewal,
     hunterAllocation,
     farmerRenewalAllocation,
+    hunterOwnAmount,
+    studioHunterAmount,
     hunterAmount,
     farmerRenewalAmount,
-    hunterInput: getInputValue(hunterAllocation?.amount ?? 0),
+    hunterInput: getInputValue(savedHunterOwnAmount),
     farmerRenewalInput: getInputValue(farmerRenewalAllocation?.amount ?? 0),
     personTotal: hunterAmount + farmerRenewalAmount,
     clientStatus: getClientStatus(targetBreakdown, { hunter: clientHunterTotal, farmerRenewal: clientFarmerRenewalTotal }),
     source,
   };
+}
+
+function sumStudioHunterAllocations(
+  allocations: StudioTargetAllocation[],
+  customerId: string,
+  personId: string,
+  year: number,
+) {
+  return roundCurrency(allocations
+    .filter((allocation) =>
+      allocation.customerId === customerId
+      && allocation.hunterPersonId === personId
+      && allocation.year === year
+    )
+    .reduce((total, allocation) => total + allocation.hunterAmount, 0));
 }
 
 function findAllocation(
@@ -789,16 +831,24 @@ function getCustomerTargetBreakdown(customer: Customer, allocations: TargetAlloc
   };
 }
 
+function getExpectedBaseTotalForPerson(roleType: RoleType, rows: PersonTargetRow[]) {
+  return rows.reduce((total, row) => {
+    const hunterBase = isHunterRole(roleType) ? row.customerHunterTarget : 0;
+    const deliveryBase = roleType === "Hunter" ? 0 : row.customerFarmerRenewalTarget;
+    return total + hunterBase + deliveryBase;
+  }, 0);
+}
+
 function getGapTone(value: number) {
-  if (value < -0.01) return "over";
-  if (value > 0.01) return "pending";
+  if (value > 0.01) return "over";
+  if (value < -0.01) return "pending";
   return "ok";
 }
 
 function getGapClassName(value: number) {
   const tone = getGapTone(value);
-  if (tone === "over") return "text-red-700";
-  if (tone === "pending") return "text-amber-700";
+  if (tone === "over") return "text-emerald-700";
+  if (tone === "pending") return "text-red-700";
   return "text-emerald-700";
 }
 

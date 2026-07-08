@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Area, Customer, Person, StudioTargetAllocation, Subject, TargetAllocation } from "@/data/mockData";
+import type { Area, Customer, Person, PersonCompensation, StudioTargetAllocation, Subject, TargetAllocation } from "@/data/mockData";
 import { getActiveFromLifecycle } from "@/lib/lifecycle";
 
 const safeText = (label: string, max: number) =>
@@ -28,7 +28,7 @@ const personSchema = z.object({
   jobTitle: safeText("Cargo", 120),
   directorId: optionalText(120),
   managerId: optionalText(120),
-  roleType: z.enum(["Executive", "Director", "Farmer + Delivery", "Delivery", "Hunter", "Farmer", "Hunter + Farmer", "Staff"]),
+  roleType: z.enum(["Executive", "Director", "Farmer + Delivery", "Delivery", "Hunter", "Hunter Especializado", "Farmer", "Hunter + Farmer", "Staff"]),
   areaId: optionalText(120),
   clientIds: z.array(safeText("Cliente", 120)).max(100),
   photoUrl: z.union([
@@ -50,6 +50,15 @@ const areaSchema = z.object({
   id: safeText("Identificador", 120),
   name: safeText("Nome", 120),
   description: z.string().trim().max(500, "Descrição excede 500 caracteres."),
+});
+
+const personCompensationSchema = z.object({
+  personId: safeText("Pessoa", 120),
+  annualSalary: z.number().finite().min(0, "Salário mensal não pode ser negativo.").max(999999999),
+  currency: z.literal("BRL").default("BRL"),
+  effectiveFrom: z.iso.date("Data de vigência inválida."),
+  notes: optionalText(500),
+  updatedAt: z.string().optional(),
 });
 
 const customerSchema = z.object({
@@ -85,6 +94,7 @@ const targetAllocationSchema = z.object({
   type: z.enum(["hunter", "farmer_renewal", "studio"]),
   year: z.number().int("Ano deve ser inteiro.").min(2020, "Ano inválido.").max(2100, "Ano inválido."),
   amount: z.number().finite().min(0, "Valor da meta não pode ser negativo.").max(999999999999),
+  ownAmount: z.number().finite().min(0, "Valor da meta própria não pode ser negativo.").max(999999999999).optional(),
   notes: optionalText(2000),
 });
 
@@ -92,6 +102,7 @@ const studioTargetAllocationSchema = z.object({
   id: safeText("Identificador", 180),
   customerId: safeText("Cliente", 120),
   areaId: safeText("Área/Studio", 120),
+  hunterPersonId: optionalText(120),
   year: z.number().int("Ano deve ser inteiro.").min(2020, "Ano inválido.").max(2100, "Ano inválido."),
   hunterAmount: z.number().finite().min(0, "Valor Hunter não pode ser negativo.").max(999999999999),
   maintenanceAmount: z.number().finite().min(0, "Valor Manutenção/Renovação não pode ser negativo.").max(999999999999),
@@ -100,6 +111,10 @@ const studioTargetAllocationSchema = z.object({
 
 export function validatePerson(value: Person) {
   return parse(personSchema, value);
+}
+
+export function validatePersonCompensation(value: PersonCompensation) {
+  return parse(personCompensationSchema, value);
 }
 
 export function validateArea(value: Area) {

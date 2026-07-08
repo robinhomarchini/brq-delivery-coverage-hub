@@ -2,8 +2,9 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { areas as initialAreas, customers as initialCustomers, customerTargets as initialCustomerTargets, people as initialPeople, studioTargetAllocations as initialStudioTargetAllocations, subjects as initialSubjects, targetAllocations as initialTargetAllocations } from "@/data/mockData";
-import type { Area, Customer, CustomerTarget, Person, StudioTargetAllocation, Subject, TargetAllocation } from "@/data/mockData";
+import type { Area, Customer, CustomerTarget, Person, PersonCompensation, StudioTargetAllocation, Subject, TargetAllocation } from "@/data/mockData";
 import { boardTargetBaselineRows as initialBoardTargetBaselines, type BoardTargetBaselineRow } from "@/data/boardTargetBaseline";
+import type { StudioBaselineSnapshot } from "@/lib/studio-baseline-import";
 import { createSupabaseDeliveryRepository, localDeliveryRepository } from "@/lib/repositories";
 import type { AreaUsage, DeliveryRepository, PersonCustomerRemovalInput, PersonCustomerTargetsInput } from "@/lib/repositories";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
@@ -11,6 +12,7 @@ import { buildAreaUsages } from "@/lib/area-usage";
 
 interface DeliveryStoreValue {
   people: Person[];
+  personCompensations: PersonCompensation[];
   customers: Customer[];
   customerTargets: CustomerTarget[];
   subjects: Subject[];
@@ -19,12 +21,15 @@ interface DeliveryStoreValue {
   targetAllocations: TargetAllocation[];
   studioTargetAllocations: StudioTargetAllocation[];
   boardTargetBaselines: BoardTargetBaselineRow[];
+  studioBaselineSnapshots: StudioBaselineSnapshot[];
   loading: boolean;
   error: string;
   clearError: () => void;
   saveArea: (area: Area) => Promise<void>;
   deleteArea: (id: string) => Promise<void>;
   savePerson: (person: Person) => Promise<void>;
+  savePersonCompensation: (compensation: PersonCompensation) => Promise<void>;
+  deletePersonCompensation: (personId: string) => Promise<void>;
   deletePerson: (id: string) => Promise<void>;
   saveCustomer: (customer: Customer, targetYear?: number) => Promise<void>;
   saveCustomers: (customers: Customer[], targetYear?: number) => Promise<void>;
@@ -35,6 +40,7 @@ interface DeliveryStoreValue {
   deleteTargetAllocation: (id: string) => Promise<void>;
   saveStudioTargetAllocation: (allocation: StudioTargetAllocation) => Promise<void>;
   deleteStudioTargetAllocation: (id: string) => Promise<void>;
+  saveStudioBaselineSnapshot: (snapshot: Omit<StudioBaselineSnapshot, "id" | "createdAt">) => Promise<StudioBaselineSnapshot>;
   savePersonCustomerTargets: (input: PersonCustomerTargetsInput) => Promise<void>;
   removePersonCustomerTargets: (input: PersonCustomerRemovalInput) => Promise<void>;
 }
@@ -44,6 +50,7 @@ const DeliveryStoreContext = createContext<DeliveryStoreValue | null>(null);
 export function DeliveryStoreProvider({ children }: { children: React.ReactNode }) {
   const productionWithoutSupabase = process.env.NODE_ENV === "production" && !isSupabaseConfigured();
   const [people, setPeople] = useState<Person[]>(productionWithoutSupabase ? [] : initialPeople);
+  const [personCompensations, setPersonCompensations] = useState<PersonCompensation[]>([]);
   const [customers, setCustomers] = useState<Customer[]>(productionWithoutSupabase ? [] : initialCustomers);
   const [customerTargets, setCustomerTargets] = useState<CustomerTarget[]>(productionWithoutSupabase ? [] : initialCustomerTargets);
   const [subjects, setSubjects] = useState<Subject[]>(productionWithoutSupabase ? [] : initialSubjects);
@@ -52,6 +59,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
   const [targetAllocations, setTargetAllocations] = useState<TargetAllocation[]>(productionWithoutSupabase ? [] : initialTargetAllocations);
   const [studioTargetAllocations, setStudioTargetAllocations] = useState<StudioTargetAllocation[]>(productionWithoutSupabase ? [] : initialStudioTargetAllocations);
   const [boardTargetBaselines, setBoardTargetBaselines] = useState<BoardTargetBaselineRow[]>(productionWithoutSupabase ? [] : initialBoardTargetBaselines);
+  const [studioBaselineSnapshots, setStudioBaselineSnapshots] = useState<StudioBaselineSnapshot[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const repository = useMemo(
@@ -65,6 +73,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
       .then((data) => {
         if (!active) return;
         setPeople(data.people);
+        setPersonCompensations(data.personCompensations);
         setCustomers(data.customers);
         setCustomerTargets(data.customerTargets);
         setSubjects(data.subjects);
@@ -73,6 +82,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setTargetAllocations(data.targetAllocations);
         setStudioTargetAllocations(data.studioTargetAllocations);
         setBoardTargetBaselines(data.boardTargetBaselines);
+        setStudioBaselineSnapshots(data.studioBaselineSnapshots);
         setError("");
       })
       .catch((error) => setError(`Não foi possível carregar os dados persistidos. Nenhuma alteração será considerada salva. ${getErrorMessage(error)}`))
@@ -84,6 +94,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
 
   const value = useMemo<DeliveryStoreValue>(() => ({
     people,
+    personCompensations,
     customers,
     customerTargets,
     subjects,
@@ -92,6 +103,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
     targetAllocations,
     studioTargetAllocations,
     boardTargetBaselines,
+    studioBaselineSnapshots,
     loading,
     error,
     clearError: () => setError(""),
@@ -99,6 +111,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
       try {
         const data = await repository.saveArea(area);
         setPeople(data.people);
+        setPersonCompensations(data.personCompensations);
         setCustomers(data.customers);
         setCustomerTargets(data.customerTargets);
         setSubjects(data.subjects);
@@ -107,6 +120,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setTargetAllocations(data.targetAllocations);
         setStudioTargetAllocations(data.studioTargetAllocations);
         setBoardTargetBaselines(data.boardTargetBaselines);
+        setStudioBaselineSnapshots(data.studioBaselineSnapshots);
         setError("");
       } catch (error) {
         const message = `Não foi possível salvar a área/studio. ${getErrorMessage(error)}`;
@@ -118,6 +132,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
       try {
         const data = await repository.deleteArea(id);
         setPeople(data.people);
+        setPersonCompensations(data.personCompensations);
         setCustomers(data.customers);
         setCustomerTargets(data.customerTargets);
         setSubjects(data.subjects);
@@ -126,6 +141,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setTargetAllocations(data.targetAllocations);
         setStudioTargetAllocations(data.studioTargetAllocations);
         setBoardTargetBaselines(data.boardTargetBaselines);
+        setStudioBaselineSnapshots(data.studioBaselineSnapshots);
         setError("");
       } catch (error) {
         const message = `Não foi possível excluir a área/studio. ${getErrorMessage(error)}`;
@@ -137,6 +153,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
       try {
         const data = await repository.savePerson(person);
         setPeople(data.people);
+        setPersonCompensations(data.personCompensations);
         setCustomers(data.customers);
         setCustomerTargets(data.customerTargets);
         setSubjects(data.subjects);
@@ -145,9 +162,52 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setTargetAllocations(data.targetAllocations);
         setStudioTargetAllocations(data.studioTargetAllocations);
         setBoardTargetBaselines(data.boardTargetBaselines);
+        setStudioBaselineSnapshots(data.studioBaselineSnapshots);
         setError("");
       } catch (error) {
         const message = `Não foi possível salvar a pessoa. ${getErrorMessage(error)}`;
+        setError(message);
+        throw new Error(message);
+      }
+    },
+    savePersonCompensation: async (compensation) => {
+      try {
+        const data = await repository.savePersonCompensation(compensation);
+        setPeople(data.people);
+        setPersonCompensations(data.personCompensations);
+        setCustomers(data.customers);
+        setCustomerTargets(data.customerTargets);
+        setSubjects(data.subjects);
+        setAreas(data.areas);
+        setAreaUsages(data.areaUsages);
+        setTargetAllocations(data.targetAllocations);
+        setStudioTargetAllocations(data.studioTargetAllocations);
+        setBoardTargetBaselines(data.boardTargetBaselines);
+        setStudioBaselineSnapshots(data.studioBaselineSnapshots);
+        setError("");
+      } catch (error) {
+        const message = `Não foi possível salvar a remuneração. ${getErrorMessage(error)}`;
+        setError(message);
+        throw new Error(message);
+      }
+    },
+    deletePersonCompensation: async (personId) => {
+      try {
+        const data = await repository.deletePersonCompensation(personId);
+        setPeople(data.people);
+        setPersonCompensations(data.personCompensations);
+        setCustomers(data.customers);
+        setCustomerTargets(data.customerTargets);
+        setSubjects(data.subjects);
+        setAreas(data.areas);
+        setAreaUsages(data.areaUsages);
+        setTargetAllocations(data.targetAllocations);
+        setStudioTargetAllocations(data.studioTargetAllocations);
+        setBoardTargetBaselines(data.boardTargetBaselines);
+        setStudioBaselineSnapshots(data.studioBaselineSnapshots);
+        setError("");
+      } catch (error) {
+        const message = `Não foi possível remover a remuneração. ${getErrorMessage(error)}`;
         setError(message);
         throw new Error(message);
       }
@@ -156,6 +216,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
       try {
         await repository.deletePerson(id);
         setPeople((current) => current.filter((item) => item.id !== id));
+        setPersonCompensations((current) => current.filter((item) => item.personId !== id));
         setTargetAllocations((current) => current.filter((item) => item.personId !== id));
         setError("");
       } catch (error) {
@@ -168,6 +229,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
       try {
         const data = await repository.saveCustomer(customer, targetYear);
         setPeople(data.people);
+        setPersonCompensations(data.personCompensations);
         setCustomers(data.customers);
         setCustomerTargets(data.customerTargets);
         setSubjects(data.subjects);
@@ -176,6 +238,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setTargetAllocations(data.targetAllocations);
         setStudioTargetAllocations(data.studioTargetAllocations);
         setBoardTargetBaselines(data.boardTargetBaselines);
+        setStudioBaselineSnapshots(data.studioBaselineSnapshots);
         setError("");
       } catch (error) {
         const message = `Não foi possível salvar o cliente. ${getErrorMessage(error)}`;
@@ -187,6 +250,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
       try {
         const data = await repository.saveCustomers(items, targetYear);
         setPeople(data.people);
+        setPersonCompensations(data.personCompensations);
         setCustomers(data.customers);
         setCustomerTargets(data.customerTargets);
         setSubjects(data.subjects);
@@ -195,6 +259,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setTargetAllocations(data.targetAllocations);
         setStudioTargetAllocations(data.studioTargetAllocations);
         setBoardTargetBaselines(data.boardTargetBaselines);
+        setStudioBaselineSnapshots(data.studioBaselineSnapshots);
         setError("");
       } catch (error) {
         const message = `Não foi possível atualizar os clientes. ${getErrorMessage(error)}`;
@@ -282,10 +347,23 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         throw new Error(message);
       }
     },
+    saveStudioBaselineSnapshot: async (snapshot) => {
+      try {
+        const saved = await repository.saveStudioBaselineSnapshot(snapshot);
+        setStudioBaselineSnapshots((current) => [saved, ...current.filter((item) => item.id !== saved.id)]);
+        setError("");
+        return saved;
+      } catch (error) {
+        const message = `Não foi possível salvar a foto do baseline de studios. ${getErrorMessage(error)}`;
+        setError(message);
+        throw new Error(message);
+      }
+    },
     savePersonCustomerTargets: async (input) => {
       try {
         const data = await repository.savePersonCustomerTargets(input);
         setPeople(data.people);
+        setPersonCompensations(data.personCompensations);
         setCustomers(data.customers);
         setCustomerTargets(data.customerTargets);
         setSubjects(data.subjects);
@@ -294,6 +372,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setTargetAllocations(data.targetAllocations);
         setStudioTargetAllocations(data.studioTargetAllocations);
         setBoardTargetBaselines(data.boardTargetBaselines);
+        setStudioBaselineSnapshots(data.studioBaselineSnapshots);
         setError("");
       } catch (error) {
         const message = `Não foi possível salvar as metas da pessoa. ${getErrorMessage(error)}`;
@@ -305,6 +384,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
       try {
         const data = await repository.removePersonCustomerTargets(input);
         setPeople(data.people);
+        setPersonCompensations(data.personCompensations);
         setCustomers(data.customers);
         setCustomerTargets(data.customerTargets);
         setSubjects(data.subjects);
@@ -313,6 +393,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setTargetAllocations(data.targetAllocations);
         setStudioTargetAllocations(data.studioTargetAllocations);
         setBoardTargetBaselines(data.boardTargetBaselines);
+        setStudioBaselineSnapshots(data.studioBaselineSnapshots);
         setError("");
       } catch (error) {
         const message = `Não foi possível remover o cliente da pessoa. ${getErrorMessage(error)}`;
@@ -320,7 +401,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         throw new Error(message);
       }
     },
-  }), [areaUsages, areas, boardTargetBaselines, customerTargets, customers, error, loading, people, repository, studioTargetAllocations, subjects, targetAllocations]);
+  }), [areaUsages, areas, boardTargetBaselines, customerTargets, customers, error, loading, people, personCompensations, repository, studioBaselineSnapshots, studioTargetAllocations, subjects, targetAllocations]);
 
   return <DeliveryStoreContext.Provider value={value}>{children}</DeliveryStoreContext.Provider>;
 }
@@ -370,6 +451,12 @@ const unavailableProductionRepository: DeliveryRepository = {
   async savePerson() {
     throw new Error(productionConfigurationError);
   },
+  async savePersonCompensation() {
+    throw new Error(productionConfigurationError);
+  },
+  async deletePersonCompensation() {
+    throw new Error(productionConfigurationError);
+  },
   async deletePerson() {
     throw new Error(productionConfigurationError);
   },
@@ -398,6 +485,9 @@ const unavailableProductionRepository: DeliveryRepository = {
     throw new Error(productionConfigurationError);
   },
   async deleteStudioTargetAllocation() {
+    throw new Error(productionConfigurationError);
+  },
+  async saveStudioBaselineSnapshot() {
     throw new Error(productionConfigurationError);
   },
   async savePersonCustomerTargets() {

@@ -1,0 +1,227 @@
+project:
+  name: BRQ Delivery Coverage Hub
+  type: internal_executive_web_app
+  canonical_root: "C:\\Users\\rmarchini\\projetos\\OrgBRQDelivery"
+
+orchestrator:
+  role: Tech Lead
+  behavior:
+    - understand_user_request
+    - inspect_existing_project_before_changes
+    - identify_impacted_layers
+    - create_execution_checklist
+    - reason_with_specialist_review_lenses
+    - consolidate_solution
+    - require_evidence_before_completion
+  memory_file: .squad/memory.md
+  contract_file: .squad/config.yaml
+  context_policy:
+    summary_first: true
+    global_policy: "C:\\Users\\rmarchini\\.codex\\CONTEXT_POLICY.md"
+    local_ignore: .codexignore
+    read_before_source:
+      - docs/context-strategy.md
+      - docs/project-memory.md
+      - docs/business-rules.md
+    avoid_loading:
+      - node_modules
+      - .next
+      - .npm-cache
+      - logs
+      - tmp
+      - output
+      - generated_assets
+      - binary_artifacts
+      - lockfile_diffs_unless_dependency_task
+
+frontend:
+  stack:
+    - Next.js App Router
+    - React
+    - TypeScript
+    - Tailwind CSS
+    - shadcn-style UI primitives
+    - Recharts
+    - lucide-react
+  conventions:
+    user_facing_language: pt-BR
+    code_language: English identifiers
+    primitives_path: src/components/ui
+    shared_components_path: src/components/shared
+    ux_quality_gate:
+      - scroll_behavior
+      - alignment
+      - spacing
+      - header_and_total_cards_alignment
+      - responsive_behavior
+      - empty_loading_error_states
+      - keyboard_navigation
+      - accessibility_labels
+      - visual_hierarchy
+      - design_system_consistency
+      - overflow_and_clipping
+
+backend:
+  stack:
+    - Next.js route handlers
+    - repository contracts
+    - Supabase adapter
+    - local mock adapter for development fallback
+  api_style: internal API routes and repository methods
+  conventions:
+    data_access_boundary: src/lib/repositories
+    server_side_sensitive_operations: required for service role or secrets
+    validation: zod where applicable
+    transactional_consistency: prefer backend RPC/API for multi-write rules
+
+database:
+  engine: Supabase Postgres
+  migration_tool: Supabase CLI
+  migrations_path: supabase/migrations
+  command_pattern: "npx --cache .npm-cache --yes supabase <command> --linked"
+  rules:
+    - use_migration_list_before_db_push
+    - use_repair_only_after_confirming_schema_applied
+    - treat_cache_network_telemetry_failures_as_tool_failures_until_proven_schema_drift
+    - preserve_normalized_sources_of_truth
+    - include_period_year_and_grain_for_financial_facts
+
+architecture:
+  pattern: Next.js frontend with repository boundary and Supabase-backed persistence
+  domain_source_of_truth:
+    people_clients: normalized relationship tables where available
+    customer_targets: customer_id_plus_year
+    person_targets: revenue_target_allocations
+    studio_targets: studio_target_allocations
+    compensation: person_compensations
+  principles:
+    - SDD_before_non_trivial_changes
+    - docs_and_specs_updated_when_behavior_changes
+    - no_hardcoded_operational_people_clients_areas_studios
+    - derived_values_must_name_source_facts
+    - frontend_may_hide_controls_but_backend_database_must_enforce_security
+
+authentication:
+  model: Supabase Auth with nominal BRQ users
+  domain_restriction: "@brq.com"
+  authorization:
+    - app_roles
+    - RLS
+    - admin_and_vp_controls_for_sensitive_compensation
+  service_role_policy: backend_only_never_browser_identity
+
+testing:
+  framework:
+    lint: ESLint
+    typecheck: TypeScript
+    build: Next.js build
+    smoke: custom node smoke scripts
+  commands:
+    lint: npm run lint
+    typecheck: npm run typecheck
+    build: npm run build
+    smoke_critical: npm run smoke:critical
+    migrations_check: npm run db:migrations:check
+  expectation:
+    material_change:
+      - lint
+      - typecheck
+      - build
+    persistence_change_customer_person_target:
+      - smoke_critical
+    schema_or_rls_change:
+      - migrations_check
+
+security:
+  required_checks:
+    - authentication
+    - authorization
+    - RLS
+    - IDOR
+    - injection
+    - secrets_not_exposed
+    - sensitive_data_access
+    - dependency_risk
+    - auditability
+    - rollback_strategy
+
+deployment:
+  platform: Vercel
+  production_url: https://brq-delivery-coverage-hub.vercel.app
+  command: npx vercel deploy --prod
+  pre_deploy:
+    - npm run lint
+    - npm run typecheck
+    - npm run build
+    - npm run smoke:critical when applicable
+
+git_workflow:
+  style: dirty_worktree_safe
+  rules:
+    - do_not_revert_user_changes
+    - inspect_diff_before_completion
+    - suggest_conventional_commit
+    - avoid_destructive_commands_without_explicit_request
+
+specialist_review_lenses:
+  product_domain_model:
+    - business_rules
+    - entities_relationships_facts
+    - state_transitions
+    - edge_cases
+  architecture:
+    - boundaries
+    - dependencies
+    - scalability
+    - tradeoffs
+  database:
+    - schema
+    - migrations
+    - constraints
+    - indexes
+    - referential_integrity
+    - rollback
+  backend:
+    - APIs
+    - services
+    - validation
+    - error_handling
+    - transactions
+  frontend_ux:
+    - usability
+    - layout
+    - responsiveness
+    - loading_empty_error_states
+    - scroll
+    - keyboard
+    - accessibility
+  security:
+    - authn_authz
+    - RLS
+    - secrets
+    - sensitive_data
+  tests:
+    - unit
+    - integration
+    - e2e
+    - mocks
+    - fixtures
+    - realistic_business_scenarios
+  documentation:
+    - specs
+    - ADRs
+    - diagrams
+    - glossary
+  code_review:
+    - final_diff
+    - regressions
+    - missing_tests
+    - evidence
+
+final_response_contract:
+  sections:
+    - Summary
+    - Impacted Areas
+    - Evidence
+    - Risks / Pending Items
+    - Suggested Next Step

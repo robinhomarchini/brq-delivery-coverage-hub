@@ -25,10 +25,11 @@ import {
 } from "recharts";
 import { useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
+import { KpiSummaryCard } from "@/components/shared/kpi-summary-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useDeliveryStore } from "@/store/delivery-store";
 import { exportDeliveryDataAsCsv, exportElementAsPdf } from "@/lib/export";
-import { formatCurrency } from "@/lib/utils";
+import { cn, formatCompactCurrency, formatCurrency } from "@/lib/utils";
 import { translateRole } from "@/lib/roles";
 import { applyCustomerTargetsForYear, defaultTargetYear } from "@/lib/customer-targets";
 import { getBoardTargetBaselineTotals, getRegisteredTargetTotals } from "@/lib/board-target-baseline";
@@ -128,50 +129,46 @@ export function ExecutiveDashboard() {
   ];
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
+    <div className="min-w-0 space-y-4">
+      <div className="flex min-w-0 flex-col items-stretch justify-between gap-3 lg:flex-row lg:items-end">
+        <div className="min-w-0">
           <p className="text-xs uppercase tracking-[0.18em] text-brq-purple">Visão executiva</p>
           <h1 className="mt-1 text-2xl font-semibold tracking-[-0.035em] text-brq-ink lg:text-4xl">Cobertura que importa</h1>
           <p className="mt-2 text-sm text-slate-500">Estrutura, clientes e metas para decisões mais rápidas.</p>
         </div>
-        <div className="flex flex-wrap items-center justify-end gap-2" data-no-print="true">
-          <div className="mr-1 rounded-lg border bg-white px-4 py-2 text-right">
+        <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end" data-no-print="true">
+          <div className="min-w-0 rounded-lg border bg-white px-4 py-2 text-left sm:mr-1 sm:text-right">
             <p className="text-[10px] uppercase tracking-wider text-slate-400">Meta Board 2026</p>
-            <p className="text-lg font-bold text-brq-purple">{formatCurrency(totalRevenue)}</p>
+            <p className="truncate text-lg font-bold text-brq-purple" title={formatCurrency(totalRevenue)}>{formatCompactCurrency(totalRevenue)}</p>
           </div>
-            <Button variant="outline" onClick={() => exportDeliveryDataAsCsv(people, customers)}>
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => exportDeliveryDataAsCsv(people, customers)}>
               <Download className="h-4 w-4" /> Exportar dados CSV
             </Button>
-            <Button onClick={() => exportElementAsPdf("executive-dashboard", "dashboard-executivo-brq.pdf")}>
+            <Button className="w-full sm:w-auto" onClick={() => exportElementAsPdf("executive-dashboard", "dashboard-executivo-brq.pdf")}>
               <FileDown className="h-4 w-4" /> Exportar dashboard PDF
             </Button>
         </div>
       </div>
 
-      <div id="executive-dashboard" className="space-y-4 rounded-xl">
-        <section className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-8">
+      <div id="executive-dashboard" className="min-w-0 space-y-4 rounded-xl">
+        <section className="grid min-w-0 grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-8">
           {kpis.map(({ label, value, icon: Icon, farmer }) => (
-            <Card key={label} className="overflow-hidden">
-              <CardContent className="flex items-center gap-3 p-4">
-                <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg ${farmer ? "bg-brq-ink text-white" : "bg-purple-50 text-brq-purple"}`}>
-                  <Icon className="h-5 w-5" />
-                </div>
-                <div>
-                  <p className="text-[10px] font-medium uppercase tracking-wider text-slate-400">{label}</p>
-                  <p className="text-2xl font-bold text-slate-950">{value}</p>
-                </div>
-              </CardContent>
-            </Card>
+            <KpiSummaryCard
+              key={label}
+              label={label}
+              value={value}
+              icon={Icon}
+              tone={farmer ? "dark" : "purple"}
+            />
           ))}
         </section>
 
-        <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-          <FinancialKpi label="Meta Board 2026" value={formatCurrency(boardTotals.totalTarget)} icon={Target} />
-          <FinancialKpi label="Board Hunter" value={formatCurrency(boardTotals.hunterTarget)} icon={UserCog} />
-          <FinancialKpi label="Board Renov. + Ampl." value={formatCurrency(boardTotals.farmerRenewalTarget)} icon={BriefcaseBusiness} />
-          <FinancialKpi label="Cadastrado no sistema" value={formatCurrency(registeredTotals.totalTarget)} icon={Building2} />
-          <FinancialKpi label="Diferença cadastro vs board" value={formatCurrency(registeredDelta)} icon={TrendingUp} tone={registeredDelta < -0.01 ? "danger" : registeredDelta > 0.01 ? "ok" : "default"} />
+        <section className="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-5">
+          <FinancialKpi label="Meta Board 2026" currencyValue={boardTotals.totalTarget} icon={Target} />
+          <FinancialKpi label="Board Hunter" currencyValue={boardTotals.hunterTarget} icon={UserCog} />
+          <FinancialKpi label="Board Renov. + Ampl." currencyValue={boardTotals.farmerRenewalTarget} icon={BriefcaseBusiness} />
+          <FinancialKpi label="Cadastrado no sistema" currencyValue={registeredTotals.totalTarget} icon={Building2} />
+          <FinancialKpi label="Diferença cadastro vs board" currencyValue={registeredDelta} icon={TrendingUp} tone={registeredDelta < -0.01 ? "danger" : registeredDelta > 0.01 ? "ok" : "neutral"} />
         </section>
 
         <ChartCard title="Visão Financeira por Cliente">
@@ -188,7 +185,7 @@ export function ExecutiveDashboard() {
           </ResponsiveContainer> : <ChartPlaceholder />}
         </ChartCard>
 
-        <section className="grid gap-4 lg:grid-cols-2">
+        <section className="grid min-w-0 gap-4 lg:grid-cols-2">
           <ChartCard title="Visão Financeira por Diretor">
             {chartsReady ? <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
               <BarChart data={financialByDirector} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
@@ -220,7 +217,7 @@ export function ExecutiveDashboard() {
           </ChartCard>
         </section>
 
-        <section className="grid gap-4 lg:grid-cols-3">
+        <section className="grid min-w-0 gap-4 lg:grid-cols-3">
           <ChartCard title="Distribuição por Perfil">
             {chartsReady ? <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
               <PieChart>
@@ -234,7 +231,7 @@ export function ExecutiveDashboard() {
           </ChartCard>
         </section>
 
-        <section className="grid gap-4 lg:grid-cols-2">
+        <section className="grid min-w-0 gap-4 lg:grid-cols-2">
           <ChartCard title="Clientes por Manager">
             {chartsReady ? <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
               <BarChart data={clientsByManager} layout="vertical" margin={{ top: 0, right: 10, left: 15, bottom: 0 }}>
@@ -270,43 +267,16 @@ function ChartPlaceholder() {
 
 function FinancialKpi({
   label,
-  value,
+  currencyValue,
   icon: Icon,
-  tone = "default",
+  tone = "purple",
 }: {
   label: string;
-  value: string;
+  currencyValue: number;
   icon: React.ElementType;
-  tone?: "default" | "ok" | "warning" | "danger";
+  tone?: "neutral" | "purple" | "ok" | "warning" | "danger";
 }) {
-  const toneClassName = tone === "ok"
-    ? "border-emerald-100 bg-gradient-to-br from-white to-emerald-50/60"
-    : tone === "warning"
-      ? "border-amber-100 bg-gradient-to-br from-white to-amber-50/60"
-      : tone === "danger"
-        ? "border-red-100 bg-gradient-to-br from-white to-red-50/60"
-        : "border-purple-100 bg-gradient-to-br from-white to-purple-50/50";
-  const iconClassName = tone === "ok"
-    ? "bg-emerald-600"
-    : tone === "warning"
-      ? "bg-amber-600"
-      : tone === "danger"
-        ? "bg-red-600"
-        : "bg-brq-purple";
-
-  return (
-    <Card className={`overflow-hidden ${toneClassName}`}>
-      <CardContent className="flex items-center gap-3 p-4">
-        <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg text-white ${iconClassName}`}>
-          <Icon className="h-5 w-5" />
-        </div>
-        <div>
-          <p className="text-[10px] font-medium uppercase tracking-wider text-slate-400">{label}</p>
-          <p className="text-lg font-black text-slate-950">{value}</p>
-        </div>
-      </CardContent>
-    </Card>
-  );
+  return <KpiSummaryCard label={label} currencyValue={currencyValue} icon={Icon} tone={tone} />;
 }
 
 function getCustomerTarget(customer: { hunterTarget: number; farmerRenewalTarget: number; studioTarget: number }) {
@@ -325,7 +295,7 @@ function subscribeToHydration() {
 
 function ChartCard({ title, className, children }: { title: string; className?: string; children: React.ReactNode }) {
   return (
-    <Card className={className}>
+    <Card className={cn("min-w-0 overflow-hidden", className)}>
       <CardHeader className="p-5 pb-2">
         <CardTitle className="text-base">{title}</CardTitle>
       </CardHeader>

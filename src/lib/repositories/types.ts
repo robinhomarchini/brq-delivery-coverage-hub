@@ -1,5 +1,6 @@
-import type { Area, Customer, CustomerTarget, Person, StudioTargetAllocation, Subject, TargetAllocation } from "@/data/mockData";
+import type { Area, Customer, CustomerTarget, Person, PersonCompensation, StudioTargetAllocation, Subject, TargetAllocation } from "@/data/mockData";
 import type { BoardTargetBaselineRow } from "@/data/boardTargetBaseline";
+import type { StudioBaselineSnapshot } from "@/lib/studio-baseline-import";
 
 export interface AreaUsage {
   areaId: string;
@@ -12,6 +13,7 @@ export interface PersonCustomerTargetsInput {
   personId: string;
   year: number;
   hunterAmount: number;
+  hunterOwnAmount?: number;
   farmerRenewalAmount: number;
   studioAmount: number;
   increaseCustomerTarget: boolean;
@@ -25,6 +27,7 @@ export interface PersonCustomerRemovalInput {
 
 export interface DeliveryData {
   people: Person[];
+  personCompensations: PersonCompensation[];
   customers: Customer[];
   customerTargets: CustomerTarget[];
   subjects: Subject[];
@@ -33,6 +36,7 @@ export interface DeliveryData {
   targetAllocations: TargetAllocation[];
   studioTargetAllocations: StudioTargetAllocation[];
   boardTargetBaselines: BoardTargetBaselineRow[];
+  studioBaselineSnapshots: StudioBaselineSnapshot[];
 }
 
 export interface DeliveryRepository {
@@ -40,6 +44,8 @@ export interface DeliveryRepository {
   saveArea(area: Area): Promise<DeliveryData>;
   deleteArea(id: string): Promise<DeliveryData>;
   savePerson(person: Person): Promise<DeliveryData>;
+  savePersonCompensation(compensation: PersonCompensation): Promise<DeliveryData>;
+  deletePersonCompensation(personId: string): Promise<DeliveryData>;
   deletePerson(id: string): Promise<void>;
   saveCustomer(customer: Customer, targetYear?: number): Promise<DeliveryData>;
   saveCustomers(customers: Customer[], targetYear?: number): Promise<DeliveryData>;
@@ -50,6 +56,7 @@ export interface DeliveryRepository {
   deleteTargetAllocation(id: string): Promise<void>;
   saveStudioTargetAllocation(allocation: StudioTargetAllocation): Promise<StudioTargetAllocation>;
   deleteStudioTargetAllocation(id: string): Promise<void>;
+  saveStudioBaselineSnapshot(snapshot: Omit<StudioBaselineSnapshot, "id" | "createdAt">): Promise<StudioBaselineSnapshot>;
   savePersonCustomerTargets(input: PersonCustomerTargetsInput): Promise<DeliveryData>;
   removePersonCustomerTargets(input: PersonCustomerRemovalInput): Promise<DeliveryData>;
 }

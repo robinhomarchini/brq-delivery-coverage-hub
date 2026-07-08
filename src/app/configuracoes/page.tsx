@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, LoaderCircle, Pencil, ShieldAlert, ShieldCheck, Trash2, UserPlus } from "lucide-react";
+import { FileSpreadsheet, LoaderCircle, Pencil, ShieldAlert, ShieldCheck, Trash2, UserPlus } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { ErrorNotice, SuccessNotice } from "@/components/shared/success-notice";
@@ -10,9 +10,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useDeliveryStore } from "@/store/delivery-store";
 import {
   accessRoles,
-  approveAccessUser,
   deactivateAccessUser,
   deleteAccessUser,
   isBrqEmail,
@@ -26,6 +26,8 @@ import {
 } from "@/lib/access-control";
 import { useAccess } from "@/lib/access-context";
 import { notifyAccessUsersChanged } from "@/lib/access-events";
+import { defaultTargetYear } from "@/lib/customer-targets";
+import { exportAdminBaseWorkbook } from "@/lib/export";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
 const initialForm = {
@@ -37,9 +39,11 @@ const initialForm = {
 export default function SettingsPage() {
   const client = getSupabaseBrowserClient();
   const { accessUser, isAdmin, loadingAccess, refreshAccess } = useAccess();
+  const { people, customers, areas, subjects, customerTargets, targetAllocations, studioTargetAllocations } = useDeliveryStore();
   const [users, setUsers] = useState<AccessUser[]>([]);
   const [form, setForm] = useState(initialForm);
   const [editingEmail, setEditingEmail] = useState<string | null>(null);
+  const [exportYear, setExportYear] = useState(String(defaultTargetYear));
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
@@ -48,6 +52,15 @@ export default function SettingsPage() {
   const sortedUsers = useMemo(
     () => users.slice().sort((first, second) => first.email.localeCompare(second.email, "pt-BR")),
     [users],
+  );
+  const exportYears = useMemo(
+    () => Array.from(new Set([
+      defaultTargetYear,
+      ...customerTargets.map((target) => target.year),
+      ...targetAllocations.map((allocation) => allocation.year),
+      ...studioTargetAllocations.map((allocation) => allocation.year),
+    ])).sort((first, second) => second - first),
+    [customerTargets, studioTargetAllocations, targetAllocations],
   );
 
   useEffect(() => {
@@ -158,25 +171,6 @@ export default function SettingsPage() {
     }
   }
 
-  async function handleApprove(user: AccessUser) {
-    if (!client) return;
-    setNotice("");
-    setError("");
-    setSaving(true);
-    try {
-      await approveAccessUser(client, user);
-      await refreshUsersAndAccess();
-      setNotice(`Acesso de ${user.email} aprovado com sucesso.`);
-      if (editingEmail === user.email) {
-        setForm({ ...form, active: true });
-      }
-    } catch (approveError) {
-      setError(getErrorMessage(approveError, "Não foi possível aprovar o usuário."));
-    } finally {
-      setSaving(false);
-    }
-  }
-
   async function handleDelete(user: AccessUser) {
     if (!client) return;
     if (user.email === accessUser?.email) {
@@ -221,6 +215,22 @@ export default function SettingsPage() {
     setError("");
   }
 
+  function handleExportBase() {
+    const year = Number(exportYear) || defaultTargetYear;
+    exportAdminBaseWorkbook({
+      year,
+      people,
+      customers,
+      areas,
+      subjects,
+      customerTargets,
+      targetAllocations,
+      studioTargetAllocations,
+    });
+    setNotice(`Base operacional de ${year} exportada sem dados de remuneração.`);
+    window.setTimeout(() => setNotice(""), 4000);
+  }
+
   const editingCurrentUser = editingEmail === accessUser?.email;
 
   return (
@@ -228,7 +238,7 @@ export default function SettingsPage() {
       <PageHeader
         eyebrow="Administração"
         title="Configurações"
-        description="Gerencie o acesso corporativo ao Delivery Coverage Hub com pré-cadastro, primeiro login e aprovação final."
+        description="Gerencie o acesso corporativo ao Delivery Coverage Hub com pré-cadastro ativo, bloqueio e papéis de acesso."
       />
 
       {notice && <SuccessNotice message={notice} floating />}
@@ -243,7 +253,7 @@ export default function SettingsPage() {
               </div>
               <div>
                 <CardTitle>{editingEmail ? "Editar usuário" : "Pré-cadastrar usuário"}</CardTitle>
-                <CardDescription className="mt-1">Use apenas e-mails corporativos BRQ. O usuário ainda precisará do seu OK após o primeiro login.</CardDescription>
+                <CardDescription className="mt-1">Use apenas e-mails corporativos BRQ. Pré-cadastro ativo libera o usuário depois que ele criar a senha.</CardDescription>
               </div>
             </div>
           </CardHeader>
@@ -286,7 +296,7 @@ export default function SettingsPage() {
                   onChange={(event) => setForm((current) => ({ ...current, active: event.target.checked }))}
                   disabled={saving || editingCurrentUser}
                 />
-                {editingCurrentUser ? "Usuário atual mantido ativo" : "Convite habilitado / usuário aprovado"}
+                {editingCurrentUser ? "Usuário atual mantido ativo" : "Pré-cadastro ativo / acesso liberado"}
               </label>
 
               <div className="flex flex-wrap gap-2">
@@ -306,7 +316,7 @@ export default function SettingsPage() {
           <CardHeader className="flex-row items-start justify-between gap-4 space-y-0">
             <div>
               <CardTitle>Usuários e convites</CardTitle>
-              <CardDescription className="mt-1">Pré-cadastrado aguarda primeiro login. Aguardando aprovação exige seu OK final para liberar acesso.</CardDescription>
+              <CardDescription className="mt-1">Pré-cadastrado ativo entra após criar a senha. Desative o acesso para bloquear entrada.</CardDescription>
             </div>
             <Button type="button" variant="secondary" onClick={loadUsers} disabled={loading || saving}>
               {loading ? <LoaderCircle className="h-4 w-4 animate-spin" /> : null}
@@ -344,7 +354,12 @@ export default function SettingsPage() {
                   )}
 
                   {!loading && sortedUsers.map((user) => (
-                    <TableRow key={user.email}>
+                    <TableRow
+                      key={user.email}
+                      className="cursor-pointer"
+                      title="Duplo clique para editar"
+                      onDoubleClick={() => startEditing(user)}
+                    >
                       <TableCell>
                         <div className="font-semibold text-slate-900">{user.email}</div>
                         <div className="text-xs text-slate-400">{getAccessHelperText(user)}</div>
@@ -356,18 +371,12 @@ export default function SettingsPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={user.active ? "success" : user.status === "approval_pending" ? "warning" : "secondary"}>
-                          {user.active ? "Liberado" : user.status === "approval_pending" ? "Aguardando OK" : "Sem acesso"}
+                        <Badge variant={user.active ? "success" : "secondary"}>
+                          {user.active ? "Liberado" : "Sem acesso"}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          {user.status === "approval_pending" && (
-                            <Button type="button" variant="default" onClick={() => handleApprove(user)} disabled={saving}>
-                              <CheckCircle2 className="h-4 w-4" />
-                              Aprovar
-                            </Button>
-                          )}
                           <Button type="button" variant="secondary" onClick={() => startEditing(user)} disabled={saving}>
                             <Pencil className="h-4 w-4" />
                             Editar
@@ -395,6 +404,34 @@ export default function SettingsPage() {
             </div>
           </CardContent>
         </Card>
+
+        <Card className="shadow-sm xl:col-span-2">
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="grid h-11 w-11 place-items-center rounded-xl bg-sky-50 text-sky-700">
+                <FileSpreadsheet className="h-5 w-5" />
+              </div>
+              <div>
+                <CardTitle>Exportar base operacional</CardTitle>
+                <CardDescription className="mt-1">Gera uma pasta Excel por ano com dados operacionais. Remuneração e salário não entram nesta exportação.</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col gap-3 md:flex-row md:items-end">
+              <div className="w-full md:max-w-xs">
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500" htmlFor="base-export-year">Ano</label>
+                <Select id="base-export-year" value={exportYear} onChange={(event) => setExportYear(event.target.value)}>
+                  {exportYears.map((year) => <option key={year} value={year}>{year}</option>)}
+                </Select>
+              </div>
+              <Button type="button" onClick={handleExportBase}>
+                <FileSpreadsheet className="h-4 w-4" />
+                Exportar base
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </>
   );
@@ -412,7 +449,7 @@ function translateAccessStatus(status: AccessStatus) {
   const labels: Record<AccessStatus, string> = {
     active: "Ativo",
     invited: "Pré-cadastrado",
-    approval_pending: "Aguardando aprovação",
+    approval_pending: "Pré-cadastrado ativo",
     blocked: "Bloqueado",
     pending: "Pré-cadastrado",
   };
@@ -422,14 +459,13 @@ function translateAccessStatus(status: AccessStatus) {
 
 function getAccessStatusVariant(status: AccessStatus) {
   if (status === "active") return "success";
-  if (status === "approval_pending") return "warning";
   if (status === "blocked") return "destructive";
   return "secondary";
 }
 
 function getAccessHelperText(user: AccessUser) {
-  if (user.status === "active") return "Conta autenticada e aprovada";
-  if (user.status === "approval_pending") return "Primeiro login realizado; aguardando aprovação";
+  if (user.status === "active") return "Conta autenticada e liberada";
+  if (user.status === "approval_pending") return "Primeiro login realizado; acesso será normalizado automaticamente";
   if (user.status === "blocked") return user.userId ? "Conta autenticada sem acesso" : "Convite bloqueado";
   return "Aguardando primeiro login";
 }

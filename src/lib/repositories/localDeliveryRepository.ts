@@ -1,8 +1,9 @@
 import { areas, customers, customerTargets, people, studioTargetAllocations, subjects, targetAllocations } from "@/data/mockData";
 import { boardTargetBaselineRows } from "@/data/boardTargetBaseline";
-import type { Area, Customer, Person, StudioTargetAllocation, Subject, TargetAllocation } from "@/data/mockData";
+import type { Area, Customer, Person, PersonCompensation, StudioTargetAllocation, Subject, TargetAllocation } from "@/data/mockData";
 import type { DeliveryData, DeliveryRepository, PersonCustomerRemovalInput, PersonCustomerTargetsInput } from "./types";
-import { validateArea, validateCustomer, validatePerson, validateStudioTargetAllocation, validateSubject, validateTargetAllocation } from "@/lib/validation";
+import type { StudioBaselineSnapshot } from "@/lib/studio-baseline-import";
+import { validateArea, validateCustomer, validatePerson, validatePersonCompensation, validateStudioTargetAllocation, validateSubject, validateTargetAllocation } from "@/lib/validation";
 import { buildAreaUsages } from "@/lib/area-usage";
 import {
   applyCoverageAssignments,
@@ -15,6 +16,7 @@ import { normalizeBusinessName } from "@/lib/utils";
 export class LocalDeliveryRepository implements DeliveryRepository {
   private data: DeliveryData = {
     people: structuredClone(people),
+    personCompensations: [],
     customers: structuredClone(customers),
     customerTargets: structuredClone(customerTargets),
     subjects: structuredClone(subjects),
@@ -23,6 +25,7 @@ export class LocalDeliveryRepository implements DeliveryRepository {
     targetAllocations: structuredClone(targetAllocations),
     studioTargetAllocations: structuredClone(studioTargetAllocations),
     boardTargetBaselines: structuredClone(boardTargetBaselineRows),
+    studioBaselineSnapshots: [],
   };
   private assignments: CoverageAssignment[] = buildAssignmentsFromCoverage(this.data.people, this.data.customers);
 
@@ -55,7 +58,6 @@ export class LocalDeliveryRepository implements DeliveryRepository {
 
   async savePerson(person: Person) {
     person = validatePerson(person);
-    ensureHunterAssignmentsAvailable(this.data.people, this.assignments, person);
     this.assignments = [
       ...this.assignments.filter((assignment) => assignment.personId !== person.id),
       ...person.clientIds.map((customerId) => ({ personId: person.id, customerId })),
@@ -64,10 +66,28 @@ export class LocalDeliveryRepository implements DeliveryRepository {
     return this.getAll();
   }
 
+  async savePersonCompensation(compensation: PersonCompensation) {
+    compensation = validatePersonCompensation(compensation);
+    this.data.personCompensations = upsertByPersonId(this.data.personCompensations, {
+      ...compensation,
+      updatedAt: new Date().toISOString(),
+    });
+    return this.getAll();
+  }
+
+  async deletePersonCompensation(personId: string) {
+    this.data.personCompensations = this.data.personCompensations.filter((item) => item.personId !== personId);
+    return this.getAll();
+  }
+
   async deletePerson(id: string) {
     this.data.people = this.data.people.filter((item) => item.id !== id);
+    this.data.personCompensations = this.data.personCompensations.filter((item) => item.personId !== id);
     this.assignments = this.assignments.filter((assignment) => assignment.personId !== id);
     this.data.targetAllocations = this.data.targetAllocations.filter((item) => item.personId !== id);
+    this.data.studioTargetAllocations = this.data.studioTargetAllocations.map((allocation) =>
+      allocation.hunterPersonId === id ? { ...allocation, hunterPersonId: undefined } : allocation
+    );
   }
 
   async saveCustomer(customer: Customer, targetYear = 2026) {
@@ -140,7 +160,6 @@ export class LocalDeliveryRepository implements DeliveryRepository {
   async saveTargetAllocation(allocation: TargetAllocation) {
     allocation = validateTargetAllocation(allocation);
     ensureUniqueTargetAllocation(this.data.targetAllocations, allocation);
-    ensureCustomerTargetNotExceeded(this.data.customers, this.data.targetAllocations, allocation);
     this.data.targetAllocations = upsert(this.data.targetAllocations, allocation);
     return structuredClone(allocation);
   }
@@ -154,6 +173,7 @@ export class LocalDeliveryRepository implements DeliveryRepository {
     const existing = this.data.studioTargetAllocations.find((item) =>
       item.customerId === allocation.customerId
       && item.areaId === allocation.areaId
+      && (item.hunterPersonId ?? "") === (allocation.hunterPersonId ?? "")
       && item.year === allocation.year
     );
     const nextAllocation = {
@@ -161,11 +181,29 @@ export class LocalDeliveryRepository implements DeliveryRepository {
       id: existing?.id ?? allocation.id,
     };
     this.data.studioTargetAllocations = upsert(this.data.studioTargetAllocations, nextAllocation);
+    this.syncHunterTargetTotal(nextAllocation.customerId, nextAllocation.hunterPersonId, nextAllocation.year);
+    if (existing?.hunterPersonId && existing.hunterPersonId !== nextAllocation.hunterPersonId) {
+      this.syncHunterTargetTotal(existing.customerId, existing.hunterPersonId, existing.year);
+    }
     return structuredClone(nextAllocation);
   }
 
   async deleteStudioTargetAllocation(id: string) {
+    const existing = this.data.studioTargetAllocations.find((item) => item.id === id);
     this.data.studioTargetAllocations = this.data.studioTargetAllocations.filter((item) => item.id !== id);
+    if (existing) {
+      this.syncHunterTargetTotal(existing.customerId, existing.hunterPersonId, existing.year);
+    }
+  }
+
+  async saveStudioBaselineSnapshot(snapshot: Omit<StudioBaselineSnapshot, "id" | "createdAt">) {
+    const saved = {
+      ...snapshot,
+      id: `studio-baseline-snapshot-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+    };
+    this.data.studioBaselineSnapshots = [saved, ...this.data.studioBaselineSnapshots];
+    return structuredClone(saved);
   }
 
   async savePersonCustomerTargets(input: PersonCustomerTargetsInput) {
@@ -178,7 +216,9 @@ export class LocalDeliveryRepository implements DeliveryRepository {
     const customer = this.data.customers.find((item) => item.id === input.customerId);
     if (!customer) throw new Error("Cliente não encontrado para a meta.");
 
-    const nextHunterAmount = sanitizeAmount(input.hunterAmount);
+    const studioHunterAmount = this.getStudioHunterAmount(input.customerId, input.personId, input.year);
+    const nextHunterOwnAmount = sanitizeAmount(input.hunterOwnAmount ?? Math.max(input.hunterAmount - studioHunterAmount, 0));
+    const nextHunterAmount = roundCurrency(nextHunterOwnAmount + studioHunterAmount);
     const nextFarmerRenewalAmount = sanitizeAmount(input.farmerRenewalAmount);
     const nextStudioAmount = 0;
     const otherHunterTotal = this.data.targetAllocations
@@ -232,7 +272,7 @@ export class LocalDeliveryRepository implements DeliveryRepository {
       }
     }
 
-    this.replaceTargetAmount(input, "hunter", nextHunterAmount);
+    this.replaceTargetAmount(input, "hunter", nextHunterAmount, nextHunterOwnAmount);
     this.replaceTargetAmount(input, "farmer_renewal", nextFarmerRenewalAmount);
     this.replaceTargetAmount(input, "studio", nextStudioAmount);
 
@@ -267,7 +307,7 @@ export class LocalDeliveryRepository implements DeliveryRepository {
     return this.getAll();
   }
 
-  private replaceTargetAmount(input: PersonCustomerTargetsInput, type: "hunter" | "farmer_renewal" | "studio", amount: number) {
+  private replaceTargetAmount(input: PersonCustomerTargetsInput, type: "hunter" | "farmer_renewal" | "studio", amount: number, ownAmount?: number) {
     const existing = this.data.targetAllocations.find((item) =>
       item.customerId === input.customerId
       && item.personId === input.personId
@@ -289,8 +329,46 @@ export class LocalDeliveryRepository implements DeliveryRepository {
       type,
       year: input.year,
       amount,
+      ownAmount: type === "hunter" ? ownAmount ?? amount : undefined,
       notes: input.notes ?? "Meta associada pela tela Metas por Pessoa.",
     }));
+  }
+
+  private syncHunterTargetTotal(customerId: string, hunterPersonId: string | undefined, year: number) {
+    if (!hunterPersonId) return;
+    const existing = this.data.targetAllocations.find((item) =>
+      item.customerId === customerId
+      && item.personId === hunterPersonId
+      && item.type === "hunter"
+      && item.year === year
+    );
+    const studioHunterAmount = this.getStudioHunterAmount(customerId, hunterPersonId, year);
+    const ownAmount = roundCurrency(existing?.ownAmount ?? Math.max((existing?.amount ?? 0) - studioHunterAmount, 0));
+    const totalAmount = roundCurrency(ownAmount + studioHunterAmount);
+
+    if (totalAmount <= 0.01) {
+      if (existing) {
+        this.data.targetAllocations = this.data.targetAllocations.filter((item) => item.id !== existing.id);
+      }
+      return;
+    }
+
+    this.data.targetAllocations = upsert(this.data.targetAllocations, validateTargetAllocation({
+      id: existing?.id ?? `target-${customerId}-${hunterPersonId}-hunter-${year}`,
+      customerId,
+      personId: hunterPersonId,
+      type: "hunter",
+      year,
+      amount: totalAmount,
+      ownAmount,
+      notes: existing?.notes ?? "Meta Hunter total recalculada a partir da meta própria e dos Studios.",
+    }));
+  }
+
+  private getStudioHunterAmount(customerId: string, hunterPersonId: string, year: number) {
+    return roundCurrency(this.data.studioTargetAllocations
+      .filter((item) => item.customerId === customerId && item.hunterPersonId === hunterPersonId && item.year === year)
+      .reduce((total, item) => total + item.hunterAmount, 0));
   }
 }
 
@@ -298,6 +376,13 @@ function upsert<T extends { id: string }>(items: T[], item: T) {
   const exists = items.some((current) => current.id === item.id);
   return exists
     ? items.map((current) => (current.id === item.id ? item : current))
+    : [...items, item];
+}
+
+function upsertByPersonId<T extends { personId: string }>(items: T[], item: T) {
+  const exists = items.some((current) => current.personId === item.personId);
+  return exists
+    ? items.map((current) => (current.personId === item.personId ? item : current))
     : [...items, item];
 }
 
@@ -315,38 +400,8 @@ function ensureUniqueTargetAllocation(items: TargetAllocation[], allocation: Tar
   }
 }
 
-function ensureCustomerTargetNotExceeded(customers: Customer[], items: TargetAllocation[], allocation: TargetAllocation) {
-  const customer = customers.find((item) => item.id === allocation.customerId);
-  const customerTarget = customer ? getCustomerTarget(customer) : 0;
-  const allocated = items
-    .filter((item) =>
-      item.id !== allocation.id
-      && item.customerId === allocation.customerId
-      && item.year === allocation.year
-    )
-    .reduce((total, item) => total + item.amount, 0) + allocation.amount;
-
-  if (customerTarget > 0 && allocated > customerTarget + 0.01) {
-    throw new Error(`A soma das metas das pessoas ultrapassa a meta total do cliente (${customerTarget}).`);
-  }
-}
-
 function getCustomerTarget(customer: Customer) {
   return customer.hunterTarget + customer.farmerRenewalTarget + customer.studioTarget;
-}
-
-function ensureHunterAssignmentsAvailable(people: Person[], assignments: CoverageAssignment[], person: Person) {
-  if (!isHunterRole(person.roleType) || !person.clientIds.length) return;
-  const hunterIds = new Set(people
-    .filter((item) => item.id !== person.id && item.active && isHunterRole(item.roleType))
-    .map((item) => item.id));
-  const conflicts = assignments.filter((assignment) =>
-    hunterIds.has(assignment.personId) && person.clientIds.includes(assignment.customerId)
-  );
-
-  if (conflicts.length) {
-    throw new Error(`Cliente(s) já associado(s) a outro Hunter: ${Array.from(new Set(conflicts.map((item) => item.customerId))).join(", ")}.`);
-  }
 }
 
 function ensureUniqueCustomerName(customers: Customer[], customer: Customer) {
@@ -359,6 +414,10 @@ function ensureUniqueCustomerName(customers: Customer[], customer: Customer) {
 
 function sanitizeAmount(value: number) {
   return Number.isFinite(value) && value > 0 ? value : 0;
+}
+
+function roundCurrency(value: number) {
+  return Math.round(value * 100) / 100;
 }
 
 export const localDeliveryRepository = new LocalDeliveryRepository();

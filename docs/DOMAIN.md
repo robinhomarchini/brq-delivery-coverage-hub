@@ -14,8 +14,9 @@
   responsáveis de governança Delivery nos clientes.
 - **Exclusividade Hunter:** um cliente pode estar associado a apenas um perfil
   Hunter/Hunter + Farmer por vez.
-- **Cadastro de Pessoa:** e-mail é opcional; "Diretor Comercial" é um cargo
-  sugerido, mas o campo Cargo permanece editável.
+- **Cadastro de Pessoa:** e-mail é opcional; "Diretor Comercial", "Gerente
+  Executivo de Vendas" e "Executivo de Negócios" são cargos sugeridos, mas o
+  campo Cargo permanece editável.
 
 Renan é um papel de Staff ligado diretamente ao Diretor Executivo e não entra na
 contagem de managers.

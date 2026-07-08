@@ -52,9 +52,10 @@ experiência do usuário até nova definição de modelo.
   Delivery.
 - E-mail da Pessoa é opcional.
 - Ao cadastrar Pessoa com perfil Hunter ou Hunter + Farmer, a seleção de clientes
-  deve exibir somente clientes ainda não associados a outro Hunter.
-- O cargo "Diretor Comercial" deve estar disponível como sugestão no cadastro de
-  Pessoas.
+  deve permitir clientes já associados a outro Hunter, pois um cliente pode ter
+  mais de um Hunter com metas distribuídas por pessoa e ano.
+- Os cargos "Diretor Comercial", "Gerente Executivo de Vendas" e "Executivo de
+  Negócios" devem estar disponíveis como sugestão no cadastro de Pessoas.
 - Uma pessoa pode estar vinculada a um ou mais clientes, e um cliente pode ter
   um ou mais managers responsáveis.
 - O portfólio de clientes/metas possui entidades de Cliente, Diretor, Delivery
@@ -68,15 +69,18 @@ experiência do usuário até nova definição de modelo.
   não soma novamente no total; Studio Manutenção/Renovação compõe o total do
   cliente como complemento. Valores de Áreas / Studios cadastrados antes dessa
   separação são tratados como Studio Hunter.
-- Metas editáveis devem ser separadas em Hunter, Renovação + Ampliação e Áreas
-  / Studios, vinculadas a uma pessoa, cliente e ano, sem duplicidade para
-  Cliente + Pessoa + Tipo + Ano.
-- A tela de Metas deve exibir uma visão anual por pessoa, somando a meta Hunter,
-  a meta de Renovação + Ampliação, a meta de Áreas / Studios e a meta total de
-  cada colaborador no ano selecionado.
+- Metas editáveis diretas da pessoa devem ser separadas em Hunter e Renovação +
+  Ampliação, vinculadas a uma pessoa, cliente e ano, sem duplicidade para
+  Cliente + Pessoa + Tipo + Ano. A quebra Studio Hunter não deve ser gravada
+  como meta direta da pessoa; ela fica em alocação própria de Área/Studio e só
+  soma no total do Hunter em telas e relatórios derivados.
+- A tela de Metas deve exibir uma visão anual por pessoa, somando a meta Hunter
+  direta, a meta de Renovação + Ampliação direta e a meta total proprietária de
+  cada colaborador no ano selecionado. Quebras de Studio Hunter aparecem em
+  visões de hunter/relatórios como valor derivado, sem duplicar persistência.
 - Deve existir uma tela operacional "Metas por Pessoa" para associar, em uma
   única grade, Pessoa + Ano + Cliente + Meta Hunter + Meta Renovação/Ampliação
-  + Meta Áreas/Studios.
+  proprietárias.
   Essa tela grava na tabela normalizada `revenue_target_allocations` e alimenta
   as demais visões de metas, dashboards e consolidações.
 - A tela "Metas por Pessoa" deve excluir pessoas com perfil Executivo ou Diretor
@@ -88,9 +92,12 @@ experiência do usuário até nova definição de modelo.
   automaticamente os clientes já vinculados à pessoa e os clientes com meta já
   existente para aquela pessoa/ano, permitindo incluir clientes adicionais para
   lançamento de meta quando necessário.
-- A soma das metas das pessoas por Cliente + Ano deve bater com a meta total do
-  cliente. A aplicação e o banco devem impedir que a soma ultrapasse a meta do
-  cliente e destacar pendências até o fechamento exato.
+- Diferenças entre alocado/realizado e meta devem seguir o sinal
+  `alocado - meta`: valor positivo indica superação da meta e deve aparecer
+  verde; valor negativo indica falta para bater a meta e deve aparecer vermelho.
+- A soma das metas das pessoas por Cliente + Ano deve ser comparada com a meta
+  total do cliente. A aplicação deve destacar valores abaixo da meta até o
+  fechamento exato e tratar valores acima da meta como superação positiva.
 - Se uma edição em "Metas por Pessoa" ultrapassar a meta atual do cliente, o
   sistema deve solicitar confirmação para aumentar a meta do cliente pelo
   excedente, identificando se o acréscimo veio de Hunter, Renovação + Ampliação,

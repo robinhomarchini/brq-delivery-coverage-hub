@@ -4,11 +4,43 @@
 
 Sidebar com Dashboard Executivo, Organograma, Pessoas, Áreas / Studios,
 Clientes, Portfólio de Clientes, Metas, Metas por Pessoa, Relatório de Metas,
-Comparativo Baseline, Insights, Assuntos, Mapa de Cobertura, Configurações e Ajuda. O item Assuntos
+Comparativo Baseline, Insights, Análise de Desafio, Assuntos, Mapa de Cobertura, Configurações e Ajuda. O item Assuntos
 fica visível como pausado/desabilitado até nova definição do modelo.
 Ao navegar pelo menu ou mudar a rota/query, telas contextuais devem ser
 remontadas para fechar modais, limpar filtros temporários e evitar que uma tela
 como Clientes reabra presa no último cliente consultado.
+Seletores usados para contexto de edição, pré-preenchimento de modal ou navegação
+entre telas não devem reutilizar o mesmo estado de filtros da grade, exceto
+quando a tela deixar claro que o seletor é um filtro. Ao trocar entre visões de
+relatório, filtros ou seleções que não aparecem na nova visão devem ser limpos
+ou ignorados para não esconder resultados sem indicação visual.
+Usuários com perfil de acesso Consulta Hunter veem apenas Clientes, Relatório de
+Metas e Ajuda. Nesse perfil, Clientes fica em modo leitura e limitado aos
+clientes vinculados ao Hunter identificado pelo e-mail da Pessoa; Relatório de
+Metas abre diretamente no detalhe do próprio Hunter, incluindo Hunter próprio e
+Studio Hunter atribuído a ele, sem exibir demais visões ou demais hunters.
+
+Em telas de celular, a experiência deve ser restrita a consultas simples e
+relatórios básicos: Dashboard Executivo, Portfólio de Clientes, Relatório de
+Metas, Baseline vs Cadastro e Ajuda. Rotas operacionais ou administrativas
+devem permanecer visíveis na navegação, porém inibidas com indicação
+"Disponível no desktop", e exibir uma mensagem orientando o uso em desktop ou
+tablet quando acessadas diretamente, sem expor formulários largos, grades
+operacionais ou ações de manutenção no mobile.
+
+Cards de totais/KPIs devem usar o componente compartilhado do design system.
+Valores financeiros em cards executivos devem aparecer em formato compacto
+legível, como `R$ 108,7 mi`, sem quebra de linha no número; o valor completo
+deve permanecer disponível em tooltip/acessibilidade.
+Labels de KPIs devem caber no card sem cortar de forma ilegível, sem sobrepor o
+valor e sem forçar o número para fora da área visível. A revisão de UX deve
+tratar label quebrado, número grande demais, scroll horizontal desnecessário ou
+cards desalinhados como bloqueio antes de produção.
+Telas de análise executiva devem traduzir números críticos em sinais visuais
+acionáveis, como ícones, status e tooltip de racional, principalmente quando a
+decisão depende de benchmark, senioridade, cargo, mercado ou comparação com
+meta. Essa regra deve fazer parte da revisão de UX para evitar telas que exibem
+apenas números sem interpretação operacional.
 
 ## Fluxos CRUD
 
@@ -41,12 +73,26 @@ Managers responsáveis representam governança Delivery da conta. O Hunter
 responsável representa vínculo cadastral/comercial. Áreas / Studios classificam
 pessoas e podem apoiar a execução, mas não substituem o manager responsável do
 cliente.
+Ao trocar o Hunter responsável de um cliente existente, se houver Meta Hunter ou
+Studio Hunter do cliente/ano vinculados a outro Hunter, o sistema deve perguntar
+se o usuário deseja transferir automaticamente essas metas para o novo Hunter.
+Confirmar a pergunta transfere a Meta Hunter e as alocações de Studio Hunter
+para o novo Hunter, consolidando linhas equivalentes quando necessário. Cancelar
+mantém as metas e os vínculos financeiros com o Hunter atual, sem alteração
+automática. Salvar o cliente sem trocar o Hunter principal não deve remover nem
+transferir metas de outros Hunters associados ao mesmo cliente.
 No modal de edição, a composição da meta também deve mostrar a distribuição por
 pessoa no ano corrente, separando Hunter, Renovação + Ampliação, Áreas /
 Studios e Total por pessoa. Quando parte da meta ainda não estiver alocada, a tela deve exibir uma
 linha "Em aberto sem pessoa alocada"; quando houver alocação acima da meta do
 cliente, a tela deve indicar o excedente e oferecer atalho para revisão em Metas
 por Pessoa.
+Na lista e no modal de Clientes, o status de reconciliação do cliente deve
+considerar Studio Hunter como parte do componente Hunter alocado. Assim, a
+comparação Hunter usa Meta Hunter direta das pessoas + Studio Hunter atribuído
+em `studio_target_allocations`, enquanto Studio Manutenção continua no
+componente de Áreas / Studios. Studio Hunter permanece contido em Hunter e não
+soma novamente no Total do cliente.
 A listagem principal de Clientes também deve exibir, por cliente e ano corrente,
 quais pessoas compõem a meta Hunter, a meta Renovação + Ampliação/Farmer e a
 meta Áreas / Studios, com os valores alocados por pessoa, derivados de
@@ -66,6 +112,12 @@ carga inicial e preenchimento rápido, mas não podem recolocar um manager remov
 manualmente no momento de salvar. Cliente sem manager é um caso válido de
 cobertura descoberta e deve ser tratado pelas telas de governança/assistente de
 metas, não bloqueado pelo formulário.
+O campo Diretor responsável deve oferecer a opção "Outros" para clientes vindos
+da relação de contas que ainda não têm definição de diretoria. "Outros" é um
+bucket transitório de governança do cliente, não uma pessoa que recebe ou
+consolida meta. Ele pode aparecer em Clientes, Portfólio e dashboards por
+diretor para leitura; não deve compor o Relatório de Metas por Diretoria
+Delivery.
 
 Listas operacionais da tela de Clientes não devem depender de IDs hardcoded. Os
 diretores responsáveis devem vir das Pessoas ativas com perfil Diretor. Managers
@@ -206,6 +258,98 @@ cliente deve movê-lo imediatamente para a outra lista. A gravação deve persis
 os clientes selecionados junto com a pessoa e exibir uma mensagem de confirmação
 flutuante ao salvar com sucesso. Erros de salvamento devem aparecer em aviso
 flutuante, sem alterar o layout do formulário ou exigir scroll.
+A lista de Pessoas deve indicar, para administradores, quando o e-mail da pessoa
+também existe como usuário do sistema. O cruzamento é feito por e-mail
+normalizado e deve exibir perfil e status do acesso sem alterar o cadastro da
+pessoa.
+Pessoas não devem ser excluídas no fluxo operacional de desligamento. O cadastro
+de Pessoas usa ciclo de vida com status Ativo, Desativado e Encerrado/Desligado.
+Ao desligar uma pessoa, o sistema deve gravar status Encerrado, data e motivo
+opcional, marcar a pessoa como não ativa e preservar vínculos históricos, metas,
+relatórios e remuneração. Pessoas encerradas deixam de aparecer como elegíveis
+em listas operacionais que usam apenas pessoas ativas, mas continuam disponíveis
+para histórico e auditoria.
+Dados de remuneração não pertencem ao cadastro público de Pessoas. O salário
+mensal deve ser persistido em `person_compensations`, com uma linha por pessoa,
+e usado apenas para análises estratégicas. A Análise de Desafio anualiza esse
+valor por 12 antes de comparar com metas anuais. O campo de salário só aparece e
+só pode ser salvo por usuário BRQ ativo com perfil admin e cargo próprio de VP
+ou Vice-presidente. A regra deve existir na UI para usabilidade e no banco por
+RLS, porque salário é dado sensível.
+
+## Configurações e Exportação Admin
+
+A rota Configurações é restrita a administradores. Além do gerenciamento de
+usuários, ela permite exportar a base operacional para trabalho externo em Excel
+escolhendo apenas o ano. A exportação deve conter abas separadas para Pessoas,
+vínculos Pessoa-Cliente, Clientes, Áreas/Studios, Assuntos, Metas de Clientes,
+Metas por Pessoa e Alocações de Studios. Fatos financeiros anuais devem ser
+filtrados pelo ano escolhido. Dados sensíveis de remuneração/salário armazenados
+em `person_compensations` nunca entram nessa exportação.
+
+## Acesso e Primeiro Login
+
+O acesso é nominal por usuário no Supabase Auth, preservando auditoria, bloqueio
+por pessoa e aplicação de RLS. O app pode usar BFF/API ou service role apenas em
+rotas server-side para operações sensíveis deliberadas, nunca como identidade
+única compartilhada por todos os usuários finais.
+
+Administradores pré-cadastram e liberam e-mails BRQ na tela Configurações. Um
+usuário pré-cadastrado ativo deve conseguir criar a primeira senha e entrar sem
+aprovação manual adicional. Quando a configuração do Supabase exigir confirmação
+de e-mail, usuários BRQ já pré-cadastrados e ativos devem ser auto-confirmados
+no Auth pelo banco. Se o usuário esquecer a senha ou ficar em estado de tentativa
+anterior, a jornada de Redefinir senha deve permitir recuperar o acesso pelo
+link enviado ao e-mail corporativo.
+
+## Análise de Desafio C-level
+
+A rota Análise de Desafio é restrita a usuário BRQ ativo com perfil admin e
+cargo próprio de VP ou Vice-presidente. Ela usa `person_compensations` como
+fonte de salário mensal e `revenue_target_allocations` como fonte de metas por
+pessoa/ano, além de `studio_target_allocations` como fonte derivada de Studio
+Hunter atribuído. O salário mensal cadastrado deve ser anualizado por 12 para
+calcular o múltiplo contra metas anuais. A tela deve ter visões alternáveis de
+Hunters, Farmers e Delivery. Na visão Hunters, o valor analisado é a soma da
+Meta Hunter própria da pessoa no ano mais o Studio Hunter atribuído a ela.
+Studio Hunter entra apenas como derivação de visualização/análise, não como meta
+direta gravada na pessoa. Na visão Farmers, o valor analisado é a soma de metas de
+Renovação + Ampliação/Farmer. Na visão Delivery, o valor analisado é a soma de
+metas sob responsabilidade de entrega, combinando Renovação + Ampliação e Áreas
+/ Studios quando existirem no ano. O múltiplo de desafio é calculado como `meta
+analisada / (salário mensal * 12)`.
+
+As faixas internas iniciais são: Hunters adequado entre 4x e 8x; Farmers
+adequado entre 3x e 6x; Delivery adequado entre 2x e 5x. Múltiplos abaixo da
+faixa aparecem como desafio abaixo da referência; múltiplos acima aparecem como
+desafio agressivo; pessoas sem salário aparecem como pendência de dado. Os
+botões de visão e os status devem expor em mouse over o racional da tese: qual
+meta está sendo comparada com salário e qual faixa de referência está sendo
+usada. A tela exibe KPIs, tabela detalhada e uma leitura executiva gerada por IA
+via rota backend interna. A chamada de IA não pode expor chave no navegador e
+deve gerar uma leitura agregada/anônima, sem citar nomes de pessoas ou tomar
+decisão individual de remuneração.
+
+Além do status do múltiplo, a tabela deve mostrar uma avaliação indicativa de
+mercado e senioridade com ícone, rótulo e tooltip de racional. Essa avaliação
+usa a visão selecionada, o múltiplo calculado e uma senioridade inferida do
+cargo/perfil para ajustar a faixa de referência. O sinal é apoio executivo para
+triagem, não decisão automática de remuneração, promoção ou cobrança individual.
+
+A tela também possui um Assistente de reavaliação. O usuário pode informar
+contexto adicional em texto ou, quando o navegador suportar, ditar por voz em
+pt-BR para preencher o campo. Ao acionar Reavaliar com IA, o backend deve enviar
+à IA a análise calculada, a visão ativa, a faixa de referência e o contexto
+adicional como hipótese temporária. Esse contexto não é persistido e não altera
+salários, metas ou classificações calculadas; ele apenas recalibra o insight
+executivo, distinguindo fatos medidos, hipóteses trazidas pelo usuário e
+recomendações.
+Cada reavaliação gera um baseline conceitual GEN AI para a visão/ano da sessão:
+ele consolida conceitos existentes, hipóteses e aprendizados informados pelo
+usuário para serem comparados contra os números oficiais cadastrados/calculados.
+Esse baseline vira ponto de partida das próximas reavaliações da mesma visão/ano
+na sessão da tela, mas não sobrescreve metas, salários, status, faixas de
+referência ou qualquer registro oficial no banco.
 
 ## Mapa de Cobertura
 
@@ -230,13 +374,19 @@ como referência analítica importada.
 A rota Metas funciona como visão de conciliação e consolidação executiva. A rota
 Metas por Pessoa é a tela operacional principal para associar metas: o usuário
 seleciona uma pessoa e um ano, escolhe o cliente na grade e informa os valores
-de Meta Hunter, Meta Renovação + Ampliação e Áreas / Studios para aquele
+de Meta Hunter própria e Meta Renovação + Ampliação própria para aquele
 Cliente + Pessoa + Ano.
 Ambas as telas usam `revenue_target_allocations` como fonte única de verdade.
 Renovação + Ampliação pode ser distribuída entre managers, farmers/delivery e
 pessoas dos Studios, desde que o perfil permita meta direta. O cadastro
 Áreas / Studios não cria metas; apenas classifica pessoas para análise,
 organograma e distribuição operacional.
+Studio Hunter não é gravado como meta direta da pessoa em
+`revenue_target_allocations`. A fonte de verdade dessa quebra é
+`studio_target_allocations`, no grão Cliente + Área/Studio + Hunter + Ano. Nas
+telas e relatórios de Hunter, o total exibido é derivado como Meta Hunter
+própria + Studio Hunter atribuído, sem duplicar o valor na meta proprietária da
+pessoa.
 Excluir uma Área / Studio remove apenas a classificação dos registros
 dependentes. Pessoas e territórios vinculados devem ficar sem área definida, e a
 tela deve mostrar a contagem de vínculos antes da exclusão para evitar erro
@@ -259,10 +409,60 @@ ao cliente navegam para a tela Clientes com o cliente em edição. Achados
 relacionados à associação de metas navegam para Metas por Pessoa com cliente e
 ano pré-selecionados.
 
-A rota Relatório de Metas apresenta visão por pessoa e ano, com Meta Hunter,
-Meta Renovação + Ampliação, Áreas / Studios, Meta Total, quantidade de clientes
-e lista resumida de clientes. Cada pessoa do relatório deve navegar para Metas
-por Pessoa com a pessoa e o ano pré-selecionados.
+A rota Relatório de Metas apresenta visão por pessoa, diretoria de Delivery,
+área/studio e Hunter. Na visão por pessoa e ano, exibe Meta Hunter, Meta
+Renovação + Ampliação, Áreas / Studios, Meta Total, quantidade de clientes e
+lista resumida de clientes. Cada pessoa do relatório deve navegar para Metas por
+Pessoa com a pessoa e o ano pré-selecionados. Na visão por diretoria de
+Delivery, o usuário deve escolher uma pessoa consolidadora vinda do cadastro de
+Pessoas: perfis Diretor ou pessoas ativas com subordinados apontando para seu
+`people.directorId`. Após a escolha, o relatório abre os dados na chave Pessoa
+-> Cliente -> Quebras,
+sem repetir o nome da pessoa em cada linha. Dentro de cada pessoa, cada cliente
+deve aparecer com subtotal e, abaixo dele, apenas as metas que compõem a meta
+da pessoa naquele cliente. Metas diretas usam `revenue_target_allocations`
+ligadas às pessoas com `people.directorId` igual ao diretor escolhido. Para
+perfis Manager, Farmer e Delivery, a visão considera somente Renovação +
+Ampliação direta; valores de Área/Studio não compõem a meta da pessoa nessa
+visão, pois a abertura econômica do cliente já existe no relatório de Clientes.
+Para perfis Hunter ou Hunter + Farmer, a visão também considera Meta Hunter
+direta e Studio Hunter quando a pessoa é o `hunterPersonId` da alocação. Essa
+soma é sempre derivada para visualização/relatório e não deve gravar Studio
+Hunter como meta direta da pessoa.
+Studio Manutenção permanece nas visões de cliente e de área/studio, não no
+total da pessoa da diretoria. A tela deve mostrar subtotais por pessoa, por
+cliente e total geral das pessoas da diretoria, permitindo que CA e Ana/Ane
+tenham uma visão aberta das suas áreas sem hardcode de nomes no frontend. Não
+há visão "meu relatório" nessa rota; a visão de Hunters já cobre o recorte
+comercial individual.
+Na visão de Hunters, sem Hunter selecionado, a tela mostra o consolidado por
+Hunter. A tabela deve permitir selecionar um ou mais Hunters por checkbox; com
+seleção ativa, a tela mostra o relatório detalhado no grão Hunter + cliente +
+segmento + área/studio quando aplicável, separando Hunter próprio de Studio
+Hunter, com subtotais por Hunter + cliente e total selecionado. A prévia e
+exportação devem usar exatamente o modo ativo: consolidado quando não houver
+Hunter selecionado e detalhado/explodido quando houver seleção.
+Na visão de Hunters Especializados, a tela mostra uma leitura gerencial cross.
+Esse papel não possui meta própria lançável: os valores são sempre derivados das
+alocações de Studios dos clientes vinculados à pessoa, explodidos por Hunter
+Especializado, Cliente e Área/Studio. A visão não altera totais oficiais de
+cliente, pessoa, dashboard, baseline ou análise de desafio.
+Na visão de Áreas / Studios, a tabela deve permitir selecionar um ou mais
+Studios por checkbox; com seleção ativa, a tela mostra e exporta o detalhe
+explodido por Studio + cliente + segmento + Hunter Studio. Na visão por pessoa,
+a tabela deve permitir selecionar uma ou mais pessoas para exportação. Quando
+houver seleção ativa visível, CSV/Excel exportam apenas as pessoas
+selecionadas; sem seleção ativa, a exportação continua usando a lista filtrada
+completa. Antes de baixar, a ação de exportação deve oferecer uma prévia
+formatada em tela usando exatamente as linhas que serão exportadas, incluindo
+apenas a seleção ativa quando houver seleção.
+O Relatório de Metas deve evoluir com uma visão "Clientes detalhado", voltada a
+reconciliação executiva por cliente. Essa visão deve consolidar baseline,
+meta atual do cadastro do cliente, composição alocada em pessoas, Studio Hunter,
+Studio Manutenção, valor atual e diferenças, permitindo exportação formatada. O
+grão é Cliente + Ano, com quebras internas por segmento e pessoa/studio. Para
+Consulta Hunter, a visão de cliente detalhado deve respeitar o mesmo escopo de
+clientes do Hunter.
 
 As metas-base do cliente também são anuais. A chave canônica é
 `customer_id + target_year` em `customer_target_years`; os campos financeiros
@@ -271,14 +471,56 @@ Telas com valores financeiros devem exibir e filtrar o ano de referência.
 
 Na rota Metas por Pessoa, o combo Pessoa deve iniciar vazio quando não houver
 `personId` na URL, obrigando o usuário a escolher uma pessoa antes de carregar a
-grade ou incluir clientes. Os campos de Meta Hunter, Meta Renovação + Ampliação
-e Áreas / Studios
-devem ser inputs monetários largos, com prefixo visual de R$, seleção automática
-ao focar e suporte a digitação em formato brasileiro, como `11.033.497,00`.
+grade ou incluir clientes. Os campos de Meta Hunter própria e Meta Renovação +
+Ampliação própria devem ser inputs monetários largos, com prefixo visual de R$,
+seleção automática ao focar e suporte a digitação em formato brasileiro, como
+`11.033.497,00`.
+O seletor "Cliente em foco" não deve filtrar a grade para apenas um cliente. Ele
+serve como referência contextual e, quando um cliente adicional for incluído,
+deve apenas acrescentar uma nova linha à grade, preservando os clientes que a
+pessoa já tinha por vínculo ou meta existente.
 O grid também deve exibir, por cliente e ano, quais pessoas compõem a meta
 Hunter, quais pessoas compõem a meta Renovação + Ampliação/Farmer e quais
-pessoas compõem Áreas / Studios, incluindo valores por pessoa. Quando a pessoa selecionada tiver valor digitado ainda não salvo, a
-linha deve indicar que aquela composição está em edição.
+pessoas compõem Studio Hunter pelas alocações de Áreas / Studios, incluindo
+valores por pessoa/hunter. Quando a pessoa selecionada tiver valor digitado
+ainda não salvo, a linha deve indicar que aquela composição está em edição.
+
+A rota Metas por Área/Studio deve permitir informar o Hunter associado à parcela
+de Studio Hunter. O grão canônico para novas alocações de Studio passa a ser
+Cliente + Área/Studio + Hunter + Ano, mantendo `hunter_amount` e
+`maintenance_amount` no mesmo registro para a combinação. O Hunter informado é
+atribuição comercial/financeira da parcela Studio Hunter, não manager
+responsável de Delivery. A lista de Hunters deve vir de Pessoas ativas elegíveis
+para Hunter, ou de pessoas que já possuam meta Hunter no cliente/ano, sem lista
+hardcoded. A lista também deve incluir Hunters já associados ao cliente por
+alocações de Studio Hunter no ano, e ao editar uma linha deve manter disponível
+o Hunter gravado na própria linha mesmo que o filtro global esteja em outro
+cliente. Dados legados sem Hunter devem continuar legíveis como "Hunter não
+informado"; novas linhas com `hunter_amount` maior que zero devem exigir Hunter.
+Ao abrir uma nova meta para um cliente que já possui Hunter associado no cadastro
+ou Meta Hunter no ano, o campo Hunter associado deve vir sugerido como default,
+sem alterar filtros globais nem gravar nada automaticamente.
+Relatórios por Hunter devem somar `studio_target_allocations.hunter_amount`
+apenas para o Hunter informado naquela alocação, evitando misturar clientes com
+mais de um Hunter.
+Na grade de alocações por Área/Studio, Studio Hunter e Studio Manutenção devem
+aparecer visualmente segregados por tipo. Studio Hunter deve indicar que soma no
+total do Hunter; Studio Manutenção deve indicar explicitamente que não soma no
+Hunter, mesmo quando o registro tiver o mesmo Hunter associado para contexto da
+conta.
+Ao abrir um cliente na conciliação por duplo clique ou pelo botão Alocar, se
+houver mais de uma alocação candidata para o cliente/ano, a tela deve mostrar
+uma etapa intermediária com todas as combinações Área/Studio + Hunter + valores.
+Ao editar uma alocação existente e trocar o campo Área/Studio, a tela deve pedir
+confirmação antes de salvar: o usuário escolhe entre atualizar/mover a meta
+existente para o novo Studio ou criar uma nova meta mantendo a original
+separada.
+Ao editar uma alocação existente e trocar apenas o Hunter associado, a tela não
+deve zerar Valor Hunter, Valor Manutenção/Renovação ou Observações. Se já existir
+uma alocação para a combinação Cliente + Área/Studio + novo Hunter + Ano, essa
+linha existente deve ser carregada; se não existir, os valores em edição devem
+ser preservados para mover a alocação ao salvar.
+O modal abre diretamente apenas quando houver zero ou uma alocação candidata.
 
 A rota Insights permite importar uma planilha `.xlsx` de baseline de metas com
 as colunas Cliente, BU, Target RL Hunter, Target RL Farmer e Total RL 2026,
@@ -288,6 +530,15 @@ compara cliente a cliente contra `customer_target_years` do ano selecionado e
 valida se o responsável Hunter da planilha está consistente com as pessoas e
 metas Hunter cadastradas. As divergências aparecem em uma grade com checkbox por
 cliente. Só os itens marcados pelo usuário atualizam a base canônica anual.
+Na validação de Hunter, o campo `resp` é apenas uma referência de leitura da
+planilha. A conferência financeira deve comparar `Target RL Hunter` com a soma
+de todas as metas do tipo Hunter alocadas no sistema para o Cliente + Ano,
+incluindo múltiplos Hunters e pessoas de outros perfis que tenham meta Hunter
+declarada, mais as alocações de Studio Hunter atribuídas ao Hunter no mesmo
+cliente/ano. Studio Manutenção continua fora do total Hunter e permanece no
+componente de Áreas / Studios. Quando houver divergência, a mensagem deve
+mostrar a composição das pessoas, valores e origem que formam o total do sistema,
+sem atribuir a diferença a uma única pessoa.
 A importação deve respeitar as colunas financeiras da planilha: `Target RL
 Hunter` compara com Meta Hunter, `Target RL Farmer` compara com Renovação +
 Ampliação e a coluna opcional de Áreas / Studios compara com Meta Áreas /
@@ -307,9 +558,54 @@ Total. Depois de aprovado, esse baseline é persistido em
 canônica de leitura para Dashboard Executivo e Comparativo Baseline. O arquivo
 local versionado permanece apenas como fallback técnico de desenvolvimento e
 semente idempotente da migração. O baseline do board não é editável nessa tela;
-ele é referência fixa para análise. A tela permite alternar entre visão por
-Cliente, visão Hunter e visão Hunter + Farmer, exibindo baseline, cadastrado,
-diferença, status e exportação CSV/Excel.
+ele é referência fixa para análise. A tela também permite importar uma planilha
+`.xlsx` temporária no mesmo formato para comparar contra o cadastro do ano
+selecionado. Nenhum valor é aplicado automaticamente: cada linha com cliente
+cadastrado deve oferecer uma ação explícita para atualizar somente a meta anual
+daquele cliente (`customer_target_years`), usando os valores da planilha ou do
+baseline, sem alterar as metas cadastradas nas pessoas em
+`revenue_target_allocations`. A tela permite alternar entre visão por Cliente,
+visão Hunter e visão Hunter + Farmer, exibindo baseline, cadastrado, diferença,
+status e exportação CSV/Excel. Diferença positiva significa cadastrado acima do
+baseline e deve ser tratada como upside; diferença negativa significa débito
+contra o baseline.
+A tela deve apresentar, logo no início, uma escolha clara entre as áreas de
+trabalho "Board vs Cadastro" e "Baseline de Studios", sem exigir rolagem para
+descobrir uma funcionalidade principal. Cada área deve manter seus próprios
+controles, KPIs e exportações.
+
+A mesma rota também permite importar uma planilha temporária de baseline de
+Studios no layout `SU`, `Torre`, `Grupo Cliente`, `Studio/Habilitador`,
+`Tipo Opp` e `Receita Líquida`. Essa importação é apenas comparativa e não
+sobrescreve dados. O batimento deve mostrar três referências: baseline por
+Cliente + Studio vindo da planilha e alocação detalhada em
+`studio_target_allocations` por Cliente + Área/Studio + Hunter + Ano. Essa visão
+não deve comparar contra o total de Studios cadastrado no Cliente. `Tipo Opp`
+com Novo/Ampliação compõe Studio Hunter e deve bater contra valores alocados aos
+Hunters ou pessoas que exercem papel de Hunter; demais tipos compõem Studio
+Manutenção/Renovação e devem bater contra a manutenção alocada no próprio
+Cliente + Studio. A leitura da planilha deve tolerar células `inlineStr` vazias
+exportadas pelo Excel. Exportações desse batimento devem usar leitura executiva
+no grão Cliente + Studio, com linhas separadas para Baseline e Hunters /
+Alocações, e colunas de Hunter, Manutenção, Total e Diferença. Divergências
+entre o nome/origem da planilha e o cadastro devem aparecer apenas como
+indicativo contextual de origem quando existirem; quando estiverem consistentes,
+não devem ocupar coluna nem poluir a visualização.
+A visão de Baseline de Studios deve permitir filtro por Status e por Studio. O
+texto/coluna de critério deve explicar de forma operacional que `Tipo Opp`
+Novo/Ampliação é Studio Hunter e compara com alocações Hunter, enquanto os
+demais tipos são Manutenção/Renovação e comparam com a manutenção do
+cliente/studio.
+Após importar e calcular o batimento, a tela deve permitir "Salvar foto do
+resultado". Essa foto é um snapshot imutável do resultado calculado naquele
+momento, com ano, nome do arquivo, totais e linhas exibidas/exportáveis. Salvar
+a foto não altera metas de cliente, metas de pessoas nem alocações de Studios;
+serve para auditoria e rastreabilidade executiva.
+Ao abrir a visão Baseline de Studios, se existir snapshot salvo para o ano
+selecionado, a tela deve carregar automaticamente a foto mais recente e indicar
+que se trata da última foto salva. Importar uma nova planilha substitui
+temporariamente essa foto por uma comparação recalculada; limpar o baseline
+remove a visualização atual sem apagar o snapshot salvo.
 
 A rota Ajuda deve disponibilizar um guia rápido simples em PDF, publicado como
 link estático, com instruções de uso para homologadores.
@@ -359,6 +655,8 @@ Campos da associação de Metas por Pessoa:
 - Já associado a outras pessoas, separado por Hunter, Renovação + Ampliação e
   Áreas / Studios.
 - Gap após edição, separado por Hunter, Renovação + Ampliação e Áreas / Studios.
+  O gap deve seguir o sinal `alocado - meta`: positivo acima da meta em verde,
+  negativo abaixo da meta em vermelho e zero reconciliado.
 - Meta Hunter.
 - Meta Renovação + Ampliação.
 - Meta Áreas / Studios.
@@ -373,10 +671,12 @@ Regras do cadastro de Metas:
 - Um cliente pode ter metas de várias pessoas.
 - Para a mesma combinação Cliente + Pessoa + Tipo de Meta + Ano deve existir
   apenas um registro.
-- A soma das metas das pessoas para um Cliente + Ano deve reconciliar com a
+- A soma das metas das pessoas para um Cliente + Ano deve ser comparada com a
   meta total do cliente.
-- A tela deve destacar clientes reconciliados, pendentes e acima da meta. O
-  salvamento não deve permitir que a soma das pessoas ultrapasse a meta total do
+- A tela deve destacar clientes reconciliados, abaixo da meta e acima da meta.
+  Acima da meta representa superação positiva e deve aparecer em verde. Abaixo
+  da meta representa falta para bater a meta e deve aparecer em vermelho. O
+  salvamento deve permitir que a soma das pessoas ultrapasse a meta total do
   cliente.
 - A tela Metas por Pessoa deve quebrar a meta do cliente, o valor já associado
   a outras pessoas e o gap após edição em Hunter, Renovação + Ampliação e Áreas
@@ -411,13 +711,17 @@ Regras do cadastro de Metas:
   Manager responsável do cliente.
 - O e-mail de Pessoa é opcional e, quando ausente, deve ser persistido como
   `null`.
-- Para perfis Hunter e Hunter + Farmer, a lista de clientes deve ser recalculada
-  ao trocar o perfil e deve excluir clientes já vinculados a outro Hunter ou
-  Hunter + Farmer.
-- A exclusividade Hunter por cliente é aplicada na UI, no repositório e no banco
-  por trigger sobre `person_customer_assignments`.
+- Para perfis Hunter e Hunter + Farmer, a lista de clientes deve permitir
+  clientes já vinculados a outro Hunter ou Hunter + Farmer. A relação
+  Pessoa-Cliente indica participação/reporting, não propriedade exclusiva do
+  cliente.
+- Um cliente pode ter mais de um Hunter. A distribuição financeira deve ser
+  controlada por metas no grão Cliente + Pessoa + Tipo + Ano em
+  `revenue_target_allocations` e por Cliente + Área/Studio + Hunter + Ano em
+  `studio_target_allocations`, sem trigger de exclusividade Hunter em
+  `person_customer_assignments`.
 - O campo Cargo continua editável como texto livre, mas deve sugerir "Diretor
-  Comercial".
+  Comercial", "Gerente Executivo de Vendas" e "Executivo de Negócios".
 - Quando um cluster financeiro possui mais de um cliente-fonte, a carga inicial
   divide a meta do cluster entre os clientes-fonte para manter conciliação sem
   duplicar valores. Os valores continuam editáveis manualmente.

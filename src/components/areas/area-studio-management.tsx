@@ -5,6 +5,7 @@ import { useCallback, useMemo, useState } from "react";
 import type { Area } from "@/data/mockData";
 import { EmptyState } from "@/components/shared/empty-state";
 import { FilterBar } from "@/components/shared/filter-bar";
+import { KpiSummaryCard } from "@/components/shared/kpi-summary-card";
 import { PageHeader } from "@/components/shared/page-header";
 import { ErrorNotice, SuccessNotice } from "@/components/shared/success-notice";
 import { Button } from "@/components/ui/button";
@@ -96,9 +97,9 @@ export function AreaStudioManagement() {
       {error && <ErrorNotice message={error} floating onClose={() => setError("")} />}
 
       <section className="mb-5 grid gap-4 md:grid-cols-3">
-        <Summary label="Áreas/Studios" value={String(areas.length)} />
-        <Summary label="Pessoas associadas" value={String(areaUsages.reduce((total, usage) => total + usage.peopleCount, 0))} />
-        <Summary label="Sem área definida" value={String(people.filter((person) => !person.areaId).length)} />
+        <KpiSummaryCard label="Áreas/Studios" value={areas.length} icon={Layers3} tone="purple" />
+        <KpiSummaryCard label="Pessoas associadas" value={areaUsages.reduce((total, usage) => total + usage.peopleCount, 0)} icon={Layers3} tone="blue" />
+        <KpiSummaryCard label="Sem área definida" value={people.filter((person) => !person.areaId).length} icon={Layers3} tone="warning" />
       </section>
 
       <FilterBar search={search} onSearchChange={setSearch} />
@@ -174,15 +175,6 @@ export function AreaStudioManagement() {
         </DialogContent>
       </Dialog>
     </>
-  );
-}
-
-function Summary({ label, value }: { label: string; value: string }) {
-  return (
-    <Card className="p-5 shadow-sm">
-      <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{label}</p>
-      <p className="mt-2 text-2xl font-black text-slate-950">{value}</p>
-    </Card>
   );
 }
 

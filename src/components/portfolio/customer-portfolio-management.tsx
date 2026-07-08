@@ -13,6 +13,7 @@ import {
   YAxis,
 } from "recharts";
 import { PageHeader } from "@/components/shared/page-header";
+import { KpiSummaryCard } from "@/components/shared/kpi-summary-card";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
@@ -23,6 +24,7 @@ import { useDeliveryStore } from "@/store/delivery-store";
 import { normalizeName } from "@/lib/financial-customers";
 import { isCustomerManagerProfile } from "@/lib/roles";
 import { formatCurrency } from "@/lib/utils";
+import { displayDirectorName } from "@/lib/director-governance";
 
 type PortfolioPlanView = RevenuePlan & {
   directorIds: string[];
@@ -91,11 +93,11 @@ export function CustomerPortfolioManagement() {
       </Card>
 
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-        <Kpi label="Receita Atual" value={formatCurrency(totals.revenueCurrent)} icon={TrendingUp} />
-        <Kpi label="Meta Prevista" value={formatCurrency(totals.revenueTarget)} icon={Target} />
-        <Kpi label="Receita Hunter" value={formatCurrency(totals.hunterRevenue)} icon={UserCog} />
-        <Kpi label="Delivery/Farmer" value={formatCurrency(totals.deliveryFarmerRevenue)} icon={Building2} />
-        <Kpi label="Áreas / Studios" value={formatCurrency(totals.studioRevenue)} icon={Building2} />
+        <KpiSummaryCard label="Receita Atual" currencyValue={totals.revenueCurrent} icon={TrendingUp} tone="dark" />
+        <KpiSummaryCard label="Meta Prevista" currencyValue={totals.revenueTarget} icon={Target} tone="purple" />
+        <KpiSummaryCard label="Receita Hunter" currencyValue={totals.hunterRevenue} icon={UserCog} tone="warning" />
+        <KpiSummaryCard label="Delivery/Farmer" currencyValue={totals.deliveryFarmerRevenue} icon={Building2} tone="purple" />
+        <KpiSummaryCard label="Áreas / Studios" currencyValue={totals.studioRevenue} icon={Building2} tone="sky" />
       </section>
 
       <Card className="border-emerald-200 bg-emerald-50/60 p-4 text-sm text-emerald-900 shadow-sm">
@@ -225,22 +227,6 @@ export function CustomerPortfolioManagement() {
   );
 }
 
-function Kpi({ label, value, icon: Icon }: { label: string; value: string; icon: React.ElementType }) {
-  return (
-    <Card>
-      <CardContent className="flex items-center gap-3 p-4">
-        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-purple-50 text-brq-purple">
-          <Icon className="h-5 w-5" />
-        </div>
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">{label}</p>
-          <p className="text-lg font-black text-slate-950">{value}</p>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
 function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <Card>
@@ -310,10 +296,6 @@ function buildPortfolioPlanViews(plans: RevenuePlan[], customers: Customer[]): P
 
 function personName(people: Person[], id: string) {
   return people.find((person) => person.id === id)?.name ?? id;
-}
-
-function displayDirectorName(name: string) {
-  return name.startsWith("Ane Knust") ? "Ane Knust" : name;
 }
 
 function unique(values: string[]) {

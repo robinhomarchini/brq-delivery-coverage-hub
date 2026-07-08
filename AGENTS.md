@@ -5,6 +5,28 @@
 Use Spec Driven Development (SDD). Read the feature specification in
 `specs/delivery-coverage-hub/` before changing product behavior.
 
+## Virtual squad workflow
+
+Use the project-local squad layer as a complementary operating model. For
+non-trivial work, read `.squad/config.yaml` and `.squad/memory.md` after this
+file and before changing code. Treat the main Codex agent as the Tech Lead
+orchestrator: understand the request, inspect the project, identify impacted
+layers, create an execution checklist, reason through specialist review lenses,
+consolidate the solution, and require evidence before completion.
+
+Keep `.squad/memory.md` updated with the current objective, decisions, commands,
+pitfalls and next pending step when work changes project behavior. Keep
+`.squad/config.yaml` aligned with actual project standards. Do not replace the
+existing SDD/specs/skills flow; the squad model complements it.
+
+For final handoff after implementation or review, use this structure:
+
+- Summary
+- Impacted Areas
+- Evidence
+- Risks / Pending Items
+- Suggested Next Step
+
 ## Project conventions
 
 - Canonical project root: `C:\Users\rmarchini\projetos\OrgBRQDelivery`.

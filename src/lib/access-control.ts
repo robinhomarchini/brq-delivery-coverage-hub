@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export type AccessRole = "viewer" | "editor" | "admin";
+export type AccessRole = "viewer" | "hunter_viewer" | "editor" | "admin";
 
 export interface AccessUser {
   userId?: string;
@@ -24,11 +24,12 @@ interface AppUserRow {
   updated_at?: string;
 }
 
-export const accessRoles: AccessRole[] = ["viewer", "editor", "admin"];
+export const accessRoles: AccessRole[] = ["viewer", "hunter_viewer", "editor", "admin"];
 
 export function translateAccessRole(role: AccessRole) {
   const labels: Record<AccessRole, string> = {
     viewer: "Leitura",
+    hunter_viewer: "Consulta Hunter",
     editor: "Editor",
     admin: "Administrador",
   };
@@ -42,6 +43,10 @@ export function normalizeAccessEmail(email: string) {
 
 export function isBrqEmail(email: string) {
   return normalizeAccessEmail(email).endsWith("@brq.com");
+}
+
+export function isHunterConsultAccess(user: Pick<AccessUser, "role" | "active"> | null | undefined) {
+  return user?.active === true && user.role === "hunter_viewer";
 }
 
 export async function fetchCurrentAccessUser(client: SupabaseClient): Promise<AccessUser | null> {

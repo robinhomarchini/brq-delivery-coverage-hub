@@ -29,6 +29,14 @@
     "C:\\Users\\rmarchini\\OneDrive - BRQ\\Documentos\\OrgBRQDelivery"
   ],
   "important_paths": [
+    "docs/context-strategy.md",
+    "docs/project-memory.md",
+    "docs/business-rules.md",
+    "docs/database.md",
+    "docs/frontend.md",
+    "docs/backend.md",
+    "docs/api.md",
+    "docs/coding-standards.md",
     "src/app",
     "src/components",
     "src/data",
@@ -40,6 +48,33 @@
     "docs/SECURITY.md",
     "docs/PRODUCTION_READINESS.md"
   ],
+  "context_policy": {
+    "summary_first": true,
+    "read_before_source": [
+      "AGENTS.md",
+      ".squad/config.yaml",
+      ".squad/memory.md",
+      "docs/context-strategy.md",
+      "docs/project-memory.md"
+    ],
+    "avoid_loading": [
+      "node_modules",
+      ".next",
+      ".npm-cache",
+      "coverage",
+      "dist",
+      "build",
+      "tmp",
+      "output",
+      "logs",
+      "screenshots",
+      "videos",
+      "binary spreadsheets",
+      "lockfile diffs unless dependency task"
+    ],
+    "source_loading_rule": "Open only impacted modules after reading the relevant summary docs.",
+    "agent_rule": "Invoke only relevant specialist agents and prevent duplicate repository reads."
+  },
   "routines": {
     "before_change": [
       "arquiteto",

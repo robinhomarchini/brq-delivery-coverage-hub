@@ -1,5 +1,6 @@
-import type { Customer, Person, TargetAllocation } from "@/data/mockData";
+import type { Customer, Person, StudioTargetAllocation, TargetAllocation } from "@/data/mockData";
 import { isHunterRole } from "@/lib/roles";
+import { getContainedHunterAllocation } from "@/lib/customer-hunter-reconciliation";
 
 export type SpreadsheetCell = unknown;
 
@@ -126,6 +127,7 @@ export function buildTargetBaselineComparisons(
   customers: Customer[],
   people: Person[],
   targetAllocations: TargetAllocation[],
+  studioTargetAllocations: StudioTargetAllocation[],
   year: number,
 ): TargetBaselineComparison[] {
   const customersByName = new Map(customers.map((customer) => [normalizeName(customer.name), customer]));
@@ -156,7 +158,7 @@ export function buildTargetBaselineComparisons(
 
     const differences = buildDifferences(customer, importedHunter, importedFarmerRenewal, importedStudio, importedRevenue);
     const importedTotalIsValid = isSameDisplayedCurrency(row.totalTarget, importedRevenue);
-    const hunterCheck = validateHunterConsistency(row, customer, people, targetAllocations, year);
+    const hunterCheck = validateHunterConsistency(row, customer, people, targetAllocations, studioTargetAllocations, year);
 
     return {
       key: customer.id,
@@ -238,23 +240,41 @@ function validateHunterConsistency(
   customer: Customer,
   people: Person[],
   targetAllocations: TargetAllocation[],
+  studioTargetAllocations: StudioTargetAllocation[],
   year: number,
 ) {
   const importedHunter = roundCurrency(row.hunterTarget);
   const importedFarmerRenewal = roundCurrency(row.farmerRenewalTarget);
   const importedStudio = roundCurrency(row.studioTarget);
   const responsiblePerson = findResponsiblePerson(row.responsibleCode, people);
-  const hunterAllocations = targetAllocations
+  const directHunterAllocations = targetAllocations
     .filter((allocation) => allocation.customerId === customer.id && allocation.year === year && allocation.type === "hunter" && allocation.amount > zeroMoneyTolerance)
-    .map((allocation) => ({
-      allocation,
+    .map<HunterContribution>((allocation) => ({
+      amount: allocation.amount,
+      source: "Meta Hunter",
       person: people.find((person) => person.id === allocation.personId),
     }));
-  const allocatedHunterTotal = roundCurrency(hunterAllocations.reduce((total, item) => total + item.allocation.amount, 0));
+  const studioHunterAllocations = studioTargetAllocations
+    .filter((allocation) => allocation.customerId === customer.id && allocation.year === year && allocation.hunterAmount > zeroMoneyTolerance)
+    .map<HunterContribution>((allocation) => ({
+      amount: allocation.hunterAmount,
+      source: "Studio Hunter",
+      person: allocation.hunterPersonId
+        ? people.find((person) => person.id === allocation.hunterPersonId)
+        : undefined,
+    }));
+  const hunterAllocations = [...directHunterAllocations, ...studioHunterAllocations];
+  const allocatedHunterTotal = getContainedHunterAllocation({
+    customerId: customer.id,
+    year,
+    targetAllocations,
+    studioTargetAllocations,
+  }).containedHunter;
+  const allocationBreakdown = formatHunterAllocationBreakdown(hunterAllocations);
 
   if (importedHunter <= zeroMoneyTolerance) {
     if (allocatedHunterTotal > zeroMoneyTolerance) {
-      const allocationMessage = `${formatPersonNames(hunterAllocations)} com ${formatCurrency(allocatedHunterTotal)}`;
+      const allocationMessage = `${allocationBreakdown} totalizando ${formatCurrency(allocatedHunterTotal)}`;
       const nonHunterImportedTotal = roundCurrency(importedFarmerRenewal + importedStudio);
       if (nonHunterImportedTotal > zeroMoneyTolerance) {
         return {
@@ -270,26 +290,28 @@ function validateHunterConsistency(
     return { status: "not_applicable" as const, message: "Sem meta Hunter na planilha." };
   }
 
-  if (!responsiblePerson) {
-    return {
-      status: "warning" as const,
-      message: row.responsibleCode
-        ? `Responsável "${row.responsibleCode}" não foi encontrado nas Pessoas cadastradas.`
-        : "Sem responsável definido na planilha.",
-    };
-  }
-
-  if (!isHunterRole(responsiblePerson.roleType)) {
-    return {
-      status: "warning" as const,
-      message: `${responsiblePerson.name} aparece na planilha, mas não está cadastrado como Hunter/Hunter + Farmer.`,
-    };
-  }
-
   if (!hunterAllocations.length) {
     return {
       status: "warning" as const,
-      message: `Planilha indica Hunter ${responsiblePerson.name} com ${formatCurrency(importedHunter)}, mas não há meta Hunter alocada no sistema.`,
+      message: row.responsibleCode
+        ? `Planilha informa ${formatCurrency(importedHunter)} de Hunter para ${row.responsibleCode}, mas não há meta Hunter alocada no sistema para este cliente/ano.`
+        : `Planilha informa ${formatCurrency(importedHunter)} de Hunter, mas não há meta Hunter alocada no sistema para este cliente/ano.`,
+    };
+  }
+
+  if (!isSameDisplayedCurrency(allocatedHunterTotal, importedHunter)) {
+    return {
+      status: "warning" as const,
+      message: `Valor Hunter divergente: planilha ${formatCurrency(importedHunter)} vs. sistema ${formatCurrency(allocatedHunterTotal)}. Composição no sistema: ${allocationBreakdown}. Studio Hunter é tratado como contido por pessoa, sem duplicar Meta Hunter direta.`,
+    };
+  }
+
+  if (!responsiblePerson) {
+    return {
+      status: "ok" as const,
+      message: row.responsibleCode
+        ? `Valor Hunter consistente no total. Responsável "${row.responsibleCode}" não foi encontrado, mas o sistema soma ${formatCurrency(allocatedHunterTotal)} em: ${allocationBreakdown}.`
+        : `Valor Hunter consistente no total: ${allocationBreakdown}.`,
     };
   }
 
@@ -297,18 +319,19 @@ function validateHunterConsistency(
   if (!hasResponsibleAllocation) {
     return {
       status: "warning" as const,
-      message: `Planilha indica ${responsiblePerson.name}; app tem ${formatPersonNames(hunterAllocations)}.`,
+      message: `Valor Hunter consistente no total, mas a planilha indica ${responsiblePerson.name} e o sistema tem composição em: ${allocationBreakdown}.`,
     };
   }
 
-  if (!isSameDisplayedCurrency(allocatedHunterTotal, importedHunter)) {
+  const responsibleHasHunterProfile = isHunterRole(responsiblePerson.roleType);
+  if (!responsibleHasHunterProfile) {
     return {
-      status: "warning" as const,
-      message: `Valor Hunter divergente: planilha ${formatCurrency(importedHunter)} vs. sistema ${formatCurrency(allocatedHunterTotal)} para ${responsiblePerson.name}.`,
+      status: "ok" as const,
+      message: `Valor Hunter consistente no total. ${responsiblePerson.name} possui meta Hunter alocada, embora o perfil cadastral seja ${responsiblePerson.roleType}. Composição: ${allocationBreakdown}.`,
     };
   }
 
-  return { status: "ok" as const, message: `Hunter consistente com ${responsiblePerson.name}.` };
+  return { status: "ok" as const, message: `Valor Hunter consistente no total: ${allocationBreakdown}.` };
 }
 
 function findResponsiblePerson(code: string, people: Person[]) {
@@ -358,9 +381,17 @@ function parseMoney(value: SpreadsheetCell) {
   return 0;
 }
 
-function formatPersonNames(items: Array<{ person?: Person }>) {
-  const names = Array.from(new Set(items.map((item) => item.person?.name ?? "Pessoa não encontrada")));
-  return names.join(", ");
+type HunterContribution = {
+  amount: number;
+  source: "Meta Hunter" | "Studio Hunter";
+  person?: Person;
+};
+
+function formatHunterAllocationBreakdown(items: HunterContribution[]) {
+  if (!items.length) return "sem pessoas alocadas";
+  return items
+    .map((item) => `${item.person?.name ?? "Pessoa não encontrada"} ${formatCurrency(item.amount)} (${item.source})`)
+    .join("; ");
 }
 
 function formatCurrency(value: number) {
