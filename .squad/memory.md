@@ -2,7 +2,7 @@
 
 ## Current Task Objective
 
-Corrigir Relatório de Metas para incluir clientes de Studio Hunter por Hunter efetivo nas visões Pessoas/Hunters, prévias e exportações.
+Criar visão Hunter x Clientes no Relatório de Metas, detalhando Meta própria, Studio Hunter e Manutenção por cliente/studio.
 
 ## Execution Checklist
 
@@ -57,6 +57,9 @@ Corrigir Relatório de Metas para incluir clientes de Studio Hunter por Hunter e
 - [x] Rodar typecheck, lint, smoke critico e build apos correcao de Hunter efetivo.
 - [x] Fazer Relatório de Metas usar Hunter efetivo em Pessoas, Hunters, detalhes e exportações.
 - [x] Documentar criterio de aceite para que clientes como SICOOB/SICREDI nao sumam por `hunterPersonId` vazio.
+- [x] Criar visão Hunter x Clientes com seletor unico de Hunter e linhas por Cliente + Area/Studio.
+- [x] Incluir Meta propria Hunter e alocacoes de Studio Hunter/Manutencao usando Hunter efetivo.
+- [x] Documentar que Manutencao aparece para leitura operacional e nao vira meta Hunter.
 
 ## Previous Completed Work
 

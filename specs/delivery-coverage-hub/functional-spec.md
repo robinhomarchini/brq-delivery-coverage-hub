@@ -445,6 +445,13 @@ derivada de `studio_target_allocations` e não deve ser interpretada como novo
 lançamento direto. A prévia e
 exportação devem usar exatamente o modo ativo: consolidado quando não houver
 Hunter selecionado e detalhado/explodido quando houver seleção.
+A visão Hunter x Clientes permite escolher um único Hunter e abrir a composição
+por Cliente + Área/Studio + Ano, com linhas de Meta própria Hunter quando
+existirem e linhas de Studio separando Studio Hunter e Studio
+Manutenção/Renovação. Essa visão usa o Hunter efetivo da linha: Hunter
+associado ao Studio ou, se vazio, Hunter principal cadastrado no cliente.
+Studio Manutenção aparece para leitura operacional do cliente e não altera a
+meta Hunter. A prévia e exportação usam o mesmo grão detalhado exibido em tela.
 Na visão de Hunters Especializados, a tela mostra uma leitura gerencial cross.
 Esse papel não possui Meta própria lançável nem Meta Renovação + Ampliação: os
 valores são sempre derivados das alocações de Studios dos clientes vinculados à

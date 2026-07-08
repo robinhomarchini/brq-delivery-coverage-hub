@@ -27,7 +27,7 @@ const hunterOwnTotalLabel = "Meta Hunter atual";
 const hunterStudioContainedLabel = "Meta herdada de Studios";
 const hunterBaseWithoutStudioLabel = "Meta própria";
 
-type ReportView = "people" | "areas" | "hunters" | "specialistHunters" | "directors";
+type ReportView = "people" | "areas" | "hunters" | "hunterClients" | "specialistHunters" | "directors";
 type PeopleSortKey = "person" | "role" | "clients" | "hunter" | "renewal" | "total" | "status";
 type AreaSortKey = "area" | "clients" | "hunter" | "maintenance" | "total";
 type HunterSortKey = "hunter" | "role" | "ownHunter" | "studioHunter" | "totalHunter" | "studios";
@@ -40,6 +40,7 @@ export function PersonTargetReport() {
   const [roleType, setRoleType] = useState("");
   const [view, setView] = useState<ReportView>("people");
   const [selectedDirectorId, setSelectedDirectorId] = useState("");
+  const [selectedHunterClientId, setSelectedHunterClientId] = useState("");
   const [selectedHunterIds, setSelectedHunterIds] = useState<Set<string>>(new Set());
   const [selectedAreaIds, setSelectedAreaIds] = useState<Set<string>>(new Set());
   const [peopleSort, setPeopleSort] = useState<SortState<PeopleSortKey>>({ key: "total", direction: "desc" });
@@ -93,6 +94,18 @@ export function PersonTargetReport() {
   const hunterRows = useMemo(
     () => buildHunterRows(people, targetAllocations, studioTargetAllocations, areaNames, selectedYear),
     [areaNames, people, selectedYear, studioTargetAllocations, targetAllocations],
+  );
+  const hunterClientRows = useMemo(
+    () => buildHunterClientRows({
+      people,
+      allocations: targetAllocations,
+      studioAllocations: studioTargetAllocations,
+      customerNames,
+      areaNames,
+      hunterId: selectedHunterClientId,
+      year: selectedYear,
+    }),
+    [areaNames, customerNames, people, selectedHunterClientId, selectedYear, studioTargetAllocations, targetAllocations],
   );
   const filteredPeopleRows = useMemo(() => {
     const query = search.toLowerCase();
@@ -150,6 +163,13 @@ export function PersonTargetReport() {
     );
   }, [hunterDetailRows, search]);
   const hunterDetailGroups = useMemo(() => buildHunterDetailGroups(filteredHunterDetailRows), [filteredHunterDetailRows]);
+  const filteredHunterClientRows = useMemo(() => {
+    const query = search.toLowerCase();
+    return hunterClientRows.filter((row) =>
+      !query || `${row.hunterName} ${row.customerName} ${row.areaName} ${row.segment}`.toLowerCase().includes(query)
+    );
+  }, [hunterClientRows, search]);
+  const hunterClientGroups = useMemo(() => buildHunterClientGroups(filteredHunterClientRows), [filteredHunterClientRows]);
   const specialistHunterRows = useMemo(
     () => buildSpecialistHunterRows(people, customers, studioTargetAllocations, specialistHunterStudioAssignments, areaNames, selectedYear),
     [areaNames, customers, people, selectedYear, specialistHunterStudioAssignments, studioTargetAllocations],
@@ -227,6 +247,7 @@ export function PersonTargetReport() {
     peopleRows: peopleExportRows,
     selectedHunterNames: selectedHunterRows.map((row) => row.hunterName),
     selectedAreaNames: selectedAreaRows.map((row) => row.areaName),
+    selectedHunterClientName: selectedHunterClientId ? peopleNames.get(selectedHunterClientId) ?? "" : "",
     selectedDirectorName: selectedDirectorId ? peopleNames.get(selectedDirectorId) ?? "" : "",
   });
   const officialCustomExports = [{
@@ -247,12 +268,14 @@ export function PersonTargetReport() {
       ? hasSelectedAreas ? filteredAreaDetailRows : filteredAreaRows
       : effectiveView === "hunters"
         ? hasDetailHunters ? filteredHunterDetailRows : hunterSummaryRows
-        : effectiveView === "specialistHunters"
-          ? filteredSpecialistHunterRows
-          : filteredDirectorDetailRows;
+        : effectiveView === "hunterClients"
+          ? filteredHunterClientRows
+          : effectiveView === "specialistHunters"
+            ? filteredSpecialistHunterRows
+            : filteredDirectorDetailRows;
   const totals = useMemo(
-    () => getViewTotals(effectiveView, filteredPeopleRows, filteredAreaRows, hunterSummaryRows, filteredDirectorDetailRows, filteredHunterDetailRows, hasDetailHunters, hasSelectedAreas ? filteredAreaDetailRows : undefined, filteredSpecialistHunterRows),
-    [effectiveView, filteredAreaDetailRows, filteredAreaRows, hunterSummaryRows, filteredDirectorDetailRows, filteredHunterDetailRows, filteredPeopleRows, filteredSpecialistHunterRows, hasDetailHunters, hasSelectedAreas],
+    () => getViewTotals(effectiveView, filteredPeopleRows, filteredAreaRows, hunterSummaryRows, filteredDirectorDetailRows, filteredHunterDetailRows, hasDetailHunters, hasSelectedAreas ? filteredAreaDetailRows : undefined, filteredSpecialistHunterRows, filteredHunterClientRows),
+    [effectiveView, filteredAreaDetailRows, filteredAreaRows, hunterSummaryRows, filteredDirectorDetailRows, filteredHunterDetailRows, filteredHunterClientRows, filteredPeopleRows, filteredSpecialistHunterRows, hasDetailHunters, hasSelectedAreas],
   );
   const roleTypes = useMemo(() => Array.from(new Set(assignablePeople.map((person) => person.roleType))).sort((a, b) => a.localeCompare(b, "pt-BR")), [assignablePeople]);
 
@@ -260,6 +283,7 @@ export function PersonTargetReport() {
     setView(nextView);
     setRoleType("");
     setSelectedDirectorId("");
+    setSelectedHunterClientId("");
     setSelectedHunterIds(new Set());
     setSelectedAreaIds(new Set());
     setSelectedPersonIds(new Set());
@@ -378,6 +402,14 @@ export function PersonTargetReport() {
                 customExports={officialCustomExports}
               />
             )}
+            {effectiveView === "hunterClients" && (
+              <ReportExportActions
+                title={`Relatório Hunter x Clientes · ${selectedHunterClientId ? peopleNames.get(selectedHunterClientId) ?? "Hunter" : "Hunter"} · ${year}`}
+                filename={`relatorio-hunter-clientes-${year}${selectedHunterClientId ? `-${toFileSlug(peopleNames.get(selectedHunterClientId) ?? "hunter")}` : ""}`}
+                rows={filteredHunterClientRows}
+                columns={hunterClientReportColumns}
+              />
+            )}
             {effectiveView === "specialistHunters" && (
               <ReportExportActions
                 title={`Relatório de Hunter Especializado · ${year}`}
@@ -414,6 +446,7 @@ export function PersonTargetReport() {
               { key: "people", label: "Pessoas" },
               { key: "areas", label: "Áreas / Studios" },
               { key: "hunters", label: "Hunters" },
+              { key: "hunterClients", label: "Hunter x Clientes" },
               { key: "specialistHunters", label: "Hunters Especializados" },
               { key: "directors", label: "Diretoria Delivery" },
             ].map((item) => (
@@ -444,6 +477,13 @@ export function PersonTargetReport() {
             <Select value={selectedDirectorId} onChange={(event) => setSelectedDirectorId(event.target.value)}>
               <option value="">Escolha a diretoria</option>
               {directorOptions.map((director) => <option key={director.id} value={director.id}>{director.name}</option>)}
+            </Select>
+          ) : effectiveView === "hunterClients" ? (
+            <Select value={selectedHunterClientId} onChange={(event) => setSelectedHunterClientId(event.target.value)}>
+              <option value="">Escolha o Hunter</option>
+              {[...hunterRows]
+                .sort((first, second) => first.hunterName.localeCompare(second.hunterName, "pt-BR"))
+                .map((hunter) => <option key={hunter.hunterId} value={hunter.hunterId}>{hunter.hunterName}</option>)}
             </Select>
           ) : (
             <Select value={roleType} onChange={(event) => setRoleType(event.target.value)}>
@@ -876,6 +916,85 @@ export function PersonTargetReport() {
         </Card>
       )}
 
+      {effectiveView === "hunterClients" && (
+        <Card className="overflow-hidden shadow-sm">
+          <div className="border-b border-slate-200 px-5 py-4">
+            <p className="text-sm font-bold text-slate-900">Hunter x Clientes</p>
+            <p className="text-xs text-slate-500">
+              Escolha um Hunter para ver Meta própria, Studio Hunter e Studio Manutenção por cliente e área/studio. Manutenção aparece para leitura operacional e não soma na meta Hunter.
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <Table className="min-w-[1280px]">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Área / Studio</TableHead>
+                  <TableHead>Origem</TableHead>
+                  <TableHead>Hunter efetivo</TableHead>
+                  <TableHead className="text-right">Studio Hunter</TableHead>
+                  <TableHead className="text-right">Manutenção</TableHead>
+                  <TableHead className="text-right">Total da linha</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {hunterClientGroups.map((group) => (
+                  <Fragment key={`${group.hunterId}-${group.customerName}`}>
+                    <TableRow className="bg-slate-50">
+                      <TableCell colSpan={4}>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="min-w-0 break-words font-bold text-slate-950">{group.customerName}</span>
+                          <Badge variant="secondary">{group.rows.length} quebra(s)</Badge>
+                          <Badge className="bg-sky-100 text-sky-800 hover:bg-sky-100">
+                            Studio Hunter {formatCurrency(group.hunterAmount)}
+                          </Badge>
+                          {group.maintenanceAmount > 0 && (
+                            <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100">
+                              Manutenção {formatCurrency(group.maintenanceAmount)}
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right font-bold tabular-nums text-sky-700">{formatCurrency(group.hunterAmount)}</TableCell>
+                      <TableCell className="text-right font-bold tabular-nums text-slate-700">{formatCurrency(group.maintenanceAmount)}</TableCell>
+                      <TableCell className="text-right font-bold tabular-nums text-slate-950">{formatCurrency(group.total)}</TableCell>
+                    </TableRow>
+                    {group.rows.map((row) => (
+                      <TableRow key={row.id}>
+                        <TableCell />
+                        <TableCell>
+                          <p className="font-semibold text-slate-900">{row.areaName}</p>
+                          {row.observations && <p className="max-w-xl text-xs text-slate-500">{row.observations}</p>}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={row.segment === "Meta própria Hunter" ? "bg-violet-100 text-violet-800 hover:bg-violet-100" : row.hunterAmount > 0 ? "bg-sky-100 text-sky-800 hover:bg-sky-100" : "bg-slate-100 text-slate-700 hover:bg-slate-100"}>
+                            {row.segment}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{row.hunterName}</TableCell>
+                        <TableCell className="text-right font-semibold tabular-nums text-sky-700">{formatCurrency(row.hunterAmount)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{formatCurrency(row.maintenanceAmount)}</TableCell>
+                        <TableCell className="text-right font-bold tabular-nums text-slate-950">{formatCurrency(row.total)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </Fragment>
+                ))}
+                {filteredHunterClientRows.length > 0 && (
+                  <TableRow className="bg-slate-900 text-white hover:bg-slate-900">
+                    <TableCell colSpan={4} className="font-bold">Total do Hunter nos clientes filtrados</TableCell>
+                    <TableCell className="text-right font-bold tabular-nums">{formatCurrency(filteredHunterClientRows.reduce((total, row) => total + row.hunterAmount, 0))}</TableCell>
+                    <TableCell className="text-right font-bold tabular-nums">{formatCurrency(filteredHunterClientRows.reduce((total, row) => total + row.maintenanceAmount, 0))}</TableCell>
+                    <TableCell className="text-right font-bold tabular-nums">{formatCurrency(filteredHunterClientRows.reduce((total, row) => total + row.total, 0))}</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+          {!selectedHunterClientId && <EmptyState message="Escolha um Hunter para abrir os clientes, Studios e manutenções associados." />}
+          {selectedHunterClientId && !filteredHunterClientRows.length && <EmptyState message="Nenhuma quebra foi encontrada para o Hunter e filtros selecionados." />}
+        </Card>
+      )}
+
       {effectiveView === "specialistHunters" && (
         <Card className="overflow-hidden shadow-sm">
           <div className="border-b border-slate-200 px-5 py-4">
@@ -1008,6 +1127,7 @@ export function PersonTargetReport() {
 function getViewDescription(view: ReportView) {
   if (view === "areas") return "Metas agrupadas por Área/Studio, com clientes apenas como detalhe.";
   if (view === "hunters") return "Metas consolidadas por Hunter, sem repetir uma linha por cliente.";
+  if (view === "hunterClients") return "Escolha um Hunter e abra cliente, Studio, Hunter, manutenção e total no maior detalhe.";
   if (view === "specialistHunters") return "Leitura gerencial cross derivada de Studios, sem meta própria e sem impacto nos totais oficiais.";
   if (view === "directors") return "Abra pessoa, cliente e quebras de studio da diretoria selecionada.";
   return "Metas operacionais por pessoa, com acesso rápido para ajuste.";
@@ -1579,6 +1699,126 @@ function buildHunterDetailGroups(rows: HunterDetailRow[]) {
   );
 }
 
+function buildHunterClientRows({
+  people,
+  allocations,
+  studioAllocations,
+  customerNames,
+  areaNames,
+  hunterId,
+  year,
+}: {
+  people: Array<{ id: string; name: string; roleType: RoleType; active: boolean; clientIds: string[] }>;
+  allocations: Array<{ id: string; customerId: string; personId: string; type: string; year: number; amount: number; ownAmount?: number }>;
+  studioAllocations: Array<{ id: string; customerId: string; areaId: string; hunterPersonId?: string; year: number; hunterAmount: number; maintenanceAmount: number; notes?: string }>;
+  customerNames: Map<string, string>;
+  areaNames: Map<string, string>;
+  hunterId: string;
+  year: number;
+}) {
+  if (!hunterId) return [];
+
+  const peopleById = new Map(people.map((person) => [person.id, person]));
+  const hunter = peopleById.get(hunterId);
+  const hunterName = hunter?.name ?? "Hunter não encontrado";
+  const studioByHunterCustomer = buildStudioHunterTotalsByHunterCustomer(studioAllocations, year, people, allocations);
+  const rows: HunterClientRow[] = [];
+
+  allocations
+    .filter((allocation) =>
+      allocation.year === year
+      && allocation.personId === hunterId
+      && allocation.type === "hunter"
+      && allocation.amount > 0
+    )
+    .forEach((allocation) => {
+      const studioHunterForCustomer = studioByHunterCustomer.get(`${hunterId}:${allocation.customerId}`) ?? 0;
+      const ownAmount = getHunterOwnAmount(allocation, studioHunterForCustomer);
+      if (ownAmount <= 0.01) return;
+
+      rows.push({
+        id: allocation.id,
+        hunterId,
+        hunterName,
+        customerId: allocation.customerId,
+        customerName: customerNames.get(allocation.customerId) ?? allocation.customerId,
+        areaName: hunterBaseWithoutStudioLabel,
+        segment: "Meta própria Hunter",
+        hunterAmount: ownAmount,
+        maintenanceAmount: 0,
+        total: ownAmount,
+        observations: "",
+      });
+    });
+
+  studioAllocations
+    .filter((allocation) => {
+      const effectiveHunterId = getEffectiveStudioHunterPersonId(allocation, people, allocations);
+      return allocation.year === year
+        && effectiveHunterId === hunterId
+        && allocation.hunterAmount + allocation.maintenanceAmount > 0;
+    })
+    .forEach((allocation) => {
+      rows.push({
+        id: allocation.id,
+        hunterId,
+        hunterName,
+        customerId: allocation.customerId,
+        customerName: customerNames.get(allocation.customerId) ?? allocation.customerId,
+        areaName: areaNames.get(allocation.areaId) ?? allocation.areaId,
+        segment: getStudioTargetTypeLabel(allocation.hunterAmount, allocation.maintenanceAmount),
+        hunterAmount: allocation.hunterAmount,
+        maintenanceAmount: allocation.maintenanceAmount,
+        total: allocation.hunterAmount + allocation.maintenanceAmount,
+        observations: allocation.notes ?? "",
+      });
+    });
+
+  return rows.sort((first, second) =>
+    first.customerName.localeCompare(second.customerName, "pt-BR")
+    || getHunterClientSegmentSortValue(first.segment) - getHunterClientSegmentSortValue(second.segment)
+    || first.areaName.localeCompare(second.areaName, "pt-BR")
+  );
+}
+
+function buildHunterClientGroups(rows: HunterClientRow[]) {
+  const groups = new Map<string, HunterClientGroup>();
+
+  rows.forEach((row) => {
+    const group = groups.get(row.customerId) ?? {
+      hunterId: row.hunterId,
+      hunterName: row.hunterName,
+      customerId: row.customerId,
+      customerName: row.customerName,
+      rows: [],
+      hunterAmount: 0,
+      maintenanceAmount: 0,
+      total: 0,
+    };
+    group.rows.push(row);
+    group.hunterAmount += row.hunterAmount;
+    group.maintenanceAmount += row.maintenanceAmount;
+    group.total += row.total;
+    groups.set(row.customerId, group);
+  });
+
+  return Array.from(groups.values())
+    .map((group) => ({
+      ...group,
+      rows: group.rows.sort((first, second) =>
+        getHunterClientSegmentSortValue(first.segment) - getHunterClientSegmentSortValue(second.segment)
+        || first.areaName.localeCompare(second.areaName, "pt-BR")
+      ),
+    }))
+    .sort((first, second) => first.customerName.localeCompare(second.customerName, "pt-BR"));
+}
+
+function getHunterClientSegmentSortValue(segment: string) {
+  if (segment === "Meta própria Hunter") return 0;
+  if (segment.includes("Studio Hunter")) return 1;
+  return 2;
+}
+
 function buildSpecialistHunterRows(
   people: Array<{ id: string; name: string; roleType: RoleType; active: boolean; clientIds: string[] }>,
   customers: Array<{ id: string; name: string }>,
@@ -1640,6 +1880,7 @@ function getViewTotals(
   hasSelectedHunter: boolean,
   areaDetailRows?: AreaStudioDetailRow[],
   specialistHunterRows: SpecialistHunterRow[] = [],
+  hunterClientRows: HunterClientRow[] = [],
 ) {
   if (view === "areas") {
     if (areaDetailRows) {
@@ -1698,6 +1939,20 @@ function getViewTotals(
       second: areaNames.size,
       total: specialistHunterRows.reduce((total, row) => total + row.amount, 0),
     };
+  }
+  if (view === "hunterClients") {
+    const customerIds = new Set(hunterClientRows.map((row) => row.customerId));
+    return hunterClientRows.reduce((summary, row) => ({
+      ...summary,
+      countLabel: "Clientes do Hunter",
+      count: customerIds.size,
+      firstLabel: "Studio Hunter",
+      first: summary.first + row.hunterAmount,
+      secondLabel: "Manutenção",
+      second: summary.second + row.maintenanceAmount,
+      totalLabel: "Total detalhado",
+      total: summary.total + row.total,
+    }), emptyTotals("Clientes do Hunter", "Studio Hunter", "Manutenção", "Total detalhado"));
   }
   if (view === "directors") {
     const personIds = new Set(directorDetailRows.map((row) => row.personId));
@@ -1813,6 +2068,17 @@ const hunterDetailReportColumns: ReportColumn<HunterDetailRow>[] = [
   { key: "segment", label: "Segmento", value: (row) => row.segment },
   { key: "areaName", label: "Área / Studio", value: (row) => row.areaName },
   { key: "amount", label: "Valor alocado", value: (row) => row.amount, format: "currency", align: "right" },
+];
+
+const hunterClientReportColumns: ReportColumn<HunterClientRow>[] = [
+  { key: "hunterName", label: "Hunter", value: (row) => row.hunterName },
+  { key: "customerName", label: "Cliente", value: (row) => row.customerName },
+  { key: "areaName", label: "Área / Studio", value: (row) => row.areaName },
+  { key: "segment", label: "Origem", value: (row) => row.segment },
+  { key: "hunterAmount", label: "Studio Hunter", value: (row) => row.hunterAmount, format: "currency", align: "right" },
+  { key: "maintenanceAmount", label: "Manutenção", value: (row) => row.maintenanceAmount, format: "currency", align: "right" },
+  { key: "total", label: "Total da linha", value: (row) => row.total, format: "currency", align: "right" },
+  { key: "observations", label: "Observações", value: (row) => row.observations },
 ];
 
 const specialistHunterReportColumns: ReportColumn<SpecialistHunterRow>[] = [
@@ -2027,17 +2293,20 @@ function getOfficialFilenameSuffix({
   peopleRows,
   selectedHunterNames,
   selectedAreaNames,
+  selectedHunterClientName,
   selectedDirectorName,
 }: {
   view: ReportView;
   peopleRows: PeopleRow[];
   selectedHunterNames: string[];
   selectedAreaNames: string[];
+  selectedHunterClientName: string;
   selectedDirectorName: string;
 }) {
   if (view === "people" && peopleRows.length === 1) return `-${toFileSlug(peopleRows[0].personName)}`;
   if (view === "hunters" && selectedHunterNames.length === 1) return `-${toFileSlug(selectedHunterNames[0])}`;
   if (view === "hunters" && selectedHunterNames.length > 1) return "-selecao";
+  if (view === "hunterClients" && selectedHunterClientName) return `-${toFileSlug(selectedHunterClientName)}`;
   if (view === "areas" && selectedAreaNames.length === 1) return `-${toFileSlug(selectedAreaNames[0])}`;
   if (view === "areas" && selectedAreaNames.length > 1) return "-selecao";
   if (view === "directors" && selectedDirectorName) return `-${toFileSlug(selectedDirectorName)}`;
@@ -2160,6 +2429,29 @@ type HunterDetailGroup = {
   rows: HunterDetailRow[];
   ownTotal: number;
   studioHunterTotal: number;
+  total: number;
+};
+type HunterClientRow = {
+  id: string;
+  hunterId: string;
+  hunterName: string;
+  customerId: string;
+  customerName: string;
+  areaName: string;
+  segment: string;
+  hunterAmount: number;
+  maintenanceAmount: number;
+  total: number;
+  observations: string;
+};
+type HunterClientGroup = {
+  hunterId: string;
+  hunterName: string;
+  customerId: string;
+  customerName: string;
+  rows: HunterClientRow[];
+  hunterAmount: number;
+  maintenanceAmount: number;
   total: number;
 };
 type SpecialistHunterRow = {

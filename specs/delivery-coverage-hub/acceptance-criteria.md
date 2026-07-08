@@ -358,6 +358,13 @@
   primeiro o Hunter associado ao Studio e, se vazio, o Hunter principal
   cadastrado no cliente. Clientes como SICOOB/SICREDI não podem sumir do
   relatório da pessoa apenas porque a linha de Studio está sem `hunterPersonId`.
+- O Relatório de Metas possui visão Hunter x Clientes com seletor único de
+  Hunter. Ao escolher um Hunter, a tela exibe cliente, área/studio, origem,
+  Studio Hunter, Manutenção e total da linha, incluindo Meta própria Hunter
+  quando existir e todas as linhas de Studio associadas ao Hunter efetivo.
+- A exportação da visão Hunter x Clientes usa o mesmo detalhe exibido em tela e
+  não transforma Studio Manutenção em meta Hunter; manutenção permanece como
+  coluna informativa/operacional.
 - Na tela Clientes, a lista de Hunters alocados e a distribuição por pessoa
   exibem Hunters vindos de Studio Hunter; quando a pessoa também possui Meta
   Hunter direta, a leitura usa o maior valor entre meta direta e Studio Hunter
