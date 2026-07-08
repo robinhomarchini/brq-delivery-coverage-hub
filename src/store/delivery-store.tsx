@@ -1,12 +1,12 @@
 "use client";
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { areas as initialAreas, customers as initialCustomers, customerTargets as initialCustomerTargets, people as initialPeople, studioTargetAllocations as initialStudioTargetAllocations, subjects as initialSubjects, targetAllocations as initialTargetAllocations } from "@/data/mockData";
-import type { Area, Customer, CustomerTarget, Person, PersonCompensation, StudioTargetAllocation, Subject, TargetAllocation } from "@/data/mockData";
+import { areas as initialAreas, customers as initialCustomers, customerTargets as initialCustomerTargets, people as initialPeople, specialistHunterStudioAssignments as initialSpecialistHunterStudioAssignments, studioTargetAllocations as initialStudioTargetAllocations, subjects as initialSubjects, targetAllocations as initialTargetAllocations } from "@/data/mockData";
+import type { Area, Customer, CustomerTarget, Person, PersonCompensation, SpecialistHunterStudioAssignment, StudioTargetAllocation, Subject, TargetAllocation } from "@/data/mockData";
 import { boardTargetBaselineRows as initialBoardTargetBaselines, type BoardTargetBaselineRow } from "@/data/boardTargetBaseline";
 import type { StudioBaselineSnapshot } from "@/lib/studio-baseline-import";
 import { createSupabaseDeliveryRepository, localDeliveryRepository } from "@/lib/repositories";
-import type { AreaUsage, DeliveryRepository, PersonCustomerRemovalInput, PersonCustomerTargetsInput } from "@/lib/repositories";
+import type { AreaUsage, DeliveryRepository, PersonCustomerRemovalInput, PersonCustomerTargetsInput, SpecialistHunterStudioAssignmentsInput } from "@/lib/repositories";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { buildAreaUsages } from "@/lib/area-usage";
 
@@ -20,6 +20,7 @@ interface DeliveryStoreValue {
   areaUsages: AreaUsage[];
   targetAllocations: TargetAllocation[];
   studioTargetAllocations: StudioTargetAllocation[];
+  specialistHunterStudioAssignments: SpecialistHunterStudioAssignment[];
   boardTargetBaselines: BoardTargetBaselineRow[];
   studioBaselineSnapshots: StudioBaselineSnapshot[];
   loading: boolean;
@@ -40,6 +41,7 @@ interface DeliveryStoreValue {
   deleteTargetAllocation: (id: string) => Promise<void>;
   saveStudioTargetAllocation: (allocation: StudioTargetAllocation) => Promise<void>;
   deleteStudioTargetAllocation: (id: string) => Promise<void>;
+  saveSpecialistHunterStudioAssignments: (input: SpecialistHunterStudioAssignmentsInput) => Promise<void>;
   saveStudioBaselineSnapshot: (snapshot: Omit<StudioBaselineSnapshot, "id" | "createdAt">) => Promise<StudioBaselineSnapshot>;
   savePersonCustomerTargets: (input: PersonCustomerTargetsInput) => Promise<void>;
   removePersonCustomerTargets: (input: PersonCustomerRemovalInput) => Promise<void>;
@@ -58,6 +60,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
   const [areaUsages, setAreaUsages] = useState<AreaUsage[]>(productionWithoutSupabase ? [] : buildAreaUsages(initialPeople));
   const [targetAllocations, setTargetAllocations] = useState<TargetAllocation[]>(productionWithoutSupabase ? [] : initialTargetAllocations);
   const [studioTargetAllocations, setStudioTargetAllocations] = useState<StudioTargetAllocation[]>(productionWithoutSupabase ? [] : initialStudioTargetAllocations);
+  const [specialistHunterStudioAssignments, setSpecialistHunterStudioAssignments] = useState<SpecialistHunterStudioAssignment[]>(productionWithoutSupabase ? [] : initialSpecialistHunterStudioAssignments);
   const [boardTargetBaselines, setBoardTargetBaselines] = useState<BoardTargetBaselineRow[]>(productionWithoutSupabase ? [] : initialBoardTargetBaselines);
   const [studioBaselineSnapshots, setStudioBaselineSnapshots] = useState<StudioBaselineSnapshot[]>([]);
   const [loading, setLoading] = useState(true);
@@ -81,6 +84,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setAreaUsages(data.areaUsages);
         setTargetAllocations(data.targetAllocations);
         setStudioTargetAllocations(data.studioTargetAllocations);
+        setSpecialistHunterStudioAssignments(data.specialistHunterStudioAssignments);
         setBoardTargetBaselines(data.boardTargetBaselines);
         setStudioBaselineSnapshots(data.studioBaselineSnapshots);
         setError("");
@@ -102,6 +106,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
     areaUsages,
     targetAllocations,
     studioTargetAllocations,
+    specialistHunterStudioAssignments,
     boardTargetBaselines,
     studioBaselineSnapshots,
     loading,
@@ -119,6 +124,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setAreaUsages(data.areaUsages);
         setTargetAllocations(data.targetAllocations);
         setStudioTargetAllocations(data.studioTargetAllocations);
+        setSpecialistHunterStudioAssignments(data.specialistHunterStudioAssignments);
         setBoardTargetBaselines(data.boardTargetBaselines);
         setStudioBaselineSnapshots(data.studioBaselineSnapshots);
         setError("");
@@ -140,6 +146,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setAreaUsages(data.areaUsages);
         setTargetAllocations(data.targetAllocations);
         setStudioTargetAllocations(data.studioTargetAllocations);
+        setSpecialistHunterStudioAssignments(data.specialistHunterStudioAssignments);
         setBoardTargetBaselines(data.boardTargetBaselines);
         setStudioBaselineSnapshots(data.studioBaselineSnapshots);
         setError("");
@@ -161,6 +168,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setAreaUsages(data.areaUsages);
         setTargetAllocations(data.targetAllocations);
         setStudioTargetAllocations(data.studioTargetAllocations);
+        setSpecialistHunterStudioAssignments(data.specialistHunterStudioAssignments);
         setBoardTargetBaselines(data.boardTargetBaselines);
         setStudioBaselineSnapshots(data.studioBaselineSnapshots);
         setError("");
@@ -182,6 +190,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setAreaUsages(data.areaUsages);
         setTargetAllocations(data.targetAllocations);
         setStudioTargetAllocations(data.studioTargetAllocations);
+        setSpecialistHunterStudioAssignments(data.specialistHunterStudioAssignments);
         setBoardTargetBaselines(data.boardTargetBaselines);
         setStudioBaselineSnapshots(data.studioBaselineSnapshots);
         setError("");
@@ -203,6 +212,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setAreaUsages(data.areaUsages);
         setTargetAllocations(data.targetAllocations);
         setStudioTargetAllocations(data.studioTargetAllocations);
+        setSpecialistHunterStudioAssignments(data.specialistHunterStudioAssignments);
         setBoardTargetBaselines(data.boardTargetBaselines);
         setStudioBaselineSnapshots(data.studioBaselineSnapshots);
         setError("");
@@ -237,6 +247,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setAreaUsages(data.areaUsages);
         setTargetAllocations(data.targetAllocations);
         setStudioTargetAllocations(data.studioTargetAllocations);
+        setSpecialistHunterStudioAssignments(data.specialistHunterStudioAssignments);
         setBoardTargetBaselines(data.boardTargetBaselines);
         setStudioBaselineSnapshots(data.studioBaselineSnapshots);
         setError("");
@@ -258,6 +269,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setAreaUsages(data.areaUsages);
         setTargetAllocations(data.targetAllocations);
         setStudioTargetAllocations(data.studioTargetAllocations);
+        setSpecialistHunterStudioAssignments(data.specialistHunterStudioAssignments);
         setBoardTargetBaselines(data.boardTargetBaselines);
         setStudioBaselineSnapshots(data.studioBaselineSnapshots);
         setError("");
@@ -340,9 +352,32 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
       try {
         await repository.deleteStudioTargetAllocation(id);
         setStudioTargetAllocations((current) => current.filter((item) => item.id !== id));
+        setSpecialistHunterStudioAssignments((current) => current.filter((item) => item.studioTargetAllocationId !== id));
         setError("");
       } catch (error) {
         const message = `Não foi possível excluir a meta de área/studio. ${getErrorMessage(error)}`;
+        setError(message);
+        throw new Error(message);
+      }
+    },
+    saveSpecialistHunterStudioAssignments: async (input) => {
+      try {
+        const data = await repository.saveSpecialistHunterStudioAssignments(input);
+        setPeople(data.people);
+        setPersonCompensations(data.personCompensations);
+        setCustomers(data.customers);
+        setCustomerTargets(data.customerTargets);
+        setSubjects(data.subjects);
+        setAreas(data.areas);
+        setAreaUsages(data.areaUsages);
+        setTargetAllocations(data.targetAllocations);
+        setStudioTargetAllocations(data.studioTargetAllocations);
+        setSpecialistHunterStudioAssignments(data.specialistHunterStudioAssignments);
+        setBoardTargetBaselines(data.boardTargetBaselines);
+        setStudioBaselineSnapshots(data.studioBaselineSnapshots);
+        setError("");
+      } catch (error) {
+        const message = `Não foi possível salvar a meta do Hunter Especializado. ${getErrorMessage(error)}`;
         setError(message);
         throw new Error(message);
       }
@@ -371,6 +406,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setAreaUsages(data.areaUsages);
         setTargetAllocations(data.targetAllocations);
         setStudioTargetAllocations(data.studioTargetAllocations);
+        setSpecialistHunterStudioAssignments(data.specialistHunterStudioAssignments);
         setBoardTargetBaselines(data.boardTargetBaselines);
         setStudioBaselineSnapshots(data.studioBaselineSnapshots);
         setError("");
@@ -392,6 +428,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         setAreaUsages(data.areaUsages);
         setTargetAllocations(data.targetAllocations);
         setStudioTargetAllocations(data.studioTargetAllocations);
+        setSpecialistHunterStudioAssignments(data.specialistHunterStudioAssignments);
         setBoardTargetBaselines(data.boardTargetBaselines);
         setStudioBaselineSnapshots(data.studioBaselineSnapshots);
         setError("");
@@ -401,7 +438,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         throw new Error(message);
       }
     },
-  }), [areaUsages, areas, boardTargetBaselines, customerTargets, customers, error, loading, people, personCompensations, repository, studioBaselineSnapshots, studioTargetAllocations, subjects, targetAllocations]);
+  }), [areaUsages, areas, boardTargetBaselines, customerTargets, customers, error, loading, people, personCompensations, repository, specialistHunterStudioAssignments, studioBaselineSnapshots, studioTargetAllocations, subjects, targetAllocations]);
 
   return <DeliveryStoreContext.Provider value={value}>{children}</DeliveryStoreContext.Provider>;
 }
@@ -485,6 +522,9 @@ const unavailableProductionRepository: DeliveryRepository = {
     throw new Error(productionConfigurationError);
   },
   async deleteStudioTargetAllocation() {
+    throw new Error(productionConfigurationError);
+  },
+  async saveSpecialistHunterStudioAssignments() {
     throw new Error(productionConfigurationError);
   },
   async saveStudioBaselineSnapshot() {

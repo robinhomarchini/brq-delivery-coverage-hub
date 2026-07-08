@@ -454,6 +454,13 @@ por cliente é limitado à meta de Studios do cliente, os campos de Meta própri
 Renovação ficam inibidos, e atalhos de clique para alocar meta do cliente ou
 salvar/remover meta direta ficam desabilitados. A visão não altera totais
 oficiais de cliente, pessoa, dashboard, baseline ou análise de desafio.
+Para cadastrar a meta gerencial, a rota Metas Hunter Especializado deve usar uma
+tela dedicada: o usuário seleciona Hunter Especializado, Cliente e Ano, visualiza
+as linhas de `studio_target_allocations` daquele cliente e marca por checkbox
+quais linhas entram na meta gerencial. A seleção é persistida na relação
+`specialist_hunter_studio_assignments` e os totais do topo são recalculados pela
+soma das linhas marcadas. Essa seleção não cria `revenue_target_allocations` e
+não altera subtotais oficiais do cliente.
 Na visão de Áreas / Studios, a tabela deve permitir selecionar um ou mais
 Studios por checkbox; com seleção ativa, a tela mostra e exporta o detalhe
 explodido por Studio + cliente + segmento + Hunter Studio. Na visão por pessoa,
@@ -730,6 +737,10 @@ Regras do cadastro de Metas:
   `revenue_target_allocations` e por Cliente + Área/Studio + Hunter + Ano em
   `studio_target_allocations`, sem trigger de exclusividade Hunter em
   `person_customer_assignments`.
+- Metas gerenciais de Hunter Especializado são uma relação Pessoa + Meta de
+  Studio + Ano em `specialist_hunter_studio_assignments`. Essa relação só aponta
+  para linhas existentes de `studio_target_allocations`, exige pessoa ativa com
+  papel Hunter Especializado e não participa dos totais oficiais.
 - Quando uma alocação de `studio_target_allocations` tiver Hunter associado, a
   pessoa deve enxergar o cliente em Metas por Pessoa mesmo sem meta direta em
   `revenue_target_allocations`. O valor aparece como Studio herdado e compõe a

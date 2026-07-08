@@ -34,7 +34,7 @@ type HunterSortKey = "hunter" | "role" | "ownHunter" | "studioHunter" | "totalHu
 
 export function PersonTargetReport() {
   const { accessUser, canEdit } = useAccess();
-  const { areas, people, customers, targetAllocations, studioTargetAllocations } = useDeliveryStore();
+  const { areas, people, customers, targetAllocations, studioTargetAllocations, specialistHunterStudioAssignments } = useDeliveryStore();
   const [search, setSearch] = useState("");
   const [year, setYear] = useState(String(currentYear));
   const [roleType, setRoleType] = useState("");
@@ -148,8 +148,8 @@ export function PersonTargetReport() {
   }, [hunterDetailRows, search]);
   const hunterDetailGroups = useMemo(() => buildHunterDetailGroups(filteredHunterDetailRows), [filteredHunterDetailRows]);
   const specialistHunterRows = useMemo(
-    () => buildSpecialistHunterRows(people, customers, studioTargetAllocations, areaNames, selectedYear),
-    [areaNames, customers, people, selectedYear, studioTargetAllocations],
+    () => buildSpecialistHunterRows(people, customers, studioTargetAllocations, specialistHunterStudioAssignments, areaNames, selectedYear),
+    [areaNames, customers, people, selectedYear, specialistHunterStudioAssignments, studioTargetAllocations],
   );
   const filteredSpecialistHunterRows = useMemo(() => {
     const query = search.toLowerCase();
@@ -877,9 +877,16 @@ export function PersonTargetReport() {
         <Card className="overflow-hidden shadow-sm">
           <div className="border-b border-slate-200 px-5 py-4">
             <p className="text-sm font-bold text-slate-900">Metas gerenciais derivadas de Studios</p>
-            <p className="text-xs text-slate-500">
-              Hunter Especializado não tem meta própria e não altera totais oficiais. Os valores abaixo são derivados dos Studios dos clientes vinculados à pessoa.
-            </p>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-xs text-slate-500">
+                Hunter Especializado não tem meta própria e não altera totais oficiais. Os valores abaixo vêm da seleção gerencial de Studios.
+              </p>
+              {canEdit && (
+                <Button asChild size="sm" variant="outline">
+                  <Link href="/metas-hunters-especializados">Ajustar seleção</Link>
+                </Button>
+              )}
+            </div>
           </div>
           <div className="overflow-x-auto">
             <Table className="min-w-[1040px]">
@@ -914,7 +921,7 @@ export function PersonTargetReport() {
               </TableBody>
             </Table>
           </div>
-          {!filteredSpecialistHunterRows.length && <EmptyState message="Nenhum Hunter Especializado possui valores derivados de Studios para o ano/filtro atual." />}
+          {!filteredSpecialistHunterRows.length && <EmptyState message="Nenhum Hunter Especializado possui seleção de Studios para o ano/filtro atual." />}
         </Card>
       )}
 
@@ -1523,34 +1530,37 @@ function buildSpecialistHunterRows(
     hunterAmount: number;
     maintenanceAmount: number;
   }>,
+  assignments: Array<{
+    personId: string;
+    studioTargetAllocationId: string;
+    year: number;
+  }>,
   areaNames: Map<string, string>,
   year: number,
 ) {
   const customerNames = new Map(customers.map((customer) => [customer.id, customer.name]));
+  const peopleById = new Map(people.map((person) => [person.id, person]));
+  const studioById = new Map(studioAllocations.map((allocation) => [allocation.id, allocation]));
   const rows: SpecialistHunterRow[] = [];
 
-  people
-    .filter((person) => person.active && isSpecialistHunterRole(person.roleType))
-    .forEach((person) => {
-      const customerIds = new Set(person.clientIds);
-      studioAllocations
-        .filter((allocation) =>
-          allocation.year === year
-          && customerIds.has(allocation.customerId)
-          && allocation.hunterAmount + allocation.maintenanceAmount > 0
-        )
-        .forEach((allocation) => {
-          rows.push({
-            id: `${person.id}-${allocation.id}`,
-            personId: person.id,
-            personName: person.name,
-            customerName: customerNames.get(allocation.customerId) ?? allocation.customerId,
-            areaName: areaNames.get(allocation.areaId) ?? allocation.areaId,
-            sourceLabel: getSpecialistHunterSourceLabel(allocation.hunterAmount, allocation.maintenanceAmount),
-            amount: allocation.hunterAmount + allocation.maintenanceAmount,
-            year,
-          });
-        });
+  assignments
+    .filter((assignment) => assignment.year === year)
+    .forEach((assignment) => {
+      const person = peopleById.get(assignment.personId);
+      const allocation = studioById.get(assignment.studioTargetAllocationId);
+      if (!person?.active || !isSpecialistHunterRole(person.roleType) || !allocation) return;
+      if (allocation.year !== year || allocation.hunterAmount + allocation.maintenanceAmount <= 0) return;
+
+      rows.push({
+        id: `${person.id}-${assignment.studioTargetAllocationId}`,
+        personId: person.id,
+        personName: person.name,
+        customerName: customerNames.get(allocation.customerId) ?? allocation.customerId,
+        areaName: areaNames.get(allocation.areaId) ?? allocation.areaId,
+        sourceLabel: getSpecialistHunterSourceLabel(allocation.hunterAmount, allocation.maintenanceAmount),
+        amount: allocation.hunterAmount + allocation.maintenanceAmount,
+        year,
+      });
     });
 
   return rows.sort((first, second) =>

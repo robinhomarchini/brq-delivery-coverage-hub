@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Plus, Save, Target, Trash2, UserRound } from "lucide-react";
 import { useMemo, useState, type InputHTMLAttributes } from "react";
 import type { Customer, RoleType, StudioTargetAllocation, TargetAllocation, TargetAllocationType } from "@/data/mockData";
@@ -410,6 +411,14 @@ export function PersonTargetAssignment() {
             </div>
           </div>
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            {selectedPersonIsSpecialistHunter && (
+              <Button asChild className="mb-3 w-full justify-center">
+                <Link href="/metas-hunters-especializados">
+                  <Target className="h-4 w-4" />
+                  Abrir meta especializada
+                </Link>
+              </Button>
+            )}
             <label>
               <span className="mb-1.5 block text-sm font-semibold text-slate-700">{selectedPersonIsSpecialistHunter ? "Incluir cliente para consulta" : "Incluir cliente para meta"}</span>
               <Select value={effectiveCustomerToAdd} onChange={(event) => setCustomerToAdd(event.target.value)} disabled={!effectivePersonId || selectedPersonIsSpecialistHunter || !availableCustomersToAdd.length}>

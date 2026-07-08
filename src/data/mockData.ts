@@ -119,6 +119,14 @@ export interface StudioTargetAllocation {
   notes?: string;
 }
 
+export interface SpecialistHunterStudioAssignment {
+  id: string;
+  personId: string;
+  studioTargetAllocationId: string;
+  year: number;
+  notes?: string;
+}
+
 export const areas: Area[] = [
   { id: "area-financial", name: "Serviços Financeiros", description: "Bancos, seguros e meios de pagamento." },
   { id: "area-aliancas", name: "Alianças", description: "Parcerias, alianças estratégicas e ecossistema." },
@@ -146,6 +154,8 @@ export const customers: Customer[] = financialSourceCustomerNames.map((name) => 
   strategicAccount: true,
   lifecycleStatus: "active",
 }));
+
+export const specialistHunterStudioAssignments: SpecialistHunterStudioAssignment[] = [];
 
 export const customerTargets: CustomerTarget[] = customers.map((customer) => ({
   customerId: customer.id,

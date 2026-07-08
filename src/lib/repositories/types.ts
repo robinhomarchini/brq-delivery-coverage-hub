@@ -1,4 +1,4 @@
-import type { Area, Customer, CustomerTarget, Person, PersonCompensation, StudioTargetAllocation, Subject, TargetAllocation } from "@/data/mockData";
+import type { Area, Customer, CustomerTarget, Person, PersonCompensation, SpecialistHunterStudioAssignment, StudioTargetAllocation, Subject, TargetAllocation } from "@/data/mockData";
 import type { BoardTargetBaselineRow } from "@/data/boardTargetBaseline";
 import type { StudioBaselineSnapshot } from "@/lib/studio-baseline-import";
 
@@ -25,6 +25,13 @@ export interface PersonCustomerRemovalInput {
   personId: string;
 }
 
+export interface SpecialistHunterStudioAssignmentsInput {
+  personId: string;
+  customerId: string;
+  year: number;
+  studioTargetAllocationIds: string[];
+}
+
 export interface DeliveryData {
   people: Person[];
   personCompensations: PersonCompensation[];
@@ -35,6 +42,7 @@ export interface DeliveryData {
   areaUsages: AreaUsage[];
   targetAllocations: TargetAllocation[];
   studioTargetAllocations: StudioTargetAllocation[];
+  specialistHunterStudioAssignments: SpecialistHunterStudioAssignment[];
   boardTargetBaselines: BoardTargetBaselineRow[];
   studioBaselineSnapshots: StudioBaselineSnapshot[];
 }
@@ -56,6 +64,7 @@ export interface DeliveryRepository {
   deleteTargetAllocation(id: string): Promise<void>;
   saveStudioTargetAllocation(allocation: StudioTargetAllocation): Promise<StudioTargetAllocation>;
   deleteStudioTargetAllocation(id: string): Promise<void>;
+  saveSpecialistHunterStudioAssignments(input: SpecialistHunterStudioAssignmentsInput): Promise<DeliveryData>;
   saveStudioBaselineSnapshot(snapshot: Omit<StudioBaselineSnapshot, "id" | "createdAt">): Promise<StudioBaselineSnapshot>;
   savePersonCustomerTargets(input: PersonCustomerTargetsInput): Promise<DeliveryData>;
   removePersonCustomerTargets(input: PersonCustomerRemovalInput): Promise<DeliveryData>;

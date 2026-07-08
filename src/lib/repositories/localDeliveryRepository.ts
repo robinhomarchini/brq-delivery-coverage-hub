@@ -1,7 +1,7 @@
-import { areas, customers, customerTargets, people, studioTargetAllocations, subjects, targetAllocations } from "@/data/mockData";
+import { areas, customers, customerTargets, people, specialistHunterStudioAssignments, studioTargetAllocations, subjects, targetAllocations } from "@/data/mockData";
 import { boardTargetBaselineRows } from "@/data/boardTargetBaseline";
 import type { Area, Customer, Person, PersonCompensation, StudioTargetAllocation, Subject, TargetAllocation } from "@/data/mockData";
-import type { DeliveryData, DeliveryRepository, PersonCustomerRemovalInput, PersonCustomerTargetsInput } from "./types";
+import type { DeliveryData, DeliveryRepository, PersonCustomerRemovalInput, PersonCustomerTargetsInput, SpecialistHunterStudioAssignmentsInput } from "./types";
 import type { StudioBaselineSnapshot } from "@/lib/studio-baseline-import";
 import { validateArea, validateCustomer, validatePerson, validatePersonCompensation, validateStudioTargetAllocation, validateSubject, validateTargetAllocation } from "@/lib/validation";
 import { buildAreaUsages } from "@/lib/area-usage";
@@ -24,6 +24,7 @@ export class LocalDeliveryRepository implements DeliveryRepository {
     areaUsages: buildAreaUsages(people),
     targetAllocations: structuredClone(targetAllocations),
     studioTargetAllocations: structuredClone(studioTargetAllocations),
+    specialistHunterStudioAssignments: structuredClone(specialistHunterStudioAssignments),
     boardTargetBaselines: structuredClone(boardTargetBaselineRows),
     studioBaselineSnapshots: [],
   };
@@ -85,6 +86,7 @@ export class LocalDeliveryRepository implements DeliveryRepository {
     this.data.personCompensations = this.data.personCompensations.filter((item) => item.personId !== id);
     this.assignments = this.assignments.filter((assignment) => assignment.personId !== id);
     this.data.targetAllocations = this.data.targetAllocations.filter((item) => item.personId !== id);
+    this.data.specialistHunterStudioAssignments = this.data.specialistHunterStudioAssignments.filter((item) => item.personId !== id);
     this.data.studioTargetAllocations = this.data.studioTargetAllocations.map((allocation) =>
       allocation.hunterPersonId === id ? { ...allocation, hunterPersonId: undefined } : allocation
     );
@@ -144,7 +146,11 @@ export class LocalDeliveryRepository implements DeliveryRepository {
     this.data.subjects = this.data.subjects.filter((item) => item.customerId !== id);
     this.assignments = this.assignments.filter((assignment) => assignment.customerId !== id);
     this.data.targetAllocations = this.data.targetAllocations.filter((item) => item.customerId !== id);
+    const removedStudioAllocationIds = new Set(this.data.studioTargetAllocations
+      .filter((item) => item.customerId === id)
+      .map((item) => item.id));
     this.data.studioTargetAllocations = this.data.studioTargetAllocations.filter((item) => item.customerId !== id);
+    this.data.specialistHunterStudioAssignments = this.data.specialistHunterStudioAssignments.filter((item) => !removedStudioAllocationIds.has(item.studioTargetAllocationId));
   }
 
   async saveSubject(subject: Subject) {
@@ -191,9 +197,45 @@ export class LocalDeliveryRepository implements DeliveryRepository {
   async deleteStudioTargetAllocation(id: string) {
     const existing = this.data.studioTargetAllocations.find((item) => item.id === id);
     this.data.studioTargetAllocations = this.data.studioTargetAllocations.filter((item) => item.id !== id);
+    this.data.specialistHunterStudioAssignments = this.data.specialistHunterStudioAssignments.filter((item) => item.studioTargetAllocationId !== id);
     if (existing) {
       this.syncHunterTargetTotal(existing.customerId, existing.hunterPersonId, existing.year);
     }
+  }
+
+  async saveSpecialistHunterStudioAssignments(input: SpecialistHunterStudioAssignmentsInput) {
+    const person = this.data.people.find((item) => item.id === input.personId);
+    if (!person || person.roleType !== "Hunter Especializado") {
+      throw new Error("Selecione uma pessoa com perfil Hunter Especializado.");
+    }
+
+    const validAllocationIds = new Set(this.data.studioTargetAllocations
+      .filter((allocation) =>
+        allocation.customerId === input.customerId
+        && allocation.year === input.year
+        && (allocation.hunterAmount + allocation.maintenanceAmount) > 0
+      )
+      .map((allocation) => allocation.id));
+    const selectedIds = Array.from(new Set(input.studioTargetAllocationIds)).filter((id) => validAllocationIds.has(id));
+
+    this.data.specialistHunterStudioAssignments = this.data.specialistHunterStudioAssignments.filter((assignment) => {
+      if (assignment.personId !== input.personId || assignment.year !== input.year) return true;
+      const allocation = this.data.studioTargetAllocations.find((item) => item.id === assignment.studioTargetAllocationId);
+      return allocation?.customerId !== input.customerId;
+    });
+
+    this.data.specialistHunterStudioAssignments = [
+      ...this.data.specialistHunterStudioAssignments,
+      ...selectedIds.map((studioTargetAllocationId) => ({
+        id: `specialist-${input.personId}-${studioTargetAllocationId}`,
+        personId: input.personId,
+        studioTargetAllocationId,
+        year: input.year,
+        notes: "Meta gerencial derivada de Studio para Hunter Especializado.",
+      })),
+    ];
+
+    return this.getAll();
   }
 
   async saveStudioBaselineSnapshot(snapshot: Omit<StudioBaselineSnapshot, "id" | "createdAt">) {

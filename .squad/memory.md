@@ -2,7 +2,7 @@
 
 ## Current Task Objective
 
-Promover o modo lean enterprise engineering para todos os projetos VS Code/Codex, mantendo este projeto como consumidor do padrão global.
+Criar tela dedicada para cadastrar meta gerencial de Hunter Especializado por seleção de metas de Studio do cliente.
 
 ## Execution Checklist
 
@@ -37,6 +37,12 @@ Promover o modo lean enterprise engineering para todos os projetos VS Code/Codex
 - [x] Atualizar `.squad/config.yaml` com ladder enxuto, regras de producao/Supabase e contrato de handoff.
 - [x] Atualizar `C:\Users\rmarchini\.codex\AGENTS.md` para aplicar o modo lean enterprise engineering globalmente.
 - [x] Reduzir duplicacao no `AGENTS.md` local, deixando o projeto herdar o padrao global.
+- [x] Modelar meta gerencial de Hunter Especializado como relacao `specialist_hunter_studio_assignments`, sem criar meta oficial em `revenue_target_allocations`.
+- [x] Criar migration/RPC transacional para salvar selecao por Hunter Especializado + Cliente + Ano.
+- [x] Expor a selecao no contrato de repositorio, Supabase, fallback local e store.
+- [x] Criar rota/tela Metas Hunter Especializado com filtros, checkboxes e totalizador.
+- [x] Ajustar Relatorio de Metas para usar somente as linhas selecionadas de Hunter Especializado.
+- [x] Rodar db:migrations:check, typecheck, lint, smoke critico e build.
 
 ## Previous Completed Work
 
@@ -142,7 +148,7 @@ Promover o modo lean enterprise engineering para todos os projetos VS Code/Codex
 
 ## Next Pending Step
 
-Próximo passo: usar o modo lean enterprise engineering em todos os projetos VS Code/Codex, mantendo diffs pequenos e evidencia antes de handoff.
+Próximo passo: publicar a nova tela em produção se o usuário quiser disponibilizar imediatamente; a migration já foi aplicada e validada no Supabase remoto.
 
 ## Discovered Commands
 
@@ -154,6 +160,7 @@ Próximo passo: usar o modo lean enterprise engineering em todos os projetos VS 
 - `npm run db:migrations:check`: checagem de historico de migrations Supabase.
 - `npm run audit:background`: auditoria de processos em background via PowerShell.
 - `npx --cache .npm-cache --yes supabase <command> --linked`: caminho aprovado para Supabase CLI neste repo.
+- `npx --cache .npm-cache --yes supabase db push --linked`: aplica migrations pendentes no Supabase remoto depois de `migration list`.
 - `npx vercel deploy --prod`: deploy de producao Vercel.
 - `npm install fflate`: declara o leitor ZIP usado pelo parser de `.xlsx` de Studios.
 
@@ -187,7 +194,7 @@ Próximo passo: usar o modo lean enterprise engineering em todos os projetos VS 
 - Telas executivas precisam de sinais visuais, tooltips de racional e KPIs sem overflow.
 - Acoes de exportacao devem aparecer em um unico lugar por contexto/visao ativa; duplicar Preview/CSV/Excel no header e no card da mesma funcao e bloqueio de UX.
 - Em telas operacionais de metas, filtros de contexto, totais e acoes de inclusao devem ficar agrupados no mesmo painel para reduzir zigue-zague visual.
-- Hunter Especializado e um papel gerencial cross. Ele nao tem `own_amount`, nao recebe `revenue_target_allocations` e nao altera totais oficiais; seu relatorio deriva dos Studios dos clientes vinculados a pessoa.
+- Hunter Especializado e um papel gerencial cross. Ele nao tem `own_amount`, nao recebe `revenue_target_allocations` e nao altera totais oficiais; seu relatorio deriva apenas das linhas selecionadas em `specialist_hunter_studio_assignments`, que apontam para `studio_target_allocations`.
 - Em mobile, fluxos operacionais complexos devem ficar inibidos/consulta simples conforme spec.
 - Antes de deploy em fluxos de cliente/pessoa/meta, rodar `npm run smoke:critical`.
 

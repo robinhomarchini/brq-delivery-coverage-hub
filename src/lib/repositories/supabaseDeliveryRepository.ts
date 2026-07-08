@@ -6,6 +6,7 @@ import {
   type Person,
   type PersonCompensation,
   type RoleType,
+  type SpecialistHunterStudioAssignment,
   type StudioTargetAllocation,
   type Subject,
   type SubjectStatus,
@@ -128,6 +129,14 @@ type StudioTargetAllocationRow = {
   amount?: number | string | null;
   hunter_amount?: number | string | null;
   maintenance_amount?: number | string | null;
+  notes: string | null;
+};
+
+type SpecialistHunterStudioAssignmentRow = {
+  id: string;
+  person_id: string;
+  studio_target_allocation_id: string;
+  target_year: number;
   notes: string | null;
 };
 
@@ -312,6 +321,22 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
     }
   }
 
+  async saveSpecialistHunterStudioAssignments(input: {
+    personId: string;
+    customerId: string;
+    year: number;
+    studioTargetAllocationIds: string[];
+  }) {
+    const { error } = await this.client.rpc("save_specialist_hunter_studio_assignments", {
+      p_person_id: input.personId,
+      p_customer_id: input.customerId,
+      p_target_year: input.year,
+      p_studio_target_allocation_ids: input.studioTargetAllocationIds,
+    });
+    if (error) throw error;
+    return this.fetchAll();
+  }
+
   async saveStudioBaselineSnapshot(snapshot: Omit<StudioBaselineSnapshot, "id" | "createdAt">) {
     const { data, error } = await this.client
       .from("studio_baseline_snapshots")
@@ -344,7 +369,7 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
   }
 
   private async fetchAll(): Promise<DeliveryData> {
-    const [areasResult, peopleResult, personCompensationsResult, customersResult, customerTargetsResult, subjectsResult, assignmentsResult, targetAllocationsResult, studioTargetAllocationsResult, territoriesResult, boardTargetBaselinesResult, studioBaselineSnapshotsResult] = await Promise.all([
+    const [areasResult, peopleResult, personCompensationsResult, customersResult, customerTargetsResult, subjectsResult, assignmentsResult, targetAllocationsResult, studioTargetAllocationsResult, specialistHunterStudioAssignmentsResult, territoriesResult, boardTargetBaselinesResult, studioBaselineSnapshotsResult] = await Promise.all([
       this.client.from("areas").select("*").order("name"),
       this.client.from("people").select("*").order("hierarchy_level").order("name"),
       this.client.from("person_compensations").select("*").order("person_id"),
@@ -354,6 +379,7 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
       this.client.from("person_customer_assignments").select("person_id, customer_id"),
       this.client.from("revenue_target_allocations").select("*").order("target_year", { ascending: false }).order("customer_id"),
       this.client.from("studio_target_allocations").select("*").order("target_year", { ascending: false }).order("customer_id"),
+      this.client.from("specialist_hunter_studio_assignments").select("*").order("target_year", { ascending: false }).order("person_id"),
       this.client.from("territories").select("id, area_id"),
       this.client.from("board_target_baselines").select("*").eq("approved", true).order("baseline_year", { ascending: false }).order("customer_name"),
       this.client.from("studio_baseline_snapshots").select("*").order("created_at", { ascending: false }).limit(20),
@@ -391,6 +417,9 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
       studioTargetAllocations: studioTargetAllocationsResult.error
         ? []
         : (studioTargetAllocationsResult.data as StudioTargetAllocationRow[]).map(fromStudioTargetAllocationRow),
+      specialistHunterStudioAssignments: specialistHunterStudioAssignmentsResult.error
+        ? []
+        : (specialistHunterStudioAssignmentsResult.data as SpecialistHunterStudioAssignmentRow[]).map(fromSpecialistHunterStudioAssignmentRow),
       boardTargetBaselines: boardTargetBaselinesResult.error
         ? fallbackBoardTargetBaselineRows
         : (boardTargetBaselinesResult.data as BoardTargetBaselineDbRow[]).map(fromBoardTargetBaselineDbRow),
@@ -1088,6 +1117,16 @@ function fromStudioTargetAllocationRow(row: StudioTargetAllocationRow): StudioTa
     year: row.target_year,
     hunterAmount: legacyAmountIsUnsplitHunter ? legacyAmount : hunterAmount,
     maintenanceAmount,
+    notes: row.notes ?? undefined,
+  };
+}
+
+function fromSpecialistHunterStudioAssignmentRow(row: SpecialistHunterStudioAssignmentRow): SpecialistHunterStudioAssignment {
+  return {
+    id: row.id,
+    personId: row.person_id,
+    studioTargetAllocationId: row.studio_target_allocation_id,
+    year: row.target_year,
     notes: row.notes ?? undefined,
   };
 }

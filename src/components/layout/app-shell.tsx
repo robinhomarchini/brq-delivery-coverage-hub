@@ -41,6 +41,7 @@ const navigation = [
   { href: "/metas", label: "Metas", icon: Target },
   { href: "/metas-pessoas", label: "Metas por Pessoa", icon: Target },
   { href: "/metas-studios", label: "Metas por Área/Studio", icon: Layers3 },
+  { href: "/metas-hunters-especializados", label: "Metas Hunter Especializado", icon: Target },
   { href: "/relatorio-metas", label: "Relatório de Metas", icon: ClipboardList },
   { href: "/comparativo-baseline", label: "Baseline vs Cadastro", icon: FileSearch },
   { href: "/insights", label: "Insights", icon: Bot },

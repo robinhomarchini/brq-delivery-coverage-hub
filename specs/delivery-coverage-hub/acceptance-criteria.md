@@ -257,6 +257,15 @@
 - A visão "Hunters Especializados" é apenas gerencial: não possui Meta própria,
   não exporta valores como total oficial e não altera dashboards, conciliações,
   baseline ou Análise de Desafio.
+- A rota Metas Hunter Especializado permite selecionar Hunter Especializado,
+  Cliente e Ano, listar as metas de Studio do cliente, marcar linhas por
+  checkbox e salvar a seleção gerencial.
+- O card totalizador da rota Metas Hunter Especializado atualiza Total
+  selecionado, Studio Hunter selecionado, Studio Manutenção selecionado e Total
+  disponível conforme os checkboxes mudam.
+- A seleção de Hunter Especializado é persistida em
+  `specialist_hunter_studio_assignments` e o Relatório de Metas usa somente as
+  linhas selecionadas para a visão Hunters Especializados.
 - Em Metas por Pessoa, Hunter Especializado aparece somente em modo consulta:
   total por cliente vem dos Studios do cliente, limitado à meta de Studios do
   cliente, sem Meta Renovação + Ampliação editável, sem clique de alocação rápida
