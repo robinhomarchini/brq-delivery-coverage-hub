@@ -2,7 +2,7 @@
 
 ## Current Task Objective
 
-Melhorar o fluxo de cadastro de meta gerencial de Hunter Especializado: guiar a partir de Metas por Pessoa e mostrar cadastro incremental com lista do que ja esta salvo.
+Corrigir a distribuicao por pessoa na tela Clientes para nao tratar Studio Manutencao como meta pendente de pessoa.
 
 ## Execution Checklist
 
@@ -46,6 +46,9 @@ Melhorar o fluxo de cadastro de meta gerencial de Hunter Especializado: guiar a 
 - [x] Ao selecionar Hunter Especializado em Metas por Pessoa, orientar abertura da tela dedicada com pessoa/ano no contexto.
 - [x] Redesenhar Metas Hunter Especializado com bloco Nova inclusao e bloco Selecoes cadastradas, incluindo pre-visualizacao de linhas ainda nao salvas.
 - [x] Rodar typecheck, lint, smoke critico e build apos o ajuste de UX.
+- [x] Ajustar Clientes para abater Studio Manutencao da pendencia de Renovacao na distribuicao por pessoa.
+- [x] Atualizar specs para explicitar que Studio Manutencao concilia em Areas/Studios, nao em Metas por Pessoa.
+- [x] Rodar typecheck, lint, smoke critico e build apos correcao de Clientes.
 
 ## Previous Completed Work
 
@@ -151,7 +154,7 @@ Melhorar o fluxo de cadastro de meta gerencial de Hunter Especializado: guiar a 
 
 ## Next Pending Step
 
-Próximo passo: validar e publicar o ajuste de UX de Metas Hunter Especializado em produção.
+Próximo passo: validar e publicar a correcao de Studio Manutencao na tela Clientes.
 
 ## Discovered Commands
 
@@ -198,6 +201,7 @@ Próximo passo: validar e publicar o ajuste de UX de Metas Hunter Especializado 
 - Acoes de exportacao devem aparecer em um unico lugar por contexto/visao ativa; duplicar Preview/CSV/Excel no header e no card da mesma funcao e bloqueio de UX.
 - Em telas operacionais de metas, filtros de contexto, totais e acoes de inclusao devem ficar agrupados no mesmo painel para reduzir zigue-zague visual.
 - Hunter Especializado e um papel gerencial cross. Ele nao tem `own_amount`, nao recebe `revenue_target_allocations` e nao altera totais oficiais; seu relatorio deriva apenas das linhas selecionadas em `specialist_hunter_studio_assignments`, que apontam para `studio_target_allocations`.
+- Na tela Clientes, Studio Manutencao cobre a leitura de Renovacao/Manutencao para fins de pessoa e nao deve gerar linha "Abaixo da meta sem pessoa alocada"; eventuais diferencas ficam na conciliacao de Areas/Studios.
 - Em mobile, fluxos operacionais complexos devem ficar inibidos/consulta simples conforme spec.
 - Antes de deploy em fluxos de cliente/pessoa/meta, rodar `npm run smoke:critical`.
 

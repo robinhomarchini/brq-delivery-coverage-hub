@@ -350,6 +350,10 @@
   exibem Hunters vindos de Studio Hunter; quando a pessoa também possui Meta
   Hunter direta, a leitura usa o maior valor entre meta direta e Studio Hunter
   para não duplicar o mesmo componente.
+- Na tela Clientes, Studio Manutenção não gera pendência "Abaixo da meta sem
+  pessoa alocada" na distribuição por pessoa. A pendência por pessoa considera
+  somente Hunter e Renovação que realmente precisem de pessoa; diferenças de
+  Studio Manutenção ficam na conciliação de Áreas/Studios.
 - As metas editáveis são persistidas em tabela normalizada
   `revenue_target_allocations` e não em campos duplicados de cliente ou pessoa.
 - O Dashboard Executivo exibe uma visão financeira resumida dos clientes

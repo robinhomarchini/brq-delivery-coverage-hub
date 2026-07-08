@@ -1564,11 +1564,12 @@ function getCustomerAllocationComposition(
     .sort((first, second) => second.total - first.total || first.personName.localeCompare(second.personName));
   const allocatedHunter = roundCurrency(rows.reduce((total, row) => total + row.hunter, 0));
   const allocatedFarmerRenewal = roundCurrency(rows.reduce((total, row) => total + row.farmerRenewal, 0));
-  const allocatedStudio = 0;
+  const allocatedStudio = getCustomerStudioMaintenanceCoverage(customer.id, studioAllocations, year);
   const allocatedTotal = roundCurrency(allocatedHunter + allocatedFarmerRenewal);
   const hunterGap = roundCurrency(targetBreakdown.hunter - allocatedHunter);
-  const farmerRenewalGap = roundCurrency(targetBreakdown.farmerRenewal - allocatedFarmerRenewal);
-  const personTargetTotal = roundCurrency(targetBreakdown.hunter + targetBreakdown.farmerRenewal);
+  const farmerRenewalTargetForPeople = roundCurrency(Math.max(0, targetBreakdown.farmerRenewal - allocatedStudio));
+  const farmerRenewalGap = roundCurrency(farmerRenewalTargetForPeople - allocatedFarmerRenewal);
+  const personTargetTotal = roundCurrency(targetBreakdown.hunter + farmerRenewalTargetForPeople);
   const totalGap = roundCurrency(personTargetTotal - allocatedTotal);
   const openTotal = Math.max(0, totalGap);
   const overTotal = Math.max(0, roundCurrency(-totalGap));
@@ -1592,6 +1593,12 @@ function getCustomerAllocationComposition(
     overStudio: overSplit.studio,
     overTotal,
   };
+}
+
+function getCustomerStudioMaintenanceCoverage(customerId: string, studioAllocations: StudioTargetAllocation[], year: number) {
+  return roundCurrency(studioAllocations
+    .filter((allocation) => allocation.customerId === customerId && allocation.year === year)
+    .reduce((total, allocation) => total + allocation.maintenanceAmount, 0));
 }
 
 function getCustomerTargetPeople(customer: Customer, people: Person[], allocations: TargetAllocation[], studioAllocations: StudioTargetAllocation[], year: number) {
