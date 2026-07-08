@@ -2,7 +2,7 @@
 
 ## Current Task Objective
 
-Corrigir a distribuicao por pessoa na tela Clientes para nao tratar Studio Manutencao como meta pendente de pessoa.
+Corrigir visibilidade de pessoa associada ao Hunter do Studio em Clientes e Metas por Pessoa, cobrindo BMG/Gabriela/Gen AI.
 
 ## Execution Checklist
 
@@ -49,6 +49,9 @@ Corrigir a distribuicao por pessoa na tela Clientes para nao tratar Studio Manut
 - [x] Ajustar Clientes para abater Studio Manutencao da pendencia de Renovacao na distribuicao por pessoa.
 - [x] Atualizar specs para explicitar que Studio Manutencao concilia em Areas/Studios, nao em Metas por Pessoa.
 - [x] Rodar typecheck, lint, smoke critico e build apos correcao de Clientes.
+- [x] Fazer Metas por Pessoa mostrar cliente quando a pessoa esta em `hunterPersonId` de Studio com qualquer valor Hunter ou Manutencao.
+- [x] Fazer Clientes mostrar a pessoa associada no Hunter do Studio mesmo quando a linha tem apenas Manutencao/Renovacao, sem somar manutencao no total Hunter.
+- [x] Rodar typecheck, lint, smoke critico e build apos correcao BMG/Gabriela.
 
 ## Previous Completed Work
 
@@ -154,7 +157,7 @@ Corrigir a distribuicao por pessoa na tela Clientes para nao tratar Studio Manut
 
 ## Next Pending Step
 
-Próximo passo: validar e publicar a correcao de Studio Manutencao na tela Clientes.
+Próximo passo: validar e publicar a correcao BMG/Gabriela nas telas Clientes e Metas por Pessoa.
 
 ## Discovered Commands
 
@@ -202,6 +205,7 @@ Próximo passo: validar e publicar a correcao de Studio Manutencao na tela Clien
 - Em telas operacionais de metas, filtros de contexto, totais e acoes de inclusao devem ficar agrupados no mesmo painel para reduzir zigue-zague visual.
 - Hunter Especializado e um papel gerencial cross. Ele nao tem `own_amount`, nao recebe `revenue_target_allocations` e nao altera totais oficiais; seu relatorio deriva apenas das linhas selecionadas em `specialist_hunter_studio_assignments`, que apontam para `studio_target_allocations`.
 - Na tela Clientes, Studio Manutencao cobre a leitura de Renovacao/Manutencao para fins de pessoa e nao deve gerar linha "Abaixo da meta sem pessoa alocada"; eventuais diferencas ficam na conciliacao de Areas/Studios.
+- `studio_target_allocations.hunterPersonId` e uma associacao operacional relevante para visibilidade. Se a linha tiver valor Hunter ou Manutencao, a pessoa associada deve aparecer nas telas; apenas `hunterAmount` soma no total Hunter.
 - Em mobile, fluxos operacionais complexos devem ficar inibidos/consulta simples conforme spec.
 - Antes de deploy em fluxos de cliente/pessoa/meta, rodar `npm run smoke:critical`.
 

@@ -854,7 +854,7 @@ function buildVisibleCustomerIds(
       .filter((allocation) =>
         allocation.hunterPersonId === personId
         && allocation.year === year
-        && allocation.hunterAmount > 0
+        && hasStudioAllocationValue(allocation)
       )
       .map((allocation) => allocation.customerId),
     ...extraCustomerIds,
@@ -878,12 +878,16 @@ function getRowSource(
     allocation.customerId === customerId
     && allocation.hunterPersonId === personId
     && allocation.year === year
-    && allocation.hunterAmount > 0
+    && hasStudioAllocationValue(allocation)
   )) {
     return "existing_target";
   }
   if (extraCustomerIds.includes(customerId)) return "added";
   return "added";
+}
+
+function hasStudioAllocationValue(allocation: StudioTargetAllocation) {
+  return allocation.hunterAmount + allocation.maintenanceAmount > 0;
 }
 
 function getClientStatus(

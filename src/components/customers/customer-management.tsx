@@ -1463,7 +1463,7 @@ function getCustomerAllocationWarning(
         allocation.customerId === customer.id
         && allocation.year === year
         && allocation.hunterPersonId
-        && allocation.hunterAmount > 0
+        && hasStudioAllocationValue(allocation)
       )
       .map((allocation) => allocation.hunterPersonId as string),
   ]);
@@ -1525,7 +1525,7 @@ function getCustomerAllocationComposition(
       allocation.customerId === customer.id
       && allocation.year === year
       && allocation.hunterPersonId
-      && allocation.hunterAmount > 0
+      && hasStudioAllocationValue(allocation)
     )
     .forEach((allocation) => {
       const personId = allocation.hunterPersonId as string;
@@ -1710,7 +1710,7 @@ function getCustomerTargetPeopleByType(
         allocation.customerId === customer.id
         && allocation.year === year
         && allocation.hunterPersonId
-        && allocation.hunterAmount > 0
+        && hasStudioAllocationValue(allocation)
       )
       .forEach((allocation) => {
         const personId = allocation.hunterPersonId as string;
@@ -1736,6 +1736,10 @@ function getCustomerTargetPeopleByType(
   return Array.from(totalsByPerson.values())
     .map((person) => ({ ...person, amount: roundCurrency(person.amount) }))
     .sort((first, second) => second.amount - first.amount || first.name.localeCompare(second.name));
+}
+
+function hasStudioAllocationValue(allocation: StudioTargetAllocation) {
+  return allocation.hunterAmount + allocation.maintenanceAmount > 0;
 }
 
 function sortCustomerRows(

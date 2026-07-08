@@ -346,10 +346,17 @@
 - Se uma pessoa estiver associada a um cliente apenas por Studio Hunter em
   `studio_target_allocations`, a tela Metas por Pessoa mostra esse cliente e
   soma o valor como Studio herdado no total da pessoa.
+- Se uma pessoa estiver associada no campo Hunter de uma linha de Studio com
+  qualquer valor Hunter ou Manutenção/Renovação, a tela Metas por Pessoa mostra
+  o cliente para essa pessoa. Apenas o valor Hunter da linha soma como Studio
+  herdado; Manutenção/Renovação não soma no total Hunter.
 - Na tela Clientes, a lista de Hunters alocados e a distribuição por pessoa
   exibem Hunters vindos de Studio Hunter; quando a pessoa também possui Meta
   Hunter direta, a leitura usa o maior valor entre meta direta e Studio Hunter
   para não duplicar o mesmo componente.
+- Na tela Clientes, a pessoa associada no campo Hunter do Studio aparece como
+  envolvida mesmo quando a linha tiver apenas Manutenção/Renovação; esse valor
+  não soma no total Hunter.
 - Na tela Clientes, Studio Manutenção não gera pendência "Abaixo da meta sem
   pessoa alocada" na distribuição por pessoa. A pendência por pessoa considera
   somente Hunter e Renovação que realmente precisem de pessoa; diferenças de
