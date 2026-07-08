@@ -82,7 +82,10 @@ export function PersonTargetReport() {
       .sort((first, second) => first.name.localeCompare(second.name, "pt-BR")),
     [people],
   );
-  const peopleRows = useMemo(() => buildPeopleRows(assignablePeople, targetAllocations, customerNames, selectedYear), [assignablePeople, customerNames, selectedYear, targetAllocations]);
+  const peopleRows = useMemo(
+    () => buildPeopleRows(assignablePeople, targetAllocations, studioTargetAllocations, customerNames, selectedYear),
+    [assignablePeople, customerNames, selectedYear, studioTargetAllocations, targetAllocations],
+  );
   const areaRows = useMemo(
     () => buildAreaStudioRows(areas, customers, studioTargetAllocations, selectedYear),
     [areas, customers, selectedYear, studioTargetAllocations],
@@ -1018,34 +1021,43 @@ function canConsolidateDirectorReport(
 }
 
 function buildPeopleRows(
-  people: Array<{ id: string; name: string; email?: string; roleType: RoleType; directorId?: string }>,
+  people: Array<{ id: string; name: string; email?: string; roleType: RoleType; directorId?: string; active: boolean; clientIds: string[] }>,
   allocations: Array<{ customerId: string; personId: string; type: string; year: number; amount: number }>,
+  studioAllocations: Array<{ customerId: string; hunterPersonId?: string; year: number; hunterAmount: number }>,
   customerNames: Map<string, string>,
   year: number,
 ) {
+  const studioByHunterCustomer = buildStudioHunterTotalsByHunterCustomer(studioAllocations, year, people, allocations);
   return people.map((person) => {
     const personAllocations = allocations.filter((allocation) =>
       allocation.personId === person.id
       && allocation.year === year
       && allocation.type !== "studio"
     );
-    const hunter = personAllocations
+    const directHunter = personAllocations
       .filter((allocation) => allocation.type === "hunter")
       .reduce((total, allocation) => total + allocation.amount, 0);
     const farmerRenewal = personAllocations
       .filter((allocation) => allocation.type === "farmer_renewal")
       .reduce((total, allocation) => total + allocation.amount, 0);
-    const names = Array.from(new Set(personAllocations.map((allocation) => customerNames.get(allocation.customerId) ?? allocation.customerId)))
-      .sort((a, b) => a.localeCompare(b, "pt-BR"));
-    const customerBreakdown = Array.from(new Set(personAllocations.map((allocation) => allocation.customerId)))
+    const studioCustomerIds = Array.from(studioByHunterCustomer.keys())
+      .filter((key) => key.startsWith(`${person.id}:`))
+      .map((key) => key.slice(person.id.length + 1));
+    const customerIds = Array.from(new Set([
+      ...personAllocations.map((allocation) => allocation.customerId),
+      ...studioCustomerIds,
+    ]));
+    const customerBreakdown = customerIds
       .map((customerId) => {
         const customerAllocations = personAllocations.filter((allocation) => allocation.customerId === customerId);
-        const customerHunter = customerAllocations
+        const directCustomerHunter = customerAllocations
           .filter((allocation) => allocation.type === "hunter")
           .reduce((total, allocation) => total + allocation.amount, 0);
         const customerFarmerRenewal = customerAllocations
           .filter((allocation) => allocation.type === "farmer_renewal")
           .reduce((total, allocation) => total + allocation.amount, 0);
+        const studioHunter = studioByHunterCustomer.get(`${person.id}:${customerId}`) ?? 0;
+        const customerHunter = Math.max(directCustomerHunter, studioHunter);
 
         return {
           customerId,
@@ -1056,6 +1068,14 @@ function buildPeopleRows(
         };
       })
       .sort((a, b) => b.total - a.total || a.customerName.localeCompare(b.customerName, "pt-BR"));
+    const names = customerBreakdown
+      .filter((item) => item.total > 0)
+      .map((item) => item.customerName)
+      .sort((a, b) => a.localeCompare(b, "pt-BR"));
+    const hunter = Math.max(
+      directHunter,
+      customerBreakdown.reduce((total, item) => total + item.hunter, 0),
+    );
 
     return {
       personId: person.id,
@@ -1083,7 +1103,7 @@ function buildDirectorDetailRows({
   directorId,
   year,
 }: {
-  people: Array<{ id: string; name: string; roleType: RoleType; directorId?: string; clientIds: string[] }>;
+  people: Array<{ id: string; name: string; roleType: RoleType; active: boolean; directorId?: string; clientIds: string[] }>;
   allocations: Array<{ id: string; customerId: string; personId: string; type: string; year: number; amount: number }>;
   studioAllocations: Array<{ id: string; customerId: string; areaId: string; hunterPersonId?: string; year: number; hunterAmount: number; maintenanceAmount: number }>;
   customerNames: Map<string, string>;
@@ -1126,14 +1146,15 @@ function buildDirectorDetailRows({
     });
 
   studioAllocations
-    .filter((allocation) =>
-      allocation.year === year
-      && allocation.hunterPersonId
-      && directorPersonIds.has(allocation.hunterPersonId)
-      && allocation.hunterAmount > 0
-    )
+    .filter((allocation) => {
+      const targetPersonId = getEffectiveStudioHunterPersonId(allocation, people, allocations);
+      return allocation.year === year
+        && targetPersonId
+        && directorPersonIds.has(targetPersonId)
+        && allocation.hunterAmount > 0;
+    })
     .forEach((allocation) => {
-      const targetPersonId = allocation.hunterPersonId;
+      const targetPersonId = getEffectiveStudioHunterPersonId(allocation, people, allocations);
       if (!targetPersonId) return;
       const person = peopleById.get(targetPersonId);
       if (!person || !isHunterRole(person.roleType)) return;
@@ -1145,7 +1166,7 @@ function buildDirectorDetailRows({
         roleType: person.roleType,
         customerName: customerNames.get(allocation.customerId) ?? allocation.customerId,
         areaName: areaNames.get(allocation.areaId) ?? allocation.areaId,
-        studioHunterName: allocation.hunterPersonId ? peopleNames.get(allocation.hunterPersonId) ?? "Pessoa não encontrada" : "",
+        studioHunterName: peopleNames.get(targetPersonId) ?? "Pessoa não encontrada",
       };
 
       rows.push({
@@ -1322,7 +1343,7 @@ function buildAreaStudioDetailRows({
 }
 
 function buildHunterRows(
-  people: Array<{ id: string; name: string; roleType: RoleType }>,
+  people: Array<{ id: string; name: string; roleType: RoleType; active: boolean; clientIds: string[] }>,
   allocations: Array<{ customerId: string; personId: string; type: string; year: number; amount: number; ownAmount?: number }>,
   studioAllocations: Array<{ customerId: string; areaId: string; hunterPersonId?: string; year: number; hunterAmount: number }>,
   areaNames: Map<string, string>,
@@ -1330,14 +1351,16 @@ function buildHunterRows(
 ) {
   const peopleById = new Map(people.map((person) => [person.id, person]));
   const rows = new Map<string, HunterRow>();
-  const studioByHunterCustomer = buildStudioHunterTotalsByHunterCustomer(studioAllocations, year);
+  const studioByHunterCustomer = buildStudioHunterTotalsByHunterCustomer(studioAllocations, year, people, allocations);
 
   studioAllocations
-    .filter((allocation) => allocation.year === year && allocation.hunterAmount > 0 && allocation.hunterPersonId)
+    .filter((allocation) => allocation.year === year && allocation.hunterAmount > 0 && getEffectiveStudioHunterPersonId(allocation, people, allocations))
     .forEach((allocation) => {
-      const person = peopleById.get(allocation.hunterPersonId ?? "");
-      const row = rows.get(allocation.hunterPersonId ?? "") ?? {
-        hunterId: allocation.hunterPersonId ?? "",
+      const targetPersonId = getEffectiveStudioHunterPersonId(allocation, people, allocations);
+      if (!targetPersonId) return;
+      const person = peopleById.get(targetPersonId);
+      const row = rows.get(targetPersonId) ?? {
+        hunterId: targetPersonId,
         hunterName: person?.name ?? "Pessoa não encontrada",
         roleType: person?.roleType ?? "Hunter",
         ownHunter: 0,
@@ -1360,7 +1383,7 @@ function buildHunterRows(
       }
       row.studioHunter += allocation.hunterAmount;
       row.totalHunter = getContainedHunterTotal(row.ownHunter, row.studioHunter);
-      rows.set(allocation.hunterPersonId ?? "", row);
+      rows.set(targetPersonId, row);
     });
 
   allocations
@@ -1396,12 +1419,16 @@ function buildHunterRows(
 function buildStudioHunterTotalsByHunterCustomer(
   studioAllocations: Array<{ customerId: string; hunterPersonId?: string; year: number; hunterAmount: number }>,
   year: number,
+  people: Array<{ id: string; roleType: RoleType; active: boolean; clientIds: string[] }>,
+  targetAllocations: Array<{ customerId: string; personId: string; type: string; year: number }>,
 ) {
   const totals = new Map<string, number>();
   studioAllocations
-    .filter((allocation) => allocation.year === year && allocation.hunterPersonId && allocation.hunterAmount > 0)
+    .filter((allocation) => allocation.year === year && allocation.hunterAmount > 0)
     .forEach((allocation) => {
-      const key = `${allocation.hunterPersonId}:${allocation.customerId}`;
+      const effectiveHunterPersonId = getEffectiveStudioHunterPersonId(allocation, people, targetAllocations);
+      if (!effectiveHunterPersonId) return;
+      const key = `${effectiveHunterPersonId}:${allocation.customerId}`;
       totals.set(key, (totals.get(key) ?? 0) + allocation.hunterAmount);
     });
   return totals;
@@ -1414,6 +1441,36 @@ function getHunterOwnAmount(
   return Math.max(allocation.ownAmount ?? allocation.amount - studioHunterAmount, 0);
 }
 
+function getEffectiveStudioHunterPersonId(
+  allocation: { customerId: string; hunterPersonId?: string; year: number },
+  people: Array<{ id: string; roleType: RoleType; active: boolean; clientIds: string[] }>,
+  targetAllocations: Array<{ customerId: string; personId: string; type: string; year: number }>,
+) {
+  return allocation.hunterPersonId
+    ?? getDefaultHunterPersonIdForCustomer(people, targetAllocations, allocation.customerId, allocation.year);
+}
+
+function getDefaultHunterPersonIdForCustomer(
+  people: Array<{ id: string; roleType: RoleType; active: boolean; clientIds: string[] }>,
+  targetAllocations: Array<{ customerId: string; personId: string; type: string; year: number }>,
+  customerId: string,
+  year: number,
+) {
+  const directHunterTarget = targetAllocations.find((allocation) =>
+    allocation.customerId === customerId
+    && allocation.year === year
+    && allocation.type === "hunter"
+    && people.some((person) => person.id === allocation.personId && person.active && isHunterRole(person.roleType))
+  );
+  if (directHunterTarget) return directHunterTarget.personId;
+
+  return people.find((person) =>
+    person.active
+    && isHunterRole(person.roleType)
+    && person.clientIds.includes(customerId)
+  )?.id;
+}
+
 function buildHunterDetailRows({
   people,
   allocations,
@@ -1423,7 +1480,7 @@ function buildHunterDetailRows({
   hunterIds,
   year,
 }: {
-  people: Array<{ id: string; name: string; roleType: RoleType }>;
+  people: Array<{ id: string; name: string; roleType: RoleType; active: boolean; clientIds: string[] }>;
   allocations: Array<{ id: string; customerId: string; personId: string; type: string; year: number; amount: number; ownAmount?: number }>;
   studioAllocations: Array<{ id: string; customerId: string; areaId: string; hunterPersonId?: string; year: number; hunterAmount: number }>;
   customerNames: Map<string, string>;
@@ -1434,7 +1491,7 @@ function buildHunterDetailRows({
   if (!hunterIds.size) return [];
 
   const peopleById = new Map(people.map((person) => [person.id, person]));
-  const studioByHunterCustomer = buildStudioHunterTotalsByHunterCustomer(studioAllocations, year);
+  const studioByHunterCustomer = buildStudioHunterTotalsByHunterCustomer(studioAllocations, year, people, allocations);
   const rows: HunterDetailRow[] = [];
 
   allocations
@@ -1462,17 +1519,20 @@ function buildHunterDetailRows({
     });
 
   studioAllocations
-    .filter((allocation) =>
-      allocation.year === year
-      && Boolean(allocation.hunterPersonId)
-      && hunterIds.has(allocation.hunterPersonId ?? "")
-      && allocation.hunterAmount > 0
-    )
+    .filter((allocation) => {
+      const targetPersonId = getEffectiveStudioHunterPersonId(allocation, people, allocations);
+      return allocation.year === year
+        && targetPersonId
+        && hunterIds.has(targetPersonId)
+        && allocation.hunterAmount > 0;
+    })
     .forEach((allocation) => {
-      const hunter = peopleById.get(allocation.hunterPersonId ?? "");
+      const targetPersonId = getEffectiveStudioHunterPersonId(allocation, people, allocations);
+      if (!targetPersonId) return;
+      const hunter = peopleById.get(targetPersonId);
       rows.push({
         id: `${allocation.id}-studio-hunter`,
-        hunterId: allocation.hunterPersonId ?? "",
+        hunterId: targetPersonId,
         hunterName: hunter?.name ?? "Hunter não encontrado",
         roleType: hunter?.roleType ?? "Hunter",
         customerName: customerNames.get(allocation.customerId) ?? allocation.customerId,

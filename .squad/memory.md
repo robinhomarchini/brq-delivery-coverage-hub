@@ -2,7 +2,7 @@
 
 ## Current Task Objective
 
-Corrigir Hunter efetivo de Studio: usar Hunter do Studio quando existir e fallback para Hunter principal do Cliente quando vazio.
+Corrigir Relatório de Metas para incluir clientes de Studio Hunter por Hunter efetivo nas visões Pessoas/Hunters, prévias e exportações.
 
 ## Execution Checklist
 
@@ -55,6 +55,8 @@ Corrigir Hunter efetivo de Studio: usar Hunter do Studio quando existir e fallba
 - [x] Fazer Metas por Pessoa somar Studio Hunter pelo Hunter efetivo quando `hunterPersonId` esta vazio e o Hunter principal vem da tela Clientes.
 - [x] Fazer Metas por Area/Studio exibir, filtrar e ordenar pelo Hunter efetivo.
 - [x] Rodar typecheck, lint, smoke critico e build apos correcao de Hunter efetivo.
+- [x] Fazer Relatório de Metas usar Hunter efetivo em Pessoas, Hunters, detalhes e exportações.
+- [x] Documentar criterio de aceite para que clientes como SICOOB/SICREDI nao sumam por `hunterPersonId` vazio.
 
 ## Previous Completed Work
 

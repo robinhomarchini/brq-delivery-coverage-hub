@@ -353,6 +353,11 @@
 - Se uma linha de Studio não tiver Hunter associado explicitamente, a tela Metas
   por Pessoa usa o Hunter principal cadastrado no cliente como Hunter efetivo da
   linha.
+- O Relatório de Metas, incluindo visão Pessoas, visão Hunters, prévia e
+  exportações, usa a mesma regra de Hunter efetivo para linhas de Studio:
+  primeiro o Hunter associado ao Studio e, se vazio, o Hunter principal
+  cadastrado no cliente. Clientes como SICOOB/SICREDI não podem sumir do
+  relatório da pessoa apenas porque a linha de Studio está sem `hunterPersonId`.
 - Na tela Clientes, a lista de Hunters alocados e a distribuição por pessoa
   exibem Hunters vindos de Studio Hunter; quando a pessoa também possui Meta
   Hunter direta, a leitura usa o maior valor entre meta direta e Studio Hunter
