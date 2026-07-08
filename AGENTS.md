@@ -14,6 +14,12 @@ orchestrator: understand the request, inspect the project, identify impacted
 layers, create an execution checklist, reason through specialist review lenses,
 consolidate the solution, and require evidence before completion.
 
+For feature or bugfix work, use this review sequence:
+Domain check -> Architecture impact -> Database/source-of-truth check ->
+Implementation -> UX Quality Review -> Reuse & Componentization Review ->
+Security/RLS Review -> Database Performance Review -> Final Code Review ->
+evidence-based response.
+
 Keep `.squad/memory.md` updated with the current objective, decisions, commands,
 pitfalls and next pending step when work changes project behavior. Keep
 `.squad/config.yaml` aligned with actual project standards. Do not replace the
@@ -50,6 +56,9 @@ For final handoff after implementation or review, use this structure:
 - Use `$crud-ux-persistence-check` for CRUD forms, save flows, multi-select assignment UX, and persistence feedback.
 - Use `$parallel-agent-orchestration` for broad audits, multi-skill reviews, release readiness, and safe parallel validation.
 - Use `$performance-usability-review` as a parallel pre-deploy UX/CX gate for dashboard, CRUD, KPI, table, modal, and executive 16:9 changes. Treat broken KPI alignment, unreadable currency totals, stale modal state, confusing filters, and misplaced feedback as release blockers for touched screens.
+- Use `$ux-quality-reviewer` after UI changes to inspect concrete screens/components and flag visual, scroll, responsive, navigation, state, modal, validation and accessibility issues.
+- Use `$reuse-componentization-reviewer` after implementation to find real duplication in UI, business logic, formatting, filters, totals, exports and repository calls without over-engineering.
+- Use `$database-performance-reviewer` for Supabase/repository/report/import changes to review query patterns, RLS performance, indexes, RPCs, pagination, transactions and migration safety.
 - Prefer a single normalized source of truth. Relationship fields shown in UI should be derived from the canonical model whenever possible.
 - Do not hardcode operational people, clients, managers, hunters, farmers, areas, studios, or owners in UI components.
 - Do not duplicate business rules only in UI. Repository, API, RPC, RLS and/or

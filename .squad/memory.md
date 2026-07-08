@@ -2,7 +2,7 @@
 
 ## Current Task Objective
 
-Criar visão Hunter x Clientes no Relatório de Metas, detalhando Meta própria, Studio Hunter e Manutenção por cliente/studio.
+Melhorar agentes/skills locais e globais com revisoes UX Quality, Reuse & Componentization e Database Performance.
 
 ## Execution Checklist
 
@@ -60,6 +60,9 @@ Criar visão Hunter x Clientes no Relatório de Metas, detalhando Meta própria,
 - [x] Criar visão Hunter x Clientes com seletor unico de Hunter e linhas por Cliente + Area/Studio.
 - [x] Incluir Meta propria Hunter e alocacoes de Studio Hunter/Manutencao usando Hunter efetivo.
 - [x] Documentar que Manutencao aparece para leitura operacional e nao vira meta Hunter.
+- [x] Criar agentes locais `ux-quality-reviewer`, `reuse-componentization-reviewer` e `database-performance-reviewer`.
+- [x] Atualizar `.codex/project.json`, `.codex/README.md`, `AGENTS.md` e `.squad/config.yaml` com o novo fluxo de revisao.
+- [x] Aplicar o mesmo padrao global em `C:\Users\rmarchini\.codex` para valer para todos os projetos.
 
 ## Previous Completed Work
 

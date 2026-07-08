@@ -15,6 +15,17 @@ orchestrator:
     - prefer_smallest_production_ready_solution
     - consolidate_solution
     - require_evidence_before_completion
+  required_feature_bugfix_flow:
+    - domain_check
+    - architecture_impact
+    - database_source_of_truth_check
+    - implementation
+    - ux_quality_review
+    - reuse_componentization_review
+    - security_rls_review
+    - database_performance_review
+    - final_code_review
+    - evidence_based_response
   lean_enterprise_ladder:
     - solve_by_config_or_existing_code_first
     - reuse_existing_component_service_repository
@@ -211,6 +222,33 @@ specialist_review_lenses:
     - scroll
     - keyboard
     - accessibility
+  ux_quality_reviewer:
+    - inspect_real_screen_or_component
+    - visual_alignment
+    - spacing_consistency
+    - header_card_table_alignment
+    - scroll_and_responsive_behavior
+    - navigation_and_filter_usability
+    - empty_loading_error_states
+    - modal_and_validation_feedback
+    - accessibility_basics
+    - smallest_safe_ui_fix
+  reuse_componentization_reviewer:
+    - duplicated_ui_blocks
+    - repeated_business_logic
+    - repeated_formatting_parsing
+    - duplicated_filters_totals_tables_exports
+    - repeated_repository_calls
+    - extract_only_after_two_real_uses_or_clear_imminent_reuse
+    - preserve_behavior_and_minimize_diff
+  database_performance_reviewer:
+    - query_patterns_and_repeated_reads
+    - missing_indexes_only_when_justified
+    - rls_performance_impact
+    - rpc_and_transaction_boundaries
+    - pagination_limits_for_large_reads
+    - migration_safety
+    - normalized_source_of_truth
   security:
     - authn_authz
     - RLS
