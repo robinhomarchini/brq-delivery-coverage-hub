@@ -350,6 +350,9 @@
   qualquer valor Hunter ou Manutenção/Renovação, a tela Metas por Pessoa mostra
   o cliente para essa pessoa. Apenas o valor Hunter da linha soma como Studio
   herdado; Manutenção/Renovação não soma no total Hunter.
+- Se uma linha de Studio não tiver Hunter associado explicitamente, a tela Metas
+  por Pessoa usa o Hunter principal cadastrado no cliente como Hunter efetivo da
+  linha.
 - Na tela Clientes, a lista de Hunters alocados e a distribuição por pessoa
   exibem Hunters vindos de Studio Hunter; quando a pessoa também possui Meta
   Hunter direta, a leitura usa o maior valor entre meta direta e Studio Hunter
@@ -357,6 +360,9 @@
 - Na tela Clientes, a pessoa associada no campo Hunter do Studio aparece como
   envolvida mesmo quando a linha tiver apenas Manutenção/Renovação; esse valor
   não soma no total Hunter.
+- Na tela Metas por Área/Studio, a grade e o seletor por Hunter exibem o Hunter
+  efetivo da linha: Hunter associado no Studio ou, se vazio, Hunter principal do
+  cliente.
 - Na tela Clientes, Studio Manutenção não gera pendência "Abaixo da meta sem
   pessoa alocada" na distribuição por pessoa. A pendência por pessoa considera
   somente Hunter e Renovação que realmente precisem de pessoa; diferenças de

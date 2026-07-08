@@ -748,15 +748,19 @@ Regras do cadastro de Metas:
 - Quando uma alocação de `studio_target_allocations` tiver Hunter associado, a
   pessoa deve enxergar o cliente em Metas por Pessoa mesmo sem meta direta em
   `revenue_target_allocations`. A associação deve ser reconhecida quando a linha
-  de Studio tiver qualquer valor Hunter ou Manutenção/Renovação; somente o valor
-  de Studio Hunter (`hunterAmount`) aparece como Studio herdado e compõe a Meta
-  Hunter atual da pessoa sem duplicar a Meta própria.
+  de Studio tiver qualquer valor Hunter ou Manutenção/Renovação. Quando
+  `studio_target_allocations.hunterPersonId` estiver preenchido, ele define o
+  Hunter efetivo da linha; quando estiver vazio, o Hunter efetivo é o Hunter
+  principal cadastrado no cliente. Somente o valor de Studio Hunter
+  (`hunterAmount`) aparece como Studio herdado e compõe a Meta Hunter atual da
+  pessoa sem duplicar a Meta própria.
 - Na tela de Clientes, a distribuição por pessoa e a lista de Hunters alocados
   devem considerar Studio Hunter atribuído a pessoas. A cobertura Hunter por
   pessoa usa `max(Meta Hunter direta, soma de Studio Hunter da pessoa)` para
   preservar o conceito de Studio contido em Hunter. A pessoa associada no campo
-  Hunter do Studio deve aparecer como envolvida mesmo quando a linha tiver apenas
-  Studio Manutenção, mas esse valor de manutenção não soma no total Hunter.
+  Hunter do Studio, ou o Hunter principal do cliente quando o campo estiver
+  vazio, deve aparecer como envolvida mesmo quando a linha tiver apenas Studio
+  Manutenção, mas esse valor de manutenção não soma no total Hunter.
   Studio Manutenção é cobertura de área/studio do cliente e não deve gerar linha
   "Abaixo da meta sem pessoa alocada"; eventuais diferenças de manutenção devem
   aparecer na conciliação de Áreas/Studios, não como pendência de Metas por

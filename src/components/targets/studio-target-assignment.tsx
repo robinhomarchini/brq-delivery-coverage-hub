@@ -68,8 +68,8 @@ export function StudioTargetAssignment() {
   const filteredRows = useMemo(() => allocationsForYear.filter((allocation) => {
     return (!customerId || allocation.customerId === customerId)
       && (!areaId || allocation.areaId === areaId)
-      && (!hunterPersonId || allocation.hunterPersonId === hunterPersonId);
-  }), [allocationsForYear, areaId, customerId, hunterPersonId]);
+      && (!hunterPersonId || getEffectiveStudioHunterPersonId(allocation, people, targetAllocations) === hunterPersonId);
+  }), [allocationsForYear, areaId, customerId, hunterPersonId, people, targetAllocations]);
   const reconciliation = useMemo(
     () => buildReconciliation(yearCustomers, areas, allocationsForYear),
     [allocationsForYear, areas, yearCustomers],
@@ -83,8 +83,8 @@ export function StudioTargetAssignment() {
     [reconciliationSort, visibleReconciliation],
   );
   const sortedAllocations = useMemo(
-    () => sortAllocationRows(filteredRows, allocationSort, yearCustomers, areas, people),
-    [allocationSort, areas, filteredRows, people, yearCustomers],
+    () => sortAllocationRows(filteredRows, allocationSort, yearCustomers, areas, people, targetAllocations),
+    [allocationSort, areas, filteredRows, people, targetAllocations, yearCustomers],
   );
   const hunterOptions = useMemo(
     () => getHunterOptions(people, targetAllocations, studioTargetAllocations, customerId, effectiveYear),
@@ -135,6 +135,7 @@ export function StudioTargetAssignment() {
       yearCustomers,
       areas,
       people,
+      targetAllocations,
     );
     const defaultHunterPersonId = allocationToEdit?.hunterPersonId
       || hunterPersonId
@@ -162,6 +163,7 @@ export function StudioTargetAssignment() {
       yearCustomers,
       areas,
       people,
+      targetAllocations,
     );
 
     if (candidates.length <= 1) {
@@ -424,8 +426,8 @@ export function StudioTargetAssignment() {
                     <TableCell><StudioSegmentBadge segment={segment} /></TableCell>
                     <TableCell>
                       {segment === "hunter" ? (
-                        <p className={allocation.hunterPersonId ? "font-semibold text-slate-800" : "text-slate-400"}>
-                          {personName(people, allocation.hunterPersonId)}
+                          <p className={getEffectiveStudioHunterPersonId(allocation, people, targetAllocations) ? "font-semibold text-slate-800" : "text-slate-400"}>
+                          {personName(people, getEffectiveStudioHunterPersonId(allocation, people, targetAllocations))}
                         </p>
                       ) : (
                         <p className="font-medium text-slate-400">Não atribui meta ao Hunter</p>
@@ -558,7 +560,7 @@ export function StudioTargetAssignment() {
                   <div>
                     <p className="font-bold text-slate-950">{findArea(areas, allocation.areaId)?.name ?? allocation.areaId}</p>
                     <p className="text-xs text-slate-500">
-                      Hunter associado: {personName(people, allocation.hunterPersonId)}
+                      Hunter associado: {personName(people, getEffectiveStudioHunterPersonId(allocation, people, targetAllocations))}
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -676,12 +678,24 @@ function sortReconciliationRows(rows: ReconciliationRow[], sortState: SortState<
   });
 }
 
-function sortAllocationRows(rows: StudioTargetAllocation[], sortState: SortState<AllocationSortKey>, customers: Customer[], areas: Area[], people: Person[]) {
+function sortAllocationRows(
+  rows: StudioTargetAllocation[],
+  sortState: SortState<AllocationSortKey>,
+  customers: Customer[],
+  areas: Area[],
+  people: Person[],
+  targetAllocations: Array<{ customerId: string; personId: string; type: string; year: number; amount?: number }>,
+) {
   if (!sortState) return rows;
   return sortRows(rows, sortState.direction, (first, second) => {
     if (sortState.key === "customer") return compareText(findCustomer(customers, first.customerId)?.name ?? first.customerId, findCustomer(customers, second.customerId)?.name ?? second.customerId);
     if (sortState.key === "area") return compareText(findArea(areas, first.areaId)?.name ?? first.areaId, findArea(areas, second.areaId)?.name ?? second.areaId);
-    if (sortState.key === "hunterPerson") return compareText(personName(people, first.hunterPersonId), personName(people, second.hunterPersonId));
+    if (sortState.key === "hunterPerson") {
+      return compareText(
+        personName(people, getEffectiveStudioHunterPersonId(first, people, targetAllocations)),
+        personName(people, getEffectiveStudioHunterPersonId(second, people, targetAllocations)),
+      );
+    }
     if (sortState.key === "year") return compareNumber(first.year, second.year);
     if (sortState.key === "hunter") return compareNumber(first.hunterAmount, second.hunterAmount);
     if (sortState.key === "maintenance") return compareNumber(first.maintenanceAmount, second.maintenanceAmount);
@@ -729,16 +743,17 @@ function findDefaultAllocationForCustomer(
   customers: Customer[],
   areas: Area[],
   people: Person[],
+  targetAllocations: Array<{ customerId: string; personId: string; type: string; year: number; amount?: number }>,
 ) {
   if (!customerId) return undefined;
   const candidates = allocations.filter((allocation) =>
     allocation.customerId === customerId
     && allocation.year === year
     && (!areaId || allocation.areaId === areaId)
-    && (!hunterPersonId || allocation.hunterPersonId === hunterPersonId)
+    && (!hunterPersonId || getEffectiveStudioHunterPersonId(allocation, people, targetAllocations) === hunterPersonId)
   );
   if (!candidates.length) return undefined;
-  return sortAllocationRows(candidates, { key: "customer", direction: "asc" }, customers, areas, people)[0];
+  return sortAllocationRows(candidates, { key: "customer", direction: "asc" }, customers, areas, people, targetAllocations)[0];
 }
 
 function getAllocationCandidatesForCustomer(
@@ -750,16 +765,17 @@ function getAllocationCandidatesForCustomer(
   customers: Customer[],
   areas: Area[],
   people: Person[],
+  targetAllocations: Array<{ customerId: string; personId: string; type: string; year: number; amount?: number }>,
 ) {
   if (!customerId) return [];
   const candidates = allocations.filter((allocation) =>
     allocation.customerId === customerId
     && allocation.year === year
     && (!areaId || allocation.areaId === areaId)
-    && (!hunterPersonId || allocation.hunterPersonId === hunterPersonId)
+    && (!hunterPersonId || getEffectiveStudioHunterPersonId(allocation, people, targetAllocations) === hunterPersonId)
   );
 
-  return sortAllocationRows(candidates, { key: "area", direction: "asc" }, customers, areas, people);
+  return sortAllocationRows(candidates, { key: "area", direction: "asc" }, customers, areas, people, targetAllocations);
 }
 
 function findMatchingStudioAllocation(
@@ -866,6 +882,15 @@ function getDefaultHunterPersonIdForCustomer(
       const secondHasTarget = hunterIdsFromTargets.has(second.id) ? 0 : 1;
       return firstHasTarget - secondHasTarget || first.name.localeCompare(second.name, "pt-BR");
     })[0]?.id ?? "";
+}
+
+function getEffectiveStudioHunterPersonId(
+  allocation: StudioTargetAllocation,
+  people: Person[],
+  targetAllocations: Array<{ customerId: string; personId: string; type: string; year: number; amount?: number }>,
+) {
+  if (allocation.hunterPersonId) return allocation.hunterPersonId;
+  return getDefaultHunterPersonIdForCustomer(people, targetAllocations, allocation.customerId, allocation.year);
 }
 
 function personName(people: Person[], personId?: string) {

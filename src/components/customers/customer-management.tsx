@@ -1462,10 +1462,10 @@ function getCustomerAllocationWarning(
       .filter((allocation) =>
         allocation.customerId === customer.id
         && allocation.year === year
-        && allocation.hunterPersonId
         && hasStudioAllocationValue(allocation)
       )
-      .map((allocation) => allocation.hunterPersonId as string),
+      .map((allocation) => getEffectiveStudioHunterPersonId(allocation, people, allocations))
+      .filter(Boolean),
   ]);
   const involvedPeople = people
     .filter((person) => involvedIds.has(person.id) && person.active && isTargetAssignableRole(person.roleType))
@@ -1524,11 +1524,11 @@ function getCustomerAllocationComposition(
     .filter((allocation) =>
       allocation.customerId === customer.id
       && allocation.year === year
-      && allocation.hunterPersonId
       && hasStudioAllocationValue(allocation)
     )
     .forEach((allocation) => {
-      const personId = allocation.hunterPersonId as string;
+      const personId = getEffectiveStudioHunterPersonId(allocation, people, allocations);
+      if (!personId) return;
       studioHunterByPerson.set(
         personId,
         roundCurrency((studioHunterByPerson.get(personId) ?? 0) + allocation.hunterAmount),
@@ -1624,8 +1624,8 @@ function getCustomerStudioComposition(
     .map((allocation) => ({
       id: allocation.id,
       areaName: areaNamesById.get(allocation.areaId) ?? allocation.areaId,
-      hunterPersonName: allocation.hunterPersonId
-        ? peopleNamesById.get(allocation.hunterPersonId) ?? allocation.hunterPersonId
+      hunterPersonName: getEffectiveStudioHunterPersonId(allocation, people, [])
+        ? peopleNamesById.get(getEffectiveStudioHunterPersonId(allocation, people, [])) ?? getEffectiveStudioHunterPersonId(allocation, people, [])
         : "Hunter não informado",
       hunterAmount: roundCurrency(allocation.hunterAmount),
       maintenanceAmount: roundCurrency(allocation.maintenanceAmount),
@@ -1709,11 +1709,11 @@ function getCustomerTargetPeopleByType(
       .filter((allocation) =>
         allocation.customerId === customer.id
         && allocation.year === year
-        && allocation.hunterPersonId
         && hasStudioAllocationValue(allocation)
       )
       .forEach((allocation) => {
-        const personId = allocation.hunterPersonId as string;
+        const personId = getEffectiveStudioHunterPersonId(allocation, people, allocations);
+        if (!personId) return;
         studioHunterByPerson.set(
           personId,
           roundCurrency((studioHunterByPerson.get(personId) ?? 0) + allocation.hunterAmount),
@@ -1740,6 +1740,24 @@ function getCustomerTargetPeopleByType(
 
 function hasStudioAllocationValue(allocation: StudioTargetAllocation) {
   return allocation.hunterAmount + allocation.maintenanceAmount > 0;
+}
+
+function getEffectiveStudioHunterPersonId(
+  allocation: StudioTargetAllocation,
+  people: Person[],
+  targetAllocations: TargetAllocation[],
+) {
+  if (allocation.hunterPersonId) return allocation.hunterPersonId;
+
+  const hunterFromDirectTarget = targetAllocations
+    .filter((targetAllocation) =>
+      targetAllocation.customerId === allocation.customerId
+      && targetAllocation.year === allocation.year
+      && targetAllocation.type === "hunter"
+    )
+    .sort((first, second) => second.amount - first.amount)[0]?.personId;
+
+  return hunterFromDirectTarget || getPrimaryHunterIdForCustomer(allocation.customerId, people);
 }
 
 function sortCustomerRows(

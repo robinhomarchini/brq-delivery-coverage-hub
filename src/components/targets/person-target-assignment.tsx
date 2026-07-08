@@ -59,8 +59,8 @@ export function PersonTargetAssignment() {
   const selectedPerson = assignablePeople.find((person) => person.id === effectivePersonId);
   const selectedPersonIsSpecialistHunter = Boolean(selectedPerson && isSpecialistHunterRole(selectedPerson.roleType));
   const visibleCustomerIds = useMemo(
-    () => buildVisibleCustomerIds(selectedPerson?.clientIds ?? [], targetAllocations, studioTargetAllocations, effectivePersonId, year, extraCustomerIds),
-    [effectivePersonId, extraCustomerIds, selectedPerson?.clientIds, studioTargetAllocations, targetAllocations, year],
+    () => buildVisibleCustomerIds(people, selectedPerson?.clientIds ?? [], targetAllocations, studioTargetAllocations, effectivePersonId, year, extraCustomerIds),
+    [effectivePersonId, extraCustomerIds, people, selectedPerson?.clientIds, studioTargetAllocations, targetAllocations, year],
   );
   const visibleCustomers = useMemo(
     () => yearCustomers.filter((customer) => visibleCustomerIds.has(customer.id)),
@@ -81,15 +81,16 @@ export function PersonTargetAssignment() {
   const rows = useMemo(
     () => scopedVisibleCustomers.map((customer) => buildRow(
       customer,
+      people,
       effectivePersonId,
       year,
       targetAllocations,
       studioTargetAllocations,
       drafts[customer.id],
-      getRowSource(customer.id, selectedPerson?.clientIds ?? [], targetAllocations, studioTargetAllocations, effectivePersonId, year, extraCustomerIds),
+      getRowSource(customer.id, people, selectedPerson?.clientIds ?? [], targetAllocations, studioTargetAllocations, effectivePersonId, year, extraCustomerIds),
       selectedPerson?.roleType,
     )),
-    [drafts, effectivePersonId, extraCustomerIds, scopedVisibleCustomers, selectedPerson?.clientIds, selectedPerson?.roleType, studioTargetAllocations, targetAllocations, year],
+    [drafts, effectivePersonId, extraCustomerIds, people, scopedVisibleCustomers, selectedPerson?.clientIds, selectedPerson?.roleType, studioTargetAllocations, targetAllocations, year],
   );
   const totals = useMemo(() => rows.reduce((summary, row) => ({
     hunter: summary.hunter + row.hunterAmount,
@@ -716,6 +717,7 @@ function MoneyInput(props: InputHTMLAttributes<HTMLInputElement>) {
 
 function buildRow(
   customer: Customer,
+  people: Array<{ id: string; active: boolean; roleType: RoleType; clientIds: string[]; name: string }>,
   personId: string,
   year: number,
   allocations: TargetAllocation[],
@@ -730,7 +732,7 @@ function buildRow(
   const targetBreakdown = getCustomerTargetBreakdown(customer, allocations, year, isSpecialistHunter);
   const rawStudioHunterAmount = isSpecialistHunter
     ? sumSpecialistStudioAllocations(studioAllocations, customer.id, year)
-    : sumStudioHunterAllocations(studioAllocations, customer.id, personId, year);
+    : sumStudioHunterAllocations(studioAllocations, customer.id, personId, year, people, allocations);
   const studioHunterAmount = isSpecialistHunter
     ? Math.min(rawStudioHunterAmount, targetBreakdown.hunter)
     : rawStudioHunterAmount;
@@ -781,12 +783,14 @@ function sumStudioHunterAllocations(
   customerId: string,
   personId: string,
   year: number,
+  people: Array<{ id: string; active: boolean; roleType: RoleType; clientIds: string[]; name: string }>,
+  targetAllocations: TargetAllocation[],
 ) {
   return roundCurrency(allocations
     .filter((allocation) =>
       allocation.customerId === customerId
-      && allocation.hunterPersonId === personId
       && allocation.year === year
+      && getEffectiveStudioHunterPersonId(allocation, people, targetAllocations) === personId
     )
     .reduce((total, allocation) => total + allocation.hunterAmount, 0));
 }
@@ -837,6 +841,7 @@ function sumOtherPeopleAllocations(
 }
 
 function buildVisibleCustomerIds(
+  people: Array<{ id: string; active: boolean; roleType: RoleType; clientIds: string[]; name: string }>,
   assignedCustomerIds: string[],
   allocations: TargetAllocation[],
   studioAllocations: StudioTargetAllocation[],
@@ -852,8 +857,8 @@ function buildVisibleCustomerIds(
       .map((allocation) => allocation.customerId),
     ...studioAllocations
       .filter((allocation) =>
-        allocation.hunterPersonId === personId
-        && allocation.year === year
+        allocation.year === year
+        && getEffectiveStudioHunterPersonId(allocation, people, allocations) === personId
         && hasStudioAllocationValue(allocation)
       )
       .map((allocation) => allocation.customerId),
@@ -863,6 +868,7 @@ function buildVisibleCustomerIds(
 
 function getRowSource(
   customerId: string,
+  people: Array<{ id: string; active: boolean; roleType: RoleType; clientIds: string[]; name: string }>,
   assignedCustomerIds: string[],
   allocations: TargetAllocation[],
   studioAllocations: StudioTargetAllocation[],
@@ -876,8 +882,8 @@ function getRowSource(
   }
   if (studioAllocations.some((allocation) =>
     allocation.customerId === customerId
-    && allocation.hunterPersonId === personId
     && allocation.year === year
+    && getEffectiveStudioHunterPersonId(allocation, people, allocations) === personId
     && hasStudioAllocationValue(allocation)
   )) {
     return "existing_target";
@@ -888,6 +894,44 @@ function getRowSource(
 
 function hasStudioAllocationValue(allocation: StudioTargetAllocation) {
   return allocation.hunterAmount + allocation.maintenanceAmount > 0;
+}
+
+function getEffectiveStudioHunterPersonId(
+  allocation: StudioTargetAllocation,
+  people: Array<{ id: string; active: boolean; roleType: RoleType; clientIds: string[]; name: string }>,
+  targetAllocations: TargetAllocation[],
+) {
+  return allocation.hunterPersonId
+    ?? getDefaultHunterPersonIdForCustomer(people, targetAllocations, allocation.customerId, allocation.year);
+}
+
+function getDefaultHunterPersonIdForCustomer(
+  people: Array<{ id: string; active: boolean; roleType: RoleType; clientIds: string[]; name: string }>,
+  targetAllocations: TargetAllocation[],
+  customerId: string,
+  year: number,
+) {
+  if (!customerId) return "";
+
+  const hunterIdsFromTargets = new Set(targetAllocations
+    .filter((allocation) =>
+      allocation.type === "hunter"
+      && allocation.year === year
+      && allocation.customerId === customerId
+    )
+    .map((allocation) => allocation.personId));
+
+  return people
+    .filter((person) =>
+      person.active
+      && isHunterRole(person.roleType)
+      && (person.clientIds.includes(customerId) || hunterIdsFromTargets.has(person.id))
+    )
+    .sort((first, second) => {
+      const firstHasTarget = hunterIdsFromTargets.has(first.id) ? 0 : 1;
+      const secondHasTarget = hunterIdsFromTargets.has(second.id) ? 0 : 1;
+      return firstHasTarget - secondHasTarget || first.name.localeCompare(second.name, "pt-BR");
+    })[0]?.id ?? "";
 }
 
 function getClientStatus(
