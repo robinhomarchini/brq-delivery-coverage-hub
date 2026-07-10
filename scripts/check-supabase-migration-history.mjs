@@ -36,7 +36,7 @@ if (extraRemote.length) {
 }
 
 console.error("\nDo not auto-repair blindly. Confirm the remote schema first, then run:");
-console.error("npx supabase migration repair --linked --status applied <version...>");
+console.error("npx --cache .npm-cache --yes supabase migration repair --linked --status applied <version...>");
 process.exit(1);
 
 function getRemoteMigrationVersions() {
@@ -53,6 +53,8 @@ function getRemoteMigrationVersions() {
     NO_COLOR: "1",
     DO_NOT_TRACK: "1",
     SUPABASE_TELEMETRY_DISABLED: "1",
+    npm_config_cache: process.env.SUPABASE_MIGRATION_CHECK_NPM_CACHE ?? join(process.cwd(), ".npm-cache"),
+    NPM_CONFIG_CACHE: process.env.SUPABASE_MIGRATION_CHECK_NPM_CACHE ?? join(process.cwd(), ".npm-cache"),
   };
 
   if (process.env.SUPABASE_MIGRATION_CHECK_NPM_CACHE) {
@@ -66,15 +68,16 @@ function getRemoteMigrationVersions() {
 
 function runSupabaseMigrationListWithRetry(args, env) {
   let lastError;
+  const commandParts = ["npx", "--cache", ".npm-cache", "--yes", ...args];
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     try {
       return process.platform === "win32"
-        ? execFileSync("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ["npx", ...args].map(quotePowerShellArgument).join(" ")], {
+        ? execFileSync("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", commandParts.map(quotePowerShellArgument).join(" ")], {
           encoding: "utf8",
           env,
           stdio: ["ignore", "pipe", "pipe"],
         })
-        : execFileSync("npx", args, {
+        : execFileSync("npx", ["--cache", ".npm-cache", "--yes", ...args], {
           encoding: "utf8",
           env,
           stdio: ["ignore", "pipe", "pipe"],

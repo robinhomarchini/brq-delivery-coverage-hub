@@ -22,7 +22,6 @@ import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears
 import { formatCurrency, makeId } from "@/lib/utils";
 import { isHunterRole, isTargetAssignableRole } from "@/lib/roles";
 import { useCloseOnNavigation } from "@/lib/use-close-on-navigation";
-import { getContainedHunterAllocation } from "@/lib/customer-hunter-reconciliation";
 
 const currentYear = defaultTargetYear;
 
@@ -60,23 +59,29 @@ export function TargetManagement() {
   [customerTargets, studioTargetAllocations, targetAssignableAllocations]);
   const effectiveYear = Number(year) || currentYear;
   const yearCustomers = useMemo(() => applyCustomerTargetsForYear(customers, customerTargets, effectiveYear), [customerTargets, customers, effectiveYear]);
+  const customerNamesById = useMemo(() => new Map(yearCustomers.map((customer) => [customer.id, customer.name])), [yearCustomers]);
+  const peopleNamesById = useMemo(() => new Map(people.map((person) => [person.id, person.name])), [people]);
+  const allocationSummaryByCustomer = useMemo(
+    () => buildCustomerAllocationSummary(targetAssignableAllocations, studioTargetAllocations, effectiveYear),
+    [effectiveYear, studioTargetAllocations, targetAssignableAllocations],
+  );
 
   const filtered = useMemo(() => targetAssignableAllocations.filter((allocation) => {
-    const customer = yearCustomers.find((item) => item.id === allocation.customerId);
-    const person = people.find((item) => item.id === allocation.personId);
+    const customerName = customerNamesById.get(allocation.customerId) ?? "";
+    const personName = peopleNamesById.get(allocation.personId) ?? "";
     const query = search.toLowerCase();
-    return (!query || `${customer?.name ?? ""} ${person?.name ?? ""} ${allocation.notes ?? ""}`.toLowerCase().includes(query))
+    return (!query || `${customerName} ${personName} ${allocation.notes ?? ""}`.toLowerCase().includes(query))
       && (!customerId || allocation.customerId === customerId)
       && (!personId || allocation.personId === personId)
       && (!type || allocation.type === type)
       && (!year || allocation.year === Number(year));
-  }), [customerId, people, personId, search, targetAssignableAllocations, type, year, yearCustomers]);
+  }), [customerId, customerNamesById, peopleNamesById, personId, search, targetAssignableAllocations, type, year]);
 
   const totals = useMemo(() => filtered.reduce((summary, allocation) => ({
     hunter: summary.hunter + (allocation.type === "hunter" ? allocation.amount : 0),
     farmerRenewal: summary.farmerRenewal + (allocation.type === "farmer_renewal" ? allocation.amount : 0),
   }), { hunter: 0, farmerRenewal: 0 }), [filtered]);
-  const reconciliation = useMemo(() => buildReconciliation(yearCustomers, targetAssignableAllocations, studioTargetAllocations, effectiveYear), [effectiveYear, studioTargetAllocations, targetAssignableAllocations, yearCustomers]);
+  const reconciliation = useMemo(() => buildReconciliation(yearCustomers, allocationSummaryByCustomer), [allocationSummaryByCustomer, yearCustomers]);
   const personYearSummary = useMemo(
     () => buildPersonYearSummary(targetAssignablePeople, yearCustomers, targetAssignableAllocations, effectiveYear),
     [effectiveYear, targetAssignableAllocations, targetAssignablePeople, yearCustomers],
@@ -86,8 +91,8 @@ export function TargetManagement() {
     [activePeople, targetAssignableAllocations, year],
   );
   const assistant = useMemo(
-    () => buildTargetAssistant(yearCustomers, targetAssignableAllocations, studioTargetAllocations, effectiveYear),
-    [effectiveYear, studioTargetAllocations, targetAssignableAllocations, yearCustomers],
+    () => buildTargetAssistant(yearCustomers, allocationSummaryByCustomer, effectiveYear),
+    [allocationSummaryByCustomer, effectiveYear, yearCustomers],
   );
   const reconciledCount = reconciliation.filter((item) => item.status === "ok").length;
   const pendingCount = reconciliation.filter((item) => item.status === "pending").length;
@@ -149,7 +154,10 @@ export function TargetManagement() {
       : [...targetAssignableAllocations, draft];
     const customer = yearCustomers.find((item) => item.id === draft.customerId);
     const target = customer ? getCustomerTarget(customer) : 0;
-    const allocated = sumAllocations(nextAllocations, studioTargetAllocations, draft.customerId, draft.year);
+    const allocated = getCustomerAllocationSummary(
+      buildCustomerAllocationSummary(nextAllocations, studioTargetAllocations, draft.year),
+      draft.customerId,
+    ).total;
 
     try {
       setFormError("");
@@ -375,13 +383,13 @@ export function TargetManagement() {
                   title="Dê duplo clique para ajustar o valor da meta"
                   onDoubleClick={() => openForm(allocation, { focusAmount: true })}
                 >
-                  <TableCell className="font-semibold text-slate-900">{customerName(customers, allocation.customerId)}</TableCell>
+                  <TableCell className="font-semibold text-slate-900">{customerNamesById.get(allocation.customerId) ?? allocation.customerId}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <div className="grid h-8 w-8 place-items-center rounded-full bg-purple-50 text-brq-purple">
                         <UserRound className="h-4 w-4" />
                       </div>
-                      <span>{personName(people, allocation.personId)}</span>
+                      <span>{peopleNamesById.get(allocation.personId) ?? allocation.personId}</span>
                     </div>
                   </TableCell>
                   <TableCell><TypeBadge type={allocation.type} /></TableCell>
@@ -390,12 +398,12 @@ export function TargetManagement() {
                   <TableCell className="max-w-xs truncate text-slate-500">{allocation.notes || "—"}</TableCell>
                   <TableCell onDoubleClick={(event) => event.stopPropagation()}>
                     <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => openForm(allocation)} aria-label={`Editar meta de ${personName(people, allocation.personId)} em ${customerName(customers, allocation.customerId)}`}><Pencil className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => openForm(allocation)} aria-label={`Editar meta de ${peopleNamesById.get(allocation.personId) ?? allocation.personId} em ${customerNamesById.get(allocation.customerId) ?? allocation.customerId}`}><Pencil className="h-4 w-4" /></Button>
                       <Button
                         variant="ghost"
                         size="icon"
                         className="text-red-600"
-                        aria-label={`Excluir meta de ${personName(people, allocation.personId)} em ${customerName(customers, allocation.customerId)}`}
+                        aria-label={`Excluir meta de ${peopleNamesById.get(allocation.personId) ?? allocation.personId} em ${customerNamesById.get(allocation.customerId) ?? allocation.customerId}`}
                         onClick={() => {
                           if (window.confirm("Excluir esta meta?")) {
                             void deleteTargetAllocation(allocation.id).catch(() => undefined);
@@ -586,14 +594,6 @@ function Field({ label, className, children }: { label: string; className?: stri
   return <label className={className}><span className="mb-1.5 block text-sm font-semibold text-slate-700">{label}</span>{children}</label>;
 }
 
-function customerName(customers: { id: string; name: string }[], id: string) {
-  return customers.find((customer) => customer.id === id)?.name ?? id;
-}
-
-function personName(people: { id: string; name: string }[], id: string) {
-  return people.find((person) => person.id === id)?.name ?? id;
-}
-
 function getFormErrorMessage(error: unknown) {
   if (error instanceof Error && error.message) return error.message;
   return "Não foi possível salvar a meta. Verifique dados, permissões e conexão.";
@@ -601,10 +601,17 @@ function getFormErrorMessage(error: unknown) {
 
 type ReconciliationStatus = "ok" | "pending" | "over";
 
-function buildReconciliation(customers: Customer[], allocations: TargetAllocation[], studioAllocations: StudioTargetAllocation[], year: number) {
+interface CustomerAllocationSummary {
+  hunter: number;
+  farmerRenewal: number;
+  studioMaintenance: number;
+  total: number;
+}
+
+function buildReconciliation(customers: Customer[], summaryByCustomer: Map<string, CustomerAllocationSummary>) {
   return customers.map((customer) => {
     const target = getCustomerTarget(customer);
-    const allocated = sumAllocations(allocations, studioAllocations, customer.id, year);
+    const allocated = getCustomerAllocationSummary(summaryByCustomer, customer.id).total;
     const difference = roundCurrency(allocated - target);
     return {
       customerId: customer.id,
@@ -632,7 +639,7 @@ type TargetAssistant = {
   totalIssues: number;
 };
 
-function buildTargetAssistant(customers: Customer[], allocations: TargetAllocation[], studioAllocations: StudioTargetAllocation[], year: number): TargetAssistant {
+function buildTargetAssistant(customers: Customer[], summaryByCustomer: Map<string, CustomerAllocationSummary>, year: number): TargetAssistant {
   const missingTargetValue: TargetAssistantIssue[] = [];
   const missingManagers: TargetAssistantIssue[] = [];
   const missingHunters: TargetAssistantIssue[] = [];
@@ -640,14 +647,10 @@ function buildTargetAssistant(customers: Customer[], allocations: TargetAllocati
 
   for (const customer of customers) {
     const target = getCustomerTarget(customer);
-    const allocated = sumAllocations(allocations, studioAllocations, customer.id, year);
+    const allocationSummary = getCustomerAllocationSummary(summaryByCustomer, customer.id);
+    const allocated = allocationSummary.total;
     const hunterExpected = customer.hunterTarget;
-    const hunterAllocated = getContainedHunterAllocation({
-      customerId: customer.id,
-      year,
-      targetAllocations: allocations,
-      studioTargetAllocations: studioAllocations,
-    }).containedHunter;
+    const hunterAllocated = allocationSummary.hunter;
     const difference = roundCurrency(allocated - target);
 
     if (target <= 0.01) {
@@ -818,20 +821,89 @@ function getReconciliationStatus(target: number, allocated: number): Reconciliat
   return "pending";
 }
 
-function sumAllocations(allocations: TargetAllocation[], studioAllocations: StudioTargetAllocation[], customerId: string, year: number) {
-  const hunterTotal = getContainedHunterAllocation({
-    customerId,
-    year,
-    targetAllocations: allocations,
-    studioTargetAllocations: studioAllocations,
-  }).containedHunter;
-  const farmerRenewalTotal = allocations
-    .filter((allocation) => allocation.customerId === customerId && allocation.year === year && allocation.type === "farmer_renewal")
-    .reduce((total, allocation) => total + allocation.amount, 0);
-  const studioMaintenanceTotal = studioAllocations
-    .filter((allocation) => allocation.customerId === customerId && allocation.year === year)
-    .reduce((total, allocation) => total + allocation.maintenanceAmount, 0);
-  return roundCurrency(hunterTotal + farmerRenewalTotal + studioMaintenanceTotal);
+function buildCustomerAllocationSummary(
+  allocations: TargetAllocation[],
+  studioAllocations: StudioTargetAllocation[],
+  year: number,
+) {
+  const directHunterByCustomerAndPerson = new Map<string, Map<string, number>>();
+  const studioHunterByCustomerAndPerson = new Map<string, Map<string, number>>();
+  const farmerRenewalByCustomer = new Map<string, number>();
+  const studioMaintenanceByCustomer = new Map<string, number>();
+
+  for (const allocation of allocations) {
+    if (allocation.year !== year) continue;
+    if (allocation.type === "hunter") {
+      addNestedAmount(directHunterByCustomerAndPerson, allocation.customerId, allocation.personId, allocation.amount);
+      continue;
+    }
+    if (allocation.type === "farmer_renewal") {
+      addAmount(farmerRenewalByCustomer, allocation.customerId, allocation.amount);
+    }
+  }
+
+  for (const allocation of studioAllocations) {
+    if (allocation.year !== year) continue;
+    if (allocation.hunterAmount > 0) {
+      addNestedAmount(
+        studioHunterByCustomerAndPerson,
+        allocation.customerId,
+        allocation.hunterPersonId || `unassigned:${allocation.id}`,
+        allocation.hunterAmount,
+      );
+    }
+    if (allocation.maintenanceAmount > 0) {
+      addAmount(studioMaintenanceByCustomer, allocation.customerId, allocation.maintenanceAmount);
+    }
+  }
+
+  const customerIds = new Set([
+    ...directHunterByCustomerAndPerson.keys(),
+    ...studioHunterByCustomerAndPerson.keys(),
+    ...farmerRenewalByCustomer.keys(),
+    ...studioMaintenanceByCustomer.keys(),
+  ]);
+  const summaryByCustomer = new Map<string, CustomerAllocationSummary>();
+
+  for (const customerId of customerIds) {
+    const directByPerson = directHunterByCustomerAndPerson.get(customerId) ?? new Map<string, number>();
+    const studioByPerson = studioHunterByCustomerAndPerson.get(customerId) ?? new Map<string, number>();
+    const personIds = new Set([...directByPerson.keys(), ...studioByPerson.keys()]);
+    let hunter = 0;
+    for (const personId of personIds) {
+      hunter += Math.max(directByPerson.get(personId) ?? 0, studioByPerson.get(personId) ?? 0);
+    }
+
+    const farmerRenewal = farmerRenewalByCustomer.get(customerId) ?? 0;
+    const studioMaintenance = studioMaintenanceByCustomer.get(customerId) ?? 0;
+    summaryByCustomer.set(customerId, {
+      hunter: roundCurrency(hunter),
+      farmerRenewal: roundCurrency(farmerRenewal),
+      studioMaintenance: roundCurrency(studioMaintenance),
+      total: roundCurrency(hunter + farmerRenewal + studioMaintenance),
+    });
+  }
+
+  return summaryByCustomer;
+}
+
+function getCustomerAllocationSummary(summaryByCustomer: Map<string, CustomerAllocationSummary>, customerId: string): CustomerAllocationSummary {
+  return summaryByCustomer.get(customerId) ?? {
+    hunter: 0,
+    farmerRenewal: 0,
+    studioMaintenance: 0,
+    total: 0,
+  };
+}
+
+function addNestedAmount(target: Map<string, Map<string, number>>, groupKey: string, itemKey: string, amount: number) {
+  const group = target.get(groupKey) ?? new Map<string, number>();
+  group.set(itemKey, roundCurrency((group.get(itemKey) ?? 0) + amount));
+  target.set(groupKey, group);
+}
+
+function addAmount(target: Map<string, number>, key: string, amount: number) {
+  target.set(key, roundCurrency((target.get(key) ?? 0) + amount));
 }
 
 function getCustomerTarget(customer: Customer) {

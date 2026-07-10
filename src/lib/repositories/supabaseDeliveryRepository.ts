@@ -30,6 +30,12 @@ import {
 import { isCustomerManagerProfile, isHunterRole, isTargetAssignableRole } from "@/lib/roles";
 import { normalizeBusinessName } from "@/lib/utils";
 import { OTHER_DIRECTOR_ID, OTHER_DIRECTOR_NAME } from "@/lib/director-governance";
+import { getEligibleStudioRenewalAmountForPerson, getTargetOwnAmount } from "@/lib/studio-renewal-rollup";
+
+interface SupabaseDeliveryRepositoryOptions {
+  useCustomerBff?: boolean;
+  usePersonCustomerTargetsBff?: boolean;
+}
 
 type AreaRow = {
   id: string;
@@ -125,6 +131,7 @@ type StudioTargetAllocationRow = {
   customer_id: string;
   area_id: string;
   hunter_person_id?: string | null;
+  maintenance_person_id?: string | null;
   target_year: number;
   amount?: number | string | null;
   hunter_amount?: number | string | null;
@@ -164,7 +171,16 @@ type StudioBaselineSnapshotRow = {
 };
 
 export class SupabaseDeliveryRepository implements DeliveryRepository {
-  constructor(private readonly client: SupabaseClient) {}
+  private readonly useCustomerBff: boolean;
+  private readonly usePersonCustomerTargetsBff: boolean;
+
+  constructor(
+    private readonly client: SupabaseClient,
+    options: SupabaseDeliveryRepositoryOptions = {},
+  ) {
+    this.useCustomerBff = options.useCustomerBff ?? true;
+    this.usePersonCustomerTargetsBff = options.usePersonCustomerTargetsBff ?? true;
+  }
 
   async getAll(): Promise<DeliveryData> {
     return this.fetchAll();
@@ -230,15 +246,22 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
   }
 
   async saveCustomer(customer: Customer, targetYear = 2026) {
+    if (this.useCustomerBff) {
+      return this.saveCustomerWithBff(customer, targetYear);
+    }
+
     const validated = validateCustomer(customer);
     await this.assertUniqueCustomerName(validated);
     if (validated.directorResponsibleId === OTHER_DIRECTOR_ID) {
       await this.ensureOtherDirectorBucket();
     }
-    const { error } = await this.client.from("customers").upsert(toCustomerRow(validated));
-    if (error) throw error;
-    await this.upsertCustomerTarget(validated, targetYear);
-    await this.replaceCustomerManagerAssignments(validated.id, validated.managerResponsibleIds);
+    const savedWithRpc = await this.trySaveCustomerWithRpc(validated, targetYear);
+    if (!savedWithRpc) {
+      const { error } = await this.client.from("customers").upsert(toCustomerRow(validated));
+      if (error) throw error;
+      await this.upsertCustomerTarget(validated, targetYear);
+      await this.replaceCustomerManagerAssignments(validated.id, validated.managerResponsibleIds);
+    }
     return this.fetchAll();
   }
 
@@ -285,23 +308,30 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
     const row = toStudioTargetAllocationRow(validated);
     let lookup = this.client
       .from("studio_target_allocations")
-      .select("id, hunter_person_id")
+      .select("id, hunter_person_id, maintenance_person_id")
       .eq("customer_id", validated.customerId)
       .eq("area_id", validated.areaId)
       .eq("target_year", validated.year);
     lookup = validated.hunterPersonId
       ? lookup.eq("hunter_person_id", validated.hunterPersonId)
       : lookup.is("hunter_person_id", null);
+    lookup = validated.maintenancePersonId
+      ? lookup.eq("maintenance_person_id", validated.maintenancePersonId)
+      : lookup.is("maintenance_person_id", null);
     const { data: existing, error: lookupError } = await lookup.maybeSingle();
     if (lookupError) throw lookupError;
     if (existing?.id) row.id = existing.id;
 
     const { error } = await this.client.from("studio_target_allocations").upsert(row);
     if (error) throw error;
-    await this.syncHunterTargetTotalForStudio(validated.customerId, validated.hunterPersonId, validated.year);
+    await this.syncStudioDerivedTargetsForPerson(validated.customerId, validated.hunterPersonId, validated.maintenancePersonId, validated.year);
     const previousHunterPersonId = (existing as { hunter_person_id?: string | null } | null)?.hunter_person_id ?? null;
+    const previousMaintenancePersonId = (existing as { maintenance_person_id?: string | null } | null)?.maintenance_person_id ?? null;
     if (previousHunterPersonId && previousHunterPersonId !== validated.hunterPersonId) {
-      await this.syncHunterTargetTotalForStudio(validated.customerId, previousHunterPersonId, validated.year);
+      await this.syncStudioDerivedTargetsForPerson(validated.customerId, previousHunterPersonId, previousMaintenancePersonId ?? undefined, validated.year);
+    }
+    if (previousMaintenancePersonId && previousMaintenancePersonId !== validated.maintenancePersonId) {
+      await this.syncStudioDerivedTargetsForPerson(validated.customerId, previousHunterPersonId ?? undefined, previousMaintenancePersonId, validated.year);
     }
     return { ...validated, id: row.id };
   }
@@ -309,15 +339,15 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
   async deleteStudioTargetAllocation(id: string) {
     const { data: existing, error: lookupError } = await this.client
       .from("studio_target_allocations")
-      .select("customer_id, hunter_person_id, target_year")
+      .select("customer_id, hunter_person_id, maintenance_person_id, target_year")
       .eq("id", id)
       .maybeSingle();
     if (lookupError) throw lookupError;
     const { error } = await this.client.from("studio_target_allocations").delete().eq("id", id);
     if (error) throw error;
-    const deleted = existing as { customer_id: string; hunter_person_id?: string | null; target_year: number } | null;
+    const deleted = existing as { customer_id: string; hunter_person_id?: string | null; maintenance_person_id?: string | null; target_year: number } | null;
     if (deleted) {
-      await this.syncHunterTargetTotalForStudio(deleted.customer_id, deleted.hunter_person_id ?? undefined, deleted.target_year);
+      await this.syncStudioDerivedTargetsForPerson(deleted.customer_id, deleted.hunter_person_id ?? undefined, deleted.maintenance_person_id ?? undefined, deleted.target_year);
     }
   }
 
@@ -353,6 +383,10 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
   }
 
   async savePersonCustomerTargets(input: PersonCustomerTargetsInput) {
+    if (this.usePersonCustomerTargetsBff) {
+      return this.savePersonCustomerTargetsWithBff(input);
+    }
+
     const savedWithRpc = await this.trySavePersonCustomerTargetsWithRpc(input);
     if (!savedWithRpc) {
       await this.savePersonCustomerTargetsWithFallback(input);
@@ -596,8 +630,27 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
     if (insertError) throw insertError;
   }
 
-  private async trySaveCustomerWithRpc(customer: Customer) {
-    const { error } = await this.client.rpc("save_customer_with_managers", {
+  private async trySaveCustomerWithRpc(customer: Customer, targetYear: number) {
+    const { error } = await this.client.rpc("save_customer_with_managers_and_targets", {
+      p_id: customer.id,
+      p_name: customer.name,
+      p_industry: customer.industry,
+      p_director_responsible_id: customer.directorResponsibleId,
+      p_manager_responsible_ids: customer.managerResponsibleIds,
+      p_target_year: targetYear,
+      p_hunter_target: customer.hunterTarget,
+      p_farmer_renewal_target: customer.farmerRenewalTarget,
+      p_studio_hunter_target: customer.studioHunterTarget,
+      p_studio_target: customer.studioTarget,
+      p_revenue: customer.revenue,
+      p_margin: customer.margin,
+      p_strategic_account: customer.strategicAccount,
+    });
+
+    if (!error) return true;
+    if (!isMissingRpcError(error)) throw error;
+
+    const fallback = await this.client.rpc("save_customer_with_managers", {
       p_id: customer.id,
       p_name: customer.name,
       p_industry: customer.industry,
@@ -607,15 +660,66 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
       p_margin: customer.margin,
       p_strategic_account: customer.strategicAccount,
     });
+    if (!fallback.error) {
+      await this.upsertCustomerTarget(customer, targetYear);
+      return true;
+    }
+    if (isMissingRpcError(fallback.error)) return false;
+    throw fallback.error;
+  }
 
-    if (!error) return true;
-    if (isMissingRpcError(error)) return false;
-    throw error;
+  private async saveCustomerWithBff(customer: Customer, targetYear: number) {
+    const token = await this.getCurrentAccessToken();
+
+    const response = await fetch("/api/delivery/customers", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ customer, targetYear }),
+    });
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null) as { error?: string } | null;
+      throw new Error(payload?.error ?? "Não foi possível salvar o cliente.");
+    }
+
+    return response.json() as Promise<DeliveryData>;
   }
 
   private async trySavePersonCustomerTargetsWithRpc(input: PersonCustomerTargetsInput) {
     void input;
     return false;
+  }
+
+  private async savePersonCustomerTargetsWithBff(input: PersonCustomerTargetsInput) {
+    const token = await this.getCurrentAccessToken();
+
+    const response = await fetch("/api/delivery/person-customer-targets", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(input),
+    });
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null) as { error?: string } | null;
+      throw new Error(payload?.error ?? "Não foi possível salvar as metas.");
+    }
+
+    return response.json() as Promise<DeliveryData>;
+  }
+
+  private async getCurrentAccessToken() {
+    const { data } = await this.client.auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) {
+      throw new Error("Sessão expirada. Entre novamente para salvar.");
+    }
+    return token;
   }
 
   private async tryRemovePersonCustomerTargetsWithRpc(input: PersonCustomerRemovalInput) {
@@ -677,7 +781,9 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
     const studioHunterAmount = await this.getStudioHunterAmount(input.customerId, input.personId, input.year);
     const nextHunterOwnAmount = sanitizeAmount(input.hunterOwnAmount ?? Math.max(input.hunterAmount - studioHunterAmount, 0));
     const nextHunterAmount = roundCurrency(nextHunterOwnAmount + studioHunterAmount);
-    const nextFarmerRenewalAmount = sanitizeAmount(input.farmerRenewalAmount);
+    const studioRenewalAmount = await this.getEligibleStudioRenewalAmount(input.customerId, input.personId, input.year);
+    const nextFarmerRenewalOwnAmount = sanitizeAmount(input.farmerRenewalAmount);
+    const nextFarmerRenewalAmount = roundCurrency(nextFarmerRenewalOwnAmount + studioRenewalAmount);
     const nextStudioAmount = 0;
     const otherHunterTotal = allocations
       .filter((allocation) => allocation.personId !== input.personId && allocation.type === "hunter")
@@ -707,7 +813,7 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
     }
 
     await this.persistTypeTargetWithFallback(input, "hunter", nextHunterAmount, allocations, nextHunterOwnAmount);
-    await this.persistTypeTargetWithFallback(input, "farmer_renewal", nextFarmerRenewalAmount, allocations);
+    await this.persistTypeTargetWithFallback(input, "farmer_renewal", nextFarmerRenewalAmount, allocations, nextFarmerRenewalOwnAmount);
     await this.persistTypeTargetWithFallback(input, "studio", nextStudioAmount, allocations);
 
     if (isHunterRole(personRole)) {
@@ -772,12 +878,17 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
       type,
       year: input.year,
       amount,
-      ownAmount: type === "hunter" ? ownAmount ?? amount : undefined,
+      ownAmount: type === "hunter" || type === "farmer_renewal" ? ownAmount ?? amount : undefined,
       notes: input.notes ?? "Meta associada pela tela Metas por Pessoa.",
     });
 
     const { error } = await this.client.from("revenue_target_allocations").upsert(toTargetAllocationRow(allocation));
     if (error) throw error;
+  }
+
+  private async syncStudioDerivedTargetsForPerson(customerId: string, hunterPersonId: string | undefined, maintenancePersonId: string | undefined, year: number) {
+    await this.syncHunterTargetTotalForStudio(customerId, hunterPersonId, year);
+    await this.syncFarmerRenewalTargetTotalForStudio(customerId, maintenancePersonId ?? hunterPersonId, year);
   }
 
   private async syncHunterTargetTotalForStudio(customerId: string, hunterPersonId: string | undefined, year: number) {
@@ -831,6 +942,91 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
     if (error) throw error;
     return roundCurrency((data as Array<{ hunter_amount?: number | string | null }> | null ?? [])
       .reduce((total, row) => total + Number(row.hunter_amount ?? 0), 0));
+  }
+
+  private async syncFarmerRenewalTargetTotalForStudio(customerId: string, personId: string | undefined, year: number) {
+    if (!personId) return;
+    const [{ data: existingData, error: existingError }, studioRenewalAmount] = await Promise.all([
+      this.client
+        .from("revenue_target_allocations")
+        .select("*")
+        .eq("customer_id", customerId)
+        .eq("person_id", personId)
+        .eq("target_type", "farmer_renewal")
+        .eq("target_year", year)
+        .maybeSingle(),
+      this.getEligibleStudioRenewalAmount(customerId, personId, year),
+    ]);
+    if (existingError) throw existingError;
+
+    const existing = existingData ? fromTargetAllocationRow(existingData as TargetAllocationRow) : null;
+    const ownAmount = getTargetOwnAmount(existing ?? undefined, studioRenewalAmount);
+    const totalAmount = roundCurrency(ownAmount + studioRenewalAmount);
+
+    if (totalAmount <= 0.01) {
+      if (existing?.id) {
+        const { error } = await this.client.from("revenue_target_allocations").delete().eq("id", existing.id);
+        if (error) throw error;
+      }
+      return;
+    }
+
+    const allocation = validateTargetAllocation({
+      id: existing?.id ?? `target-${customerId}-${personId}-farmer-renewal-${year}`,
+      customerId,
+      personId,
+      type: "farmer_renewal",
+      year,
+      amount: totalAmount,
+      ownAmount,
+      notes: existing?.notes ?? "Meta Renovação total recalculada a partir da meta própria e dos Studios elegíveis.",
+    });
+    const { error } = await this.client.from("revenue_target_allocations").upsert(toTargetAllocationRow(allocation));
+    if (error) throw error;
+  }
+
+  private async getEligibleStudioRenewalAmount(customerId: string, personId: string, year: number) {
+    const [personResult, studioResult] = await Promise.all([
+      this.client.from("people").select("id, role_type, active").eq("id", personId).maybeSingle(),
+      this.client
+        .from("studio_target_allocations")
+        .select("customer_id, area_id, hunter_person_id, maintenance_person_id, target_year, maintenance_amount")
+        .eq("customer_id", customerId)
+        .eq("target_year", year),
+    ]);
+    if (personResult.error) throw personResult.error;
+    if (studioResult.error) throw studioResult.error;
+
+    const rows = studioResult.data as Array<{
+      customer_id: string;
+      area_id: string;
+      hunter_person_id?: string | null;
+      maintenance_person_id?: string | null;
+      target_year: number;
+      maintenance_amount?: number | string | null;
+    }> | null;
+    const areaIds = Array.from(new Set((rows ?? []).map((row) => row.area_id)));
+    const areasResult = areaIds.length
+      ? await this.client.from("areas").select("id, name").in("id", areaIds)
+      : { data: [], error: null };
+    if (areasResult.error) throw areasResult.error;
+
+    const person = personResult.data as { id: string; role_type: RoleType; active: boolean } | null;
+    return getEligibleStudioRenewalAmountForPerson({
+      allocations: (rows ?? []).map((row) => ({
+        customerId: row.customer_id,
+        areaId: row.area_id,
+        hunterPersonId: row.hunter_person_id ?? undefined,
+        maintenancePersonId: row.maintenance_person_id ?? undefined,
+        year: row.target_year,
+        maintenanceAmount: Number(row.maintenance_amount ?? 0),
+      })).filter((allocation) => (allocation.maintenancePersonId ?? allocation.hunterPersonId) === personId),
+      areas: (areasResult.data as AreaRow[] | null ?? []).map((area) => ({ id: area.id, name: area.name })),
+      people: person ? [{ id: person.id, active: person.active, roleType: person.role_type }] : [],
+      customerId,
+      personId,
+      year,
+    });
   }
 
 }
@@ -1071,7 +1267,7 @@ function toTargetAllocationRow(allocation: TargetAllocation): TargetAllocationRo
     target_type: allocation.type,
     target_year: allocation.year,
     amount: allocation.amount,
-    own_amount: allocation.type === "hunter" ? allocation.ownAmount ?? allocation.amount : null,
+    own_amount: allocation.type === "hunter" || allocation.type === "farmer_renewal" ? allocation.ownAmount ?? allocation.amount : null,
     notes: allocation.notes ?? null,
   };
 }
@@ -1095,6 +1291,7 @@ function toStudioTargetAllocationRow(allocation: StudioTargetAllocation): Studio
     customer_id: allocation.customerId,
     area_id: allocation.areaId,
     hunter_person_id: allocation.hunterPersonId ?? null,
+    maintenance_person_id: allocation.maintenancePersonId ?? null,
     target_year: allocation.year,
     amount: allocation.maintenanceAmount,
     hunter_amount: allocation.hunterAmount,
@@ -1114,6 +1311,7 @@ function fromStudioTargetAllocationRow(row: StudioTargetAllocationRow): StudioTa
     customerId: row.customer_id,
     areaId: row.area_id,
     hunterPersonId: row.hunter_person_id ?? undefined,
+    maintenancePersonId: row.maintenance_person_id ?? undefined,
     year: row.target_year,
     hunterAmount: legacyAmountIsUnsplitHunter ? legacyAmount : hunterAmount,
     maintenanceAmount,

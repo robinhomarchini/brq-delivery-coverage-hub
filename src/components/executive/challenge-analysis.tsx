@@ -6,6 +6,7 @@ import type { ChallengeAiBaseline, ChallengeAiResult, ChallengeAnalysisRow, Chal
 import { buildChallengeRows, getChallengeBenchmark } from "@/lib/challenge-analysis";
 import { canManageCompensation } from "@/lib/compensation-access";
 import { useAccess } from "@/lib/access-context";
+import { createAuthServiceSelection } from "@/lib/auth/auth-service";
 import { useDeliveryStore } from "@/store/delivery-store";
 import { EmptyState } from "@/components/shared/empty-state";
 import { KpiSummaryCard } from "@/components/shared/kpi-summary-card";
@@ -33,6 +34,8 @@ export function ChallengeAnalysis() {
   const [loadingAi, setLoadingAi] = useState(false);
   const [listening, setListening] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const authSelection = useMemo(() => createAuthServiceSelection(), []);
+  const authService = authSelection.service;
   const canView = canManageCompensation(accessUser, people);
   const years = useMemo(
     () => Array.from(new Set([
@@ -56,9 +59,14 @@ export function ChallengeAnalysis() {
     setErrorMessage("");
 
     try {
+      const accessToken = authService ? await authService.getAccessToken() : null;
+      const headers: HeadersInit = { "Content-Type": "application/json" };
+      if (accessToken) {
+        headers.Authorization = `Bearer ${accessToken}`;
+      }
       const response = await fetch("/api/challenge-analysis", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ view, year, rows, context: contextInput.trim() || undefined, baseline: activeBaseline ?? undefined }),
       });
       const data = await response.json() as ChallengeAiResult & { error?: string };

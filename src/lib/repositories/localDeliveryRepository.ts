@@ -12,6 +12,7 @@ import {
 } from "@/lib/coverage-sync";
 import { isCustomerManagerProfile, isHunterRole, isTargetAssignableRole } from "@/lib/roles";
 import { normalizeBusinessName } from "@/lib/utils";
+import { getEligibleStudioRenewalAmountForPerson, getTargetOwnAmount } from "@/lib/studio-renewal-rollup";
 
 export class LocalDeliveryRepository implements DeliveryRepository {
   private data: DeliveryData = {
@@ -88,7 +89,13 @@ export class LocalDeliveryRepository implements DeliveryRepository {
     this.data.targetAllocations = this.data.targetAllocations.filter((item) => item.personId !== id);
     this.data.specialistHunterStudioAssignments = this.data.specialistHunterStudioAssignments.filter((item) => item.personId !== id);
     this.data.studioTargetAllocations = this.data.studioTargetAllocations.map((allocation) =>
-      allocation.hunterPersonId === id ? { ...allocation, hunterPersonId: undefined } : allocation
+      allocation.hunterPersonId === id || allocation.maintenancePersonId === id
+        ? {
+          ...allocation,
+          hunterPersonId: allocation.hunterPersonId === id ? undefined : allocation.hunterPersonId,
+          maintenancePersonId: allocation.maintenancePersonId === id ? undefined : allocation.maintenancePersonId,
+        }
+        : allocation
     );
   }
 
@@ -180,6 +187,7 @@ export class LocalDeliveryRepository implements DeliveryRepository {
       item.customerId === allocation.customerId
       && item.areaId === allocation.areaId
       && (item.hunterPersonId ?? "") === (allocation.hunterPersonId ?? "")
+      && (item.maintenancePersonId ?? "") === (allocation.maintenancePersonId ?? "")
       && item.year === allocation.year
     );
     const nextAllocation = {
@@ -187,9 +195,12 @@ export class LocalDeliveryRepository implements DeliveryRepository {
       id: existing?.id ?? allocation.id,
     };
     this.data.studioTargetAllocations = upsert(this.data.studioTargetAllocations, nextAllocation);
-    this.syncHunterTargetTotal(nextAllocation.customerId, nextAllocation.hunterPersonId, nextAllocation.year);
+    this.syncStudioDerivedTargets(nextAllocation.customerId, nextAllocation.hunterPersonId, nextAllocation.maintenancePersonId, nextAllocation.year);
     if (existing?.hunterPersonId && existing.hunterPersonId !== nextAllocation.hunterPersonId) {
-      this.syncHunterTargetTotal(existing.customerId, existing.hunterPersonId, existing.year);
+      this.syncStudioDerivedTargets(existing.customerId, existing.hunterPersonId, existing.maintenancePersonId, existing.year);
+    }
+    if (existing?.maintenancePersonId && existing.maintenancePersonId !== nextAllocation.maintenancePersonId) {
+      this.syncStudioDerivedTargets(existing.customerId, existing.hunterPersonId, existing.maintenancePersonId, existing.year);
     }
     return structuredClone(nextAllocation);
   }
@@ -199,7 +210,7 @@ export class LocalDeliveryRepository implements DeliveryRepository {
     this.data.studioTargetAllocations = this.data.studioTargetAllocations.filter((item) => item.id !== id);
     this.data.specialistHunterStudioAssignments = this.data.specialistHunterStudioAssignments.filter((item) => item.studioTargetAllocationId !== id);
     if (existing) {
-      this.syncHunterTargetTotal(existing.customerId, existing.hunterPersonId, existing.year);
+      this.syncStudioDerivedTargets(existing.customerId, existing.hunterPersonId, existing.maintenancePersonId, existing.year);
     }
   }
 
@@ -261,7 +272,9 @@ export class LocalDeliveryRepository implements DeliveryRepository {
     const studioHunterAmount = this.getStudioHunterAmount(input.customerId, input.personId, input.year);
     const nextHunterOwnAmount = sanitizeAmount(input.hunterOwnAmount ?? Math.max(input.hunterAmount - studioHunterAmount, 0));
     const nextHunterAmount = roundCurrency(nextHunterOwnAmount + studioHunterAmount);
-    const nextFarmerRenewalAmount = sanitizeAmount(input.farmerRenewalAmount);
+    const studioRenewalAmount = this.getEligibleStudioRenewalAmount(input.customerId, input.personId, input.year);
+    const nextFarmerRenewalOwnAmount = sanitizeAmount(input.farmerRenewalAmount);
+    const nextFarmerRenewalAmount = roundCurrency(nextFarmerRenewalOwnAmount + studioRenewalAmount);
     const nextStudioAmount = 0;
     const otherHunterTotal = this.data.targetAllocations
       .filter((item) => item.customerId === input.customerId && item.year === input.year && item.personId !== input.personId && item.type === "hunter")
@@ -315,7 +328,7 @@ export class LocalDeliveryRepository implements DeliveryRepository {
     }
 
     this.replaceTargetAmount(input, "hunter", nextHunterAmount, nextHunterOwnAmount);
-    this.replaceTargetAmount(input, "farmer_renewal", nextFarmerRenewalAmount);
+    this.replaceTargetAmount(input, "farmer_renewal", nextFarmerRenewalAmount, nextFarmerRenewalOwnAmount);
     this.replaceTargetAmount(input, "studio", nextStudioAmount);
 
     if (isHunterRole(person.roleType)) {
@@ -371,9 +384,14 @@ export class LocalDeliveryRepository implements DeliveryRepository {
       type,
       year: input.year,
       amount,
-      ownAmount: type === "hunter" ? ownAmount ?? amount : undefined,
+      ownAmount: type === "hunter" || type === "farmer_renewal" ? ownAmount ?? amount : undefined,
       notes: input.notes ?? "Meta associada pela tela Metas por Pessoa.",
     }));
+  }
+
+  private syncStudioDerivedTargets(customerId: string, hunterPersonId: string | undefined, maintenancePersonId: string | undefined, year: number) {
+    this.syncHunterTargetTotal(customerId, hunterPersonId, year);
+    this.syncFarmerRenewalTargetTotal(customerId, maintenancePersonId ?? hunterPersonId, year);
   }
 
   private syncHunterTargetTotal(customerId: string, hunterPersonId: string | undefined, year: number) {
@@ -411,6 +429,48 @@ export class LocalDeliveryRepository implements DeliveryRepository {
     return roundCurrency(this.data.studioTargetAllocations
       .filter((item) => item.customerId === customerId && item.hunterPersonId === hunterPersonId && item.year === year)
       .reduce((total, item) => total + item.hunterAmount, 0));
+  }
+
+  private syncFarmerRenewalTargetTotal(customerId: string, personId: string | undefined, year: number) {
+    if (!personId) return;
+    const existing = this.data.targetAllocations.find((item) =>
+      item.customerId === customerId
+      && item.personId === personId
+      && item.type === "farmer_renewal"
+      && item.year === year
+    );
+    const studioRenewalAmount = this.getEligibleStudioRenewalAmount(customerId, personId, year);
+    const ownAmount = getTargetOwnAmount(existing, studioRenewalAmount);
+    const totalAmount = roundCurrency(ownAmount + studioRenewalAmount);
+
+    if (totalAmount <= 0.01) {
+      if (existing) {
+        this.data.targetAllocations = this.data.targetAllocations.filter((item) => item.id !== existing.id);
+      }
+      return;
+    }
+
+    this.data.targetAllocations = upsert(this.data.targetAllocations, validateTargetAllocation({
+      id: existing?.id ?? `target-${customerId}-${personId}-farmer-renewal-${year}`,
+      customerId,
+      personId,
+      type: "farmer_renewal",
+      year,
+      amount: totalAmount,
+      ownAmount,
+      notes: existing?.notes ?? "Meta Renovação total recalculada a partir da meta própria e dos Studios elegíveis.",
+    }));
+  }
+
+  private getEligibleStudioRenewalAmount(customerId: string, personId: string, year: number) {
+    return getEligibleStudioRenewalAmountForPerson({
+      allocations: this.data.studioTargetAllocations,
+      areas: this.data.areas,
+      people: this.data.people,
+      customerId,
+      personId,
+      year,
+    });
   }
 }
 
@@ -462,4 +522,8 @@ function roundCurrency(value: number) {
   return Math.round(value * 100) / 100;
 }
 
-export const localDeliveryRepository = new LocalDeliveryRepository();
+export function createLocalDeliveryRepository() {
+  return new LocalDeliveryRepository();
+}
+
+export const localDeliveryRepository = createLocalDeliveryRepository();

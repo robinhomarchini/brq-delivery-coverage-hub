@@ -18,6 +18,7 @@ import { useDeliveryStore } from "@/store/delivery-store";
 import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears } from "@/lib/customer-targets";
 import { formatCurrency, toFileSlug } from "@/lib/utils";
 import { isHunterRole, isSpecialistHunterRole, isTargetAssignableRole } from "@/lib/roles";
+import { getEligibleStudioRenewalAmountForPerson, getStudioMaintenancePersonId, getTargetOwnAmount } from "@/lib/studio-renewal-rollup";
 
 const currentYear = defaultTargetYear;
 
@@ -27,7 +28,7 @@ type AllocationField = "hunter" | "farmerRenewal";
 export function PersonTargetAssignment() {
   const router = useRouter();
   const initialParams = useMemo(() => getInitialTargetParams(), []);
-  const { people, customers, customerTargets, targetAllocations, studioTargetAllocations, savePersonCustomerTargets, removePersonCustomerTargets } = useDeliveryStore();
+  const { areas, people, customers, customerTargets, targetAllocations, studioTargetAllocations, savePersonCustomerTargets, removePersonCustomerTargets } = useDeliveryStore();
   const activePeople = useMemo(() => people.filter((person) => person.active), [people]);
   const assignablePeople = useMemo(() =>
     activePeople.filter((person) => isTargetAssignableRole(person.roleType) || isSpecialistHunterRole(person.roleType)),
@@ -86,11 +87,12 @@ export function PersonTargetAssignment() {
       year,
       targetAllocations,
       studioTargetAllocations,
+      areas,
       drafts[customer.id],
       getRowSource(customer.id, people, selectedPerson?.clientIds ?? [], targetAllocations, studioTargetAllocations, effectivePersonId, year, extraCustomerIds),
       selectedPerson?.roleType,
     )),
-    [drafts, effectivePersonId, extraCustomerIds, people, scopedVisibleCustomers, selectedPerson?.clientIds, selectedPerson?.roleType, studioTargetAllocations, targetAllocations, year],
+    [areas, drafts, effectivePersonId, extraCustomerIds, people, scopedVisibleCustomers, selectedPerson?.clientIds, selectedPerson?.roleType, studioTargetAllocations, targetAllocations, year],
   );
   const totals = useMemo(() => rows.reduce((summary, row) => ({
     hunter: summary.hunter + row.hunterAmount,
@@ -265,7 +267,7 @@ export function PersonTargetAssignment() {
     await persistCustomerTargets(
       row,
       field === "hunter" ? Math.max(availableAmount - row.studioHunterAmount, 0) : row.hunterOwnAmount,
-      field === "farmerRenewal" ? availableAmount : row.farmerRenewalAmount,
+      field === "farmerRenewal" ? Math.max(availableAmount - row.studioRenewalAmount, 0) : row.farmerRenewalOwnAmount,
       0,
       `Meta ${label} de ${selectedPerson.name} em ${row.customerName} alocada com sucesso.`,
     );
@@ -288,8 +290,9 @@ export function PersonTargetAssignment() {
     }
 
     const nextHunterAmount = roundCurrency(nextHunterOwnAmount + row.studioHunterAmount);
+    const nextFarmerRenewalTotalAmount = roundCurrency(nextFarmerRenewalAmount + row.studioRenewalAmount);
     const currentOtherPeopleTotal = sumOtherPeopleAllocations(targetAllocations, row.customerId, effectivePersonId, year);
-    const nextCustomerTotal = currentOtherPeopleTotal + nextHunterAmount + nextFarmerRenewalAmount + nextStudioAmount;
+    const nextCustomerTotal = currentOtherPeopleTotal + nextHunterAmount + nextFarmerRenewalTotalAmount + nextStudioAmount;
     const overAmount = nextCustomerTotal - row.customerTarget;
 
     let increaseCustomerTarget = false;
@@ -298,7 +301,7 @@ export function PersonTargetAssignment() {
         currentHunterAmount: row.hunterAllocation?.amount ?? 0,
         nextHunterAmount,
         currentFarmerRenewalAmount: row.farmerRenewalAllocation?.amount ?? 0,
-        nextFarmerRenewalAmount,
+        nextFarmerRenewalAmount: nextFarmerRenewalTotalAmount,
         currentStudioAmount: 0,
         nextStudioAmount,
       });
@@ -547,9 +550,13 @@ export function PersonTargetAssignment() {
                     <MoneyInput
                       value={drafts[row.customerId]?.farmerRenewal ?? row.farmerRenewalInput}
                       onChange={(event) => updateDraft(row.customerId, "farmerRenewal", event.target.value)}
-                      aria-label={`Meta Renovação + Ampliação para ${row.customerName}`}
+                      aria-label={`Meta própria Renovação + Ampliação para ${row.customerName}`}
                       disabled={selectedPersonIsSpecialistHunter}
                     />
+                    <div className="mt-2 space-y-0.5 text-xs text-slate-500">
+                      <p>Studio elegível: <span className="font-semibold text-sky-700">{formatCurrency(row.studioRenewalAmount)}</span></p>
+                      <p>Total atual: <span className="font-bold text-slate-900">{formatCurrency(row.farmerRenewalAmount)}</span></p>
+                    </div>
                   </TableCell>
                   <TableCell className="font-bold text-slate-950">{formatCurrency(row.personTotal)}</TableCell>
                   <TableCell><ClientStatusBadge status={row.clientStatus} /></TableCell>
@@ -722,6 +729,7 @@ function buildRow(
   year: number,
   allocations: TargetAllocation[],
   studioAllocations: StudioTargetAllocation[],
+  areas: Array<{ id: string; name: string }>,
   draft: { hunter: string; farmerRenewal: string } | undefined,
   source: RowSource,
   roleType?: RoleType,
@@ -739,7 +747,17 @@ function buildRow(
   const savedHunterOwnAmount = hunterAllocation?.ownAmount ?? Math.max((hunterAllocation?.amount ?? 0) - studioHunterAmount, 0);
   const hunterOwnAmount = isSpecialistHunter ? 0 : parseAmount(draft?.hunter ?? getInputValue(savedHunterOwnAmount));
   const hunterAmount = isSpecialistHunter ? studioHunterAmount : roundCurrency(hunterOwnAmount + studioHunterAmount);
-  const farmerRenewalAmount = isSpecialistHunter ? 0 : parseAmount(draft?.farmerRenewal ?? getInputValue(farmerRenewalAllocation?.amount ?? 0));
+  const studioRenewalAmount = isSpecialistHunter ? 0 : getEligibleStudioRenewalAmountForPerson({
+    allocations: studioAllocations,
+    areas,
+    people,
+    customerId: customer.id,
+    personId,
+    year,
+  });
+  const savedFarmerRenewalOwnAmount = getTargetOwnAmount(farmerRenewalAllocation, studioRenewalAmount);
+  const farmerRenewalOwnAmount = isSpecialistHunter ? 0 : parseAmount(draft?.farmerRenewal ?? getInputValue(savedFarmerRenewalOwnAmount));
+  const farmerRenewalAmount = isSpecialistHunter ? 0 : roundCurrency(farmerRenewalOwnAmount + studioRenewalAmount);
   const otherPeopleHunterTotal = isSpecialistHunter ? 0 : sumOtherPeopleAllocations(allocations, customer.id, personId, year, "hunter");
   const otherPeopleFarmerRenewalTotal = isSpecialistHunter ? 0 : sumOtherPeopleAllocations(allocations, customer.id, personId, year, "farmer_renewal");
   const otherPeopleTotal = otherPeopleHunterTotal + otherPeopleFarmerRenewalTotal;
@@ -769,9 +787,11 @@ function buildRow(
     hunterOwnAmount,
     studioHunterAmount,
     hunterAmount,
+    farmerRenewalOwnAmount,
+    studioRenewalAmount,
     farmerRenewalAmount,
     hunterInput: getInputValue(savedHunterOwnAmount),
-    farmerRenewalInput: getInputValue(farmerRenewalAllocation?.amount ?? 0),
+    farmerRenewalInput: getInputValue(savedFarmerRenewalOwnAmount),
     personTotal: hunterAmount + farmerRenewalAmount,
     clientStatus: getClientStatus(targetBreakdown, { hunter: clientHunterTotal, farmerRenewal: clientFarmerRenewalTotal }),
     source,
@@ -858,7 +878,10 @@ function buildVisibleCustomerIds(
     ...studioAllocations
       .filter((allocation) =>
         allocation.year === year
-        && getEffectiveStudioHunterPersonId(allocation, people, allocations) === personId
+        && (
+          getEffectiveStudioHunterPersonId(allocation, people, allocations) === personId
+          || getStudioMaintenancePersonId(allocation) === personId
+        )
         && hasStudioAllocationValue(allocation)
       )
       .map((allocation) => allocation.customerId),
@@ -883,7 +906,10 @@ function getRowSource(
   if (studioAllocations.some((allocation) =>
     allocation.customerId === customerId
     && allocation.year === year
-    && getEffectiveStudioHunterPersonId(allocation, people, allocations) === personId
+    && (
+      getEffectiveStudioHunterPersonId(allocation, people, allocations) === personId
+      || getStudioMaintenancePersonId(allocation) === personId
+    )
     && hasStudioAllocationValue(allocation)
   )) {
     return "existing_target";

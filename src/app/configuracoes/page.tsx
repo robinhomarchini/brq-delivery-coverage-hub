@@ -13,12 +13,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useDeliveryStore } from "@/store/delivery-store";
 import {
   accessRoles,
-  deactivateAccessUser,
-  deleteAccessUser,
   isBrqEmail,
-  listAccessUsers,
   normalizeAccessEmail,
-  saveAccessUser,
   translateAccessRole,
   type AccessRole,
   type AccessStatus,
@@ -28,7 +24,7 @@ import { useAccess } from "@/lib/access-context";
 import { notifyAccessUsersChanged } from "@/lib/access-events";
 import { defaultTargetYear } from "@/lib/customer-targets";
 import { exportAdminBaseWorkbook } from "@/lib/export";
-import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { createAccessRepositorySelection } from "@/lib/repositories/accessRepository";
 
 const initialForm = {
   email: "",
@@ -37,7 +33,8 @@ const initialForm = {
 };
 
 export default function SettingsPage() {
-  const client = getSupabaseBrowserClient();
+  const accessRepositorySelection = useMemo(() => createAccessRepositorySelection(), []);
+  const accessRepository = accessRepositorySelection.repository;
   const { accessUser, isAdmin, loadingAccess, refreshAccess } = useAccess();
   const { people, customers, areas, subjects, customerTargets, targetAllocations, studioTargetAllocations } = useDeliveryStore();
   const [users, setUsers] = useState<AccessUser[]>([]);
@@ -64,10 +61,10 @@ export default function SettingsPage() {
   );
 
   useEffect(() => {
-    if (!client || !isAdmin) return;
+    if (!accessRepository || !isAdmin) return;
     void loadUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [client, isAdmin]);
+  }, [accessRepository, isAdmin]);
 
   if (loadingAccess) {
     return (
@@ -99,11 +96,14 @@ export default function SettingsPage() {
   }
 
   async function loadUsers() {
-    if (!client) return;
+    if (!accessRepository) {
+      setError(accessRepositorySelection.reason ?? "Repositório de acesso indisponível.");
+      return;
+    }
     setLoading(true);
     setError("");
     try {
-      setUsers(await listAccessUsers(client));
+      setUsers(await accessRepository.listAccessUsers());
     } catch (loadError) {
       setError(getErrorMessage(loadError, "Não foi possível carregar os usuários."));
     } finally {
@@ -118,7 +118,10 @@ export default function SettingsPage() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!client) return;
+    if (!accessRepository) {
+      setError(accessRepositorySelection.reason ?? "Repositório de acesso indisponível.");
+      return;
+    }
 
     const email = normalizeAccessEmail(form.email);
     setNotice("");
@@ -132,7 +135,7 @@ export default function SettingsPage() {
     setSaving(true);
     try {
       const mustRemainActive = editingEmail === accessUser?.email;
-      await saveAccessUser(client, {
+      await accessRepository.saveAccessUser({
         email,
         role: form.role,
         active: mustRemainActive ? true : form.active,
@@ -149,7 +152,10 @@ export default function SettingsPage() {
   }
 
   async function handleDeactivate(user: AccessUser) {
-    if (!client) return;
+    if (!accessRepository) {
+      setError(accessRepositorySelection.reason ?? "Repositório de acesso indisponível.");
+      return;
+    }
     if (user.email === accessUser?.email) {
       setError("O usuário ativo atual deve ser mantido. Peça a outro administrador para alterar seu acesso, se necessário.");
       return;
@@ -158,7 +164,7 @@ export default function SettingsPage() {
     setError("");
     setSaving(true);
     try {
-      await deactivateAccessUser(client, user.email, user.role);
+      await accessRepository.deactivateAccessUser(user.email, user.role);
       await refreshUsersAndAccess();
       setNotice("Usuário desativado com sucesso.");
       if (editingEmail === user.email) {
@@ -172,7 +178,10 @@ export default function SettingsPage() {
   }
 
   async function handleDelete(user: AccessUser) {
-    if (!client) return;
+    if (!accessRepository) {
+      setError(accessRepositorySelection.reason ?? "Repositório de acesso indisponível.");
+      return;
+    }
     if (user.email === accessUser?.email) {
       setError("O usuário ativo atual deve ser mantido. Não é possível excluir a própria conta em uso.");
       return;
@@ -184,7 +193,7 @@ export default function SettingsPage() {
     setError("");
     setSaving(true);
     try {
-      await deleteAccessUser(client, user.email);
+      await accessRepository.deleteAccessUser(user.email);
       await refreshUsersAndAccess();
       setNotice("Usuário excluído com sucesso.");
       if (editingEmail === user.email) {

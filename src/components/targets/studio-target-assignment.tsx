@@ -18,7 +18,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useDeliveryStore } from "@/store/delivery-store";
 import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears } from "@/lib/customer-targets";
-import { isHunterRole } from "@/lib/roles";
+import { isFarmerDeliveryTargetRole, isHunterRole } from "@/lib/roles";
+import { getStudioMaintenancePersonId } from "@/lib/studio-renewal-rollup";
 import { useCloseOnNavigation } from "@/lib/use-close-on-navigation";
 import { formatCurrency, makeId } from "@/lib/utils";
 
@@ -37,6 +38,7 @@ export function StudioTargetAssignment() {
   const [formCustomerId, setFormCustomerId] = useState("");
   const [formAreaId, setFormAreaId] = useState("");
   const [formHunterPersonId, setFormHunterPersonId] = useState("");
+  const [formMaintenancePersonId, setFormMaintenancePersonId] = useState("");
   const [formYear, setFormYear] = useState(String(initialParams.year ?? currentYear));
   const [formHunterAmount, setFormHunterAmount] = useState("0");
   const [formMaintenanceAmount, setFormMaintenanceAmount] = useState("0");
@@ -105,6 +107,7 @@ export function StudioTargetAssignment() {
     setFormCustomerId("");
     setFormAreaId("");
     setFormHunterPersonId("");
+    setFormMaintenancePersonId("");
     setFormYear(String(effectiveYear));
     setFormHunterAmount("0");
     setFormMaintenanceAmount("0");
@@ -145,6 +148,7 @@ export function StudioTargetAssignment() {
     setFormCustomerId(allocationToEdit?.customerId || targetCustomerId);
     setFormAreaId(allocationToEdit?.areaId ?? areaId);
     setFormHunterPersonId(defaultHunterPersonId);
+    setFormMaintenancePersonId(allocationToEdit?.maintenancePersonId ?? "");
     setFormYear(String(allocationToEdit?.year ?? effectiveYear));
     setFormHunterAmount(getInputValue(allocationToEdit?.hunterAmount ?? 0));
     setFormMaintenanceAmount(getInputValue(allocationToEdit?.maintenanceAmount ?? 0));
@@ -175,7 +179,7 @@ export function StudioTargetAssignment() {
     setAllocationPickerOptions(candidates);
   }
 
-  function syncExistingAllocation(nextCustomerId: string, nextAreaId: string, nextHunterPersonId: string, nextYear: string) {
+  function syncExistingAllocation(nextCustomerId: string, nextAreaId: string, nextHunterPersonId: string, nextMaintenancePersonId: string, nextYear: string) {
     if (!nextCustomerId || !nextAreaId) return;
     const nextTargetYear = Number(nextYear);
     if (!Number.isInteger(nextTargetYear)) return;
@@ -184,12 +188,14 @@ export function StudioTargetAssignment() {
       nextCustomerId,
       nextAreaId,
       nextHunterPersonId,
+      nextMaintenancePersonId,
       nextTargetYear,
     );
 
     if (matchingAllocation) {
       setEditing(matchingAllocation);
       setFormHunterPersonId(matchingAllocation.hunterPersonId ?? "");
+      setFormMaintenancePersonId(matchingAllocation.maintenancePersonId ?? "");
       setFormHunterAmount(getInputValue(matchingAllocation.hunterAmount));
       setFormMaintenanceAmount(getInputValue(matchingAllocation.maintenanceAmount));
       setFormNotes(matchingAllocation.notes ?? "");
@@ -201,7 +207,7 @@ export function StudioTargetAssignment() {
       const changedOnlyHunter = editing.customerId === nextCustomerId
         && editing.areaId === nextAreaId
         && editing.year === nextTargetYear
-        && (editing.hunterPersonId ?? "") !== nextHunterPersonId;
+        && ((editing.hunterPersonId ?? "") !== nextHunterPersonId || (editing.maintenancePersonId ?? "") !== nextMaintenancePersonId);
       if (changedOnlyHunter) {
         setFormError("");
         return;
@@ -222,7 +228,7 @@ export function StudioTargetAssignment() {
     if (!formHunterPersonId) setFormHunterPersonId(nextHunterPersonId);
 
     if (!currentEditing || !nextAreaId || nextAreaId === currentEditing.areaId) {
-      syncExistingAllocation(formCustomerId, nextAreaId, nextHunterPersonId, formYear);
+      syncExistingAllocation(formCustomerId, nextAreaId, nextHunterPersonId, formMaintenancePersonId, formYear);
       return;
     }
 
@@ -252,6 +258,7 @@ export function StudioTargetAssignment() {
       customerId: formCustomerId.trim(),
       areaId: formAreaId.trim(),
       hunterPersonId: formHunterPersonId.trim() || undefined,
+      maintenancePersonId: formMaintenancePersonId.trim() || undefined,
       year: Number(formYear),
       hunterAmount: parseAmount(formHunterAmount),
       maintenanceAmount: parseAmount(formMaintenanceAmount),
@@ -398,7 +405,7 @@ export function StudioTargetAssignment() {
                 <SortableTableHead label="Cliente" sortKey="customer" sortState={allocationSort} onSort={setAllocationSort} />
                 <SortableTableHead label="Área / Studio" sortKey="area" sortState={allocationSort} onSort={setAllocationSort} />
                 <TableHead>Tipo</TableHead>
-                <SortableTableHead label="Hunter associado" sortKey="hunterPerson" sortState={allocationSort} onSort={setAllocationSort} />
+                <SortableTableHead label="Responsável" sortKey="hunterPerson" sortState={allocationSort} onSort={setAllocationSort} />
                 <SortableTableHead label="Ano" sortKey="year" sortState={allocationSort} onSort={setAllocationSort} />
                 <TableHead className="text-right">Valor</TableHead>
                 <TableHead>Impacto</TableHead>
@@ -430,7 +437,9 @@ export function StudioTargetAssignment() {
                           {personName(people, getEffectiveStudioHunterPersonId(allocation, people, targetAllocations))}
                         </p>
                       ) : (
-                        <p className="font-medium text-slate-400">Não atribui meta ao Hunter</p>
+                        <p className={getStudioMaintenancePersonId(allocation) ? "font-semibold text-slate-800" : "text-slate-400"}>
+                          {personName(people, getStudioMaintenancePersonId(allocation), "Responsável não informado")}
+                        </p>
                       )}
                     </TableCell>
                     <TableCell>{allocation.year}</TableCell>
@@ -442,7 +451,7 @@ export function StudioTargetAssignment() {
                         ? "inline-flex rounded-full bg-sky-100 px-2.5 py-1 text-xs font-bold text-sky-800"
                         : "inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600"}
                       >
-                        {segment === "hunter" ? "Soma no total do Hunter" : "Não soma no Hunter"}
+                        {segment === "hunter" ? "Soma no total do Hunter" : "Compõe Farmer/Delivery elegível"}
                       </span>
                     </TableCell>
                     <TableCell className="max-w-xs truncate text-slate-500">{allocation.notes || "—"}</TableCell>
@@ -484,7 +493,7 @@ export function StudioTargetAssignment() {
                 const nextHunterPersonId = formHunterPersonId || getDefaultHunterPersonIdForCustomer(people, targetAllocations, nextCustomerId, Number(formYear) || effectiveYear);
                 setFormCustomerId(nextCustomerId);
                 if (!formHunterPersonId) setFormHunterPersonId(nextHunterPersonId);
-                syncExistingAllocation(nextCustomerId, formAreaId, nextHunterPersonId, formYear);
+                syncExistingAllocation(nextCustomerId, formAreaId, nextHunterPersonId, formMaintenancePersonId, formYear);
               }} required>
                 <option value="">Selecione</option>
                 {yearCustomers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}</option>)}
@@ -502,7 +511,7 @@ export function StudioTargetAssignment() {
               <Select name="hunterPersonId" value={formHunterPersonId} onChange={(event) => {
                 const nextHunterPersonId = event.target.value;
                 setFormHunterPersonId(nextHunterPersonId);
-                syncExistingAllocation(formCustomerId, formAreaId, nextHunterPersonId, formYear);
+                syncExistingAllocation(formCustomerId, formAreaId, nextHunterPersonId, formMaintenancePersonId, formYear);
               }}>
                 <option value="">Hunter não informado</option>
                 {getHunterOptions(people, targetAllocations, studioTargetAllocations, formCustomerId, Number(formYear) || effectiveYear, editing?.hunterPersonId ? [editing.hunterPersonId] : []).map((person) => (
@@ -511,11 +520,24 @@ export function StudioTargetAssignment() {
               </Select>
               <span className="mt-1 block text-xs text-slate-400">Opcional nesta tela. Sem Hunter, o valor fica como Studio Hunter a detalhar e não soma na meta de uma pessoa.</span>
             </Field>
+            <Field label="Farmer/Delivery responsável">
+              <Select name="maintenancePersonId" value={formMaintenancePersonId} onChange={(event) => {
+                const nextMaintenancePersonId = event.target.value;
+                setFormMaintenancePersonId(nextMaintenancePersonId);
+                syncExistingAllocation(formCustomerId, formAreaId, formHunterPersonId, nextMaintenancePersonId, formYear);
+              }}>
+                <option value="">Responsável não informado</option>
+                {getMaintenancePersonOptions(people, targetAllocations, studioTargetAllocations, formCustomerId, Number(formYear) || effectiveYear, editing?.maintenancePersonId ? [editing.maintenancePersonId] : []).map((person) => (
+                  <option key={person.id} value={person.id}>{person.name}</option>
+                ))}
+              </Select>
+              <span className="mt-1 block text-xs text-slate-400">Usado para incorporar Manutenção/Renovação na meta do Farmer/Delivery elegível. Studios PX continuam fora da incorporação.</span>
+            </Field>
             <Field label="Ano">
               <Input name="year" type="number" min="2020" max="2100" step="1" value={formYear} onChange={(event) => {
                 const nextYear = event.target.value;
                 setFormYear(nextYear);
-                syncExistingAllocation(formCustomerId, formAreaId, formHunterPersonId, nextYear);
+                syncExistingAllocation(formCustomerId, formAreaId, formHunterPersonId, formMaintenancePersonId, nextYear);
               }} required />
             </Field>
             <Field label="Valor Hunter (R$)">
@@ -561,6 +583,9 @@ export function StudioTargetAssignment() {
                     <p className="font-bold text-slate-950">{findArea(areas, allocation.areaId)?.name ?? allocation.areaId}</p>
                     <p className="text-xs text-slate-500">
                       Hunter associado: {personName(people, getEffectiveStudioHunterPersonId(allocation, people, targetAllocations))}
+                      {allocation.maintenancePersonId && (
+                        <> · Farmer/Delivery: {personName(people, allocation.maintenancePersonId)}</>
+                      )}
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -783,13 +808,17 @@ function findMatchingStudioAllocation(
   customerId: string,
   areaId: string,
   hunterPersonId: string,
+  maintenancePersonId: string,
   year: number,
 ) {
   const candidates = allocations.filter((allocation) =>
     matchesStudioAllocationBaseGrain(allocation, customerId, areaId, year)
   );
-  if (!hunterPersonId) return candidates.length === 1 ? candidates[0] : undefined;
-  return candidates.find((allocation) => (allocation.hunterPersonId ?? "") === hunterPersonId);
+  if (!hunterPersonId && !maintenancePersonId) return candidates.length === 1 ? candidates[0] : undefined;
+  return candidates.find((allocation) =>
+    (allocation.hunterPersonId ?? "") === hunterPersonId
+    && (allocation.maintenancePersonId ?? "") === maintenancePersonId
+  );
 }
 
 function matchesStudioAllocationGrain(
@@ -855,6 +884,41 @@ function getHunterOptions(
     .sort((first, second) => first.name.localeCompare(second.name, "pt-BR"));
 }
 
+function getMaintenancePersonOptions(
+  people: Person[],
+  targetAllocations: Array<{ customerId: string; personId: string; type: string; year: number }>,
+  studioTargetAllocations: StudioTargetAllocation[],
+  customerId: string,
+  year: number,
+  extraPersonIds: string[] = [],
+) {
+  const personIdsFromCustomerTargets = new Set(targetAllocations
+    .filter((allocation) =>
+      allocation.type === "farmer_renewal"
+      && allocation.year === year
+      && (!customerId || allocation.customerId === customerId)
+    )
+    .map((allocation) => allocation.personId));
+  const personIdsFromStudioTargets = new Set(studioTargetAllocations
+    .filter((allocation) =>
+      allocation.year === year
+      && getStudioMaintenancePersonId(allocation)
+      && (!customerId || allocation.customerId === customerId)
+    )
+    .map((allocation) => getStudioMaintenancePersonId(allocation) as string));
+  const extraIds = new Set(extraPersonIds.filter(Boolean));
+
+  return people
+    .filter((person) =>
+      (person.active && isFarmerDeliveryTargetRole(person.roleType))
+      || personIdsFromCustomerTargets.has(person.id)
+      || personIdsFromStudioTargets.has(person.id)
+      || extraIds.has(person.id)
+      || Boolean(customerId && person.clientIds.includes(customerId) && isFarmerDeliveryTargetRole(person.roleType))
+    )
+    .sort((first, second) => first.name.localeCompare(second.name, "pt-BR"));
+}
+
 function getDefaultHunterPersonIdForCustomer(
   people: Person[],
   targetAllocations: Array<{ customerId: string; personId: string; type: string; year: number }>,
@@ -893,8 +957,8 @@ function getEffectiveStudioHunterPersonId(
   return getDefaultHunterPersonIdForCustomer(people, targetAllocations, allocation.customerId, allocation.year);
 }
 
-function personName(people: Person[], personId?: string) {
-  if (!personId) return "Hunter não informado";
+function personName(people: Person[], personId?: string, emptyLabel = "Hunter não informado") {
+  if (!personId) return emptyLabel;
   return people.find((person) => person.id === personId)?.name ?? personId;
 }
 

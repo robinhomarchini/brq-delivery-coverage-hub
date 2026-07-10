@@ -237,7 +237,7 @@ export function exportAdminBaseWorkbook({
     {
       name: "Alocações Studios",
       rows: [
-        ["ID", "Cliente", "Área / Studio", "Hunter Studio", "Ano", "Studio Hunter", "Studio Manutenção", "Total", "Observações"],
+        ["ID", "Cliente", "Área / Studio", "Hunter Studio", "Farmer/Delivery Manutenção", "Ano", "Studio Hunter", "Studio Manutenção", "Total", "Observações"],
         ...studioTargetAllocations
           .filter((allocation) => allocation.year === year)
           .map((allocation) => [
@@ -245,6 +245,7 @@ export function exportAdminBaseWorkbook({
             customerNames.get(allocation.customerId) ?? allocation.customerId,
             areaNames.get(allocation.areaId) ?? allocation.areaId,
             allocation.hunterPersonId ? personNames.get(allocation.hunterPersonId) ?? allocation.hunterPersonId : "",
+            allocation.maintenancePersonId ? personNames.get(allocation.maintenancePersonId) ?? allocation.maintenancePersonId : "",
             allocation.year,
             allocation.hunterAmount,
             allocation.maintenanceAmount,

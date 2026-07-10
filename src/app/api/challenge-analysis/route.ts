@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { generateChallengeNarrative } from "@/server/ai/challenge-analysis";
+import { assertCanUseChallengeAnalysis, ChallengeAccessError } from "@/server/auth/challenge-analysis-access";
 import type { ChallengeAiBaseline, ChallengeAnalysisRow, ChallengeView } from "@/lib/challenge-analysis";
 
 const challengeAiNumbersSchema = z.object({
@@ -59,6 +60,7 @@ const challengeRequestSchema = z.object({
 
 export async function POST(request: Request) {
   try {
+    await assertCanUseChallengeAnalysis(request);
     const body = await request.json();
     const parsed = challengeRequestSchema.safeParse(body);
     if (!parsed.success) {
@@ -77,7 +79,13 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json(result);
-  } catch {
+  } catch (error) {
+    if (error instanceof ChallengeAccessError) {
+      return NextResponse.json(
+        { error: "Acesso não autorizado para análise de remuneração." },
+        { status: error.status },
+      );
+    }
     return NextResponse.json(
       { error: "Não foi possível gerar a análise agora. Tente novamente em instantes." },
       { status: 500 },

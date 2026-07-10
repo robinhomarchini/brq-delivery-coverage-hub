@@ -1,0 +1,154 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
+
+const fs = require("node:fs");
+const path = require("node:path");
+
+const root = process.cwd();
+const challengeRoutePath = path.join(root, "src", "app", "api", "challenge-analysis", "route.ts");
+const challengeAccessPath = path.join(root, "src", "server", "auth", "challenge-analysis-access.ts");
+const deliveryCommandAccessPath = path.join(root, "src", "server", "auth", "delivery-command-access.ts");
+const commandErrorsPath = path.join(root, "src", "server", "api", "command-errors.ts");
+const customersRoutePath = path.join(root, "src", "app", "api", "delivery", "customers", "route.ts");
+const personCustomerTargetsRoutePath = path.join(root, "src", "app", "api", "delivery", "person-customer-targets", "route.ts");
+const challengeComponentPath = path.join(root, "src", "components", "executive", "challenge-analysis.tsx");
+const reportExportPath = path.join(root, "src", "lib", "report-export.ts");
+const authServicePath = path.join(root, "src", "lib", "auth", "auth-service.ts");
+const accessRepositoryPath = path.join(root, "src", "lib", "repositories", "accessRepository.ts");
+const supabaseDeliveryRepositoryPath = path.join(root, "src", "lib", "repositories", "supabaseDeliveryRepository.ts");
+const authGatePath = path.join(root, "src", "components", "auth", "auth-gate.tsx");
+const appShellPath = path.join(root, "src", "components", "layout", "app-shell.tsx");
+const settingsPagePath = path.join(root, "src", "app", "configuracoes", "page.tsx");
+const providerPath = path.join(root, "src", "lib", "repositories", "provider.ts");
+const rlsMigrationPath = path.join(root, "supabase", "migrations", "20260709102000_harden_rls_audit_for_financial_targets.sql");
+const rlsSmokePath = path.join(root, "scripts", "smoke-rls-access.mjs");
+const rlsProvisionPath = path.join(root, "scripts", "provision-rls-smoke-users.mjs");
+const envLoaderPath = path.join(root, "scripts", "env-loader.mjs");
+const pentestLitePath = path.join(root, "scripts", "pentest-lite.mjs");
+const securityCheckPath = path.join(root, "scripts", "security-check.mjs");
+const securityDocPath = path.join(root, "docs", "SECURITY.md");
+const envExamplePath = path.join(root, ".env.example");
+const packagePath = path.join(root, "package.json");
+
+const challengeRouteSource = fs.readFileSync(challengeRoutePath, "utf8");
+const challengeAccessSource = fs.readFileSync(challengeAccessPath, "utf8");
+const deliveryCommandAccessSource = fs.readFileSync(deliveryCommandAccessPath, "utf8");
+const commandErrorsSource = fs.readFileSync(commandErrorsPath, "utf8");
+const customersRouteSource = fs.readFileSync(customersRoutePath, "utf8");
+const personCustomerTargetsRouteSource = fs.readFileSync(personCustomerTargetsRoutePath, "utf8");
+const challengeComponentSource = fs.readFileSync(challengeComponentPath, "utf8");
+const reportExportSource = fs.readFileSync(reportExportPath, "utf8");
+const authServiceSource = fs.readFileSync(authServicePath, "utf8");
+const accessRepositorySource = fs.readFileSync(accessRepositoryPath, "utf8");
+const supabaseDeliveryRepositorySource = fs.readFileSync(supabaseDeliveryRepositoryPath, "utf8");
+const authGateSource = fs.readFileSync(authGatePath, "utf8");
+const appShellSource = fs.readFileSync(appShellPath, "utf8");
+const settingsPageSource = fs.readFileSync(settingsPagePath, "utf8");
+const providerSource = fs.readFileSync(providerPath, "utf8");
+const rlsMigrationSource = fs.readFileSync(rlsMigrationPath, "utf8");
+const rlsSmokeSource = fs.readFileSync(rlsSmokePath, "utf8");
+const rlsProvisionSource = fs.readFileSync(rlsProvisionPath, "utf8");
+const envLoaderSource = fs.readFileSync(envLoaderPath, "utf8");
+const pentestLiteSource = fs.readFileSync(pentestLitePath, "utf8");
+const securityCheckSource = fs.readFileSync(securityCheckPath, "utf8");
+const securityDocSource = fs.readFileSync(securityDocPath, "utf8");
+const envExampleSource = fs.readFileSync(envExamplePath, "utf8");
+const packageSource = fs.readFileSync(packagePath, "utf8");
+
+assertIncludes(challengeRouteSource, "await assertCanUseChallengeAnalysis(request)", "Challenge analysis API must enforce server-side authorization.");
+assertIncludes(challengeRouteSource, "ChallengeAccessError", "Challenge analysis API must return explicit auth errors.");
+assertIncludes(challengeAccessSource, "client.auth.getUser(token)", "Challenge analysis auth must validate the user token server-side.");
+assertIncludes(challengeAccessSource, "accept_current_app_access", "Challenge analysis auth must verify app access through Supabase/RLS.");
+assertIncludes(challengeAccessSource, "canManageCompensation(accessUser", "Challenge analysis auth must enforce compensation access rules server-side.");
+assertIncludes(deliveryCommandAccessSource, "client.auth.getUser(token)", "Delivery command BFF must validate the user token server-side.");
+assertIncludes(deliveryCommandAccessSource, "accept_current_app_access", "Delivery command BFF must verify app access through Supabase/RLS.");
+assertIncludes(deliveryCommandAccessSource, "accessUser.role !== \"editor\" && accessUser.role !== \"admin\"", "Delivery command BFF must restrict writes to editor/admin.");
+assertIncludes(customersRouteSource, "createDeliveryCommandClient(request)", "Customer route must enforce server-side delivery command access.");
+assertIncludes(customersRouteSource, "customerCommandSchema.safeParse", "Customer route must validate payloads.");
+assertIncludes(customersRouteSource, "useCustomerBff: false", "Customer route must avoid recursive BFF calls.");
+assertIncludes(customersRouteSource, "getSafeCommandErrorMessage(error", "Customer route must sanitize backend command errors.");
+assertIncludes(personCustomerTargetsRouteSource, "createDeliveryCommandClient(request)", "Person customer targets route must enforce server-side delivery command access.");
+assertIncludes(personCustomerTargetsRouteSource, "personCustomerTargetsCommandSchema.safeParse", "Person customer targets route must validate payloads.");
+assertIncludes(personCustomerTargetsRouteSource, "usePersonCustomerTargetsBff: false", "Person customer targets route must avoid recursive BFF calls.");
+assertIncludes(personCustomerTargetsRouteSource, "getSafeCommandErrorMessage(error", "Person customer targets route must sanitize backend command errors.");
+assertIncludes(commandErrorsSource, "isUserSafeCommandMessage", "Delivery command errors must use an explicit allowlist for user-facing messages.");
+assertIncludes(commandErrorsSource, "fallbackMessage", "Delivery command errors must fall back to generic messages for technical errors.");
+assertNotIncludes(customersRouteSource, "return error.message", "Customer route must not expose raw backend errors.");
+assertNotIncludes(personCustomerTargetsRouteSource, "return error.message", "Person customer targets route must not expose raw backend errors.");
+assertIncludes(supabaseDeliveryRepositorySource, "\"/api/delivery/person-customer-targets\"", "Supabase adapter must route person/customer target writes through the BFF.");
+assertIncludes(supabaseDeliveryRepositorySource, "\"/api/delivery/customers\"", "Supabase adapter must route customer writes through the BFF.");
+assertIncludes(supabaseDeliveryRepositorySource, "Authorization: `Bearer ${token}`", "Supabase adapter must send the user bearer token to the BFF.");
+assertIncludes(challengeComponentSource, "headers.Authorization", "Challenge analysis client must send the user bearer token.");
+assertIncludes(challengeComponentSource, "authService.getAccessToken()", "Challenge analysis client must get bearer token through the auth service.");
+assertIncludes(reportExportSource, "/^[=+\\-@]/", "CSV/XLSX export must neutralize spreadsheet formula injection.");
+assertIncludes(authServiceSource, "export type AuthProvider", "Auth service must expose a provider-neutral contract.");
+assertIncludes(authServiceSource, "export interface AuthenticatedUser", "Auth service must expose an app-owned authenticated user type.");
+assertIncludes(authServiceSource, "\"corporate-sso\"", "Auth service must reserve the future corporate SSO provider.");
+assertIncludes(authServiceSource, "createAuthServiceSelection", "Auth provider selection must be centralized.");
+assertIncludes(authServiceSource, "createSupabaseAuthService", "Supabase Auth must remain an implementation behind the provider boundary.");
+assertIncludes(authServiceSource, "createSupabaseAccessRepository", "Auth service must fetch app access through AccessRepository.");
+assertIncludes(authServiceSource, "accessRepository.fetchCurrentAccessUser()", "Auth service must preserve app access/RLS validation.");
+assertIncludes(accessRepositorySource, "export interface AccessRepository", "Access management must have a provider-neutral repository contract.");
+assertIncludes(accessRepositorySource, "createAccessRepositorySelection", "Access provider selection must be centralized.");
+assertIncludes(accessRepositorySource, "accept_current_app_access", "AccessRepository must preserve current access/RLS acceptance RPC.");
+assertIncludes(accessRepositorySource, "list_app_access", "AccessRepository must preserve admin access listing RPC.");
+assertIncludes(accessRepositorySource, "upsert_app_access", "AccessRepository must preserve admin access upsert RPC.");
+assertIncludes(accessRepositorySource, "delete_app_access", "AccessRepository must preserve admin access deletion RPC.");
+assertIncludes(authGateSource, "createAuthServiceSelection", "Auth gate must use the auth provider boundary.");
+assertIncludes(authGateSource, "SSO corporativo pendente", "Auth gate must not silently bypass pending corporate SSO.");
+assertIncludes(appShellSource, "createAuthServiceSelection", "App shell logout must use the auth provider boundary.");
+assertIncludes(challengeComponentSource, "createAuthServiceSelection", "Challenge analysis must use the auth provider boundary.");
+assertNotIncludes(authGateSource, "client.auth.", "Auth gate must not call Supabase Auth directly.");
+assertNotIncludes(appShellSource, "client.auth.", "App shell must not call Supabase Auth directly.");
+assertNotIncludes(challengeComponentSource, "client.auth.", "Challenge analysis UI must not call Supabase Auth directly.");
+assertIncludes(settingsPageSource, "createAccessRepositorySelection", "Settings page must use the access repository boundary.");
+assertNotIncludes(settingsPageSource, "getSupabaseBrowserClient", "Settings page must not create the Supabase client directly.");
+assertNotIncludes(settingsPageSource, ".rpc(", "Settings page must not call Supabase RPCs directly.");
+assertIncludes(providerSource, "if (process.env.NODE_ENV === \"production\") return \"unavailable\"", "Production must not fall back to local mock data.");
+assertIncludes(rlsMigrationSource, "drop policy if exists \"Authenticated users manage person customer assignments\"", "RLS hardening must drop broad assignment write policy.");
+assertIncludes(rlsMigrationSource, "drop policy if exists \"Authenticated users manage revenue target allocations\"", "RLS hardening must drop broad target allocation write policy.");
+assertIncludes(rlsMigrationSource, "using (public.is_active_brq_user())", "RLS hardening must restrict reads to active BRQ users.");
+assertIncludes(rlsMigrationSource, "with check (public.can_edit_delivery_data())", "RLS hardening must restrict writes to editors/admins.");
+assertIncludes(rlsMigrationSource, "select public.can_edit_delivery_data();", "RLS hardening must remove broad BRQ-domain write fallback.");
+assertIncludes(rlsMigrationSource, "person_compensations_audit", "RLS hardening must add audit trigger for compensation.");
+assertIncludes(rlsMigrationSource, "studio_target_allocations_audit", "RLS hardening must add audit trigger for studio target allocations.");
+assertIncludes(rlsMigrationSource, "specialist_hunter_studio_assignments_audit", "RLS hardening must add audit trigger for specialist hunter assignments.");
+assertIncludes(rlsMigrationSource, "studio_baseline_snapshots_audit", "RLS hardening must add audit trigger for studio baseline snapshots.");
+assertIncludes(rlsSmokeSource, "SUPABASE_RLS_VIEWER_EMAIL", "RLS smoke must support a viewer test profile.");
+assertIncludes(rlsSmokeSource, "SUPABASE_RLS_EDITOR_EMAIL", "RLS smoke must support an editor test profile.");
+assertIncludes(rlsSmokeSource, "SUPABASE_RLS_ADMIN_EMAIL", "RLS smoke must support an admin test profile.");
+assertIncludes(rlsSmokeSource, "SUPABASE_RLS_BLOCKED_EMAIL", "RLS smoke must support a blocked test profile.");
+assertIncludes(rlsSmokeSource, "save_specialist_hunter_studio_assignments", "RLS smoke must verify edit RPC authorization.");
+assertIncludes(packageSource, "\"smoke:rls\": \"node scripts/smoke-rls-access.mjs\"", "package.json must expose smoke:rls.");
+assertIncludes(envLoaderSource, ".env.local", "Security scripts must load local environment variables without committing secrets.");
+assertIncludes(rlsProvisionSource, "RLS_SMOKE_PROVISION_CONFIRM", "RLS smoke provisioning must require an explicit confirmation variable.");
+assertIncludes(rlsProvisionSource, "SUPABASE_SERVICE_ROLE_KEY", "RLS smoke provisioning must use a server-only service role key.");
+assertIncludes(rlsProvisionSource, "isDedicatedSmokeEmail", "RLS smoke provisioning must refuse non-dedicated accounts.");
+assertIncludes(rlsProvisionSource, "app_access_invites", "RLS smoke provisioning must create access invite rows.");
+assertIncludes(rlsProvisionSource, "app_users", "RLS smoke provisioning must create app user rows.");
+assertIncludes(packageSource, "\"smoke:rls:provision\": \"node scripts/provision-rls-smoke-users.mjs\"", "package.json must expose smoke:rls:provision.");
+assertIncludes(pentestLiteSource, "/api/challenge-analysis without auth must return 401/403", "Pentest-lite must verify challenge analysis auth.");
+assertIncludes(pentestLiteSource, "/api/delivery/customers without auth must return 401/403", "Pentest-lite must verify customer command auth.");
+assertIncludes(pentestLiteSource, "/api/delivery/person-customer-targets without auth must return 401/403", "Pentest-lite must verify person/customer target command auth.");
+assertIncludes(pentestLiteSource, "assertNoStackLeak", "Pentest-lite must scan responses for stack/secret leaks.");
+assertIncludes(packageSource, "\"security:pentest-lite\": \"node scripts/pentest-lite.mjs\"", "package.json must expose security:pentest-lite.");
+assertIncludes(securityCheckSource, "\"npm audit --json\"", "Security check must include npm vulnerability audit.");
+assertIncludes(securityCheckSource, "\"npm run smoke:rls\"", "Security check must include RLS smoke.");
+assertIncludes(securityCheckSource, "\"npm run security:pentest-lite\"", "Security check must include pentest-lite.");
+assertIncludes(packageSource, "\"security:check\": \"node scripts/security-check.mjs\"", "package.json must expose security:check.");
+assertIncludes(securityDocSource, "npm run security:check", "Security documentation must explain the security check command.");
+assertIncludes(securityDocSource, "NEXT_PUBLIC_AUTH_PROVIDER", "Security documentation must explain auth provider selection.");
+assertIncludes(envExampleSource, "NEXT_PUBLIC_AUTH_PROVIDER=supabase", ".env.example must expose the auth provider selector without secrets.");
+
+console.log("Security hardening QA checks passed.");
+
+function assertIncludes(source, token, message) {
+  if (!source.includes(token)) {
+    throw new Error(message);
+  }
+}
+
+function assertNotIncludes(source, token, message) {
+  if (source.includes(token)) {
+    throw new Error(message);
+  }
+}

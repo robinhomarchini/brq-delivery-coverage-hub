@@ -6,20 +6,20 @@ const safeText = (label: string, max: number) =>
   z.string().trim().min(1, `${label} é obrigatório.`).max(max, `${label} excede ${max} caracteres.`);
 
 const optionalText = (max: number) =>
-  z.string().trim().max(max).optional().transform((value) => value || undefined);
+  z.preprocess((value) => value ?? "", z.string().trim().max(max))
+    .transform((value) => value || undefined);
 
 const lifecycleFields = {
   lifecycleStatus: z.enum(["active", "inactive", "closed"]).default("active"),
-  closedAt: z.union([z.iso.date("Data de encerramento inválida."), z.literal(""), z.undefined()])
+  closedAt: z.preprocess((value) => value ?? "", z.union([z.iso.date("Data de encerramento inválida."), z.literal("")]))
     .transform((value) => value || undefined),
   closedReason: optionalText(500),
 };
 
-const optionalEmail = z.union([
+const optionalEmail = z.preprocess((value) => value ?? "", z.union([
   z.email("E-mail inválido.").max(254),
   z.literal(""),
-  z.undefined(),
-]).transform((value) => value ? value.toLowerCase() : undefined);
+])).transform((value) => value ? value.toLowerCase() : undefined);
 
 const personSchema = z.object({
   id: safeText("Identificador", 120),
@@ -31,11 +31,10 @@ const personSchema = z.object({
   roleType: z.enum(["Executive", "Director", "Farmer + Delivery", "Delivery", "Hunter", "Hunter Especializado", "Farmer", "Hunter + Farmer", "Staff"]),
   areaId: optionalText(120),
   clientIds: z.array(safeText("Cliente", 120)).max(100),
-  photoUrl: z.union([
+  photoUrl: z.preprocess((value) => value ?? "", z.union([
     z.url("URL da foto inválida.").refine((value) => value.startsWith("https://"), "A foto deve usar HTTPS."),
     z.literal(""),
-    z.undefined(),
-  ]).transform((value) => value || undefined),
+  ])).transform((value) => value || undefined),
   notes: optionalText(2000),
   active: z.boolean(),
   ...lifecycleFields,
@@ -103,6 +102,7 @@ const studioTargetAllocationSchema = z.object({
   customerId: safeText("Cliente", 120),
   areaId: safeText("Área/Studio", 120),
   hunterPersonId: optionalText(120),
+  maintenancePersonId: optionalText(120),
   year: z.number().int("Ano deve ser inteiro.").min(2020, "Ano inválido.").max(2100, "Ano inválido."),
   hunterAmount: z.number().finite().min(0, "Valor Hunter não pode ser negativo.").max(999999999999),
   maintenanceAmount: z.number().finite().min(0, "Valor Manutenção/Renovação não pode ser negativo.").max(999999999999),

@@ -21,9 +21,9 @@ import { DualListSelector } from "@/components/shared/dual-list-selector";
 import { useDeliveryStore } from "@/store/delivery-store";
 import { useAccess } from "@/lib/access-context";
 import { accessUsersChangedEvent } from "@/lib/access-events";
-import { getSupabaseBrowserClient } from "@/lib/supabase/client";
-import { listAccessUsers, normalizeAccessEmail, translateAccessRole, type AccessUser } from "@/lib/access-control";
+import { normalizeAccessEmail, translateAccessRole, type AccessUser } from "@/lib/access-control";
 import { canManageCompensation } from "@/lib/compensation-access";
+import { createAccessRepositorySelection } from "@/lib/repositories/accessRepository";
 import type { LifecycleStatus } from "@/lib/lifecycle";
 import { getActiveFromLifecycle, getLifecycleStatusBadgeVariant, translateLifecycleStatus } from "@/lib/lifecycle";
 import { makeId } from "@/lib/utils";
@@ -41,7 +41,8 @@ const suggestedJobTitles = [
 export function PeopleManagement() {
   const { people, personCompensations, customers, areas, savePerson, savePersonCompensation, deletePersonCompensation } = useDeliveryStore();
   const { accessUser, isAdmin } = useAccess();
-  const client = getSupabaseBrowserClient();
+  const accessRepositorySelection = useMemo(() => createAccessRepositorySelection(), []);
+  const accessRepository = accessRepositorySelection.repository;
   const [search, setSearch] = useState("");
   const [director, setDirector] = useState("");
   const [roleType, setRoleType] = useState("");
@@ -101,14 +102,14 @@ export function PeopleManagement() {
   useCloseOnNavigation(closeForm);
 
   useEffect(() => {
-    if (!client || !isAdmin) {
+    if (!accessRepository || !isAdmin) {
       return;
     }
 
     let mounted = true;
     const loadSystemUsers = () => {
-      listAccessUsers(client)
-        .then((users) => {
+      accessRepository.listAccessUsers()
+        .then((users: AccessUser[]) => {
           if (mounted) setSystemUsers(users);
         })
         .catch(() => {
@@ -123,7 +124,7 @@ export function PeopleManagement() {
       mounted = false;
       window.removeEventListener(accessUsersChangedEvent, loadSystemUsers);
     };
-  }, [client, isAdmin]);
+  }, [accessRepository, isAdmin]);
 
   function openForm(person?: Person) {
     setEditing(person ?? null);

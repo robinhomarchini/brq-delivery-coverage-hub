@@ -113,6 +113,7 @@ export interface StudioTargetAllocation {
   customerId: string;
   areaId: string;
   hunterPersonId?: string;
+  maintenancePersonId?: string;
   year: number;
   hunterAmount: number;
   maintenanceAmount: number;

@@ -22,9 +22,10 @@ import {
   UsersRound,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
-import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { createAuthServiceSelection } from "@/lib/auth/auth-service";
+import { resolvePersistenceProvider } from "@/lib/repositories";
 import { useDeliveryStore } from "@/store/delivery-store";
 import { ErrorNotice } from "@/components/shared/success-notice";
 import { isHunterConsultAccess, translateAccessRole } from "@/lib/access-control";
@@ -81,12 +82,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     && (!hunterConsultOnly || hunterConsultRoutes.has(item.href))
   );
   const current = navigation.find((item) => item.href === pathname) ?? navigation[0];
-  const client = getSupabaseBrowserClient();
+  const authSelection = useMemo(() => createAuthServiceSelection(), []);
+  const persistenceProvider = useMemo(() => resolvePersistenceProvider(), []);
+  const authService = authSelection.service;
   const userEmail = accessUser?.email ?? "Usuário BRQ";
   const userInitials = getInitials(userEmail);
-  const dataStatus = client
+  const dataStatus = persistenceProvider === "supabase"
     ? { label: "Dados persistidos", className: "bg-emerald-500" }
-    : process.env.NODE_ENV === "production"
+    : persistenceProvider === "unavailable"
       ? { label: "Configuração pendente", className: "bg-amber-500" }
       : { label: "Dados demonstrativos", className: "bg-emerald-500" };
   const routeKey = `${pathname}?${searchParams.toString()}`;
@@ -169,7 +172,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </p>
             </div>
           </div>
-          {client && <button onClick={() => client.auth.signOut()} className="absolute bottom-3 right-3 rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Sair"><LogOut className="h-4 w-4" /></button>}
+          {authService && <button onClick={() => authService.signOut()} className="absolute bottom-3 right-3 rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Sair"><LogOut className="h-4 w-4" /></button>}
         </div>
       </aside>
 

@@ -8,7 +8,16 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "test:contracts": "node scripts/run-repository-contract-tests.cjs",
+    "test:performance": "node scripts/verify-performance-hardening.cjs",
+    "test:provider": "node scripts/verify-provider-abstraction.cjs",
+    "test:reports": "node scripts/verify-report-exports.cjs",
+    "test:security": "node scripts/verify-security-hardening.cjs",
     "smoke:critical": "node scripts/smoke-critical.mjs",
+    "smoke:rls": "node scripts/smoke-rls-access.mjs",
+    "smoke:rls:provision": "node scripts/provision-rls-smoke-users.mjs",
+    "security:check": "node scripts/security-check.mjs",
+    "security:pentest-lite": "node scripts/pentest-lite.mjs",
     "audit:background": "powershell -ExecutionPolicy Bypass -File scripts/audit-background.ps1",
     "db:migrations:check": "node scripts/check-supabase-migration-history.mjs"
   },
@@ -41,5 +50,8 @@
     "postcss": "^8.5.15",
     "tailwindcss": "^3.4.18",
     "typescript": "^5.9.3"
+  },
+  "overrides": {
+    "postcss": "$postcss"
   }
 }

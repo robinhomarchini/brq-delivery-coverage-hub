@@ -2,7 +2,11 @@
 
 ## Modelo de acesso
 
-- Supabase Auth com link mágico para e-mails `@brq.com`.
+- Autenticação encapsulada por `src/lib/auth/auth-service.ts`.
+- O provider atual é `supabase`, configurado por `NEXT_PUBLIC_AUTH_PROVIDER`.
+- `corporate-sso` está reservado como provider futuro para SSO interno, mas não
+  libera acesso enquanto a integração não estiver implementada.
+- Supabase Auth com e-mail/senha para e-mails `@brq.com`.
 - `viewer`: leitura.
 - `editor`: leitura e escrita.
 - `admin`: leitura, escrita e administração de acessos.
@@ -25,8 +29,12 @@
    UI e por RLS.
 
 O frontend usa somente `NEXT_PUBLIC_SUPABASE_ANON_KEY`; não há service role no
-navegador. A administração usa as RPCs `list_app_access()` e
-`upsert_app_access(...)`, ambas protegidas por `is_delivery_admin()`.
+navegador. A administração passa por `AccessRepository`, que hoje chama as RPCs
+`list_app_access()`, `upsert_app_access(...)` e `delete_app_access(...)`, todas
+protegidas por `is_delivery_admin()`.
+Credenciais de usuário não devem ser gravadas em código, variáveis públicas ou
+bundle frontend. Usuários e senhas de teste continuam no provider de
+autenticação, preservando sessão, RLS e auditoria.
 
 ## Controles
 
@@ -49,6 +57,31 @@ navegador. A administração usa as RPCs `list_app_access()` e
 - Mensagens explícitas para falhas de carga e persistência.
 - Headers HTTP de segurança e neutralização de fórmulas em CSV.
 
+## Validação automatizada
+
+Use `npm run security:check` como gate rápido de segurança. O comando executa:
+
+- `npm run test:security`: checagens estáticas de hardening da rota sensível,
+  exportações, provider e scripts de RLS.
+- `npm audit --json`: auditoria de vulnerabilidades conhecidas em dependências.
+- `npm run smoke:rls`: smoke opcional de RLS/RBAC por perfis dedicados.
+- `npm run security:pentest-lite`: pentest leve contra a URL configurada em
+  `PENTEST_BASE_URL` ou contra a produção padrão.
+
+Para validar RLS com perfis reais, configure somente em `.env.local` ou no CI
+seguro:
+
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `RLS_SMOKE_PROVISION_CONFIRM=provision-rls-smoke-users`
+- `SUPABASE_RLS_VIEWER_EMAIL` / `SUPABASE_RLS_VIEWER_PASSWORD`
+- `SUPABASE_RLS_EDITOR_EMAIL` / `SUPABASE_RLS_EDITOR_PASSWORD`
+- `SUPABASE_RLS_ADMIN_EMAIL` / `SUPABASE_RLS_ADMIN_PASSWORD`
+- `SUPABASE_RLS_BLOCKED_EMAIL` / `SUPABASE_RLS_BLOCKED_PASSWORD`
+
+Depois rode `npm run smoke:rls:provision` e `npm run smoke:rls`. As contas devem
+ser dedicadas a teste e usar e-mail corporativo `@brq.com`; o provisionador
+recusa contas que não pareçam ser de smoke/teste.
+
 ## Migration de hardening
 
 A migration `20260701193000_access_admin_invites.sql` substitui policies
@@ -62,5 +95,6 @@ confirmar:
 
 ## Evolução
 
-O login por link mágico deve ser substituído ou complementado por Microsoft Entra
-ID. A autorização permanece no banco e não depende apenas da interface.
+O login por senha deve ser substituído ou complementado por Microsoft Entra ID /
+SSO interno. A UI já consome uma fronteira de auth provider-neutral; a
+autorização permanece no banco e não depende apenas da interface.

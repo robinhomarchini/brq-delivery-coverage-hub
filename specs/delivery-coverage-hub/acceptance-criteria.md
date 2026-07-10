@@ -223,6 +223,10 @@
 - A grade de Metas por Área/Studio separa visualmente Studio Hunter e Studio
   Manutenção, indicando que Studio Hunter é uma abertura contida na meta
   própria do Hunter e Studio Manutenção não soma no Hunter.
+- Studio Manutenção/Renovação com responsável Farmer/Delivery elegível compõe a
+  meta Renovação + Ampliação atual da pessoa, preservando a meta própria em
+  `ownAmount`; Studio PX e linhas sem responsável elegível permanecem somente no
+  componente de Áreas / Studios.
 - O Relatório de Metas possui visão por Diretoria Delivery com seletor de
   pessoa consolidadora derivado do cadastro de Pessoas: perfis Diretor ou
   pessoas ativas com subordinados em `people.directorId`, sem hardcode de CA,
@@ -233,9 +237,9 @@
 - A visão por Diretoria Delivery usa a chave Pessoa -> Cliente -> Quebras, sem
   repetir o nome da pessoa nas linhas de detalhe.
 - Na visão por Diretoria Delivery, perfis Manager, Farmer e Delivery somam
-  apenas Renovação + Ampliação direta; Studio Hunter só soma para pessoas com
-  perfil Hunter/Hunter + Farmer quando a pessoa é o Hunter do studio, e Studio
-  Manutenção não compõe a meta da pessoa.
+  Renovação + Ampliação direta mais Studio Manutenção/Renovação elegível, exceto
+  PX; Studio Hunter só soma para pessoas com perfil Hunter/Hunter + Farmer
+  quando a pessoa é o Hunter do studio.
 - A visão por Diretoria Delivery mostra subtotais por pessoa, subtotais por
   cliente e total geral da diretoria.
 - A visão por Diretoria Delivery pode ser exportada e pré-visualizada antes do
@@ -287,8 +291,17 @@
   checkbox e exportar o relatório detalhado com Studio, cliente, segmento,
   Hunter Studio e valor alocado.
 - O Relatório de Metas oferece uma saída adicional "Planilha oficial" no modelo
-  `FINANCIAL-Rateio Metas AEs`, com aba `Resumo_Cliente` e colunas Executivo,
-  Grupo Cliente, Meta 2026, Renovação (FARMER), Novo (HUNTER) e % Novo.
+  `FINANCIAL-Rateio Metas AEs`, com aba `Resumo_Cliente`, título em `A1`,
+  cabeçalhos em `A3:I3`, filtro em `A3:I<n>` e as colunas BU/Área Executivo,
+  Executivo, Grupo Cliente, Cliente Faturamento, BU, Meta 2026, Renovação
+  (FARMER), Novo (HUNTER) e % Novo.
+- Na Planilha oficial, as linhas do corpo preenchem `BU` com `Financial`; para
+  linhas de Studio, `Cliente Faturamento` recebe o nome do Studio em vez de
+  `10`.
+- Na visão Pessoas, a Planilha oficial é ordenada por pessoa. Para cada pessoa,
+  as metas diretas por cliente aparecem primeiro; linhas de Studio Hunter do
+  Hunter efetivo aparecem logo depois da meta própria do mesmo cliente. Studio
+  Manutenção/Renovação aparece no fim da planilha por chave Studio + Cliente.
 - Quando a exportação do Relatório de Metas ou da tela Metas por Pessoa se
   refere a uma única pessoa, o nome do arquivo inclui o nome da pessoa em formato
   seguro para arquivo.

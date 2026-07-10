@@ -30,6 +30,7 @@ import { formatCurrency, makeId } from "@/lib/utils";
 import { useCloseOnNavigation } from "@/lib/use-close-on-navigation";
 import { displayDirectorName, OTHER_DIRECTOR_ID, OTHER_DIRECTOR_NAME } from "@/lib/director-governance";
 import { getContainedHunterAllocation } from "@/lib/customer-hunter-reconciliation";
+import { getStudioMaintenancePersonId, isStudioRenewalEligibleForFarmer } from "@/lib/studio-renewal-rollup";
 
 const currentYear = defaultTargetYear;
 
@@ -57,6 +58,10 @@ interface CustomerAllocationCompositionData {
   allocatedHunter: number;
   allocatedFarmerRenewal: number;
   allocatedStudio: number;
+  targetFarmerRenewal: number;
+  farmerRenewalTargetForPeople: number;
+  eligibleStudioMaintenance: number;
+  studioMaintenanceOutsidePeople: number;
   allocatedTotal: number;
   openHunter: number;
   openFarmerRenewal: number;
@@ -311,6 +316,7 @@ export function CustomerManagement() {
       people,
       targetAllocations,
       studioTargetAllocations,
+      areas,
       year,
       formBreakdown,
     )
@@ -874,6 +880,14 @@ function CustomerAllocationCompositionView({ composition }: { composition: Custo
             {hasOpenAmount && <> · Abaixo da meta: <span className="font-semibold text-red-700">{formatCurrency(composition.openTotal)}</span></>}
             {hasOverAmount && <> · Acima da meta: <span className="font-semibold text-emerald-700">{formatCurrency(composition.overTotal)}</span></>}
           </p>
+          {(hasVisibleCurrencyAmount(composition.targetFarmerRenewal) || hasVisibleCurrencyAmount(composition.eligibleStudioMaintenance) || hasVisibleCurrencyAmount(composition.studioMaintenanceOutsidePeople)) && (
+            <p className="mt-1 text-xs text-slate-400">
+              Renovação do cliente {formatCurrency(composition.targetFarmerRenewal)}
+              {" "}− Studio Manutenção fora de pessoa {formatCurrency(composition.studioMaintenanceOutsidePeople)}
+              {" "}+ Studio Manutenção elegível {formatCurrency(composition.eligibleStudioMaintenance)}
+              {" "}＝ saldo por pessoa {formatCurrency(composition.farmerRenewalTargetForPeople)}
+            </p>
+          )}
         </div>
         <Button asChild variant="outline" size="sm">
           <Link href={`/metas-pessoas?customerId=${encodeURIComponent(composition.customerId)}&year=${composition.year}`}>
@@ -1489,10 +1503,12 @@ function getCustomerAllocationComposition(
   people: Person[],
   allocations: TargetAllocation[],
   studioAllocations: StudioTargetAllocation[],
+  areas: Area[],
   year: number,
   targetBreakdown: CustomerTargetBreakdown,
 ): CustomerAllocationCompositionData {
   const peopleById = new Map(people.map((person) => [person.id, person]));
+  const areaNamesById = new Map(areas.map((area) => [area.id, area.name]));
   const rowsByPerson = new Map<string, CustomerAllocationPersonRow>();
   const studioHunterByPerson = new Map<string, number>();
 
@@ -1564,10 +1580,11 @@ function getCustomerAllocationComposition(
     .sort((first, second) => second.total - first.total || first.personName.localeCompare(second.personName));
   const allocatedHunter = roundCurrency(rows.reduce((total, row) => total + row.hunter, 0));
   const allocatedFarmerRenewal = roundCurrency(rows.reduce((total, row) => total + row.farmerRenewal, 0));
-  const allocatedStudio = getCustomerStudioMaintenanceCoverage(customer.id, studioAllocations, year);
+  const eligibleStudioMaintenance = getCustomerStudioMaintenanceCoverage(customer.id, studioAllocations, year, areaNamesById, peopleById, true);
+  const studioMaintenanceOutsidePeople = getCustomerStudioMaintenanceCoverage(customer.id, studioAllocations, year, areaNamesById, peopleById, false);
   const allocatedTotal = roundCurrency(allocatedHunter + allocatedFarmerRenewal);
   const hunterGap = roundCurrency(targetBreakdown.hunter - allocatedHunter);
-  const farmerRenewalTargetForPeople = roundCurrency(Math.max(0, targetBreakdown.farmerRenewal - allocatedStudio));
+  const farmerRenewalTargetForPeople = roundCurrency(Math.max(0, targetBreakdown.farmerRenewal - studioMaintenanceOutsidePeople) + eligibleStudioMaintenance);
   const farmerRenewalGap = roundCurrency(farmerRenewalTargetForPeople - allocatedFarmerRenewal);
   const personTargetTotal = roundCurrency(targetBreakdown.hunter + farmerRenewalTargetForPeople);
   const totalGap = roundCurrency(personTargetTotal - allocatedTotal);
@@ -1582,7 +1599,11 @@ function getCustomerAllocationComposition(
     rows,
     allocatedHunter,
     allocatedFarmerRenewal,
-    allocatedStudio,
+    allocatedStudio: studioMaintenanceOutsidePeople,
+    targetFarmerRenewal: targetBreakdown.farmerRenewal,
+    farmerRenewalTargetForPeople,
+    eligibleStudioMaintenance,
+    studioMaintenanceOutsidePeople,
     allocatedTotal,
     openHunter: openSplit.hunter,
     openFarmerRenewal: openSplit.farmerRenewal,
@@ -1595,9 +1616,25 @@ function getCustomerAllocationComposition(
   };
 }
 
-function getCustomerStudioMaintenanceCoverage(customerId: string, studioAllocations: StudioTargetAllocation[], year: number) {
+function getCustomerStudioMaintenanceCoverage(
+  customerId: string,
+  studioAllocations: StudioTargetAllocation[],
+  year: number,
+  areaNamesById: Map<string, string>,
+  peopleById: Map<string, Person>,
+  expectedEligible: boolean,
+) {
   return roundCurrency(studioAllocations
-    .filter((allocation) => allocation.customerId === customerId && allocation.year === year)
+    .filter((allocation) => {
+      if (allocation.customerId !== customerId || allocation.year !== year) return false;
+      if (!allocation.maintenanceAmount) return false;
+      const maintenancePersonId = getStudioMaintenancePersonId(allocation);
+      const person = maintenancePersonId ? peopleById.get(maintenancePersonId) : undefined;
+      const eligible = isStudioRenewalEligibleForFarmer(areaNamesById.get(allocation.areaId) ?? allocation.areaId, person, {
+        explicitMaintenancePerson: Boolean(allocation.maintenancePersonId),
+      });
+      return eligible === expectedEligible;
+    })
     .reduce((total, allocation) => total + allocation.maintenanceAmount, 0));
 }
 
@@ -1775,8 +1812,8 @@ function sortCustomerRows(
     if (sortState.key === "director") return compareText(getCustomerDirectorName(first, people), getCustomerDirectorName(second, people));
     if (sortState.key === "allocated") {
       return compareNumber(
-        getCustomerCoverageAllocatedTotal(first, people, allocations, studioAllocations, year),
-        getCustomerCoverageAllocatedTotal(second, people, allocations, studioAllocations, year),
+        getCustomerCoverageAllocatedTotal(first, people, allocations, studioAllocations, areas, year),
+        getCustomerCoverageAllocatedTotal(second, people, allocations, studioAllocations, areas, year),
       );
     }
     if (sortState.key === "target") return compareNumber(getCustomerTargetBreakdown(first).total, getCustomerTargetBreakdown(second).total);
@@ -1794,10 +1831,11 @@ function getCustomerCoverageAllocatedTotal(
   people: Person[],
   allocations: TargetAllocation[],
   studioAllocations: StudioTargetAllocation[],
+  areas: Area[],
   year: number,
 ) {
   const breakdown = getCustomerTargetBreakdown(customer);
-  const peopleComposition = getCustomerAllocationComposition(customer, people, allocations, studioAllocations, year, breakdown);
+  const peopleComposition = getCustomerAllocationComposition(customer, people, allocations, studioAllocations, areas, year, breakdown);
   const studioComposition = getCustomerStudioComposition(customer.id, customer.studioTarget, customer.studioHunterTarget, [], people, studioAllocations, year);
   return peopleComposition.allocatedTotal + studioComposition.allocatedTotal;
 }

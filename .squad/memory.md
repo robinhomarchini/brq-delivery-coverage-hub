@@ -2,10 +2,15 @@
 
 ## Current Task Objective
 
-Corrigir visão Hunter x Clientes para incluir Renovação + Ampliação alocada em Delivery Managers/Farmers no total do cliente.
+Regularizar Studio Manutenção/Renovação com responsável Farmer/Delivery explícito, corrigir leitura de metas por pessoa/relatórios para valores já existentes e estabilizar salvamento de Cliente via BFF/RPC.
 
 ## Execution Checklist
 
+- [x] Corrigir Metas por Pessoa para incorporar Studio Manutenção não-PX quando `maintenancePersonId` estiver explicitamente declarado, mesmo que o papel cadastral da pessoa ainda esteja desatualizado.
+- [x] Corrigir Clientes para não marcar "Acima da meta" quando a Renovação/Ampliação vem de Studio Manutenção elegível herdado por pessoa.
+- [x] Ajustar Relatório de Metas/Planilha oficial para não jogar Studio Manutenção explicitamente atribuído no bloco final de Studios.
+- [x] Atualizar QA de relatório para bloquear regressão de responsável explícito em Studio Manutenção.
+- [x] Rodar typecheck, test:reports, test:performance, lint, smoke crítico, test:security e build.
 - [x] Ler contexto enxuto, memoria, contrato de squad e specs relevantes.
 - [x] Decidir fonte de verdade: `own_amount` editavel e `amount` derivado/cache de Meta Hunter atual.
 - [x] Criar migration com backfill inicial `own_amount = amount - Studio Hunter`.
@@ -65,6 +70,72 @@ Corrigir visão Hunter x Clientes para incluir Renovação + Ampliação alocada
 - [x] Aplicar o mesmo padrao global em `C:\Users\rmarchini\.codex` para valer para todos os projetos.
 - [x] Ajustar Hunter x Clientes para somar Renovacao + Ampliacao de pessoas nos clientes do Hunter.
 - [x] Manter Manutencao/Renovacao como coluna operacional, sem alterar Meta Hunter.
+- [x] Regularizar a Planilha oficial do Relatorio de Metas para 9 colunas: BU/Area Executivo, Executivo, Grupo Cliente, Cliente Faturamento, BU, Meta 2026, Renovacao (FARMER), Novo (HUNTER) e % Novo.
+- [x] Manter a Planilha oficial no padrao completo do app, com subtotais/totais, usando as colunas Financial passadas pelo usuario.
+- [x] Corrigir a visao Hunter x Clientes para tambem expor a Planilha oficial com a coluna Cliente Faturamento.
+- [x] Criar `npm run test:reports` para o QA bloquear regressao nas colunas oficiais e no botao Planilha oficial por visao.
+- [x] Evoluir `npm run test:reports` para gerar e abrir o XLSX oficial real, validando aba `Resumo_Cliente`, dimensao `A1:I4`, filtro `A3:I4`, cabecalhos e formulas.
+- [x] Corrigir `Planilha oficial` para usar `officialLayout: true` e gerar workbook no layout Financial de 9 colunas, em vez do Excel padrao de 6 colunas.
+- [x] Corrigir a composicao da Planilha oficial para incluir linhas proprias de Areas/Studios a partir de `studio_target_allocations`.
+- [x] Fazer `npm run test:reports` validar tambem uma linha Studio no XLSX oficial gerado em memoria.
+- [x] Corrigir `Cliente Faturamento` para receber o Studio nas linhas de Studio e `BU` para `Financial` no corpo da Planilha oficial.
+- [x] Atualizar specs da Planilha oficial para refletir o novo padrao Financial.
+- [x] Criar `docs/database-portability-plan.md` orientado a migracao futura para Microsoft SQL Server.
+- [x] Criar `docs/persistence-contract.md` com contrato provider-neutral e equivalentes SQL Server.
+- [x] Criar `docs/agent-evolution-backlog.md` com review e backlog das evolucoes recentes dos agentes.
+- [x] Rodar typecheck, lint, build e diff --check apos os ajustes.
+- [x] Criar harness inicial de testes de contrato do `DeliveryRepository` com runner `npm run test:contracts`.
+- [x] Cobrir `getAll`, `savePersonCustomerTargets` e `saveStudioTargetAllocation` contra uma instancia limpa do adapter local.
+- [x] Criar `src/lib/repositories/provider.ts` para centralizar a selecao `supabase`, `local-dev` e `unavailable`.
+- [x] Refatorar `DeliveryStoreProvider` para consumir a factory de provider sem importar Supabase/local diretamente.
+- [x] Criar `npm run test:provider` para bloquear regressao de acoplamento da store ao provider.
+- [x] Publicar em producao a correcao da Planilha oficial Financial e os contratos/abstracao de provider no deployment Vercel `dpl_FLLgD3hAHfWuQCQRS2NrAXj3hn4g`.
+- [x] Publicar subtotal em negrito na Planilha oficial Financial no deployment Vercel `dpl_4YdGJaPAMLhzmMkxRp4b9kL5zwVe`.
+- [x] Rodar auditorias paralelas de arquitetura, seguranca/RLS/Auth e performance usando os agentes/skills do projeto.
+- [x] Criar `applyDeliveryData` na store para centralizar hidratacao do grafo de persistencia e reduzir risco de estado parcial.
+- [x] Proteger `/api/challenge-analysis` com autorizacao server-side Supabase + app access + regra admin/VP antes de processar dados de remuneracao.
+- [x] Criar `npm run test:security` para bloquear regressao de rota sensivel sem auth server-side, mock em producao e formula injection em export.
+- [x] Publicar hardening de seguranca da rota de IA e otimizacao da store no deployment Vercel `dpl_Fsecc1AsfsgkPWPASPBhvdithT7J`.
+- [x] Criar e aplicar migration `20260709102000_harden_rls_audit_for_financial_targets.sql` para remover policies amplas antigas, restringir writes a editor/admin, restringir reads a usuários BRQ ativos e adicionar audit triggers em compensação, studios, Hunter Especializado e snapshots.
+- [x] Confirmar histórico Supabase alinhado após a migration RLS com `npm run db:migrations:check`.
+- [x] Criar `npm run smoke:rls` para validar perfis viewer/editor/admin/blocked com usuários dedicados de teste, sem writes persistentes.
+- [x] Criar `npm run security:pentest-lite` para validar headers, bloqueio sem auth em `/api/challenge-analysis` e ausência de vazamento de stack/segredos em respostas públicas.
+- [x] Executar pentest-lite contra produção `https://brq-delivery-coverage-hub.vercel.app` com sucesso.
+- [x] Rodar `npm audit --json`, identificar vulnerabilidade moderada transitiva `next -> postcss` e mitigar com `overrides.postcss = "$postcss"`, deixando `npm audit` com 0 vulnerabilidades.
+- [x] Publicar a mitigação de supply chain e os scripts de pentest/smoke no deployment Vercel `dpl_8ZE8g3DSAxjTBeenkPasemQgz4qi`, aliasado em `https://brq-delivery-coverage-hub.vercel.app`.
+- [x] Criar `scripts/env-loader.mjs` para scripts de segurança carregarem `.env.local`/`.env` sem dependência extra e sem commitar segredos.
+- [x] Criar `npm run smoke:rls:provision` com service role local, confirmação explícita e bloqueio de e-mails que não sejam contas dedicadas de smoke/teste.
+- [x] Melhorar `npm run smoke:rls` para informar se faltam variáveis base ou perfis de teste.
+- [x] Criar `npm run security:check` como gate único de segurança: hardening estático, `npm audit`, smoke RLS e pentest-lite.
+- [x] Documentar em `docs/SECURITY.md` o fluxo de validação automatizada, provisionamento de contas smoke e variáveis seguras.
+- [x] Otimizar `TargetManagement` criando resumo anual por cliente para evitar recalcular alocações por linha/cliente em reconciliação e assistente.
+- [x] Trocar buscas lineares de nomes de cliente/pessoa por mapas memoizados em filtro/render da Conciliação de Metas.
+- [x] Criar `npm run test:performance` para bloquear regressão da otimização de view model.
+- [x] Criar e aplicar migration `20260709113000_performance_indexes_for_target_reports.sql` com índices compostos para alocações, Studios e Hunter Especializado.
+- [x] Corrigir `scripts/check-supabase-migration-history.mjs` para usar `npx --cache .npm-cache --yes supabase ...`, evitando cache global do npm.
+- [x] Confirmar histórico Supabase alinhado após migration de performance: 72 local / 72 remoto.
+- [x] Sincronizar no store as metas Hunter afetadas por `saveStudioTargetAllocation`/`deleteStudioTargetAllocation`, evitando `fetchAll` e impedindo estado stale após salvar Studio Hunter.
+- [x] Atualizar `npm run test:performance` para bloquear regressão dessa sincronização parcial no store.
+- [x] Limpar no store vínculos órfãos ao excluir pessoa: remuneração, metas, associação `hunterPersonId` de Studio Hunter e atribuições de Hunter Especializado.
+- [x] Limpar no store vínculos órfãos ao excluir cliente: metas do cliente, assuntos, metas de pessoa, alocações de Studio e atribuições de Hunter Especializado ligadas às alocações removidas.
+- [x] Usar o retorno canônico do repositório em `saveSubject`, preservando IDs/defaults normalizados pelo backend/provider.
+- [x] Atualizar `npm run test:performance` para bloquear regressões de limpeza parcial do store e retorno canônico do provider.
+- [x] Validar a evolução parcial do store com typecheck, lint, test:performance, test:contracts, test:provider, build, smoke:critical, security:check e diff --check.
+- [x] Publicar a evolução de consistência parcial do store no deployment Vercel `dpl_2hcwPM9aNNDo96dLEu3idY3C4ifR`, aliasado em `https://brq-delivery-coverage-hub.vercel.app`.
+- [x] Melhorar UX do exportador compartilhado: a Planilha oficial agora também fica disponível no rodapé da Prévia, sem obrigar o usuário a fechar o modal para baixar o modelo oficial.
+- [x] Componentizar o botão de exportação customizada em `ReportExportActions`, centralizando a chamada de exportação oficial/customizada.
+- [x] Memoizar totais de rodapé do Relatório de Metas e extrair helpers pequenos (`sumAmount`, `summarizeHunterClientRows`) para reduzir `reduce` duplicado no JSX.
+- [x] Atualizar `npm run test:reports` e `npm run test:performance` para bloquear regressões de UX/componentização no exportador e nos totais de relatório.
+- [x] Publicar a melhoria de UX/componentização no deployment Vercel `dpl_ESSAykK3TYCZAfdWQacCJ1mhF7VA`, aliasado em `https://brq-delivery-coverage-hub.vercel.app`.
+- [x] Extrair geração/download de CSV/XLSX de `ReportExportActions` para `src/lib/report-export.ts`, deixando o componente apenas com UI, prévia e botões.
+- [x] Encapsular Supabase Auth em `src/lib/auth/auth-service.ts` para preparar troca futura por SSO interno sem alterar telas.
+- [x] Refatorar `AuthGate`, logout do `AppShell` e token da Análise de Desafio para usarem o auth service em vez de chamadas diretas a `client.auth`.
+- [x] Atualizar QAs de reports e segurança para bloquear retorno de geração XLSX ao componente e chamadas diretas de Supabase Auth em UI.
+- [x] Publicar a extração de report service e auth service no deployment Vercel `dpl_Ab36QkpgGJ2BfuvsxB8nSzjxDfWf`, aliasado em `https://brq-delivery-coverage-hub.vercel.app`.
+- [x] Evoluir auth para provider selecionável com `AuthProvider`, `AuthenticatedUser`, `createAuthServiceSelection`, default `supabase` e reserva explícita `corporate-sso`.
+- [x] Adicionar `NEXT_PUBLIC_AUTH_PROVIDER=supabase` em `.env.example` e documentar que credenciais não devem ir para código/frontend.
+- [x] Bloquear `corporate-sso` pendente no `AuthGate` para evitar bypass caso o provider seja selecionado antes da integração real.
+- [x] Publicar o provider selecionável de auth no deployment Vercel `dpl_AZofjL9ecDjJECPXdWwk3TYEvb8r`, aliasado em `https://brq-delivery-coverage-hub.vercel.app`.
 
 ## Previous Completed Work
 
@@ -151,7 +222,8 @@ Corrigir visão Hunter x Clientes para incluir Renovação + Ampliação alocada
 - Em mobile/iPhone, o documento principal nao deve ter scroll horizontal. Tabelas largas podem ter scroll horizontal apenas dentro do proprio card/tabela.
 - Dashboard Executivo, Portfólio de Clientes, Relatório de Metas, Baseline vs Cadastro e Ajuda continuam sendo as telas simples permitidas no mobile; telas operacionais permanecem inibidas.
 - O modelo oficial de exportação Financial usa aba `Resumo_Cliente` e colunas Executivo, Grupo Cliente, Meta 2026, Renovação (FARMER), Novo (HUNTER), % Novo.
-- Para Hunter, Studio Hunter compõe "Novo (HUNTER)" na saída oficial. Studio Manutenção compõe Renovação/Farmer quando a visão é Área/Studio.
+- Para Hunter, Studio Hunter compõe "Novo (HUNTER)" na saída oficial. Na visão Pessoas, Studio Hunter deve aparecer logo abaixo da meta própria do Hunter efetivo no mesmo cliente; Studio Manutenção/Renovação não-PX com Farmer/Delivery elegível compõe Renovação/Farmer da pessoa, enquanto PX ou sem responsável elegível fica no fim da planilha por chave Studio/Cliente.
+- Para Studio Manutenção/Renovação, `maintenancePersonId` é a declaração explícita do responsável e prevalece no rollup da pessoa, na tela Cliente e na Planilha oficial, mesmo que o papel cadastral da pessoa ainda esteja desalinhado. O fallback legado por `hunterPersonId` continua exigindo papel Farmer/Delivery elegível para evitar incorporar dado antigo por engano; PX permanece excluído.
 - No Relatório de Metas, Hunters e Áreas/Studios usam checkboxes para seleção de exportação. Sem seleção, exportam consolidado; com seleção, exportam detalhe explodido.
 - Na Análise de Desafio, baseline GEN AI é contextual/conceitual por visão+ano na sessão da tela. Ele aprende hipóteses e conceitos informados e os compara contra números oficiais, sem persistir ou sobrescrever dados oficiais.
 - A API `/api/challenge-analysis` aceita `year` opcional para tolerar frontend em cache; quando ausente, usa 2026.
@@ -170,7 +242,7 @@ Corrigir visão Hunter x Clientes para incluir Renovação + Ampliação alocada
 
 ## Next Pending Step
 
-Próximo passo: validar e publicar a correcao de Hunter efetivo em Metas por Pessoa, Clientes e Metas por Area/Studio.
+Próximo passo: validar em produção o salvamento do cliente VOTORANTIM pela tela Clientes e, se ainda falhar, consultar logs com `npx vercel logs https://brq-delivery-coverage-hub.vercel.app` procurando `delivery.customers.save.failed`.
 
 ## Discovered Commands
 
@@ -178,6 +250,15 @@ Próximo passo: validar e publicar a correcao de Hunter efetivo em Metas por Pes
 - `npm run lint`: ESLint.
 - `npm run typecheck`: TypeScript sem emit.
 - `npm run build`: build de producao Next.js.
+- `npm run test:provider`: checagem estatica da factory de provider e desacoplamento da store.
+- `npm run test:reports`: checagem estatica das colunas e dos botoes de exportacao oficial do Relatorio de Metas.
+- `npm run test:security`: checagem estatica de hardening para rota de IA sensivel, mock em producao e formula injection em export.
+- `npm run test:performance`: checagem estatica de hardening de performance em view models e índices de banco.
+- `npm run smoke:rls`: smoke opcional de RLS/RBAC com usuários dedicados de teste.
+- `npm run smoke:rls:provision`: provisiona contas dedicadas de smoke RLS usando service role local e confirmação explícita.
+- `npm run security:check`: gate agregado de segurança com hardening estático, audit, smoke RLS e pentest-lite.
+- `npm run security:pentest-lite`: pentest leve e seguro contra URL publicada ou `PENTEST_BASE_URL`.
+- `npm audit --json`: auditoria de vulnerabilidades conhecidas em dependências npm.
 - `npm run smoke:critical`: smoke critico para fluxos de cliente/pessoa/metas.
 - `npm run db:migrations:check`: checagem de historico de migrations Supabase.
 - `npm run audit:background`: auditoria de processos em background via PowerShell.
@@ -206,10 +287,11 @@ Próximo passo: validar e publicar a correcao de Hunter efetivo em Metas por Pes
 
 - Worktree costuma estar suja; nao reverter alteracoes nao feitas pelo agente.
 - Supabase CLI deve usar cache local `.npm-cache`; evitar `npx --no-install supabase`.
-- Distinguir falhas de cache/rede/telemetria de drift real de schema.
+- Distinguir falhas de cache/rede/telemetria/autenticacao CLI de drift real de schema.
+- `npm run db:migrations:check` roda `supabase migration list` via script e pode falhar no sandbox com `LegacyPlatformAuthRequiredError` mesmo quando o CLI escalado esta autenticado. Caminho correto: rerodar o mesmo `npm run db:migrations:check` com `sandbox_permissions: require_escalated`; nao trocar para SQL manual nem migration repair. Em 2026-07-10 a migration `20260710103000_studio_maintenance_responsible_person.sql` aplicou com `npx --cache .npm-cache --yes supabase db push --linked`, e o check escalado confirmou 73 local / 73 remoto.
 - Nao hardcodar pessoas, clientes, managers, hunters, areas, studios ou owners em UI.
 - Metas e fatos financeiros precisam de periodo/ano e grao explicito.
-- Studio Hunter nao deve ser duplicado como meta direta da pessoa. `revenue_target_allocations.own_amount` guarda a Meta propria Hunter editavel; `revenue_target_allocations.amount` guarda a Meta Hunter atual derivada como propria + Studio Hunter.
+- Studio Hunter nao deve ser duplicado como meta direta da pessoa. `revenue_target_allocations.own_amount` guarda a Meta propria Hunter/Farmer editavel; `revenue_target_allocations.amount` guarda a Meta atual derivada como propria + Studio Hunter ou Studio Manutencao/Renovacao elegivel. Studio PX nao entra na meta Farmer/Delivery.
 - Arquivos `.xlsx` gerados pelo Excel podem conter células `inlineStr` vazias; `read-excel-file` falhou nesse layout específico, então a tela de baseline de Studios usa parser leve com `fflate` + `DOMParser`.
 - Service role pode existir apenas em backend/BFF; usuarios finais continuam nominais.
 - Salario/remuneracao e sensivel; exige controle UI + RLS/autorizacao.
@@ -221,6 +303,9 @@ Próximo passo: validar e publicar a correcao de Hunter efetivo em Metas por Pes
 - `studio_target_allocations.hunterPersonId` e uma associacao operacional relevante para visibilidade. Se a linha tiver valor Hunter ou Manutencao, a pessoa associada deve aparecer nas telas; apenas `hunterAmount` soma no total Hunter. Quando `hunterPersonId` estiver vazio, o Hunter efetivo e o Hunter principal do Cliente.
 - Em mobile, fluxos operacionais complexos devem ficar inibidos/consulta simples conforme spec.
 - Antes de deploy em fluxos de cliente/pessoa/meta, rodar `npm run smoke:critical`.
+- A administracao de acesso deve passar por `AccessRepository` em `src/lib/repositories/accessRepository.ts`; telas nao devem criar cliente Supabase nem chamar RPCs de acesso diretamente.
+- `saveCustomer` passa por `/api/delivery/customers`; a rota valida bearer token, app access e papel editor/admin, e executa o provider atual com o contexto RLS do usuario.
+- `savePersonCustomerTargets` passa por `/api/delivery/person-customer-targets`; a rota valida bearer token, app access e papel editor/admin, e executa o provider atual com o contexto RLS do usuario.
 
 ## Stable Facts About the Project
 

@@ -1,11 +1,11 @@
 "use client";
 
 import { createContext, useContext } from "react";
-import type { User } from "@supabase/supabase-js";
 import type { AccessUser } from "@/lib/access-control";
+import type { AuthenticatedUser } from "@/lib/auth/auth-service";
 
 interface AccessContextValue {
-  user: User | null;
+  user: AuthenticatedUser | null;
   accessUser: AccessUser | null;
   loadingAccess: boolean;
   isAdmin: boolean;

@@ -19,6 +19,7 @@ import { useAccess } from "@/lib/access-context";
 import { isHunterConsultAccess, normalizeAccessEmail } from "@/lib/access-control";
 import { formatCurrency, toFileSlug } from "@/lib/utils";
 import { isHunterRole, isSpecialistHunterRole, isTargetAssignableRole } from "@/lib/roles";
+import { getStudioMaintenancePersonId, getTargetOwnAmount, isStudioRenewalEligibleForFarmer } from "@/lib/studio-renewal-rollup";
 import type { RoleType } from "@/data/mockData";
 import { isOtherDirectorId } from "@/lib/director-governance";
 
@@ -84,8 +85,8 @@ export function PersonTargetReport() {
     [people],
   );
   const peopleRows = useMemo(
-    () => buildPeopleRows(assignablePeople, targetAllocations, studioTargetAllocations, customerNames, selectedYear),
-    [assignablePeople, customerNames, selectedYear, studioTargetAllocations, targetAllocations],
+    () => buildPeopleRows(assignablePeople, targetAllocations, studioTargetAllocations, customerNames, areaNames, selectedYear),
+    [areaNames, assignablePeople, customerNames, selectedYear, studioTargetAllocations, targetAllocations],
   );
   const areaRows = useMemo(
     () => buildAreaStudioRows(areas, customers, studioTargetAllocations, selectedYear),
@@ -236,11 +237,17 @@ export function PersonTargetReport() {
       directorDetailRows: filteredDirectorDetailRows,
       areaRows: filteredAreaRows,
       areaDetailRows: filteredAreaDetailRows,
+      hunterClientRows: filteredHunterClientRows,
       selectedHunterNames: selectedHunterRows.map((row) => row.hunterName),
       selectedAreaNames: selectedAreaRows.map((row) => row.areaName),
+      people,
+      allocations: targetAllocations,
+      studioAllocations: studioTargetAllocations,
+      customerNames,
+      areaNames,
       year: selectedYear,
     }),
-    [effectiveView, filteredAreaDetailRows, filteredAreaRows, filteredDirectorDetailRows, filteredHunterDetailRows, hunterSummaryRows, peopleExportRows, selectedAreaRows, selectedHunterRows, selectedYear],
+    [areaNames, customerNames, effectiveView, filteredAreaDetailRows, filteredAreaRows, filteredDirectorDetailRows, filteredHunterClientRows, filteredHunterDetailRows, hunterSummaryRows, people, peopleExportRows, selectedAreaRows, selectedHunterRows, selectedYear, studioTargetAllocations, targetAllocations],
   );
   const officialFilenameSuffix = getOfficialFilenameSuffix({
     view: effectiveView,
@@ -258,6 +265,7 @@ export function PersonTargetReport() {
     rows: currentOfficialRows as unknown[],
     columns: officialReportColumns as ReportColumn<unknown>[],
     rowStyle: (row: unknown) => (row as OfficialTargetRow).rowStyle,
+    officialLayout: true,
   }];
   const allVisiblePeopleSelected = filteredPeopleRows.length > 0 && selectedPeopleRows.length === filteredPeopleRows.length;
   const allVisibleAreasSelected = filteredAreaRows.length > 0 && filteredAreaRows.every((row) => selectedAreaIds.has(row.areaId));
@@ -276,6 +284,26 @@ export function PersonTargetReport() {
   const totals = useMemo(
     () => getViewTotals(effectiveView, filteredPeopleRows, filteredAreaRows, hunterSummaryRows, filteredDirectorDetailRows, filteredHunterDetailRows, hasDetailHunters, hasSelectedAreas ? filteredAreaDetailRows : undefined, filteredSpecialistHunterRows, filteredHunterClientRows),
     [effectiveView, filteredAreaDetailRows, filteredAreaRows, hunterSummaryRows, filteredDirectorDetailRows, filteredHunterDetailRows, filteredHunterClientRows, filteredPeopleRows, filteredSpecialistHunterRows, hasDetailHunters, hasSelectedAreas],
+  );
+  const areaDetailTotal = useMemo(
+    () => sumAmount(filteredAreaDetailRows),
+    [filteredAreaDetailRows],
+  );
+  const hunterDetailTotals = useMemo(
+    () => summarizeHunterDetailTotals(filteredHunterDetailRows),
+    [filteredHunterDetailRows],
+  );
+  const hunterClientTotals = useMemo(
+    () => summarizeHunterClientRows(filteredHunterClientRows),
+    [filteredHunterClientRows],
+  );
+  const specialistHunterTotal = useMemo(
+    () => sumAmount(filteredSpecialistHunterRows),
+    [filteredSpecialistHunterRows],
+  );
+  const directorDetailTotal = useMemo(
+    () => sumAmount(filteredDirectorDetailRows),
+    [filteredDirectorDetailRows],
   );
   const roleTypes = useMemo(() => Array.from(new Set(assignablePeople.map((person) => person.roleType))).sort((a, b) => a.localeCompare(b, "pt-BR")), [assignablePeople]);
 
@@ -408,6 +436,7 @@ export function PersonTargetReport() {
                 filename={`relatorio-hunter-clientes-${year}${selectedHunterClientId ? `-${toFileSlug(peopleNames.get(selectedHunterClientId) ?? "hunter")}` : ""}`}
                 rows={filteredHunterClientRows}
                 columns={hunterClientReportColumns}
+                customExports={officialCustomExports}
               />
             )}
             {effectiveView === "specialistHunters" && (
@@ -764,7 +793,7 @@ export function PersonTargetReport() {
                     {filteredAreaDetailRows.length > 0 && (
                       <TableRow className="bg-slate-900 text-white hover:bg-slate-900">
                         <TableCell colSpan={4} className="font-bold">Total selecionado</TableCell>
-                        <TableCell className="text-right font-bold tabular-nums">{formatCurrency(filteredAreaDetailRows.reduce((total, row) => total + row.amount, 0))}</TableCell>
+                        <TableCell className="text-right font-bold tabular-nums">{formatCurrency(areaDetailTotal)}</TableCell>
                       </TableRow>
                     )}
                   </TableBody>
@@ -904,7 +933,7 @@ export function PersonTargetReport() {
                   {filteredHunterDetailRows.length > 0 && (
                     <TableRow className="bg-slate-900 text-white hover:bg-slate-900">
                       <TableCell colSpan={4} className="font-bold">Total selecionado</TableCell>
-                      <TableCell className="text-right font-bold tabular-nums">{formatCurrency(summarizeHunterDetailTotals(filteredHunterDetailRows).total)}</TableCell>
+                      <TableCell className="text-right font-bold tabular-nums">{formatCurrency(hunterDetailTotals.total)}</TableCell>
                     </TableRow>
                   )}
                 </TableBody>
@@ -982,9 +1011,9 @@ export function PersonTargetReport() {
                 {filteredHunterClientRows.length > 0 && (
                   <TableRow className="bg-slate-900 text-white hover:bg-slate-900">
                     <TableCell colSpan={4} className="font-bold">Total do Hunter nos clientes filtrados</TableCell>
-                    <TableCell className="text-right font-bold tabular-nums">{formatCurrency(filteredHunterClientRows.reduce((total, row) => total + row.hunterAmount, 0))}</TableCell>
-                    <TableCell className="text-right font-bold tabular-nums">{formatCurrency(filteredHunterClientRows.reduce((total, row) => total + row.maintenanceAmount, 0))}</TableCell>
-                    <TableCell className="text-right font-bold tabular-nums">{formatCurrency(filteredHunterClientRows.reduce((total, row) => total + row.total, 0))}</TableCell>
+                    <TableCell className="text-right font-bold tabular-nums">{formatCurrency(hunterClientTotals.hunterAmount)}</TableCell>
+                    <TableCell className="text-right font-bold tabular-nums">{formatCurrency(hunterClientTotals.maintenanceAmount)}</TableCell>
+                    <TableCell className="text-right font-bold tabular-nums">{formatCurrency(hunterClientTotals.total)}</TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -1037,7 +1066,7 @@ export function PersonTargetReport() {
                 {filteredSpecialistHunterRows.length > 0 && (
                   <TableRow className="bg-slate-900 text-white hover:bg-slate-900">
                     <TableCell colSpan={4} className="font-bold">Total gerencial</TableCell>
-                    <TableCell className="text-right font-bold tabular-nums">{formatCurrency(filteredSpecialistHunterRows.reduce((total, row) => total + row.amount, 0))}</TableCell>
+                    <TableCell className="text-right font-bold tabular-nums">{formatCurrency(specialistHunterTotal)}</TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -1110,7 +1139,7 @@ export function PersonTargetReport() {
                 {filteredDirectorDetailRows.length > 0 && (
                   <TableRow className="bg-slate-900 text-white hover:bg-slate-900">
                     <TableCell colSpan={4} className="font-bold">Total das pessoas da diretoria</TableCell>
-                    <TableCell className="text-right font-bold tabular-nums">{formatCurrency(filteredDirectorDetailRows.reduce((total, row) => total + row.amount, 0))}</TableCell>
+                    <TableCell className="text-right font-bold tabular-nums">{formatCurrency(directorDetailTotal)}</TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -1142,12 +1171,14 @@ function canConsolidateDirectorReport(
 
 function buildPeopleRows(
   people: Array<{ id: string; name: string; email?: string; roleType: RoleType; directorId?: string; active: boolean; clientIds: string[] }>,
-  allocations: Array<{ customerId: string; personId: string; type: string; year: number; amount: number }>,
-  studioAllocations: Array<{ customerId: string; hunterPersonId?: string; year: number; hunterAmount: number }>,
+  allocations: Array<{ customerId: string; personId: string; type: string; year: number; amount: number; ownAmount?: number }>,
+  studioAllocations: Array<{ customerId: string; areaId: string; hunterPersonId?: string; maintenancePersonId?: string; year: number; hunterAmount: number; maintenanceAmount: number }>,
   customerNames: Map<string, string>,
+  areaNames: Map<string, string>,
   year: number,
 ) {
   const studioByHunterCustomer = buildStudioHunterTotalsByHunterCustomer(studioAllocations, year, people, allocations);
+  const studioRenewalByPersonCustomer = buildStudioRenewalTotalsByPersonCustomer(studioAllocations, year, people, areaNames);
   return people.map((person) => {
     const personAllocations = allocations.filter((allocation) =>
       allocation.personId === person.id
@@ -1157,15 +1188,16 @@ function buildPeopleRows(
     const directHunter = personAllocations
       .filter((allocation) => allocation.type === "hunter")
       .reduce((total, allocation) => total + allocation.amount, 0);
-    const farmerRenewal = personAllocations
-      .filter((allocation) => allocation.type === "farmer_renewal")
-      .reduce((total, allocation) => total + allocation.amount, 0);
     const studioCustomerIds = Array.from(studioByHunterCustomer.keys())
+      .filter((key) => key.startsWith(`${person.id}:`))
+      .map((key) => key.slice(person.id.length + 1));
+    const studioRenewalCustomerIds = Array.from(studioRenewalByPersonCustomer.keys())
       .filter((key) => key.startsWith(`${person.id}:`))
       .map((key) => key.slice(person.id.length + 1));
     const customerIds = Array.from(new Set([
       ...personAllocations.map((allocation) => allocation.customerId),
       ...studioCustomerIds,
+      ...studioRenewalCustomerIds,
     ]));
     const customerBreakdown = customerIds
       .map((customerId) => {
@@ -1173,9 +1205,11 @@ function buildPeopleRows(
         const directCustomerHunter = customerAllocations
           .filter((allocation) => allocation.type === "hunter")
           .reduce((total, allocation) => total + allocation.amount, 0);
-        const customerFarmerRenewal = customerAllocations
-          .filter((allocation) => allocation.type === "farmer_renewal")
-          .reduce((total, allocation) => total + allocation.amount, 0);
+        const studioRenewal = studioRenewalByPersonCustomer.get(`${person.id}:${customerId}`) ?? 0;
+        const customerFarmerRenewal = getTargetOwnAmountFromAllocations(
+          customerAllocations.filter((allocation) => allocation.type === "farmer_renewal"),
+          studioRenewal,
+        ) + studioRenewal;
         const studioHunter = studioByHunterCustomer.get(`${person.id}:${customerId}`) ?? 0;
         const customerHunter = Math.max(directCustomerHunter, studioHunter);
 
@@ -1196,6 +1230,7 @@ function buildPeopleRows(
       directHunter,
       customerBreakdown.reduce((total, item) => total + item.hunter, 0),
     );
+    const farmerRenewal = customerBreakdown.reduce((total, item) => total + item.farmerRenewal, 0);
 
     return {
       personId: person.id,
@@ -1224,8 +1259,8 @@ function buildDirectorDetailRows({
   year,
 }: {
   people: Array<{ id: string; name: string; roleType: RoleType; active: boolean; directorId?: string; clientIds: string[] }>;
-  allocations: Array<{ id: string; customerId: string; personId: string; type: string; year: number; amount: number }>;
-  studioAllocations: Array<{ id: string; customerId: string; areaId: string; hunterPersonId?: string; year: number; hunterAmount: number; maintenanceAmount: number }>;
+  allocations: Array<{ id: string; customerId: string; personId: string; type: string; year: number; amount: number; ownAmount?: number }>;
+  studioAllocations: Array<{ id: string; customerId: string; areaId: string; hunterPersonId?: string; maintenancePersonId?: string; year: number; hunterAmount: number; maintenanceAmount: number }>;
   customerNames: Map<string, string>;
   areaNames: Map<string, string>;
   peopleNames: Map<string, string>;
@@ -1237,6 +1272,8 @@ function buildDirectorDetailRows({
   const peopleById = new Map(people.map((person) => [person.id, person]));
   const directorPeople = people.filter((person) => person.directorId === directorId);
   const directorPersonIds = new Set(directorPeople.map((person) => person.id));
+  const studioByHunterCustomer = buildStudioHunterTotalsByHunterCustomer(studioAllocations, year, people, allocations);
+  const studioRenewalByPersonCustomer = buildStudioRenewalTotalsByPersonCustomer(studioAllocations, year, people, areaNames);
   const directAllocations = allocations.filter((allocation) =>
     allocation.year === year
     && allocation.amount > 0
@@ -1250,6 +1287,13 @@ function buildDirectorDetailRows({
       const person = peopleById.get(allocation.personId);
       if (!person) return;
       if (allocation.type === "hunter" && !isHunterRole(person.roleType)) return;
+      const inheritedAmount = allocation.type === "hunter"
+        ? studioByHunterCustomer.get(`${allocation.personId}:${allocation.customerId}`) ?? 0
+        : studioRenewalByPersonCustomer.get(`${allocation.personId}:${allocation.customerId}`) ?? 0;
+      const ownAmount = allocation.type === "hunter"
+        ? getHunterOwnAmount(allocation, inheritedAmount)
+        : getTargetOwnAmount(allocation, inheritedAmount);
+      if (ownAmount <= 0.01) return;
 
       rows.push({
         id: allocation.id,
@@ -1261,7 +1305,7 @@ function buildDirectorDetailRows({
         segment: allocation.type === "hunter" ? "Meta Hunter" : "Renovação + Ampliação",
         areaName: "",
         studioHunterName: "",
-        amount: allocation.amount,
+        amount: ownAmount,
       });
     });
 
@@ -1294,6 +1338,38 @@ function buildDirectorDetailRows({
         id: `${allocation.id}-hunter`,
         segment: "Studio Hunter",
         amount: allocation.hunterAmount,
+      });
+    });
+
+  studioAllocations
+    .filter((allocation) => {
+      const targetPersonId = getStudioMaintenancePersonId(allocation);
+      if (!targetPersonId) return false;
+      const person = peopleById.get(targetPersonId);
+      return allocation.year === year
+        && directorPersonIds.has(targetPersonId)
+        && allocation.maintenanceAmount > 0
+        && isStudioRenewalEligibleForFarmer(areaNames.get(allocation.areaId) ?? allocation.areaId, person, {
+          explicitMaintenancePerson: allocation.maintenancePersonId === targetPersonId,
+        });
+    })
+    .forEach((allocation) => {
+      const targetPersonId = getStudioMaintenancePersonId(allocation);
+      if (!targetPersonId) return;
+      const person = peopleById.get(targetPersonId);
+      if (!person) return;
+
+      rows.push({
+        id: `${allocation.id}-maintenance`,
+        personId: targetPersonId,
+        customerId: allocation.customerId,
+        personName: person.name,
+        roleType: person.roleType,
+        customerName: customerNames.get(allocation.customerId) ?? allocation.customerId,
+        segment: "Studio Manutenção",
+        areaName: areaNames.get(allocation.areaId) ?? allocation.areaId,
+        studioHunterName: peopleNames.get(targetPersonId) ?? "Pessoa não encontrada",
+        amount: allocation.maintenanceAmount,
       });
     });
 
@@ -1360,6 +1436,7 @@ function getDirectorSegmentSortValue(segment: string) {
   if (segment === "Meta Hunter") return 0;
   if (segment === "Renovação + Ampliação") return 1;
   if (segment === "Studio Hunter") return 2;
+  if (segment === "Studio Manutenção") return 3;
   return 3;
 }
 
@@ -1552,6 +1629,41 @@ function buildStudioHunterTotalsByHunterCustomer(
       totals.set(key, (totals.get(key) ?? 0) + allocation.hunterAmount);
     });
   return totals;
+}
+
+function buildStudioRenewalTotalsByPersonCustomer(
+  studioAllocations: Array<{ customerId: string; areaId: string; hunterPersonId?: string; maintenancePersonId?: string; year: number; maintenanceAmount: number }>,
+  year: number,
+  people: Array<{ id: string; roleType: RoleType; active: boolean }>,
+  areaNames: Map<string, string>,
+) {
+  const peopleById = new Map(people.map((person) => [person.id, person]));
+  const totals = new Map<string, number>();
+  studioAllocations
+    .filter((allocation) => allocation.year === year && getStudioMaintenancePersonId(allocation) && allocation.maintenanceAmount > 0)
+    .forEach((allocation) => {
+      const maintenancePersonId = getStudioMaintenancePersonId(allocation);
+      const person = maintenancePersonId ? peopleById.get(maintenancePersonId) : undefined;
+      const areaName = areaNames.get(allocation.areaId) ?? allocation.areaId;
+      if (!maintenancePersonId || !isStudioRenewalEligibleForFarmer(areaName, person, {
+        explicitMaintenancePerson: Boolean(allocation.maintenancePersonId),
+      })) return;
+      const key = `${maintenancePersonId}:${allocation.customerId}`;
+      totals.set(key, (totals.get(key) ?? 0) + allocation.maintenanceAmount);
+    });
+  return totals;
+}
+
+function getTargetOwnAmountFromAllocations(
+  allocations: Array<{ amount: number; ownAmount?: number }>,
+  derivedAmount: number,
+) {
+  if (!allocations.length) return 0;
+  const amount = allocations.reduce((total, allocation) => total + allocation.amount, 0);
+  const ownAmount = allocations.some((allocation) => allocation.ownAmount !== undefined)
+    ? allocations.reduce((total, allocation) => total + (allocation.ownAmount ?? 0), 0)
+    : undefined;
+  return getTargetOwnAmount({ amount, ownAmount }, derivedAmount);
 }
 
 function getHunterOwnAmount(
@@ -2050,6 +2162,18 @@ function summarizeHunterDetailTotals(rows: HunterDetailRow[]) {
   }), { ownTotal: 0, studioHunterTotal: 0, total: 0 });
 }
 
+function summarizeHunterClientRows(rows: HunterClientRow[]) {
+  return rows.reduce((summary, row) => ({
+    hunterAmount: summary.hunterAmount + row.hunterAmount,
+    maintenanceAmount: summary.maintenanceAmount + row.maintenanceAmount,
+    total: summary.total + row.total,
+  }), { hunterAmount: 0, maintenanceAmount: 0, total: 0 });
+}
+
+function sumAmount(rows: Array<{ amount: number }>) {
+  return rows.reduce((total, row) => total + row.amount, 0);
+}
+
 const peopleReportColumns: ReportColumn<PeopleRow>[] = [
   { key: "personName", label: "Pessoa", value: (row) => row.personName },
   { key: "email", label: "E-mail", value: (row) => row.email ?? "" },
@@ -2128,15 +2252,22 @@ const directorDetailReportColumns: ReportColumn<DirectorDetailRow>[] = [
 ];
 
 const officialReportColumns: ReportColumn<OfficialTargetRow>[] = [
+  { key: "businessUnitArea", label: "BU/Área Executivo", value: (row) => row.businessUnitArea },
   { key: "executive", label: "Executivo", value: (row) => row.executive },
   { key: "customerName", label: "Grupo Cliente", value: (row) => row.customerName },
+  { key: "billingCustomer", label: "Cliente Faturamento", value: (row) => row.billingCustomer },
+  { key: "businessUnit", label: "BU", value: (row) => row.businessUnit },
   { key: "totalTarget", label: "Meta 2026", value: (row) => row.totalTarget, format: "currency", align: "right" },
   { key: "farmerRenewal", label: "Renovação (FARMER)", value: (row) => row.farmerRenewal, format: "currency", align: "right" },
   { key: "hunter", label: "Novo (HUNTER)", value: (row) => row.hunter, format: "currency", align: "right" },
   { key: "hunterShare", label: "% Novo", value: (row) => row.hunterShare, format: "percent", align: "right" },
 ];
 
-function buildOfficialRowsForView({
+const officialBusinessUnitArea = "Financial";
+const officialDefaultBillingCustomer = "";
+const officialDefaultBusinessUnit = "Financial";
+
+export function buildOfficialRowsForView({
   view,
   peopleRows,
   hunterRows,
@@ -2144,8 +2275,15 @@ function buildOfficialRowsForView({
   directorDetailRows,
   areaRows,
   areaDetailRows,
+  hunterClientRows,
   selectedHunterNames,
   selectedAreaNames,
+  people,
+  allocations,
+  studioAllocations,
+  customerNames,
+  areaNames,
+  year,
 }: {
   view: ReportView;
   peopleRows: PeopleRow[];
@@ -2154,8 +2292,14 @@ function buildOfficialRowsForView({
   directorDetailRows: DirectorDetailRow[];
   areaRows: AreaStudioRow[];
   areaDetailRows: AreaStudioDetailRow[];
+  hunterClientRows: HunterClientRow[];
   selectedHunterNames: string[];
   selectedAreaNames: string[];
+  people: Array<{ id: string; name: string; roleType: RoleType; active: boolean; clientIds: string[] }>;
+  allocations: Array<{ id: string; customerId: string; personId: string; type: string; year: number; amount: number; ownAmount?: number }>;
+  studioAllocations: Array<{ id: string; customerId: string; areaId: string; hunterPersonId?: string; maintenancePersonId?: string; year: number; hunterAmount: number; maintenanceAmount: number }>;
+  customerNames: Map<string, string>;
+  areaNames: Map<string, string>;
   year: number;
 }) {
   if (view === "hunters") {
@@ -2170,11 +2314,22 @@ function buildOfficialRowsForView({
     })));
   }
 
+  if (view === "hunterClients") {
+    return buildOfficialGroupedRows(hunterClientRows.map((row) => ({
+      executive: row.hunterName,
+      customerName: row.customerName,
+      billingCustomer: getOfficialBillingCustomerForSegment(row.segment, row.detailName),
+      farmerRenewal: row.maintenanceAmount,
+      hunter: row.hunterAmount,
+    })));
+  }
+
   if (view === "directors") {
     return buildOfficialGroupedRows(directorDetailRows.map((row) => ({
       executive: row.personName,
       customerName: row.customerName,
-      farmerRenewal: row.segment === "Renovação + Ampliação" ? row.amount : 0,
+      billingCustomer: getOfficialBillingCustomerForSegment(row.segment, row.areaName),
+      farmerRenewal: row.segment === "Renovação + Ampliação" || row.segment === "Studio Manutenção" ? row.amount : 0,
       hunter: row.segment === "Meta Hunter" || row.segment === "Studio Hunter" ? row.amount : 0,
     })));
   }
@@ -2184,6 +2339,7 @@ function buildOfficialRowsForView({
       return buildOfficialGroupedRows(areaDetailRows.map((row) => ({
         executive: row.areaName,
         customerName: row.customerName,
+        billingCustomer: row.areaName,
         farmerRenewal: row.segment === "Studio Manutenção" ? row.amount : 0,
         hunter: row.segment === "Studio Hunter" ? row.amount : 0,
       })));
@@ -2191,29 +2347,45 @@ function buildOfficialRowsForView({
     return buildOfficialGroupedRows(areaRows.flatMap((row) => row.clients.map((client) => ({
       executive: row.areaName,
       customerName: client.customerName,
+      billingCustomer: row.areaName,
       farmerRenewal: client.maintenance,
       hunter: client.hunter,
     }))));
   }
 
-  return buildOfficialGroupedRows(peopleRows.flatMap((row) => row.customerBreakdown.map((client) => ({
-    executive: row.personName,
-    customerName: client.customerName,
-    farmerRenewal: client.farmerRenewal,
-    hunter: client.hunter,
-  }))));
+  return buildOfficialPeopleRowsFromSources({
+    peopleRows,
+    people,
+    allocations,
+    studioAllocations,
+    customerNames,
+    areaNames,
+    year,
+  });
 }
 
-function buildOfficialGroupedRows(items: Array<{ executive: string; customerName: string; farmerRenewal: number; hunter: number }>) {
-  const byExecutive = new Map<string, Map<string, { farmerRenewal: number; hunter: number }>>();
+function buildOfficialGroupedRows(items: OfficialTargetItem[]) {
+  const byExecutive = new Map<string, Map<string, OfficialTargetItem>>();
   items
     .filter((item) => item.farmerRenewal + item.hunter > 0)
     .forEach((item) => {
-      const customerMap = byExecutive.get(item.executive) ?? new Map<string, { farmerRenewal: number; hunter: number }>();
-      const current = customerMap.get(item.customerName) ?? { farmerRenewal: 0, hunter: 0 };
+      const customerMap = byExecutive.get(item.executive) ?? new Map<string, OfficialTargetItem>();
+      const itemKey = [
+        item.customerName,
+        item.billingCustomer ?? officialDefaultBillingCustomer,
+        item.businessUnit ?? officialDefaultBusinessUnit,
+      ].join("\u0000");
+      const current = customerMap.get(itemKey) ?? {
+        executive: item.executive,
+        customerName: item.customerName,
+        billingCustomer: item.billingCustomer ?? officialDefaultBillingCustomer,
+        businessUnit: item.businessUnit ?? officialDefaultBusinessUnit,
+        farmerRenewal: 0,
+        hunter: 0,
+      };
       current.farmerRenewal += item.farmerRenewal;
       current.hunter += item.hunter;
-      customerMap.set(item.customerName, current);
+      customerMap.set(itemKey, current);
       byExecutive.set(item.executive, customerMap);
     });
 
@@ -2223,14 +2395,19 @@ function buildOfficialGroupedRows(items: Array<{ executive: string; customerName
     .forEach(([executive, customerMap]) => {
       let executiveFarmer = 0;
       let executiveHunter = 0;
-      Array.from(customerMap.entries())
-        .sort(([first], [second]) => first.localeCompare(second, "pt-BR"))
-        .forEach(([customerName, amounts]) => {
+      Array.from(customerMap.values())
+        .sort((first, second) =>
+          first.customerName.localeCompare(second.customerName, "pt-BR")
+          || (first.billingCustomer ?? "").localeCompare(second.billingCustomer ?? "", "pt-BR")
+        )
+        .forEach((amounts) => {
           executiveFarmer += amounts.farmerRenewal;
           executiveHunter += amounts.hunter;
           rows.push(makeOfficialRow({
             executive,
-            customerName,
+            customerName: amounts.customerName,
+            billingCustomer: amounts.billingCustomer ?? officialDefaultBillingCustomer,
+            businessUnit: amounts.businessUnit ?? officialDefaultBusinessUnit,
             farmerRenewal: amounts.farmerRenewal,
             hunter: amounts.hunter,
             rowStyle: "regular",
@@ -2239,6 +2416,7 @@ function buildOfficialGroupedRows(items: Array<{ executive: string; customerName
       rows.push(makeOfficialRow({
         executive,
         customerName: "Subtotal (na meta)",
+        billingCustomer: getSubtotalBillingCustomer(customerMap),
         farmerRenewal: executiveFarmer,
         hunter: executiveHunter,
         rowStyle: "subtotal",
@@ -2251,6 +2429,7 @@ function buildOfficialGroupedRows(items: Array<{ executive: string; customerName
     rows.push(makeOfficialRow({
       executive: "TOTAL GERAL (na meta)",
       customerName: "",
+      billingCustomer: officialDefaultBillingCustomer,
       farmerRenewal: totalFarmer,
       hunter: totalHunter,
       rowStyle: "total",
@@ -2260,54 +2439,281 @@ function buildOfficialGroupedRows(items: Array<{ executive: string; customerName
 }
 
 function buildOfficialHunterItemsFromDetails(rows: HunterDetailRow[]) {
-  const byHunterAndCustomer = new Map<string, {
-    executive: string;
-    customerName: string;
-    ownTotal: number;
-    studioHunterTotal: number;
-  }>();
-
-  rows.forEach((row) => {
-    const key = `${row.hunterId}:${row.customerName}`;
-    const current = byHunterAndCustomer.get(key) ?? {
+  return rows
+    .filter((row) => row.amount > 0)
+    .map((row) => ({
       executive: row.hunterName,
       customerName: row.customerName,
-      ownTotal: 0,
-      studioHunterTotal: 0,
-    };
-    if (isHunterOwnSegment(row.segment)) {
-      current.ownTotal += row.amount;
-    } else if (isHunterStudioContainedSegment(row.segment)) {
-      current.studioHunterTotal += row.amount;
+      billingCustomer: getOfficialBillingCustomerForSegment(row.segment, row.areaName),
+      farmerRenewal: 0,
+      hunter: row.amount,
+    }));
+}
+
+function getOfficialBillingCustomerForSegment(segment: string, studioName: string) {
+  return segment.includes("Studio") ? studioName : officialDefaultBillingCustomer;
+}
+
+function getSubtotalBillingCustomer(customerMap: Map<string, OfficialTargetItem>) {
+  const billingCustomers = Array.from(customerMap.values())
+    .map((item) => item.billingCustomer ?? officialDefaultBillingCustomer)
+    .filter((billingCustomer) => billingCustomer.length > 0);
+  const uniqueBillingCustomers = new Set(billingCustomers);
+  return uniqueBillingCustomers.size === 1 ? billingCustomers[0] ?? officialDefaultBillingCustomer : officialDefaultBillingCustomer;
+}
+
+function buildOfficialPeopleRowsFromSources({
+  peopleRows,
+  people,
+  allocations,
+  studioAllocations,
+  customerNames,
+  areaNames,
+  year,
+}: {
+  peopleRows: PeopleRow[];
+  people: Array<{ id: string; name: string; roleType: RoleType; active: boolean; clientIds: string[] }>;
+  allocations: Array<{ id: string; customerId: string; personId: string; type: string; year: number; amount: number; ownAmount?: number }>;
+  studioAllocations: Array<{ id: string; customerId: string; areaId: string; hunterPersonId?: string; maintenancePersonId?: string; year: number; hunterAmount: number; maintenanceAmount: number }>;
+  customerNames: Map<string, string>;
+  areaNames: Map<string, string>;
+  year: number;
+}) {
+  const peopleById = new Map(people.map((person) => [person.id, person]));
+  const studioByHunterCustomer = buildStudioHunterTotalsByHunterCustomer(studioAllocations, year, people, allocations);
+  const studioRenewalByPersonCustomer = buildStudioRenewalTotalsByPersonCustomer(studioAllocations, year, people, areaNames);
+  const customerIdsInScope = new Set<string>();
+  const rows: OfficialTargetRow[] = [];
+
+  peopleRows.forEach((personRow) => {
+    const person = peopleById.get(personRow.personId);
+    if (!person) return;
+
+    const personAllocations = allocations.filter((allocation) =>
+      allocation.year === year
+      && allocation.personId === personRow.personId
+      && allocation.type !== "studio"
+      && allocation.amount > 0
+    );
+    const personStudioHunterAllocations = studioAllocations.filter((allocation) =>
+      allocation.year === year
+      && allocation.hunterAmount > 0
+      && getEffectiveStudioHunterPersonId(allocation, people, allocations) === personRow.personId
+    );
+    const personStudioRenewalCustomerIds = Array.from(studioRenewalByPersonCustomer.keys())
+      .filter((key) => key.startsWith(`${personRow.personId}:`))
+      .map((key) => key.slice(personRow.personId.length + 1));
+    const customerIds = Array.from(new Set([
+      ...personAllocations.map((allocation) => allocation.customerId),
+      ...personStudioHunterAllocations.map((allocation) => allocation.customerId),
+      ...personStudioRenewalCustomerIds,
+    ])).sort((first, second) =>
+      (customerNames.get(first) ?? first).localeCompare(customerNames.get(second) ?? second, "pt-BR")
+    );
+
+    let personFarmer = 0;
+    let personHunter = 0;
+
+    customerIds.forEach((customerId) => {
+      customerIdsInScope.add(customerId);
+      const customerName = customerNames.get(customerId) ?? customerId;
+      const directHunterOwn = personAllocations
+        .filter((allocation) => allocation.customerId === customerId && allocation.type === "hunter")
+        .reduce((total, allocation) => {
+          const studioHunterForCustomer = studioByHunterCustomer.get(`${personRow.personId}:${customerId}`) ?? 0;
+          return total + getHunterOwnAmount(allocation, studioHunterForCustomer);
+        }, 0);
+      const studioRenewalForCustomer = studioRenewalByPersonCustomer.get(`${personRow.personId}:${customerId}`) ?? 0;
+      const farmerRenewalOwn = getTargetOwnAmountFromAllocations(
+        personAllocations.filter((allocation) => allocation.customerId === customerId && allocation.type === "farmer_renewal"),
+        studioRenewalForCustomer,
+      );
+
+      if (directHunterOwn > 0.01 || farmerRenewalOwn > 0.01) {
+        rows.push(makeOfficialRow({
+          executive: personRow.personName,
+          customerName,
+          billingCustomer: officialDefaultBillingCustomer,
+          farmerRenewal: farmerRenewalOwn,
+          hunter: directHunterOwn,
+          rowStyle: "regular",
+        }));
+        personFarmer += farmerRenewalOwn;
+        personHunter += directHunterOwn;
+      }
+
+      personStudioHunterAllocations
+        .filter((allocation) => allocation.customerId === customerId)
+        .sort((first, second) =>
+          (areaNames.get(first.areaId) ?? first.areaId).localeCompare(areaNames.get(second.areaId) ?? second.areaId, "pt-BR")
+        )
+        .forEach((allocation) => {
+          const studioName = areaNames.get(allocation.areaId) ?? allocation.areaId;
+          rows.push(makeOfficialRow({
+            executive: personRow.personName,
+            customerName,
+            billingCustomer: studioName,
+            farmerRenewal: 0,
+            hunter: allocation.hunterAmount,
+            rowStyle: "regular",
+          }));
+          personHunter += allocation.hunterAmount;
+        });
+
+      studioAllocations
+        .filter((allocation) => {
+          const maintenancePersonId = getStudioMaintenancePersonId(allocation);
+          return allocation.year === year
+            && allocation.customerId === customerId
+            && maintenancePersonId === personRow.personId
+            && allocation.maintenanceAmount > 0
+            && isStudioRenewalEligibleForFarmer(areaNames.get(allocation.areaId) ?? allocation.areaId, person, {
+              explicitMaintenancePerson: allocation.maintenancePersonId === personRow.personId,
+            });
+        })
+        .sort((first, second) =>
+          (areaNames.get(first.areaId) ?? first.areaId).localeCompare(areaNames.get(second.areaId) ?? second.areaId, "pt-BR")
+        )
+        .forEach((allocation) => {
+          const studioName = areaNames.get(allocation.areaId) ?? allocation.areaId;
+          rows.push(makeOfficialRow({
+            executive: personRow.personName,
+            customerName,
+            billingCustomer: studioName,
+            farmerRenewal: allocation.maintenanceAmount,
+            hunter: 0,
+            rowStyle: "regular",
+          }));
+          personFarmer += allocation.maintenanceAmount;
+        });
+    });
+
+    if (personFarmer > 0.01 || personHunter > 0.01) {
+      rows.push(makeOfficialRow({
+        executive: personRow.personName,
+        customerName: "Subtotal (na meta)",
+        billingCustomer: officialDefaultBillingCustomer,
+        farmerRenewal: personFarmer,
+        hunter: personHunter,
+        rowStyle: "subtotal",
+      }));
     }
-    byHunterAndCustomer.set(key, current);
   });
 
-  return Array.from(byHunterAndCustomer.values()).map((item) => ({
-    executive: item.executive,
-    customerName: item.customerName,
-    farmerRenewal: 0,
-    hunter: getContainedHunterTotal(item.ownTotal, item.studioHunterTotal),
-  }));
+  const maintenanceRows = buildOfficialStudioMaintenanceRows({
+    studioAllocations,
+    people,
+    customerNames,
+    areaNames,
+    year,
+    customerIdsInScope,
+  });
+  const totalFarmer = rows.filter((row) => row.rowStyle === "subtotal").reduce((total, row) => total + row.farmerRenewal, 0)
+    + maintenanceRows.filter((row) => row.rowStyle === "subtotal").reduce((total, row) => total + row.farmerRenewal, 0);
+  const totalHunter = rows.filter((row) => row.rowStyle === "subtotal").reduce((total, row) => total + row.hunter, 0);
+  const allRows = [...rows, ...maintenanceRows];
+
+  if (allRows.length) {
+    allRows.push(makeOfficialRow({
+      executive: "TOTAL GERAL (na meta)",
+      customerName: "",
+      billingCustomer: officialDefaultBillingCustomer,
+      farmerRenewal: totalFarmer,
+      hunter: totalHunter,
+      rowStyle: "total",
+    }));
+  }
+
+  return allRows;
+}
+
+function buildOfficialStudioMaintenanceRows({
+  studioAllocations,
+  people,
+  customerNames,
+  areaNames,
+  year,
+  customerIdsInScope,
+}: {
+  studioAllocations: Array<{ customerId: string; areaId: string; hunterPersonId?: string; maintenancePersonId?: string; year: number; maintenanceAmount: number }>;
+  people: Array<{ id: string; roleType: RoleType; active: boolean }>;
+  customerNames: Map<string, string>;
+  areaNames: Map<string, string>;
+  year: number;
+  customerIdsInScope: Set<string>;
+}) {
+  const peopleById = new Map(people.map((person) => [person.id, person]));
+  const rows: OfficialTargetRow[] = [];
+  const maintenanceItems = studioAllocations
+    .filter((allocation) =>
+      allocation.year === year
+      && allocation.maintenanceAmount > 0
+      && (!customerIdsInScope.size || customerIdsInScope.has(allocation.customerId))
+      && !isStudioRenewalEligibleForFarmer(areaNames.get(allocation.areaId) ?? allocation.areaId, getStudioMaintenancePersonId(allocation) ? peopleById.get(getStudioMaintenancePersonId(allocation) as string) : undefined, {
+        explicitMaintenancePerson: Boolean(allocation.maintenancePersonId),
+      })
+    )
+    .map((allocation) => ({
+      studioName: areaNames.get(allocation.areaId) ?? allocation.areaId,
+      customerName: customerNames.get(allocation.customerId) ?? allocation.customerId,
+      maintenanceAmount: allocation.maintenanceAmount,
+    }))
+    .sort((first, second) =>
+      first.studioName.localeCompare(second.studioName, "pt-BR")
+      || first.customerName.localeCompare(second.customerName, "pt-BR")
+    );
+
+  let maintenanceTotal = 0;
+  maintenanceItems.forEach((item) => {
+    maintenanceTotal += item.maintenanceAmount;
+    rows.push(makeOfficialRow({
+      executive: item.studioName,
+      customerName: item.customerName,
+      billingCustomer: item.studioName,
+      farmerRenewal: item.maintenanceAmount,
+      hunter: 0,
+      rowStyle: "regular",
+    }));
+  });
+
+  if (maintenanceTotal > 0.01) {
+    rows.push(makeOfficialRow({
+      executive: "Studio Manutenção",
+      customerName: "Subtotal (na meta)",
+      billingCustomer: officialDefaultBillingCustomer,
+      farmerRenewal: maintenanceTotal,
+      hunter: 0,
+      rowStyle: "subtotal",
+    }));
+  }
+
+  return rows;
 }
 
 function makeOfficialRow({
   executive,
   customerName,
+  billingCustomer,
+  businessUnit = officialDefaultBusinessUnit,
   farmerRenewal,
   hunter,
   rowStyle,
 }: {
   executive: string;
   customerName: string;
+  billingCustomer: string;
+  businessUnit?: string;
   farmerRenewal: number;
   hunter: number;
   rowStyle: "regular" | "subtotal" | "total";
 }): OfficialTargetRow {
   const totalTarget = farmerRenewal + hunter;
   return {
+    businessUnitArea: officialBusinessUnitArea,
     executive,
     customerName,
+    billingCustomer,
+    businessUnit,
     totalTarget,
     farmerRenewal,
     hunter,
@@ -2520,11 +2926,22 @@ type DirectorDetailPersonGroup = {
   hunterTotal: number;
 };
 type OfficialTargetRow = {
+  businessUnitArea: string;
   executive: string;
   customerName: string;
+  billingCustomer: string;
+  businessUnit: string;
   totalTarget: number;
   farmerRenewal: number;
   hunter: number;
   hunterShare: number;
   rowStyle: "regular" | "subtotal" | "total";
+};
+type OfficialTargetItem = {
+  executive: string;
+  customerName: string;
+  billingCustomer?: string;
+  businessUnit?: string;
+  farmerRenewal: number;
+  hunter: number;
 };
