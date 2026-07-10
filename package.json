@@ -12,6 +12,7 @@
     "test:performance": "node scripts/verify-performance-hardening.cjs",
     "test:provider": "node scripts/verify-provider-abstraction.cjs",
     "test:reports": "node scripts/verify-report-exports.cjs",
+    "test:currency-input": "tsx scripts/verify-currency-input.ts",
     "test:security": "node scripts/verify-security-hardening.cjs",
     "smoke:critical": "node scripts/smoke-critical.mjs",
     "smoke:rls": "node scripts/smoke-rls-access.mjs",

@@ -17,6 +17,7 @@ import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useDeliveryStore } from "@/store/delivery-store";
+import { formatCurrencyInput, formatCurrencyInputValue, parseCurrencyInput } from "@/lib/currency-input";
 import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears } from "@/lib/customer-targets";
 import { isFarmerDeliveryTargetRole, isHunterRole } from "@/lib/roles";
 import { getStudioMaintenancePersonId } from "@/lib/studio-renewal-rollup";
@@ -541,10 +542,10 @@ export function StudioTargetAssignment() {
               }} required />
             </Field>
             <Field label="Valor Hunter (R$)">
-              <Input name="hunterAmount" type="text" inputMode="numeric" value={formHunterAmount} onChange={(event) => setFormHunterAmount(formatCurrencyInput(event.target.value))} required />
+              <Input name="hunterAmount" type="text" inputMode="decimal" value={formHunterAmount} onChange={(event) => setFormHunterAmount(formatCurrencyInput(event.target.value))} required />
             </Field>
             <Field label="Valor Manutenção/Renovação (R$)">
-              <Input name="maintenanceAmount" type="text" inputMode="numeric" value={formMaintenanceAmount} onChange={(event) => setFormMaintenanceAmount(formatCurrencyInput(event.target.value))} required />
+              <Input name="maintenanceAmount" type="text" inputMode="decimal" value={formMaintenanceAmount} onChange={(event) => setFormMaintenanceAmount(formatCurrencyInput(event.target.value))} required />
             </Field>
             <Field label="Observações" className="md:col-span-2">
               <Textarea name="notes" rows={3} value={formNotes} onChange={(event) => setFormNotes(event.target.value)} maxLength={2000} />
@@ -963,24 +964,11 @@ function personName(people: Person[], personId?: string, emptyLabel = "Hunter n�
 }
 
 function getInputValue(value: number) {
-  return formatCurrencyInput(String(Math.round(value || 0)));
-}
-
-function formatCurrencyInput(value: string) {
-  const digits = value.replace(/\D/g, "");
-  const amount = Number(digits || 0);
-  return formatCurrency(amount);
+  return formatCurrencyInputValue(value);
 }
 
 function parseAmount(value: string) {
-  const sanitized = value.replace(/[^\d,.-]/g, "").trim();
-  const normalized = sanitized.includes(",")
-    ? sanitized.replace(/\./g, "").replace(",", ".")
-    : /^\d{1,3}(\.\d{3})+$/.test(sanitized)
-      ? sanitized.replace(/\./g, "")
-      : sanitized;
-  const amount = Number(normalized || 0);
-  return Number.isFinite(amount) && amount > 0 ? amount : 0;
+  return parseCurrencyInput(value);
 }
 
 function roundCurrency(value: number) {

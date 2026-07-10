@@ -546,6 +546,9 @@ informado". Somente nesta tela, novas linhas com `hunter_amount` maior que zero
 podem ser salvas sem Hunter associado; nesses casos o valor fica como Studio
 Hunter a detalhar, entra na conciliação do cliente/studio e não soma no total de
 nenhuma pessoa até que um Hunter seja associado.
+Os campos Valor Hunter e Valor Manutenção/Renovação devem aceitar casas
+decimais em formato monetário brasileiro, como `1.234,56`, preservando os
+centavos ao editar e salvar alocações.
 Ao abrir uma nova meta para um cliente que já possui Hunter associado no cadastro
 ou Meta Hunter no ano, o campo Hunter associado deve vir sugerido como default,
 sem alterar filtros globais nem gravar nada automaticamente.

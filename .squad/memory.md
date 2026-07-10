@@ -247,7 +247,7 @@ Regularizar Studio Manutenção/Renovação com responsável Farmer/Delivery exp
 
 ## Next Pending Step
 
-Próximo passo: validar em produção o salvamento do cliente VOTORANTIM pela tela Clientes e, se ainda falhar, consultar logs com `npx vercel logs https://brq-delivery-coverage-hub.vercel.app` procurando `delivery.customers.save.failed`.
+Próximo passo: publicar e validar em produção que Metas por Área/Studio aceita casas decimais nos campos Valor Hunter e Valor Manutenção/Renovação, por exemplo `1.234,56`, sem arredondar centavos.
 
 ## Discovered Commands
 
@@ -257,6 +257,7 @@ Próximo passo: validar em produção o salvamento do cliente VOTORANTIM pela te
 - `npm run build`: build de producao Next.js.
 - `npm run test:provider`: checagem estatica da factory de provider e desacoplamento da store.
 - `npm run test:reports`: checagem estatica das colunas e dos botoes de exportacao oficial do Relatorio de Metas.
+- `npm run test:currency-input`: checagem de parsing/formatacao de inputs monetarios pt-BR usados em cadastro de metas.
 - `npm run test:security`: checagem estatica de hardening para rota de IA sensivel, mock em producao e formula injection em export.
 - `npm run test:performance`: checagem estatica de hardening de performance em view models e índices de banco.
 - `npm run smoke:rls`: smoke opcional de RLS/RBAC com usuários dedicados de teste.
