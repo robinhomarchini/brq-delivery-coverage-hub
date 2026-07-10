@@ -6,12 +6,14 @@ const path = require("node:path");
 const root = process.cwd();
 const targetManagementPath = path.join(root, "src", "components", "targets", "target-management.tsx");
 const personTargetReportPath = path.join(root, "src", "components", "reports", "person-target-report.tsx");
+const customerPortfolioPath = path.join(root, "src", "components", "portfolio", "customer-portfolio-management.tsx");
 const deliveryStorePath = path.join(root, "src", "store", "delivery-store.tsx");
 const performanceMigrationPath = path.join(root, "supabase", "migrations", "20260709113000_performance_indexes_for_target_reports.sql");
 const packagePath = path.join(root, "package.json");
 
 const targetManagementSource = fs.readFileSync(targetManagementPath, "utf8");
 const personTargetReportSource = fs.readFileSync(personTargetReportPath, "utf8");
+const customerPortfolioSource = fs.readFileSync(customerPortfolioPath, "utf8");
 const deliveryStoreSource = fs.readFileSync(deliveryStorePath, "utf8");
 const performanceMigrationSource = fs.readFileSync(performanceMigrationPath, "utf8");
 const packageSource = fs.readFileSync(packagePath, "utf8");
@@ -27,6 +29,11 @@ assertIncludes(personTargetReportSource, "function sumAmount", "Person target re
 assertNotIncludes(personTargetReportSource, "filteredHunterClientRows.reduce((total, row) => total + row.hunterAmount", "Person target report must not calculate Hunter x Clientes footer totals inline in JSX.");
 assertNotIncludes(personTargetReportSource, "filteredSpecialistHunterRows.reduce((total, row) => total + row.amount", "Person target report must not calculate Specialist Hunter footer totals inline in JSX.");
 assertNotIncludes(personTargetReportSource, "filteredDirectorDetailRows.reduce((total, row) => total + row.amount", "Person target report must not calculate Director footer totals inline in JSX.");
+assertIncludes(customerPortfolioSource, "hunterIds: string[]", "Customer portfolio must expose Hunters/commercial participants separately.");
+assertIncludes(customerPortfolioSource, "person.clientIds.includes(customerId)", "Customer portfolio must derive portfolio participants from person-customer assignments.");
+assertIncludes(customerPortfolioSource, "allocation.type === \"hunter\"", "Customer portfolio must include Hunters from target allocations.");
+assertIncludes(customerPortfolioSource, "allocation.hunterPersonId", "Customer portfolio must include Hunters from Studio allocations.");
+assertIncludes(customerPortfolioSource, "<TableHead>Hunter / Comercial</TableHead>", "Customer portfolio table must show Hunter/commercial participants.");
 assertIncludes(deliveryStoreSource, "syncStudioDerivedTargetsFromStudioAllocations", "Delivery store must keep Studio-derived person totals fresh after partial Studio saves.");
 assertIncludes(deliveryStoreSource, "getAffectedStudioHunterKeys", "Delivery store must update both previous and current Studio Hunter owners.");
 assertIncludes(deliveryStoreSource, "setTargetAllocations((current) => syncStudioDerivedTargetsFromStudioAllocations", "Delivery store must avoid full reload while synchronizing affected Studio-derived targets.");

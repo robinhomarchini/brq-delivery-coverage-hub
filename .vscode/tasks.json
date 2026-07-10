@@ -63,6 +63,35 @@
       "command": "npx supabase migration list --linked",
       "group": "build",
       "problemMatcher": []
+    },
+    {
+      "label": "AI: Classify Task",
+      "type": "shell",
+      "command": "npm run ai:route -- \"${input:aiRequest}\"",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "AI: Build Context Package",
+      "type": "shell",
+      "command": "npm run ai:context -- \"${input:aiRequest}\"",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "AI: Check Local Model",
+      "type": "shell",
+      "command": "npm run ai:route -- --check-local-model",
+      "group": "test",
+      "problemMatcher": []
+    }
+  ],
+  "inputs": [
+    {
+      "id": "aiRequest",
+      "type": "promptString",
+      "description": "Request to classify or build context for",
+      "default": "summarize the current task"
     }
   ]
 }

@@ -22,21 +22,23 @@ import { portfolioSource, revenuePlans, type RevenuePlan } from "@/data/customer
 import type { Customer, Person } from "@/data/mockData";
 import { useDeliveryStore } from "@/store/delivery-store";
 import { normalizeName } from "@/lib/financial-customers";
-import { isCustomerManagerProfile } from "@/lib/roles";
+import { isCustomerManagerProfile, isFarmerDeliveryTargetRole, isHunterRole } from "@/lib/roles";
 import { formatCurrency } from "@/lib/utils";
 import { displayDirectorName } from "@/lib/director-governance";
 
 type PortfolioPlanView = RevenuePlan & {
   directorIds: string[];
   managerIds: string[];
+  hunterIds: string[];
 };
 
 export function CustomerPortfolioManagement() {
-  const { customers, people } = useDeliveryStore();
+  const { customers, people, targetAllocations, studioTargetAllocations } = useDeliveryStore();
   const chartsReady = useSyncExternalStore(subscribeToHydration, () => true, () => false);
   const [directorId, setDirectorId] = useState("");
   const [managerId, setManagerId] = useState("");
   const [cluster, setCluster] = useState("");
+  const portfolioYear = 2026;
   const directors = useMemo(() => people
     .filter((person) => person.active && person.roleType === "Director")
     .sort((first, second) => first.name.localeCompare(second.name, "pt-BR")),
@@ -45,7 +47,10 @@ export function CustomerPortfolioManagement() {
     .filter((person) => person.active && isCustomerManagerProfile(person.roleType, person.isManager))
     .sort((first, second) => first.name.localeCompare(second.name, "pt-BR")),
   [people]);
-  const planViews = useMemo(() => buildPortfolioPlanViews(revenuePlans, customers), [customers]);
+  const planViews = useMemo(
+    () => buildPortfolioPlanViews(revenuePlans, customers, people, targetAllocations, studioTargetAllocations, portfolioYear),
+    [customers, people, portfolioYear, studioTargetAllocations, targetAllocations],
+  );
 
   const filteredPlans = useMemo(() => planViews.filter((plan) =>
     (!directorId || plan.directorIds.includes(directorId))
@@ -178,12 +183,13 @@ export function CustomerPortfolioManagement() {
           </p>
         </div>
         <div className="overflow-x-auto">
-          <Table className="min-w-[1280px]">
+          <Table className="min-w-[1440px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Cliente</TableHead>
                 <TableHead>Diretor Responsável</TableHead>
-                <TableHead>Manager Responsável</TableHead>
+                <TableHead>Delivery/Farmer</TableHead>
+                <TableHead>Hunter / Comercial</TableHead>
                 <TableHead>Receita Atual</TableHead>
                 <TableHead>Meta Prevista</TableHead>
                 <TableHead>Receita Hunter</TableHead>
@@ -209,7 +215,14 @@ export function CustomerPortfolioManagement() {
                     <div className="flex max-w-64 flex-wrap gap-1">
                       {plan.managerIds.length
                         ? plan.managerIds.map((id) => <Badge key={id} variant="secondary">{personName(people, id)}</Badge>)
-                        : <span className="text-slate-400">Sem manager definido</span>}
+                        : <span className="text-slate-400">Sem Delivery/Farmer definido</span>}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex max-w-64 flex-wrap gap-1">
+                      {plan.hunterIds.length
+                        ? plan.hunterIds.map((id) => <Badge key={id} className="bg-orange-100 text-orange-800 hover:bg-orange-100">{personName(people, id)}</Badge>)
+                        : <span className="text-slate-400">Sem Hunter definido</span>}
                     </div>
                   </TableCell>
                   <MoneyCell value={plan.revenueCurrent} />
@@ -276,20 +289,77 @@ function groupByManager(plans: PortfolioPlanView[], managers: Person[]) {
   })).filter((item) => item.revenueTarget > 0).sort((a, b) => b.revenueTarget - a.revenueTarget);
 }
 
-function buildPortfolioPlanViews(plans: RevenuePlan[], customers: Customer[]): PortfolioPlanView[] {
+function buildPortfolioPlanViews(
+  plans: RevenuePlan[],
+  customers: Customer[],
+  people: Person[],
+  targetAllocations: Array<{ customerId: string; personId: string; type: string; year: number; amount: number }>,
+  studioTargetAllocations: Array<{ customerId: string; hunterPersonId?: string; year: number; hunterAmount: number }>,
+  year: number,
+): PortfolioPlanView[] {
   const customersByName = new Map(customers.map((customer) => [normalizeName(customer.name), customer]));
+  const peopleById = new Map(people.map((person) => [person.id, person]));
 
   return plans.map((plan) => {
     const sourceCustomers = plan.sourceCustomerNames
       .map((name) => customersByName.get(normalizeName(name)))
       .filter((customer): customer is Customer => Boolean(customer));
-    const directorIds = unique(sourceCustomers.map((customer) => customer.directorResponsibleId));
-    const managerIds = unique(sourceCustomers.flatMap((customer) => customer.managerResponsibleIds));
+    const sourceCustomerIds = sourceCustomers.map((customer) => customer.id);
+    const directlyLinkedPeople = people.filter((person) =>
+      person.active
+      && sourceCustomerIds.some((customerId) => person.clientIds.includes(customerId))
+    );
+    const managerIds = unique([
+      ...sourceCustomers.flatMap((customer) => customer.managerResponsibleIds),
+      ...directlyLinkedPeople
+        .filter((person) => isCustomerManagerProfile(person.roleType, person.isManager) || isFarmerDeliveryTargetRole(person.roleType))
+        .map((person) => person.id),
+      ...targetAllocations
+        .filter((allocation) =>
+          sourceCustomerIds.includes(allocation.customerId)
+          && allocation.year === year
+          && allocation.type === "farmer_renewal"
+          && allocation.amount > 0
+        )
+        .map((allocation) => allocation.personId),
+    ]).filter((id) => {
+      const person = peopleById.get(id);
+      return Boolean(person?.active && (isCustomerManagerProfile(person.roleType, person.isManager) || isFarmerDeliveryTargetRole(person.roleType)));
+    });
+    const hunterIds = unique([
+      ...directlyLinkedPeople.filter((person) => isHunterRole(person.roleType)).map((person) => person.id),
+      ...targetAllocations
+        .filter((allocation) =>
+          sourceCustomerIds.includes(allocation.customerId)
+          && allocation.year === year
+          && allocation.type === "hunter"
+          && allocation.amount > 0
+        )
+        .map((allocation) => allocation.personId),
+      ...studioTargetAllocations
+        .filter((allocation) =>
+          sourceCustomerIds.includes(allocation.customerId)
+          && allocation.year === year
+          && allocation.hunterPersonId
+          && allocation.hunterAmount > 0
+        )
+        .map((allocation) => allocation.hunterPersonId as string),
+    ]).filter((id) => {
+      const person = peopleById.get(id);
+      return Boolean(person?.active && isHunterRole(person.roleType));
+    });
+    const directorIds = unique([
+      ...sourceCustomers.map((customer) => customer.directorResponsibleId),
+      ...[...managerIds, ...hunterIds]
+        .map((personId) => peopleById.get(personId)?.directorId)
+        .filter((id): id is string => Boolean(id)),
+    ]);
 
     return {
       ...plan,
       directorIds,
       managerIds,
+      hunterIds,
     };
   });
 }

@@ -180,9 +180,13 @@
   no componente de Área/Studio.
 - O módulo Portfólio de Clientes renderiza a carga importada da planilha
   Financial BU.
-- O módulo Portfólio de Clientes exibe Cliente, Diretor Responsável, Manager
-  Responsável, Receita Atual, Meta Prevista, Receita Hunter, Receita
-  Delivery/Farmer e Áreas / Studios quando aplicável.
+- O módulo Portfólio de Clientes exibe Cliente, Diretor Responsável,
+  Delivery/Farmer, Hunter / Comercial, Receita Atual, Meta Prevista, Receita
+  Hunter, Receita Delivery/Farmer e Áreas / Studios quando aplicável.
+- A lista Delivery/Farmer e Hunter / Comercial do Portfólio considera todos os
+  clientes-fonte do cluster e deriva participantes de `person_customer_assignments`,
+  metas de pessoa e alocações de Studio, não apenas do campo de manager
+  responsável do cadastro do cliente.
 - O módulo Portfólio de Clientes apresenta dashboards por Diretor, Manager e
   Cluster de Cliente.
 - O módulo Portfólio de Clientes compara Receita Atual e Meta Prevista por

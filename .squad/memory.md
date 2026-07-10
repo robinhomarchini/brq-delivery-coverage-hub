@@ -6,6 +6,11 @@ Regularizar Studio Manutenção/Renovação com responsável Farmer/Delivery exp
 
 ## Execution Checklist
 
+- [x] Criar roteador local `.ai/router` para classificar tarefas, selecionar contexto enxuto e preservar escalonamento para Codex.
+- [x] Adicionar memória estável em `.ai/memory` sem segredos nem histórico temporário.
+- [x] Adicionar prompts locais, README, tasks VS Code e scripts `ai:route`, `ai:context`, `test:ai-router`.
+- [x] Garantir fallback determinístico quando Ollama/local model estiver indisponível.
+- [x] Bloquear regressões com testes de override crítico, fallback local, limite de arquivos, path Supabase/migration, UNKNOWN escalation e não persistência de segredos.
 - [x] Corrigir Metas por Pessoa para incorporar Studio Manutenção não-PX quando `maintenancePersonId` estiver explicitamente declarado, mesmo que o papel cadastral da pessoa ainda esteja desatualizado.
 - [x] Corrigir Clientes para não marcar "Acima da meta" quando a Renovação/Ampliação vem de Studio Manutenção elegível herdado por pessoa.
 - [x] Ajustar Relatório de Metas/Planilha oficial para não jogar Studio Manutenção explicitamente atribuído no bloco final de Studios.

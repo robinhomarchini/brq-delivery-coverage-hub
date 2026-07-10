@@ -1,0 +1,70 @@
+critical:
+  keywords:
+    - migration
+    - schema
+    - database
+    - supabase
+    - rls
+    - rpc
+    - auth
+    - authentication
+    - authorization
+    - role
+    - permission
+    - target
+    - baseline
+    - revenue
+    - transaction
+    - production
+    - security
+    - financial source of truth
+    - customer_target_years
+    - board_target_baselines
+    - hunter targets
+    - renewal
+    - expansion
+    - areas
+    - studios
+
+standard:
+  keywords:
+    - component
+    - navigation
+    - dashboard
+    - report
+    - export
+    - repository
+    - hook
+    - refactor
+    - performance
+    - ux
+
+local:
+  keywords:
+    - summarize
+    - locate
+    - list files
+    - explain log
+    - classify
+    - generate checklist
+    - condense
+    - stable facts
+    - duplicated code
+
+project:
+  critical_paths:
+    - supabase/migrations
+    - src/lib/repositories
+    - src/lib/auth
+    - src/server/auth
+    - src/lib/access-control
+    - src/lib/access-context
+  excluded_paths:
+    - .git
+    - .next
+    - .npm-cache
+    - .vercel
+    - node_modules
+    - supabase/.temp
+    - package-lock.json
+    - tsconfig.tsbuildinfo

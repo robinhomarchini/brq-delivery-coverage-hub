@@ -19,7 +19,10 @@
     "security:check": "node scripts/security-check.mjs",
     "security:pentest-lite": "node scripts/pentest-lite.mjs",
     "audit:background": "powershell -ExecutionPolicy Bypass -File scripts/audit-background.ps1",
-    "db:migrations:check": "node scripts/check-supabase-migration-history.mjs"
+    "db:migrations:check": "node scripts/check-supabase-migration-history.mjs",
+    "ai:route": "tsx .ai/router/task-router.ts",
+    "ai:context": "tsx .ai/router/context-selector.ts",
+    "test:ai-router": "tsx .ai/router/task-router.test.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
@@ -49,6 +52,7 @@
     "eslint-config-next": "^16.2.9",
     "postcss": "^8.5.15",
     "tailwindcss": "^3.4.18",
+    "tsx": "^4.23.0",
     "typescript": "^5.9.3"
   },
   "overrides": {
