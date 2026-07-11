@@ -1,5 +1,5 @@
 import type { Customer, Person } from "@/data/mockData";
-import { isCustomerManagerProfile } from "@/lib/roles";
+import { isCustomerFarmerResponsibleProfile } from "@/lib/roles";
 
 export type CoverageAssignment = {
   personId: string;
@@ -32,7 +32,7 @@ export function applyCoverageAssignments(
   const customerIdsByPerson = new Map<string, string[]>();
   const managerIdsByCustomer = new Map<string, string[]>();
   const managerIds = new Set(people
-    .filter((person) => isCustomerManagerProfile(person.roleType, person.isManager))
+    .filter((person) => isCustomerFarmerResponsibleProfile(person.roleType, person.isManager))
     .map((person) => person.id));
 
   for (const assignment of assignments) {
@@ -59,7 +59,7 @@ export function applyCoverageAssignments(
 }
 
 export function syncCustomersForPerson(customers: Customer[], person: Person) {
-  if (!isCustomerManagerProfile(person.roleType, person.isManager)) return customers;
+  if (!isCustomerFarmerResponsibleProfile(person.roleType, person.isManager)) return customers;
   const selectedCustomerIds = new Set(person.clientIds);
 
   return customers.map((customer) => {
@@ -79,7 +79,7 @@ export function syncCustomersForPerson(customers: Customer[], person: Person) {
 export function syncPeopleFromCustomers(people: Person[], customers: Customer[]) {
   const customerIdsByManager = new Map<string, string[]>();
   const managerIds = new Set(people
-    .filter((person) => isCustomerManagerProfile(person.roleType, person.isManager))
+    .filter((person) => isCustomerFarmerResponsibleProfile(person.roleType, person.isManager))
     .map((person) => person.id));
 
   for (const customer of customers) {
@@ -91,7 +91,7 @@ export function syncPeopleFromCustomers(people: Person[], customers: Customer[])
   }
 
   return people.map((person) => {
-    if (!isCustomerManagerProfile(person.roleType, person.isManager)) return person;
+    if (!isCustomerFarmerResponsibleProfile(person.roleType, person.isManager)) return person;
     const nextClientIds = customerIdsByManager.get(person.id) ?? [];
     return areArraysEqual(person.clientIds, nextClientIds)
       ? person

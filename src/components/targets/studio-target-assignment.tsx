@@ -650,8 +650,10 @@ function buildReconciliation(customers: Customer[], areas: Area[], allocations: 
       const customerAllocations = allocations.filter((allocation) => allocation.customerId === customer.id);
       const allocatedHunter = roundCurrency(customerAllocations.reduce((total, allocation) => total + allocation.hunterAmount, 0));
       const allocatedMaintenance = roundCurrency(customerAllocations.reduce((total, allocation) => total + allocation.maintenanceAmount, 0));
-      const hunterDifference = roundCurrency(customer.studioHunterTarget - allocatedHunter);
-      const maintenanceDifference = roundCurrency(customer.studioTarget - allocatedMaintenance);
+      const targetHunter = Math.max(customer.studioHunterTarget, allocatedHunter);
+      const targetMaintenance = Math.max(customer.studioTarget, allocatedMaintenance);
+      const hunterDifference = roundCurrency(targetHunter - allocatedHunter);
+      const maintenanceDifference = roundCurrency(targetMaintenance - allocatedMaintenance);
       const areaIds = customerAllocations.map((allocation) => allocation.areaId);
       const overTotal = Math.max(0, -hunterDifference) + Math.max(0, -maintenanceDifference);
       const hunterNotDetailed = Math.max(0, hunterDifference);
@@ -659,8 +661,8 @@ function buildReconciliation(customers: Customer[], areas: Area[], allocations: 
       return {
         customerId: customer.id,
         customerName: customer.name,
-        targetHunter: customer.studioHunterTarget,
-        targetMaintenance: customer.studioTarget,
+        targetHunter,
+        targetMaintenance,
         allocatedHunter,
         allocatedMaintenance,
         openHunter: Math.max(0, hunterDifference),
@@ -672,7 +674,7 @@ function buildReconciliation(customers: Customer[], areas: Area[], allocations: 
         overTotal,
         areaIds,
         areaNames: Array.from(new Set(areaIds.map((id) => areasById.get(id) ?? id))).sort((a, b) => a.localeCompare(b, "pt-BR")),
-        status: customer.studioHunterTarget <= 0 && customer.studioTarget <= 0 && allocatedHunter <= 0 && allocatedMaintenance <= 0
+        status: targetHunter <= 0 && targetMaintenance <= 0 && allocatedHunter <= 0 && allocatedMaintenance <= 0
           ? "empty" as const
           : overTotal > 0.01
             ? "over" as const

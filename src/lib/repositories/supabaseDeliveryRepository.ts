@@ -27,7 +27,7 @@ import {
   buildAssignmentsFromCoverage,
   type CoverageAssignment,
 } from "@/lib/coverage-sync";
-import { isCustomerManagerProfile, isHunterRole, isTargetAssignableRole } from "@/lib/roles";
+import { isCustomerFarmerResponsibleProfile, isCustomerManagerProfile, isHunterRole, isTargetAssignableRole } from "@/lib/roles";
 import { normalizeBusinessName } from "@/lib/utils";
 import { OTHER_DIRECTOR_ID, OTHER_DIRECTOR_NAME } from "@/lib/director-governance";
 import { getEligibleStudioRenewalAmountForPerson, getTargetOwnAmount } from "@/lib/studio-renewal-rollup";
@@ -306,6 +306,12 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
   async saveStudioTargetAllocation(allocation: StudioTargetAllocation) {
     const validated = validateStudioTargetAllocation(allocation);
     const row = toStudioTargetAllocationRow(validated);
+    const { data: existingById, error: existingByIdError } = await this.client
+      .from("studio_target_allocations")
+      .select("id, hunter_person_id, maintenance_person_id")
+      .eq("id", validated.id)
+      .maybeSingle();
+    if (existingByIdError) throw existingByIdError;
     let lookup = this.client
       .from("studio_target_allocations")
       .select("id, hunter_person_id, maintenance_person_id")
@@ -318,8 +324,9 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
     lookup = validated.maintenancePersonId
       ? lookup.eq("maintenance_person_id", validated.maintenancePersonId)
       : lookup.is("maintenance_person_id", null);
-    const { data: existing, error: lookupError } = await lookup.maybeSingle();
+    const { data: existingByGrain, error: lookupError } = await lookup.maybeSingle();
     if (lookupError) throw lookupError;
+    const existing = existingById ?? existingByGrain;
     if (existing?.id) row.id = existing.id;
 
     const { error } = await this.client.from("studio_target_allocations").upsert(row);
@@ -594,10 +601,10 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
   }
 
   private async replaceCustomerManagerAssignments(customerId: string, managerIds: string[]) {
-    const { data, error: peopleError } = await this.client.from("people").select("*").eq("is_manager", true);
+    const { data, error: peopleError } = await this.client.from("people").select("*");
     if (peopleError) throw peopleError;
     const currentManagerIds = (data as PersonRow[])
-      .filter((row) => isCustomerManagerProfile(row.role_type as RoleType, row.is_manager))
+      .filter((row) => isCustomerFarmerResponsibleProfile(row.role_type as RoleType, row.is_manager))
       .map((row) => row.id);
 
     if (currentManagerIds.length) {

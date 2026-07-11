@@ -43,6 +43,10 @@ export function isCustomerManagerProfile(role: RoleType, isManager: boolean) {
   return isManager && isTargetAssignableRole(role);
 }
 
+export function isCustomerFarmerResponsibleProfile(role: RoleType, isManager: boolean) {
+  return isCustomerManagerProfile(role, isManager) || isFarmerDeliveryTargetRole(role);
+}
+
 export function isFarmerDeliveryTargetRole(role: RoleType) {
   return role === "Farmer + Delivery"
     || role === "Delivery"

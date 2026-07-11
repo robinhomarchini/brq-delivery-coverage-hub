@@ -54,6 +54,47 @@ export async function runDeliveryRepositoryContractTests({
     assert(assignedHunter?.clientIds.includes(customer.id), "Saving Hunter target should create the person/customer assignment.");
   });
 
+  await runContractTest(providerName, "saveCustomer accepts Farmer/Delivery responsible people even when isManager is stale", async () => {
+    const repository = await createRepository();
+    const data = await repository.getAll();
+    const customer = data.customers[0];
+    const area = data.areas[0];
+
+    assert(customer, "Contract test requires at least one customer fixture.");
+    assert(area, "Contract test requires at least one area fixture.");
+
+    const farmer: Person = {
+      id: `contract-responsible-farmer-${customer.id}`,
+      name: "Contract Responsible Farmer",
+      email: `contract-responsible-farmer-${customer.id}@brq.com`,
+      jobTitle: "Farmer",
+      directorId: undefined,
+      managerId: undefined,
+      roleType: "Farmer",
+      areaId: area.id,
+      clientIds: [],
+      photoUrl: undefined,
+      notes: undefined,
+      active: true,
+      lifecycleStatus: "active",
+      closedAt: undefined,
+      closedReason: undefined,
+      isManager: false,
+      hierarchyLevel: 3,
+    };
+
+    await repository.savePerson(farmer);
+    const nextData = await repository.saveCustomer({
+      ...customer,
+      managerResponsibleIds: [farmer.id],
+    }, 2026);
+
+    const savedCustomer = nextData.customers.find((item) => item.id === customer.id);
+    const savedFarmer = nextData.people.find((item) => item.id === farmer.id);
+    assert(savedCustomer?.managerResponsibleIds.includes(farmer.id), "Customer should include the Farmer responsible person.");
+    assert(savedFarmer?.clientIds.includes(customer.id), "Farmer responsible person should include the customer assignment.");
+  });
+
   await runContractTest(providerName, "saveStudioTargetAllocation preserves own Hunter and refreshes current Hunter total", async () => {
     const repository = await createRepository();
     const { area, customer, hunter } = await seedHunter(repository);

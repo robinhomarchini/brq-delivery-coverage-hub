@@ -559,6 +559,10 @@ Na grade de alocações por Área/Studio, Studio Hunter e Studio Manutenção de
 aparecer visualmente segregados por tipo. Studio Hunter deve indicar que soma no
 total do Hunter; Studio Manutenção deve indicar que, exceto PX, soma na meta
 Renovação + Ampliação do Farmer/Delivery associado, sem somar no Hunter.
+Na conciliação de Metas por Área/Studio, se o detalhamento alocado por Studio já
+superar a meta-base antiga do cliente, a tela deve considerar o detalhamento
+como alvo efetivo exibido para evitar status "Acima" falso após edição da
+própria abertura.
 Ao abrir um cliente na conciliação por duplo clique ou pelo botão Alocar, se
 houver mais de uma alocação candidata para o cliente/ano, a tela deve mostrar
 uma etapa intermediária com todas as combinações Área/Studio + Hunter + valores.
@@ -761,6 +765,10 @@ Regras do cadastro de Metas:
   automaticamente como `isManager` para fins de governança Delivery; os demais
   perfis comerciais podem receber metas e clientes para reporting, mas não viram
   Manager responsável do cliente.
+- Na tela de Cliente, o seletor de responsáveis Farmer/Delivery deve aceitar
+  pessoas ativas com perfil operacional elegível para renovação, incluindo
+  Farmer, Delivery, Farmer + Delivery e Hunter + Farmer, mesmo quando o campo
+  legado `isManager` ainda não estiver regularizado.
 - O e-mail de Pessoa é opcional e, quando ausente, deve ser persistido como
   `null`.
 - Para perfis Hunter e Hunter + Farmer, a lista de clientes deve permitir

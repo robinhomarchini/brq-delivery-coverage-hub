@@ -247,7 +247,7 @@ Regularizar Studio Manutenção/Renovação com responsável Farmer/Delivery exp
 
 ## Next Pending Step
 
-Próximo passo: publicar e validar em produção que Metas por Área/Studio aceita casas decimais nos campos Valor Hunter e Valor Manutenção/Renovação, por exemplo `1.234,56`, sem arredondar centavos.
+Próximo passo: publicar e validar em produção que a tela Cliente permite associar Farmers/Delivery ativos ao cliente ZURICH e que a conciliação de Metas por Área/Studio do CSF usa o detalhamento alocado como alvo efetivo quando ele supera a meta-base antiga.
 
 ## Discovered Commands
 
@@ -294,7 +294,7 @@ Próximo passo: publicar e validar em produção que Metas por Área/Studio acei
 - Worktree costuma estar suja; nao reverter alteracoes nao feitas pelo agente.
 - Supabase CLI deve usar cache local `.npm-cache`; evitar `npx --no-install supabase`.
 - Distinguir falhas de cache/rede/telemetria/autenticacao CLI de drift real de schema.
-- `npm run db:migrations:check` roda `supabase migration list` via script e pode falhar no sandbox com `LegacyPlatformAuthRequiredError` mesmo quando o CLI escalado esta autenticado. Caminho correto: rerodar o mesmo `npm run db:migrations:check` com `sandbox_permissions: require_escalated`; nao trocar para SQL manual nem migration repair. Em 2026-07-10 a migration `20260710103000_studio_maintenance_responsible_person.sql` aplicou com `npx --cache .npm-cache --yes supabase db push --linked`, e o check escalado confirmou 73 local / 73 remoto.
+- `npm run db:migrations:check` roda `supabase migration list` via script e pode falhar no sandbox com `LegacyPlatformAuthRequiredError` mesmo quando o CLI escalado esta autenticado. Caminho correto: rerodar o mesmo `npm run db:migrations:check` com `sandbox_permissions: require_escalated`; nao trocar para SQL manual nem migration repair. Em 2026-07-10 as migrations `20260710103000_studio_maintenance_responsible_person.sql` e `20260710195500_allow_farmer_delivery_customer_responsibles.sql` aplicaram com `npx --cache .npm-cache --yes supabase db push --linked`, e o check escalado confirmou 74 local / 74 remoto.
 - Nao hardcodar pessoas, clientes, managers, hunters, areas, studios ou owners em UI.
 - Metas e fatos financeiros precisam de periodo/ano e grao explicito.
 - Studio Hunter nao deve ser duplicado como meta direta da pessoa. `revenue_target_allocations.own_amount` guarda a Meta propria Hunter/Farmer editavel; `revenue_target_allocations.amount` guarda a Meta atual derivada como propria + Studio Hunter ou Studio Manutencao/Renovacao elegivel. Studio PX nao entra na meta Farmer/Delivery.
@@ -306,6 +306,8 @@ Próximo passo: publicar e validar em produção que Metas por Área/Studio acei
 - Em telas operacionais de metas, filtros de contexto, totais e acoes de inclusao devem ficar agrupados no mesmo painel para reduzir zigue-zague visual.
 - Hunter Especializado e um papel gerencial cross. Ele nao tem `own_amount`, nao recebe `revenue_target_allocations` e nao altera totais oficiais; seu relatorio deriva apenas das linhas selecionadas em `specialist_hunter_studio_assignments`, que apontam para `studio_target_allocations`.
 - Na tela Clientes, Studio Manutencao cobre a leitura de Renovacao/Manutencao para fins de pessoa e nao deve gerar linha "Abaixo da meta sem pessoa alocada"; eventuais diferencas ficam na conciliacao de Areas/Studios.
+- Na tela Clientes, o seletor de responsaveis Farmer/Delivery deve usar pessoas ativas com perfil operacional elegivel (`Farmer + Delivery`, `Delivery`, `Farmer`, `Hunter + Farmer`) mesmo quando o legado `isManager` estiver desatualizado. A RPC `save_customer_with_managers_and_targets` continua exigindo `can_write_delivery_hardening()`.
+- Na tela Metas por Area/Studio, quando a soma detalhada alocada supera a meta-base antiga do cliente, a conciliacao usa o detalhamento como alvo efetivo exibido para nao marcar "Acima" falso apos edicao da abertura.
 - `studio_target_allocations.hunterPersonId` e uma associacao operacional relevante para visibilidade. Se a linha tiver valor Hunter ou Manutencao, a pessoa associada deve aparecer nas telas; apenas `hunterAmount` soma no total Hunter. Quando `hunterPersonId` estiver vazio, o Hunter efetivo e o Hunter principal do Cliente.
 - Em mobile, fluxos operacionais complexos devem ficar inibidos/consulta simples conforme spec.
 - Antes de deploy em fluxos de cliente/pessoa/meta, rodar `npm run smoke:critical`.

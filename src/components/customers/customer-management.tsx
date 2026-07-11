@@ -25,7 +25,7 @@ import { isHunterConsultAccess, normalizeAccessEmail } from "@/lib/access-contro
 import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears } from "@/lib/customer-targets";
 import { getFinancialCustomerMetric } from "@/lib/financial-customers";
 import { formatPercentPtBr, targetMarginPercent } from "@/lib/financial-targets";
-import { isCustomerManagerProfile, isHunterRole, isTargetAssignableRole } from "@/lib/roles";
+import { isCustomerFarmerResponsibleProfile, isHunterRole, isTargetAssignableRole } from "@/lib/roles";
 import { formatCurrency, makeId } from "@/lib/utils";
 import { useCloseOnNavigation } from "@/lib/use-close-on-navigation";
 import { displayDirectorName, OTHER_DIRECTOR_ID, OTHER_DIRECTOR_NAME } from "@/lib/director-governance";
@@ -201,7 +201,7 @@ export function CustomerManagement() {
     return [...activeDirectors, makeOtherDirectorOption()];
   }, [people]);
   const managers = useMemo(() => people
-    .filter((person) => person.active && isCustomerManagerProfile(person.roleType, person.isManager))
+    .filter((person) => person.active && isCustomerFarmerResponsibleProfile(person.roleType, person.isManager))
     .sort((first, second) => first.name.localeCompare(second.name)),
   [people]);
   const hunters = useMemo(() => people
@@ -633,7 +633,7 @@ export function CustomerManagement() {
             <Field label="Nome do cliente"><Input name="name" value={formName} onChange={(event) => setFormName(event.target.value)} onBlur={(event) => applyCustomerRules(event.target.value)} maxLength={160} required /></Field>
             <Field label="Indústria"><Input name="industry" defaultValue={linkedEditing?.industry ?? "Financial Services"} maxLength={120} required /></Field>
             <Field label="Diretor responsável"><Select name="directorResponsibleId" value={formDirectorId} onChange={(event) => setFormDirectorId(event.target.value)} required><option value="">Selecione</option>{directors.map((item) => <option key={item.id} value={item.id}>{displayDirectorName(item.name)}</option>)}</Select></Field>
-            <Field label="Managers responsáveis" className="md:col-span-2">
+            <Field label="Farmers / Delivery responsáveis" className="md:col-span-2">
               <DualListSelector
                 items={managers.map((item) => ({
                   id: item.id,
@@ -642,14 +642,14 @@ export function CustomerManagement() {
                 }))}
                 selectedIds={formManagerIds}
                 onChange={setFormManagerIds}
-                availableTitle="Managers disponíveis"
-                selectedTitle="Managers selecionados"
-                availableSearchPlaceholder="Buscar manager disponível"
-                selectedSearchPlaceholder="Buscar manager selecionado"
-                emptyAvailableMessage="Todos os managers de Delivery já foram selecionados."
-                emptySelectedMessage="Nenhum manager selecionado."
+                availableTitle="Farmers / Delivery disponíveis"
+                selectedTitle="Farmers / Delivery selecionados"
+                availableSearchPlaceholder="Buscar farmer/delivery disponível"
+                selectedSearchPlaceholder="Buscar farmer/delivery selecionado"
+                emptyAvailableMessage="Todos os farmers/delivery já foram selecionados."
+                emptySelectedMessage="Nenhum farmer/delivery selecionado."
               />
-              <span className="mt-1 block text-xs text-slate-400">Mova um ou mais managers para a lista de selecionados. Nenhuma pessoa é incluída por padrão.</span>
+              <span className="mt-1 block text-xs text-slate-400">Mova um ou mais responsáveis para a lista de selecionados. Nenhuma pessoa é incluída por padrão.</span>
             </Field>
             <Field label="Hunter responsável">
               <Select value={formHunterId} onChange={(event) => setFormHunterId(event.target.value)}>
@@ -1714,7 +1714,7 @@ function getCustomerTargetPeopleByType(
       && (type === "hunter"
         ? isHunterRole(person.roleType)
         : type === "farmer_renewal"
-          ? isCustomerManagerProfile(person.roleType, person.isManager)
+          ? isCustomerFarmerResponsibleProfile(person.roleType, person.isManager)
           : isTargetAssignableRole(person.roleType))
     )
     .forEach((person) => {

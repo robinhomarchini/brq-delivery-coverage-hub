@@ -10,7 +10,7 @@ import {
   buildAssignmentsFromCoverage,
   type CoverageAssignment,
 } from "@/lib/coverage-sync";
-import { isCustomerManagerProfile, isHunterRole, isTargetAssignableRole } from "@/lib/roles";
+import { isCustomerFarmerResponsibleProfile, isCustomerManagerProfile, isHunterRole, isTargetAssignableRole } from "@/lib/roles";
 import { normalizeBusinessName } from "@/lib/utils";
 import { getEligibleStudioRenewalAmountForPerson, getTargetOwnAmount } from "@/lib/studio-renewal-rollup";
 
@@ -103,7 +103,7 @@ export class LocalDeliveryRepository implements DeliveryRepository {
     customer = validateCustomer(customer);
     ensureUniqueCustomerName(this.data.customers, customer);
     const managerIds = new Set(this.data.people
-      .filter((person) => isCustomerManagerProfile(person.roleType, person.isManager))
+      .filter((person) => isCustomerFarmerResponsibleProfile(person.roleType, person.isManager))
       .map((person) => person.id));
     const nextManagerIds = new Set(customer.managerResponsibleIds);
     const removedManagerIds = new Set(Array.from(managerIds).filter((personId) => !nextManagerIds.has(personId)));
@@ -183,13 +183,15 @@ export class LocalDeliveryRepository implements DeliveryRepository {
 
   async saveStudioTargetAllocation(allocation: StudioTargetAllocation) {
     allocation = validateStudioTargetAllocation(allocation);
-    const existing = this.data.studioTargetAllocations.find((item) =>
+    const existingById = this.data.studioTargetAllocations.find((item) => item.id === allocation.id);
+    const existingByGrain = this.data.studioTargetAllocations.find((item) =>
       item.customerId === allocation.customerId
       && item.areaId === allocation.areaId
       && (item.hunterPersonId ?? "") === (allocation.hunterPersonId ?? "")
       && (item.maintenancePersonId ?? "") === (allocation.maintenancePersonId ?? "")
       && item.year === allocation.year
     );
+    const existing = existingById ?? existingByGrain;
     const nextAllocation = {
       ...allocation,
       id: existing?.id ?? allocation.id,
