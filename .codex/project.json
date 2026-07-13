@@ -81,6 +81,7 @@
   "routines": {
     "before_change": [
       "arquiteto",
+      "reuse-componentization-reviewer",
       "domain-modeling",
       "database",
       "qa"
@@ -97,9 +98,9 @@
       "domain-modeling",
       "arquiteto",
       "database",
+      "reuse-componentization-reviewer",
       "executor",
       "ux-quality-reviewer",
-      "reuse-componentization-reviewer",
       "security",
       "database-performance-reviewer",
       "qa"

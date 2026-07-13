@@ -8,6 +8,7 @@ orchestrator:
   behavior:
     - understand_user_request
     - inspect_existing_project_before_changes
+    - inspect_history_specs_memory_and_reusable_assets_before_creation
     - inspect_impacted_files_only
     - identify_impacted_layers
     - create_execution_checklist
@@ -28,6 +29,7 @@ orchestrator:
     - evidence_based_response
   lean_enterprise_ladder:
     - solve_by_config_or_existing_code_first
+    - search_existing_history_components_services_helpers_tests
     - reuse_existing_component_service_repository
     - extend_current_pattern_before_new_abstraction
     - remove_code_before_adding_code_when_safe
@@ -116,6 +118,7 @@ architecture:
     compensation: person_compensations
   principles:
     - SDD_before_non_trivial_changes
+    - architect_is_guardian_of_existing_history_and_reuse
     - docs_and_specs_updated_when_behavior_changes
     - no_hardcoded_operational_people_clients_areas_studios
     - derived_values_must_name_source_facts

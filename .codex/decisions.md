@@ -77,3 +77,24 @@ Regras derivadas:
 - planilhas de baseline devem comparar primeiro e atualizar apenas itens
   confirmados pelo usuario.
 
+## 2026-07-13 - Arquiteto como guardiao do existente
+
+Antes de qualquer criacao ou alteracao relevante, o agente `arquiteto` deve
+verificar historico, specs, memoria, decisoes, componentes compartilhados,
+servicos/helpers em `src/lib`, contratos de repositorio e scripts de QA ja
+existentes.
+
+Motivo:
+- evitar que novas funcionalidades recriem logica ja existente;
+- preservar conhecimento acumulado em specs, memoria e decisoes;
+- reduzir duplicacao em telas, relatorios, importadores, rollups e persistencia;
+- criar componentes/helpers novos apenas quando houver reuso concreto ou
+  simplificacao real.
+
+Regras derivadas:
+- `reuse-componentization-reviewer` passa a participar tambem do fluxo
+  `before_change`, nao apenas da revisao final;
+- novas abstracoes devem declarar motivo, consumidores atuais e reuso esperado;
+- quando existir padrao equivalente, preferir extender o padrao atual em vez de
+  criar novo caminho paralelo.
+
