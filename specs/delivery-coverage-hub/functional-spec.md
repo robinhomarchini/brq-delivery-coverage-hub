@@ -589,7 +589,16 @@ linha existente deve ser carregada; se não existir, os valores em edição deve
 ser preservados para mover a alocação ao salvar.
 O modal abre diretamente apenas quando houver zero ou uma alocação candidata.
 
-A rota Insights permite importar uma planilha `.xlsx` de baseline de metas com
+Importações de baselines devem ficar centralizadas na rota Baselines. Insights e
+Comparativo Baseline não devem manter upload próprio de planilhas oficiais; eles
+podem orientar o usuário para a central ou consumir fotos já salvas. A central de
+Baselines separa a Curva de Orçamento/Curva de Vendas principal das origens de
+área/studio, como PX, Alianças, Mobile, Analytics e GENAI. Cada origem pode ter
+layout de planilha próprio. Grupo visual da planilha não é conceito de domínio:
+para baselines por área/studio, valem Cliente, tipo de receita
+Manutenção/Renovação ou Novo/Hunter, valor e a origem selecionada.
+
+A rota Baselines permite importar uma planilha `.xlsx` de baseline de metas com
 as colunas Cliente, BU, Target RL Hunter, Target RL Farmer e Total RL 2026,
 aceitando uma coluna opcional de `resp` e uma coluna opcional de Áreas /
 Studios. A importação não sobrescreve a base automaticamente. Primeiro o sistema
@@ -642,10 +651,12 @@ trabalho "Board vs Cadastro" e "Baseline de Studios", sem exigir rolagem para
 descobrir uma funcionalidade principal. Cada área deve manter seus próprios
 controles, KPIs e exportações.
 
-A mesma rota também permite importar uma planilha temporária de baseline de
-Studios no layout `SU`, `Torre`, `Grupo Cliente`, `Studio/Habilitador`,
-`Tipo Opp` e `Receita Líquida`. Essa importação é apenas comparativa e não
-sobrescreve dados. O batimento deve mostrar três referências: baseline por
+A rota Baselines também permite importar uma planilha temporária de baseline de
+Studios/Áreas por origem. O layout detalhado usa `SU`, `Torre`, `Grupo Cliente`,
+`Studio/Habilitador`, `Tipo Opp` e `Receita Líquida`; layouts específicos por
+origem podem usar colunas de Cliente, Renovação/Manutenção e
+Novos Projetos/Hunter. Essa importação é apenas comparativa e não sobrescreve
+dados. O batimento deve mostrar três referências: baseline por
 Cliente + Studio vindo da planilha e alocação detalhada em
 `studio_target_allocations` por Cliente + Área/Studio + Hunter + Ano. Essa visão
 não deve comparar contra o total de Studios cadastrado no Cliente. `Tipo Opp`
@@ -659,12 +670,14 @@ Alocações, e colunas de Hunter, Manutenção, Total e Diferença. Divergência
 entre o nome/origem da planilha e o cadastro devem aparecer apenas como
 indicativo contextual de origem quando existirem; quando estiverem consistentes,
 não devem ocupar coluna nem poluir a visualização.
-A visão de Baseline de Studios deve permitir filtro por Status e por Studio. O
+A visão de Baseline de Studios no Comparativo deve consumir a última foto salva
+na central para a origem e ano selecionados, sem permitir upload ou gravação
+local naquela tela. A visão deve permitir filtro por Status e por Studio. O
 texto/coluna de critério deve explicar de forma operacional que `Tipo Opp`
 Novo/Ampliação é Studio Hunter e compara com alocações Hunter, enquanto os
 demais tipos são Manutenção/Renovação e comparam com a manutenção do
 cliente/studio.
-Após importar e calcular o batimento, a tela deve permitir "Salvar foto do
+Após importar e calcular o batimento na central de Baselines, a tela deve permitir "Salvar foto do
 resultado". Essa foto é um snapshot imutável do resultado calculado naquele
 momento, com ano, nome do arquivo, totais e linhas exibidas/exportáveis. Salvar
 a foto não altera metas de cliente, metas de pessoas nem alocações de Studios;

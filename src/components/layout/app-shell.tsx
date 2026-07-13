@@ -10,6 +10,7 @@ import {
   CircleHelp,
   ClipboardList,
   FileSearch,
+  Files,
   GitBranch,
   LayoutDashboard,
   Layers3,
@@ -44,6 +45,7 @@ const navigation = [
   { href: "/metas-studios", label: "Metas por Área/Studio", icon: Layers3 },
   { href: "/metas-hunters-especializados", label: "Metas Hunter Especializado", icon: Target },
   { href: "/relatorio-metas", label: "Relatório de Metas", icon: ClipboardList },
+  { href: "/baselines", label: "Baselines", icon: Files },
   { href: "/comparativo-baseline", label: "Baseline vs Cadastro", icon: FileSearch },
   { href: "/insights", label: "Insights", icon: Bot },
   { href: "/analise-desafio", label: "Análise de Desafio", icon: BrainCircuit, vpOnly: true },
@@ -57,6 +59,7 @@ const mobileAllowedRoutes = new Set([
   "/",
   "/portfolio-clientes",
   "/relatorio-metas",
+  "/baselines",
   "/comparativo-baseline",
   "/ajuda",
 ]);

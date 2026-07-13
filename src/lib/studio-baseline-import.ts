@@ -14,6 +14,17 @@ export interface StudioBaselineRow {
   totalAmount: number;
 }
 
+export type StudioBaselineSourceCode = "studio_general" | "studio_px" | "studio_aliancas" | "studio_mobile" | "studio_analytics" | "studio_genai";
+
+export interface StudioBaselineSource {
+  code: StudioBaselineSourceCode;
+  name: string;
+  defaultStudioName?: string;
+  supportedLayouts: StudioBaselineLayout[];
+}
+
+type StudioBaselineLayout = "detailed-studio" | "wide-customer-values";
+
 export interface StudioBaselineComparisonRow {
   key: string;
   customerName: string;
@@ -33,6 +44,8 @@ export interface StudioBaselineComparisonRow {
 export interface StudioBaselineSnapshot {
   id: string;
   year: number;
+  sourceCode: StudioBaselineSourceCode;
+  sourceName: string;
   fileName: string;
   rows: unknown[];
   totals: Record<string, number>;
@@ -48,13 +61,39 @@ const studioBaselineHeaders = {
   netRevenue: ["receita liquida", "receita líquida", "rl"],
 };
 
-export async function readStudioBaselineWorkbook(file: File): Promise<StudioBaselineRow[]> {
-  const rows = readWorkbookRows(await file.arrayBuffer());
-  return parseStudioBaselineRows(rows);
+const wideStudioBaselineHeaders = {
+  customerName: ["cliente", "grupo cliente", "customer"],
+  maintenanceAmount: ["renovacao / manut", "renovação / manut", "renovacao manut", "renovação manut", "renovacao", "renovação", "manutencao", "manutenção"],
+  hunterAmount: ["novos projetos / hunter", "novos projetos hunter", "novo / hunter", "novo hunter", "hunter"],
+};
+
+export const studioBaselineSources: StudioBaselineSource[] = [
+  { code: "studio_general", name: "Baseline geral de Studios", supportedLayouts: ["detailed-studio"] },
+  { code: "studio_px", name: "Studio PX", defaultStudioName: "PX", supportedLayouts: ["wide-customer-values", "detailed-studio"] },
+  { code: "studio_aliancas", name: "Alianças", defaultStudioName: "Alianças", supportedLayouts: ["wide-customer-values", "detailed-studio"] },
+  { code: "studio_mobile", name: "Mobile", defaultStudioName: "Mobile", supportedLayouts: ["wide-customer-values", "detailed-studio"] },
+  { code: "studio_analytics", name: "Analytics", defaultStudioName: "Analytics", supportedLayouts: ["wide-customer-values", "detailed-studio"] },
+  { code: "studio_genai", name: "GENAI", defaultStudioName: "GENAI", supportedLayouts: ["wide-customer-values", "detailed-studio"] },
+];
+
+export function getStudioBaselineSource(code: string): StudioBaselineSource {
+  return studioBaselineSources.find((source) => source.code === code) ?? studioBaselineSources[0];
 }
 
-export function parseStudioBaselineRows(rows: unknown[][]): StudioBaselineRow[] {
+export async function readStudioBaselineWorkbook(file: File, source: StudioBaselineSource = studioBaselineSources[0]): Promise<StudioBaselineRow[]> {
+  const rows = readWorkbookRows(await file.arrayBuffer());
+  return parseStudioBaselineRows(rows, source);
+}
+
+export function parseStudioBaselineRows(rows: unknown[][], source: StudioBaselineSource = studioBaselineSources[0]): StudioBaselineRow[] {
   if (!rows.length) throw new Error("A planilha de baseline de studios está vazia.");
+  if (source.supportedLayouts.includes("wide-customer-values")) {
+    const wideRows = tryParseWideStudioBaselineRows(rows, source);
+    if (wideRows) return wideRows;
+  }
+  if (!source.supportedLayouts.includes("detailed-studio")) {
+    throw new Error(`Layout da origem ${source.name} ainda não está cadastrado. Inclua as colunas Cliente, Renovação/Manut e Novos Projetos/Hunter ou cadastre o layout específico desta origem.`);
+  }
 
   const headers = rows[0].map((cell) => normalizeHeader(String(cell ?? "")));
   const indexes = {
@@ -101,6 +140,71 @@ export function parseStudioBaselineRows(rows: unknown[][]): StudioBaselineRow[] 
     first.customerName.localeCompare(second.customerName, "pt-BR")
     || first.studioName.localeCompare(second.studioName, "pt-BR")
   );
+}
+
+function tryParseWideStudioBaselineRows(rows: unknown[][], source: StudioBaselineSource): StudioBaselineRow[] | null {
+  const headerRowIndex = rows.findIndex((row) => {
+    const headers = row.map((cell) => normalizeHeader(String(cell ?? "")));
+    return findOptionalHeaderIndex(headers, wideStudioBaselineHeaders.maintenanceAmount) >= 0
+      && findOptionalHeaderIndex(headers, wideStudioBaselineHeaders.hunterAmount) >= 0;
+  });
+  if (headerRowIndex < 0) return null;
+
+  const headerRow = rows[headerRowIndex].map((cell) => normalizeHeader(String(cell ?? "")));
+  const maintenanceIndex = findOptionalHeaderIndex(headerRow, wideStudioBaselineHeaders.maintenanceAmount);
+  const hunterIndex = findOptionalHeaderIndex(headerRow, wideStudioBaselineHeaders.hunterAmount);
+  const explicitCustomerIndex = findOptionalHeaderIndex(headerRow, wideStudioBaselineHeaders.customerName);
+  const customerIndex = explicitCustomerIndex >= 0 ? explicitCustomerIndex : findWideCustomerColumnIndex(rows, headerRowIndex, maintenanceIndex, hunterIndex);
+  if (customerIndex < 0) throw new Error("Coluna de Cliente não encontrada na planilha de baseline.");
+
+  const grouped = new Map<string, StudioBaselineRow>();
+  rows.slice(headerRowIndex + 1).forEach((row, offset) => {
+    const customerName = String(row[customerIndex] ?? "").trim();
+    if (!customerName || isWideGroupRow(customerName)) return;
+
+    const maintenanceAmount = parseAmount(row[maintenanceIndex]);
+    const hunterAmount = parseAmount(row[hunterIndex]);
+    if (maintenanceAmount <= 0 && hunterAmount <= 0) return;
+
+    const studioName = source.defaultStudioName ?? source.name;
+    const key = `${normalizeBusinessName(customerName)}:${normalizeBusinessName(studioName)}`;
+    const current = grouped.get(key) ?? {
+      rowNumber: headerRowIndex + offset + 2,
+      salesUnit: source.name,
+      tower: source.name,
+      customerName,
+      studioName,
+      opportunityType: "Baseline centralizado",
+      hunterAmount: 0,
+      maintenanceAmount: 0,
+      totalAmount: 0,
+    };
+
+    current.hunterAmount = roundCurrency(current.hunterAmount + hunterAmount);
+    current.maintenanceAmount = roundCurrency(current.maintenanceAmount + maintenanceAmount);
+    current.totalAmount = roundCurrency(current.hunterAmount + current.maintenanceAmount);
+    grouped.set(key, current);
+  });
+
+  return Array.from(grouped.values()).sort((first, second) =>
+    first.customerName.localeCompare(second.customerName, "pt-BR")
+    || first.studioName.localeCompare(second.studioName, "pt-BR")
+  );
+}
+
+function findWideCustomerColumnIndex(rows: unknown[][], headerRowIndex: number, maintenanceIndex: number, hunterIndex: number) {
+  const maxIndex = Math.max(maintenanceIndex, hunterIndex);
+  const candidates = Array.from({ length: maxIndex }, (_, index) => index);
+  return candidates.find((candidate) =>
+    rows.slice(headerRowIndex + 1, headerRowIndex + 12).some((row) => {
+      const label = String(row[candidate] ?? "").trim();
+      return label && !isWideGroupRow(label) && (parseAmount(row[maintenanceIndex]) > 0 || parseAmount(row[hunterIndex]) > 0);
+    })
+  ) ?? -1;
+}
+
+function isWideGroupRow(value: string) {
+  return normalizeHeader(value).startsWith("grupo ");
 }
 
 export function buildStudioBaselineComparisons(
@@ -190,6 +294,11 @@ function findHeaderIndex(headers: string[], aliases: string[], label: string) {
   const index = headers.findIndex((header) => normalizedAliases.includes(header));
   if (index >= 0) return index;
   throw new Error(`Coluna obrigatória não encontrada na planilha de studios: ${label}.`);
+}
+
+function findOptionalHeaderIndex(headers: string[], aliases: string[]) {
+  const normalizedAliases = aliases.map(normalizeHeader);
+  return headers.findIndex((header) => normalizedAliases.includes(header));
 }
 
 function normalizeHeader(value: string) {

@@ -14,7 +14,7 @@ import {
   type TargetAllocationType,
 } from "@/data/mockData";
 import { boardTargetBaselineRows as fallbackBoardTargetBaselineRows, type BoardTargetBaselineRow } from "@/data/boardTargetBaseline";
-import type { StudioBaselineSnapshot } from "@/lib/studio-baseline-import";
+import { getStudioBaselineSource, type StudioBaselineSnapshot, type StudioBaselineSourceCode } from "@/lib/studio-baseline-import";
 import type { DeliveryData, DeliveryRepository } from "./types";
 import type { PersonCustomerRemovalInput, PersonCustomerTargetsInput } from "./types";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -164,6 +164,8 @@ type BoardTargetBaselineDbRow = {
 type StudioBaselineSnapshotRow = {
   id: string;
   baseline_year: number;
+  source_code?: string | null;
+  source_name?: string | null;
   file_name: string;
   snapshot_rows: unknown[];
   totals: Record<string, number>;
@@ -379,6 +381,8 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
       .from("studio_baseline_snapshots")
       .insert({
         baseline_year: snapshot.year,
+        source_code: snapshot.sourceCode,
+        source_name: snapshot.sourceName,
         file_name: snapshot.fileName,
         snapshot_rows: snapshot.rows,
         totals: snapshot.totals,
@@ -1348,9 +1352,12 @@ function fromBoardTargetBaselineDbRow(row: BoardTargetBaselineDbRow): BoardTarge
 }
 
 function fromStudioBaselineSnapshotRow(row: StudioBaselineSnapshotRow): StudioBaselineSnapshot {
+  const source = getStudioBaselineSource(row.source_code ?? "studio_general");
   return {
     id: row.id,
     year: row.baseline_year,
+    sourceCode: source.code as StudioBaselineSourceCode,
+    sourceName: row.source_name ?? source.name,
     fileName: row.file_name,
     rows: row.snapshot_rows,
     totals: row.totals,

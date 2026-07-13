@@ -2,10 +2,18 @@
 
 ## Current Task Objective
 
-Regularizar Studio Manutenção/Renovação com responsável Farmer/Delivery explícito, corrigir leitura de metas por pessoa/relatórios para valores já existentes e estabilizar salvamento de Cliente via BFF/RPC.
+Centralizar importação de baselines em uma nova rota, removendo uploads antigos de Insights/Comparativo Baseline e preservando telas operacionais atuais.
 
 ## Execution Checklist
 
+- [x] Criar rota Baselines para concentrar importação da Curva principal e baselines por área/studio.
+- [x] Remover importador antigo de Insights, mantendo link para a central.
+- [x] Transformar Comparativo Baseline em consumidor read-only das fotos salvas de Studios por origem/ano.
+- [x] Adicionar metadados `source_code` e `source_name` aos snapshots de Studio com migration idempotente.
+- [x] Aplicar migration `20260713112000_centralize_baseline_snapshot_sources.sql` no Supabase remoto.
+- [x] Ajustar parser de Studio para fontes com layouts declarados por origem e layout largo Cliente + Renovação/Manut + Novos Projetos/Hunter.
+- [x] Ignorar linhas visuais de Grupo em planilhas de origem de Studio/Área.
+- [x] Criar `npm run test:baselines` para bloquear retorno de importação fora da central.
 - [x] Criar roteador local `.ai/router` para classificar tarefas, selecionar contexto enxuto e preservar escalonamento para Codex.
 - [x] Adicionar memória estável em `.ai/memory` sem segredos nem histórico temporário.
 - [x] Adicionar prompts locais, README, tasks VS Code e scripts `ai:route`, `ai:context`, `test:ai-router`.
@@ -244,6 +252,9 @@ Regularizar Studio Manutenção/Renovação com responsável Farmer/Delivery exp
 - No batimento de Studios, não se compara contra o total de Studios cadastrado no Cliente. Studio Hunter da planilha bate contra `studio_target_allocations.hunter_amount` atribuído a Hunters/pessoas com papel de Hunter. Studio Manutenção bate contra `studio_target_allocations.maintenance_amount` no Cliente + Studio.
 - A prévia/exportação de Studios deve evitar colunas sequenciais para cada fonte. A leitura executiva usa Cliente + Studio como chave, linhas por visão e colunas Hunter, Manutenção, Total e Diferença. Divergência de origem/nome aparece só como indicativo contextual quando existir.
 - "Salvar foto do resultado" grava um snapshot imutável em `studio_baseline_snapshots`, com ano, arquivo, totais e linhas calculadas, sem alterar metas ou alocações.
+- A importação de baselines oficiais fica centralizada na rota Baselines. Insights não deve renderizar o importador antigo, e Comparativo Baseline não deve possuir upload/salvamento próprio de planilhas oficiais.
+- `studio_baseline_snapshots` agora guarda `source_code` e `source_name` para separar fotos de PX, Alianças, Mobile, Analytics, GENAI e baseline geral.
+- Cada origem de baseline de Studio/Área pode declarar layouts aceitos. A primeira implementação suporta layout detalhado de Studios e layout largo Cliente + Renovação/Manut + Novos Projetos/Hunter; linhas `Grupo ...` são ruído visual e não entram no domínio.
 
 ## Next Pending Step
 
@@ -256,6 +267,7 @@ Próximo passo: publicar e validar em produção a nova aba Clientes no Relatór
 - `npm run typecheck`: TypeScript sem emit.
 - `npm run build`: build de producao Next.js.
 - `npm run test:provider`: checagem estatica da factory de provider e desacoplamento da store.
+- `npm run test:baselines`: checagem estatica de centralizacao de importacao de baselines e origem por snapshot.
 - `npm run test:reports`: checagem estatica das colunas e dos botoes de exportacao oficial do Relatorio de Metas.
 - `npm run test:currency-input`: checagem de parsing/formatacao de inputs monetarios pt-BR usados em cadastro de metas.
 - `npm run test:security`: checagem estatica de hardening para rota de IA sensivel, mock em producao e formula injection em export.

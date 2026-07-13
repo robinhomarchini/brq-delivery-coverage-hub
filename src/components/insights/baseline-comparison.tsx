@@ -1,10 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, CheckCircle2, FileSearch, RefreshCw, UploadCloud } from "lucide-react";
-import { readSheet } from "read-excel-file/browser";
+import { ArrowDown, ArrowUp, CheckCircle2, FileSearch, RefreshCw } from "lucide-react";
 import type { Customer } from "@/data/mockData";
-import type { BoardTargetBaselineRow } from "@/data/boardTargetBaseline";
 import { EmptyState } from "@/components/shared/empty-state";
 import { FilterBar } from "@/components/shared/filter-bar";
 import { KpiSummaryCard } from "@/components/shared/kpi-summary-card";
@@ -25,12 +23,10 @@ import {
   getRegisteredTargetTotals,
   type BaselineComparisonMode,
 } from "@/lib/board-target-baseline";
-import { parseTargetBaselineRows } from "@/lib/target-baseline-import";
 import {
-  buildStudioBaselineComparisons,
-  readStudioBaselineWorkbook,
+  studioBaselineSources,
   type StudioBaselineComparisonRow,
-  type StudioBaselineRow,
+  type StudioBaselineSourceCode,
 } from "@/lib/studio-baseline-import";
 import { cn, formatCurrency, normalizeBusinessName } from "@/lib/utils";
 
@@ -50,37 +46,25 @@ type StudioReportRow = {
   status: string;
   year: number;
 };
-const maxFileSizeInBytes = 5 * 1024 * 1024;
 
 export function BaselineComparison() {
-  const { areas, customers, customerTargets, boardTargetBaselines, studioTargetAllocations, studioBaselineSnapshots, saveCustomers, saveStudioBaselineSnapshot } = useDeliveryStore();
+  const { customers, customerTargets, boardTargetBaselines, studioBaselineSnapshots, saveCustomers } = useDeliveryStore();
   const [workspace, setWorkspace] = useState<BaselineWorkspace>("board");
   const [year, setYear] = useState(defaultTargetYear);
   const [search, setSearch] = useState("");
   const [mode, setMode] = useState<BaselineComparisonMode>("client");
   const [status, setStatus] = useState("");
-  const [importedBaselineRows, setImportedBaselineRows] = useState<BoardTargetBaselineRow[]>([]);
-  const [fileName, setFileName] = useState("");
-  const [loadingImport, setLoadingImport] = useState(false);
-  const [studioBaselineRows, setStudioBaselineRows] = useState<StudioBaselineRow[]>([]);
-  const [studioBaselineFileName, setStudioBaselineFileName] = useState("");
+  const [studioSourceCode, setStudioSourceCode] = useState<StudioBaselineSourceCode>("studio_general");
   const [dismissedStudioSnapshotId, setDismissedStudioSnapshotId] = useState("");
   const [studioStatus, setStudioStatus] = useState("");
   const [studioFilter, setStudioFilter] = useState("");
-  const [loadingStudioImport, setLoadingStudioImport] = useState(false);
-  const [savingStudioSnapshot, setSavingStudioSnapshot] = useState(false);
   const [updatingCustomerId, setUpdatingCustomerId] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
   const years = useMemo(() => getAvailableTargetYears(customerTargets, defaultTargetYear), [customerTargets]);
   const yearCustomers = useMemo(() => applyCustomerTargetsForYear(customers, customerTargets, year), [customerTargets, customers, year]);
-  const activeBaselineRows = useMemo(
-    () => importedBaselineRows.length
-      ? importedBaselineRows.map((row) => ({ ...row, year }))
-      : boardTargetBaselines,
-    [boardTargetBaselines, importedBaselineRows, year],
-  );
+  const activeBaselineRows = boardTargetBaselines;
   const baselineTotals = useMemo(() => getBoardTargetBaselineTotals(year, activeBaselineRows), [activeBaselineRows, year]);
   const registeredTotals = useMemo(() => getRegisteredTargetTotals(yearCustomers), [yearCustomers]);
   const rows = useMemo(() => buildBoardTargetComparisonRows(yearCustomers, year, activeBaselineRows), [activeBaselineRows, year, yearCustomers]);
@@ -131,12 +115,8 @@ export function BaselineComparison() {
     { key: "year", label: "Ano", value: (row) => row.year, format: "number", align: "center" },
   ], []);
   const latestStudioSnapshot = useMemo(
-    () => studioBaselineSnapshots.find((snapshot) => snapshot.year === year),
-    [studioBaselineSnapshots, year],
-  );
-  const importedStudioComparisonRows = useMemo(
-    () => buildStudioBaselineComparisons(studioBaselineRows, yearCustomers, areas, studioTargetAllocations, year),
-    [areas, studioBaselineRows, studioTargetAllocations, year, yearCustomers],
+    () => studioBaselineSnapshots.find((snapshot) => snapshot.year === year && snapshot.sourceCode === studioSourceCode),
+    [studioBaselineSnapshots, studioSourceCode, year],
   );
   const latestStudioSnapshotRows = useMemo(
     () => latestStudioSnapshot && dismissedStudioSnapshotId !== latestStudioSnapshot.id
@@ -144,13 +124,9 @@ export function BaselineComparison() {
       : [],
     [dismissedStudioSnapshotId, latestStudioSnapshot],
   );
-  const isStudioSnapshotLoaded = !studioBaselineRows.length && latestStudioSnapshotRows.length > 0;
-  const studioComparisonRows = studioBaselineRows.length ? importedStudioComparisonRows : latestStudioSnapshotRows;
-  const activeStudioBaselineFileName = studioBaselineRows.length
-    ? studioBaselineFileName
-    : isStudioSnapshotLoaded
-      ? latestStudioSnapshot?.fileName ?? ""
-      : "";
+  const isStudioSnapshotLoaded = latestStudioSnapshotRows.length > 0;
+  const studioComparisonRows = latestStudioSnapshotRows;
+  const activeStudioBaselineFileName = isStudioSnapshotLoaded ? latestStudioSnapshot?.fileName ?? "" : "";
   const studioOptions = useMemo(
     () => Array.from(new Set(studioComparisonRows.map((row) => row.studioName).filter(Boolean))).sort((first, second) => first.localeCompare(second, "pt-BR")),
     [studioComparisonRows],
@@ -178,68 +154,6 @@ export function BaselineComparison() {
     { key: "year", label: "Ano", value: (row) => row.year, format: "number", align: "center" },
   ], []);
 
-  async function handleBaselineFileChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    setLoadingImport(true);
-    setErrorMessage("");
-    setSuccessMessage("");
-
-    try {
-      if (file.size > maxFileSizeInBytes) {
-        throw new Error("Arquivo maior que 5 MB. Use uma planilha menor para homologação.");
-      }
-      const spreadsheetRows = await readSheet(file);
-      const parsedRows = parseTargetBaselineRows(spreadsheetRows);
-      const nextBaselineRows = parsedRows.map((row) => ({
-        year,
-        customerName: row.customerName,
-        businessUnit: row.businessUnit || "Financial",
-        hunterTarget: row.hunterTarget,
-        farmerRenewalTarget: row.farmerRenewalTarget,
-        totalTarget: row.totalTarget,
-      }));
-      setImportedBaselineRows(nextBaselineRows);
-      setFileName(file.name);
-      setSuccessMessage(`${nextBaselineRows.length} linha(s) importada(s) para comparar com ${year}.`);
-      window.setTimeout(() => setSuccessMessage(""), 4500);
-    } catch (error) {
-      setImportedBaselineRows([]);
-      setFileName("");
-      setErrorMessage(getImportErrorMessage(error));
-    } finally {
-      setLoadingImport(false);
-      event.target.value = "";
-    }
-  }
-
-  async function handleStudioBaselineFileChange(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    setLoadingStudioImport(true);
-    setErrorMessage("");
-    setSuccessMessage("");
-
-    try {
-      if (file.size > maxFileSizeInBytes) {
-        throw new Error("Arquivo maior que 5 MB. Use uma planilha menor para homologação.");
-      }
-      const nextRows = await readStudioBaselineWorkbook(file);
-      setStudioBaselineRows(nextRows);
-      setStudioBaselineFileName(file.name);
-      setDismissedStudioSnapshotId("");
-      setSuccessMessage(`${nextRows.length} linha(s) de baseline de studios importada(s) para comparar com ${year}.`);
-      window.setTimeout(() => setSuccessMessage(""), 4500);
-    } catch (error) {
-      setStudioBaselineRows([]);
-      setStudioBaselineFileName("");
-      setErrorMessage(getImportErrorMessage(error));
-    } finally {
-      setLoadingStudioImport(false);
-      event.target.value = "";
-    }
-  }
-
   async function updateCustomerFromBaseline(row: ComparisonRow) {
     const customer = findRegisteredCustomer(row, yearCustomers);
     if (!customer) {
@@ -250,7 +164,7 @@ export function BaselineComparison() {
     const nextCustomer = buildCustomerFromBaseline(customer, row);
     const confirmed = window.confirm(
       [
-        `Atualizar a meta do cliente ${customer.name} para os valores ${fileName ? "da planilha importada" : "do baseline oficial"} de ${year}?`,
+        `Atualizar a meta do cliente ${customer.name} para os valores do baseline oficial de ${year}?`,
         "",
         `Hunter: ${formatCurrency(nextCustomer.hunterTarget)}`,
         `Renovação + Ampliação: ${formatCurrency(nextCustomer.farmerRenewalTarget)}`,
@@ -268,38 +182,12 @@ export function BaselineComparison() {
 
     try {
       await saveCustomers([nextCustomer], year);
-      setSuccessMessage(`Meta do cliente ${customer.name} atualizada para ${fileName ? "a planilha importada" : "o baseline"} de ${year}. As metas das pessoas foram preservadas.`);
+      setSuccessMessage(`Meta do cliente ${customer.name} atualizada para o baseline de ${year}. As metas das pessoas foram preservadas.`);
       window.setTimeout(() => setSuccessMessage(""), 5000);
     } catch (error) {
       setErrorMessage(getImportErrorMessage(error));
     } finally {
       setUpdatingCustomerId("");
-    }
-  }
-
-  async function saveStudioSnapshot() {
-    if (!studioReportRows.length) {
-      setErrorMessage("Importe a planilha de Studios antes de salvar a foto do resultado.");
-      return;
-    }
-    setSavingStudioSnapshot(true);
-    setErrorMessage("");
-    setSuccessMessage("");
-
-    try {
-      const saved = await saveStudioBaselineSnapshot({
-        year,
-        fileName: studioBaselineFileName || `baseline-studios-${year}.xlsx`,
-        rows: studioReportRows,
-        totals: studioComparisonTotals,
-      });
-      const createdAt = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(saved.createdAt));
-      setSuccessMessage(`Foto do resultado salva em ${createdAt}.`);
-      window.setTimeout(() => setSuccessMessage(""), 4500);
-    } catch (error) {
-      setErrorMessage(getImportErrorMessage(error));
-    } finally {
-      setSavingStudioSnapshot(false);
     }
   }
 
@@ -329,13 +217,13 @@ export function BaselineComparison() {
           <WorkspaceButton
             active={workspace === "board"}
             title="Board vs Cadastro"
-            description="Baseline oficial, planilha de metas e atualização por cliente."
+            description="Baseline oficial e atualização por cliente."
             onClick={() => setWorkspace("board")}
           />
           <WorkspaceButton
             active={workspace === "studios"}
             title="Baseline de Studios"
-            description="Upload da planilha de Áreas / Studios e batimento detalhado."
+            description="Fotos salvas na central de Baselines e batimento detalhado."
             onClick={() => setWorkspace("studios")}
           />
         </div>
@@ -352,19 +240,12 @@ export function BaselineComparison() {
           registeredTotals={registeredTotals}
           focusedTotals={focusedTotals}
           filteredRows={filteredRows}
-          fileName={fileName}
-          loadingImport={loadingImport}
           updatingCustomerId={updatingCustomerId}
           yearCustomers={yearCustomers}
           onYearChange={setYear}
           onSearchChange={setSearch}
           onModeChange={setMode}
           onStatusChange={setStatus}
-          onFileChange={handleBaselineFileChange}
-          onClearImportedBaseline={() => {
-            setImportedBaselineRows([]);
-            setFileName("");
-          }}
           onUpdateCustomer={updateCustomerFromBaseline}
         />
       ) : (
@@ -375,20 +256,16 @@ export function BaselineComparison() {
           reportRows={studioReportRows}
           reportColumns={studioReportColumns}
           fileName={activeStudioBaselineFileName}
-          loading={loadingStudioImport}
-          savingSnapshot={savingStudioSnapshot}
           loadedFromSnapshot={isStudioSnapshotLoaded}
           snapshotCreatedAt={isStudioSnapshotLoaded ? latestStudioSnapshot?.createdAt ?? "" : ""}
+          sourceCode={studioSourceCode}
           status={studioStatus}
           studioFilter={studioFilter}
           studioOptions={studioOptions}
+          onSourceChange={setStudioSourceCode}
           onStatusChange={setStudioStatus}
           onStudioFilterChange={setStudioFilter}
-          onFileChange={handleStudioBaselineFileChange}
-          onSaveSnapshot={saveStudioSnapshot}
           onClear={() => {
-            setStudioBaselineRows([]);
-            setStudioBaselineFileName("");
             if (isStudioSnapshotLoaded && latestStudioSnapshot) setDismissedStudioSnapshotId(latestStudioSnapshot.id);
             setStudioStatus("");
             setStudioFilter("");
@@ -438,16 +315,12 @@ function BoardBaselineSection({
   registeredTotals,
   focusedTotals,
   filteredRows,
-  fileName,
-  loadingImport,
   updatingCustomerId,
   yearCustomers,
   onYearChange,
   onSearchChange,
   onModeChange,
   onStatusChange,
-  onFileChange,
-  onClearImportedBaseline,
   onUpdateCustomer,
 }: {
   year: number;
@@ -459,16 +332,12 @@ function BoardBaselineSection({
   registeredTotals: ReturnType<typeof getRegisteredTargetTotals>;
   focusedTotals: ReturnType<typeof getFocusedTotals>;
   filteredRows: ComparisonRow[];
-  fileName: string;
-  loadingImport: boolean;
   updatingCustomerId: string;
   yearCustomers: Customer[];
   onYearChange: (year: number) => void;
   onSearchChange: (search: string) => void;
   onModeChange: (mode: BaselineComparisonMode) => void;
   onStatusChange: (status: string) => void;
-  onFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  onClearImportedBaseline: () => void;
   onUpdateCustomer: (row: ComparisonRow) => void;
 }) {
   return (
@@ -486,31 +355,13 @@ function BoardBaselineSection({
           <div className="flex gap-3">
             <FileSearch className="mt-0.5 h-5 w-5 shrink-0" />
             <p>
-              O baseline vem da {fileName ? "planilha importada" : "foto aprovada do board"}.
+              O baseline vem da foto aprovada do board.
               Compare contra a meta anual do cliente e escolha na tabela qual cliente deseja atualizar.
               Nenhum cliente é atualizado automaticamente: o botão da linha altera só a meta daquele cliente, não as metas cadastradas nas pessoas.
               Total cadastrado atual: <span className="font-semibold">{formatCurrency(registeredTotals.totalTarget)}</span>.
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {fileName && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onClearImportedBaseline}
-                disabled={loadingImport || Boolean(updatingCustomerId)}
-              >
-                Usar baseline oficial
-              </Button>
-            )}
-            <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-[#6823a7]">
-              {loadingImport ? <RefreshCw className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}
-              {loadingImport ? "Lendo..." : "Importar planilha"}
-              <input type="file" accept=".xlsx" className="hidden" onChange={onFileChange} disabled={loadingImport || Boolean(updatingCustomerId)} />
-            </label>
-          </div>
         </div>
-        {fileName && <p className="mt-3 text-xs text-blue-800">Arquivo carregado: <span className="font-semibold">{fileName}</span></p>}
       </Card>
 
       <FilterBar search={search} onSearchChange={onSearchChange}>
@@ -613,17 +464,15 @@ function StudioBaselineSection({
   reportRows,
   reportColumns,
   fileName,
-  loading,
-  savingSnapshot,
   loadedFromSnapshot,
   snapshotCreatedAt,
+  sourceCode,
   status,
   studioFilter,
   studioOptions,
+  onSourceChange,
   onStatusChange,
   onStudioFilterChange,
-  onFileChange,
-  onSaveSnapshot,
   onClear,
 }: {
   year: number;
@@ -632,17 +481,15 @@ function StudioBaselineSection({
   reportRows: StudioReportRow[];
   reportColumns: ReportColumn<StudioReportRow>[];
   fileName: string;
-  loading: boolean;
-  savingSnapshot: boolean;
   loadedFromSnapshot: boolean;
   snapshotCreatedAt: string;
+  sourceCode: StudioBaselineSourceCode;
   status: string;
   studioFilter: string;
   studioOptions: string[];
+  onSourceChange: (sourceCode: StudioBaselineSourceCode) => void;
   onStatusChange: (status: string) => void;
   onStudioFilterChange: (studio: string) => void;
-  onFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  onSaveSnapshot: () => void;
   onClear: () => void;
 }) {
   return (
@@ -654,21 +501,18 @@ function StudioBaselineSection({
             <div>
               <p className="font-bold text-slate-950">Baseline de Studios</p>
               <p className="mt-1">
-                Importe a planilha no layout SU, Torre, Grupo Cliente, Studio/Habilitador, Tipo Opp e Receita Líquida.
-                Linhas Novo/Ampliação viram Studio Hunter e são comparadas com alocações de Hunter. As demais linhas viram Manutenção/Renovação e são comparadas com a manutenção alocada no cliente e no Studio.
+                Esta visão lê a última foto salva na central de Baselines para a origem selecionada.
+                Linhas Novo/Ampliação viram Studio Hunter; Manutenção/Renovação compara contra a manutenção alocada no cliente e no Studio.
               </p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <Select value={sourceCode} onChange={(event) => onSourceChange(event.target.value as StudioBaselineSourceCode)}>
+              {studioBaselineSources.map((source) => <option key={source.code} value={source.code}>{source.name}</option>)}
+            </Select>
             {fileName && (
-              <Button type="button" variant="outline" onClick={onClear} disabled={loading}>
+              <Button type="button" variant="outline" onClick={onClear}>
                 Limpar baseline
-              </Button>
-            )}
-            {rows.length > 0 && !loadedFromSnapshot && (
-              <Button type="button" variant="outline" onClick={onSaveSnapshot} disabled={loading || savingSnapshot}>
-                {savingSnapshot ? <RefreshCw className="h-4 w-4 animate-spin" /> : <FileSearch className="h-4 w-4" />}
-                {savingSnapshot ? "Salvando..." : "Salvar foto do resultado"}
               </Button>
             )}
             {rows.length > 0 && (
@@ -680,11 +524,6 @@ function StudioBaselineSection({
                 renderPreview={(previewRows) => <StudioExportPreview rows={previewRows} />}
               />
             )}
-            <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-[#6823a7]">
-              {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}
-              {loading ? "Lendo..." : "Importar baseline de studios"}
-              <input type="file" accept=".xlsx" className="hidden" onChange={onFileChange} disabled={loading} />
-            </label>
           </div>
         </div>
         {fileName && (
@@ -743,7 +582,7 @@ function StudioBaselineSection({
         </>
       ) : (
         <Card className="p-6 text-sm text-slate-500">
-          Importe a planilha de baseline de studios para ver o batimento entre a planilha e as alocações de Hunters por Área/Studio.
+          Nenhuma foto salva para esta origem e ano. Importe e salve a baseline na central de Baselines para habilitar o batimento.
         </Card>
       )}
     </section>

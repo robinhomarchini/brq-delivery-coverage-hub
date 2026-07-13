@@ -420,10 +420,12 @@
   operacional por Cliente, Hunter e Hunter + Farmer.
 - A rota Comparativo Baseline permite filtrar por ano, status e busca por
   cliente, e exporta CSV/Excel com valores numéricos.
-- A rota Comparativo Baseline permite importar uma planilha `.xlsx` temporária
-  de baseline para comparação no ano selecionado.
+- A rota Baselines centraliza a importação de planilhas `.xlsx` temporárias de
+  baseline para comparação no ano selecionado.
+- Insights não renderiza o importador antigo e Comparativo Baseline não possui
+  upload ou salvamento próprio de planilhas oficiais.
 - No Comparativo Baseline, nenhum cliente é atualizado automaticamente após a
-  importação; o usuário escolhe a linha do cliente desejado e confirma a ação.
+  leitura do baseline; o usuário escolhe a linha do cliente desejado e confirma a ação.
 - A atualização por linha altera somente a meta anual do cliente, preservando as
   metas já cadastradas nas pessoas.
 - No Comparativo Baseline, valores cadastrados acima do baseline aparecem como
@@ -451,8 +453,13 @@
 - Filtros produzem resultados coerentes.
 - A visão Baseline de Studios permite filtrar o batimento por Status e por
   Studio.
-- Ao abrir Baseline de Studios, a última foto salva em
-  `studio_baseline_snapshots` para o ano selecionado é carregada
+- Baselines separa Curva principal das origens PX, Alianças, Mobile, Analytics
+  e GENAI, permitindo que cada origem evolua com layout próprio.
+- Para planilhas de origem de Studio/Área no layout largo, linhas de grupo são
+  ignoradas; o domínio importado é Cliente + tipo de receita
+  Manutenção/Renovação ou Novo/Hunter + valor + origem selecionada.
+- Ao abrir Baseline de Studios no Comparativo, a última foto salva em
+  `studio_baseline_snapshots` para a origem e ano selecionados é carregada
   automaticamente e identificada como foto salva.
 - A visão Baseline de Studios explica o critério de comparação: Novo/Ampliação
   vira Studio Hunter e bate contra alocações Hunter; demais tipos viram
