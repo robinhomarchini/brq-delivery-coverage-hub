@@ -258,10 +258,11 @@ Centralizar importação de baselines em uma nova rota, removendo uploads antigo
 - Na central de Baselines, o batimento por Cliente + Studio/Origem deve exibir três origens distintas: `Baseline` importada da planilha da origem, `Alocado` em `studio_target_allocations` e `Baseline Curva` vinda de `customer_target_years`/`customer.studioTarget` no ano selecionado. Snapshots antigos com duas linhas continuam compatíveis.
 - A serialização/restauração de linhas de Baseline de Studios e a montagem das linhas de relatório ficam centralizadas em `src/lib/studio-baseline-report.ts`; telas não devem recriar localmente essa lógica.
 - A revisão de componentização está documentada em `docs/COMPONENTIZATION_REVIEW.md`; próximos alvos seguros são builders puros de `person-target-report.tsx` e `customer-management.tsx`, antes de extrair componentes visuais.
+- A geração da Planilha oficial do Relatório de Metas fica centralizada em `src/lib/reports/person-target-official-export.ts`. `person-target-report.tsx` apenas reexporta `buildOfficialRowsForView` para compatibilidade com o gate `test:reports`.
 
 ## Next Pending Step
 
-Próximo passo: evoluir componentização dos relatórios movendo builders puros de `person-target-report.tsx` para `src/lib/reports/`, com testes de exportação antes de qualquer quebra visual.
+Próximo passo: mover builders puros restantes de `person-target-report.tsx` em fatias menores, começando por Clientes/Hunters ou Diretoria, mantendo `npm run test:reports` como gate obrigatório.
 
 ## Discovered Commands
 

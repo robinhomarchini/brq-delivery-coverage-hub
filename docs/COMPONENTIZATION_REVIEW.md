@@ -33,12 +33,23 @@ Essa lógica agora fica centralizada em:
 As telas passam a consumir esse helper, reduzindo duplicação e evitando
 divergência entre preview, exportação e leitura de snapshot.
 
+Também foi extraída a geração da Planilha oficial do Relatório de Metas para:
+
+- `src/lib/reports/person-target-official-export.ts`
+
+O componente `person-target-report.tsx` fica responsável pela tela e pela fiação
+dos botões, enquanto a regra de exportação oficial fica em um módulo de domínio
+testável. A função `buildOfficialRowsForView` permanece reexportada pelo
+componente apenas para compatibilidade com o gate atual de QA.
+
 ## Próximas oportunidades
 
-1. Extrair view models de relatórios
+1. Extrair view models restantes de relatórios
    - Prioridade: `src/components/reports/person-target-report.tsx`
-   - Motivo: arquivo concentra múltiplas visões, exports e regras de rollup.
-   - Caminho seguro: mover apenas builders puros para `src/lib/reports/`.
+   - Motivo: o export oficial já foi separado, mas o arquivo ainda concentra
+     builders de tela, filtros e tabelas.
+   - Caminho seguro: mover builders de Clientes, Hunters e Diretoria para
+     `src/lib/reports/` em fatias independentes.
 
 2. Extrair view models de Clientes
    - Prioridade: `src/components/customers/customer-management.tsx`

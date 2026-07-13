@@ -6,9 +6,11 @@ const Module = require("node:module");
 const { unzipSync, strFromU8 } = require("fflate");
 
 const reportPath = path.join(process.cwd(), "src", "components", "reports", "person-target-report.tsx");
+const officialExportPath = path.join(process.cwd(), "src", "lib", "reports", "person-target-official-export.ts");
 const reportExportActionsPath = path.join(process.cwd(), "src", "components", "shared", "report-export-actions.tsx");
 const reportExportServicePath = path.join(process.cwd(), "src", "lib", "report-export.ts");
 const source = fs.readFileSync(reportPath, "utf8");
+const officialExportSource = fs.readFileSync(officialExportPath, "utf8");
 const reportExportActionsSource = fs.readFileSync(reportExportActionsPath, "utf8");
 const reportExportServiceSource = fs.readFileSync(reportExportServicePath, "utf8");
 const root = process.cwd();
@@ -60,15 +62,15 @@ if (!source.includes("officialLayout: true")) {
   throw new Error("Planilha oficial is not using the official workbook layout.");
 }
 
-if (!source.includes('const officialDefaultBillingCustomer = ""')) {
+if (!officialExportSource.includes('export const officialDefaultBillingCustomer = ""')) {
   throw new Error("Planilha oficial must keep Cliente Faturamento blank by default for non-Studio rows.");
 }
 
-if (!source.includes('const officialDefaultBusinessUnit = "Financial"')) {
+if (!officialExportSource.includes('export const officialDefaultBusinessUnit = "Financial"')) {
   throw new Error("Planilha oficial must default BU to Financial.");
 }
 
-if (!source.includes("billingCustomer: studioName") || !source.includes("billingCustomer: item.studioName")) {
+if (!officialExportSource.includes("billingCustomer: studioName") || !officialExportSource.includes("billingCustomer: item.studioName")) {
   throw new Error("Planilha oficial must write the Studio name in Cliente Faturamento for Studio rows.");
 }
 
@@ -84,7 +86,7 @@ const requiredOfficialPeopleFlowTokens = [
   "farmerRenewal: item.maintenanceAmount",
   "executive: \"Studio Manutenção\"",
 ];
-const missingOfficialPeopleFlowTokens = requiredOfficialPeopleFlowTokens.filter((token) => !source.includes(token));
+const missingOfficialPeopleFlowTokens = requiredOfficialPeopleFlowTokens.filter((token) => !officialExportSource.includes(token));
 if (missingOfficialPeopleFlowTokens.length) {
   throw new Error(`Planilha oficial person-first Studio flow is missing tokens: ${missingOfficialPeopleFlowTokens.join(", ")}`);
 }
