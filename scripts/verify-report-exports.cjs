@@ -97,6 +97,19 @@ const requiredOfficialExportViews = [
   "directors",
 ];
 
+const requiredClientCoverageTokens = [
+  '{ key: "clients", label: "Clientes" }',
+  "buildClientCoverageRows",
+  "Clientes x Hunters x Delivery",
+  "Delivery / Farmers",
+  "Hunters Especializados",
+  "clientCoverageReportColumns",
+];
+const missingClientCoverageTokens = requiredClientCoverageTokens.filter((token) => !source.includes(token));
+if (missingClientCoverageTokens.length) {
+  throw new Error(`Client coverage report is missing tokens: ${missingClientCoverageTokens.join(", ")}`);
+}
+
 for (const view of requiredOfficialExportViews) {
   const branchPattern = new RegExp(`\\{effectiveView === "${view}"[\\s\\S]*?<ReportExportActions([\\s\\S]*?)\\/>`);
   const branchMatch = source.match(branchPattern);

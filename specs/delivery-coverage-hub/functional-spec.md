@@ -415,7 +415,12 @@ A rota Relatório de Metas apresenta visão por pessoa, diretoria de Delivery,
 área/studio e Hunter. Na visão por pessoa e ano, exibe Meta Hunter, Meta
 Renovação + Ampliação, Áreas / Studios, Meta Total, quantidade de clientes e
 lista resumida de clientes. Cada pessoa do relatório deve navegar para Metas por
-Pessoa com a pessoa e o ano pré-selecionados. Na visão por diretoria de
+Pessoa com a pessoa e o ano pré-selecionados. A visão por Cliente consolida, no
+grão Cliente + Ano, os Hunters envolvidos, Delivery Managers/Farmers
+responsáveis e Hunters Especializados quando houver seleção gerencial de
+Studios. Essa visão é derivada de vínculos pessoa-cliente, metas diretas,
+alocações de Studio e seleções de Hunter Especializado; ela não cria nova fonte
+de verdade. Na visão por diretoria de
 Delivery, o usuário deve escolher uma pessoa consolidadora vinda do cadastro de
 Pessoas: perfis Diretor ou pessoas ativas com subordinados apontando para seu
 `people.directorId`. Após a escolha, o relatório abre os dados na chave Pessoa
