@@ -19,7 +19,7 @@ import {
   type TargetBaselineComparison,
   type TargetBaselineRow,
 } from "@/lib/target-baseline-import";
-import { buildStudioCurveBaselineSnapshotInput } from "@/lib/studio-curve-baseline-snapshot";
+import { buildStudioCurveBaselineSnapshotInput, parseCurveStudioBaselineRows } from "@/lib/studio-curve-baseline-snapshot";
 import { cn, formatCurrency } from "@/lib/utils";
 
 const currentYear = defaultTargetYear;
@@ -27,6 +27,7 @@ const maxFileSizeInBytes = 5 * 1024 * 1024;
 
 export function TargetBaselineImport() {
   const {
+    areas,
     customers,
     customerTargets,
     people,
@@ -69,8 +70,9 @@ export function TargetBaselineImport() {
       if (file.size > maxFileSizeInBytes) {
         throw new Error("Arquivo maior que 5 MB. Use uma planilha menor para homologação.");
       }
-      const spreadsheetRows = await readSheet(file);
+      const spreadsheetRows = await readTargetBaselineSheet(file);
       const parsedRows = parseTargetBaselineRows(spreadsheetRows);
+      const curveStudioRows = await readCurveStudioRows(file);
       const parsedComparisons = buildTargetBaselineComparisons(
         parsedRows,
         yearCustomers,
@@ -80,7 +82,10 @@ export function TargetBaselineImport() {
         year,
       );
       const studioSnapshot = buildStudioCurveBaselineSnapshotInput({
+        curveStudioRows,
         comparisons: parsedComparisons,
+        customers: yearCustomers,
+        areas,
         studioTargetAllocations,
         year,
         fileName: file.name,
@@ -91,8 +96,8 @@ export function TargetBaselineImport() {
       setRows(parsedRows);
       setFileName(file.name);
       setSuccess(studioSnapshot
-        ? `${parsedRows.length} cliente(s) lido(s). A foto geral de Studios também foi atualizada pela Curva principal.`
-        : `${parsedRows.length} cliente(s) lido(s) da planilha. Não havia valores de Studios para criar a foto geral.`);
+        ? `${parsedRows.length} cliente(s) lido(s). A foto geral de Studios foi atualizada pelo Sheet1 da Curva principal.`
+        : `${parsedRows.length} cliente(s) lido(s) da planilha. Não havia linhas BU Financial em Sheet1 para criar a foto geral de Studios.`);
       window.setTimeout(() => setSuccess(""), 4000);
     } catch (error) {
       setRows([]);
@@ -336,4 +341,21 @@ function getCustomerTarget(customer: Customer) {
 function getImportErrorMessage(error: unknown) {
   if (error instanceof Error && error.message) return error.message;
   return "Não foi possível importar a planilha. Verifique o formato do arquivo.";
+}
+
+async function readCurveStudioRows(file: File) {
+  try {
+    const sheetRows = await readSheet(file, "Sheet1");
+    return parseCurveStudioBaselineRows(sheetRows);
+  } catch {
+    return [];
+  }
+}
+
+async function readTargetBaselineSheet(file: File) {
+  try {
+    return await readSheet(file, "Resumo RL 2026");
+  } catch {
+    return readSheet(file);
+  }
 }

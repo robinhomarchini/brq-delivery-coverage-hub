@@ -39,6 +39,8 @@ const requiredCenterTokens = [
   "customerStudioTarget",
   "getDivergenceLabel",
   "getDeltaTextClassName",
+  "isFinancialStudioBaselineRow",
+  "linha(s) de outras BUs foram ignoradas",
 ];
 
 const missingCenterTokens = requiredCenterTokens.filter((token) => !baselineCenter.includes(token));
@@ -98,10 +100,24 @@ if (missingStudioReportTokens.length) {
 
 const requiredCurveSnapshotTokens = [
   "buildStudioCurveBaselineSnapshotInput",
+  "parseCurveStudioBaselineRows",
   "getStudioBaselineSource(\"studio_general\")",
+  "curveSheetColumns",
+  "customerName: 2",
+  "studioName: 11",
+  "opportunityType: 14",
+  "totalAmount: 33",
+  "businessUnit: 69",
+  "bu financial",
+  "isStudioHunterOpportunity",
+  "isEligibleCurveStudioName",
+  "squad",
+  "times",
   "Baseline Curva",
   "studioTargetAllocations",
   "saveStudioBaselineSnapshot",
+  "Sheet1",
+  "Resumo RL 2026",
 ];
 
 const missingCurveSnapshotTokens = requiredCurveSnapshotTokens.filter((token) =>

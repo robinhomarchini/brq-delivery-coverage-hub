@@ -16,6 +16,7 @@ import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears
 import {
   buildStudioBaselineComparisons,
   getStudioBaselineSource,
+  isFinancialStudioBaselineRow,
   readStudioBaselineWorkbook,
   studioBaselineSources,
   type StudioBaselineComparisonRow,
@@ -93,11 +94,12 @@ export function BaselineImportCenter() {
         throw new Error("Arquivo maior que 5 MB. Use uma planilha menor para homologação.");
       }
       const baselineRows = await readStudioBaselineWorkbook(file, source);
-      const comparisonRows = buildStudioBaselineComparisons(baselineRows, yearCustomers, areas, studioTargetAllocations, year);
+      const financialRows = baselineRows.filter(isFinancialStudioBaselineRow);
+      const comparisonRows = buildStudioBaselineComparisons(financialRows, yearCustomers, areas, studioTargetAllocations, year);
       setImportedRows(comparisonRows);
       setDismissedSnapshotId("");
       setFileName(file.name);
-      setSuccess(`${baselineRows.length} linha(s) importada(s) para ${source.name}. Revise o match antes de salvar a foto.`);
+      setSuccess(`${financialRows.length} linha(s) Financial importada(s) para ${source.name}. ${baselineRows.length - financialRows.length} linha(s) de outras BUs foram ignoradas.`);
       window.setTimeout(() => setSuccess(""), 4500);
     } catch (importError) {
       setImportedRows([]);
@@ -180,7 +182,7 @@ export function BaselineImportCenter() {
               <h2 className="mt-1 text-xl font-black text-slate-950">PX, Alianças, Mobile, Analytics e GENAI</h2>
               <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-500">
                 A planilha pode estar no layout detalhado de Studios ou no layout com Cliente, Renovação/Manut e Novos Projetos/Hunter.
-                Linhas de agrupamento são descartadas automaticamente.
+                Linhas de agrupamento e registros com BU diferente de Financial são descartados automaticamente quando a coluna BU/CC CROSS existir.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">

@@ -455,6 +455,14 @@
   Studio.
 - Baselines separa Curva principal das origens PX, Alianças, Mobile, Analytics
   e GENAI, permitindo que cada origem evolua com layout próprio.
+- Ao importar a Curva principal, o baseline geral de Studios é extraído da aba
+  `Sheet1`, usando `Grupo Cliente` na coluna C, `Studio/Habilitador` na coluna
+  L, `Tipo Opp` na coluna O para separar Novo/Ampliação de
+  Manutenção/Renovação, `Total RL 2026` na coluna AH e filtrando `CC CROSS` na
+  coluna BR igual a `BU Financial`; buckets `Squad` e `Times` não entram no
+  baseline de Studios.
+- Ao importar baseline manual de Studio/Área, linhas com BU/CC CROSS diferente
+  de Financial são ignoradas quando a coluna existir.
 - Para planilhas de origem de Studio/Área no layout largo, linhas de grupo são
   ignoradas; o domínio importado é Cliente + tipo de receita
   Manutenção/Renovação ou Novo/Hunter + valor + origem selecionada.

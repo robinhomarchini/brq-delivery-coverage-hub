@@ -688,11 +688,22 @@ arquivo. O botão de salvar nova foto deve permanecer habilitado apenas após um
 nova importação.
 Ao importar a Curva principal na central de Baselines, a aplicação também deve
 criar/atualizar automaticamente a foto `Baseline geral de Studios` para o mesmo
-ano, usando a coluna de Áreas / Studios da própria Curva. Essa foto geral é
-comparativa e não altera metas de clientes, metas de pessoas nem alocações de
-Studios; ela serve para que o Comparativo Baseline carregue a última Curva como
-origem canônica geral de Studios, em vez de depender de uma importação manual
-antiga de planilha de Studios.
+ano, usando a aba `Sheet1` da própria Curva. A extração detalhada de Studio deve
+usar `Grupo Cliente` na coluna C como cliente, `Studio/Habilitador` na coluna L
+como Studio, `Tipo Opp (Renovação/Novo-ampliação)` na coluna O para separar
+Novo/Ampliação como Studio Hunter e demais tipos como Manutenção/Renovação,
+`Total RL 2026` na coluna AH como valor e `CC CROSS` na coluna BR como filtro;
+somente linhas com `BU Financial` entram na foto. Os buckets `Squad` e `Times`
+da coluna L não entram nessa foto de baseline de Studios, pois representam o
+bloco operacional principal da Curva e não o recorte de Studios/Habilitadores a
+ser comparado contra as alocações detalhadas. A aba `Resumo RL 2026`
+continua sendo a origem da baseline de cliente. Essa foto geral é comparativa e
+não altera metas de clientes, metas de pessoas nem alocações de Studios; ela
+serve para que o Comparativo Baseline carregue a última Curva como origem
+canônica geral de Studios, em vez de depender de uma importação manual antiga de
+planilha de Studios. A planilha `Visão Agrupada` pode ser usada como conferência
+de teste de mesa do resultado, mas não deve virar função sistêmica nem ser
+necessária como origem quando a Curva trouxer essas colunas.
 A visão de Baseline de Studios no Comparativo deve consumir a última foto salva
 na central para a origem e ano selecionados, sem permitir upload ou gravação
 local naquela tela. A visão deve permitir filtro por Status e por Studio. O

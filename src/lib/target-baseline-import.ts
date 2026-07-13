@@ -43,8 +43,8 @@ export interface TargetBaselineDifference {
 const requiredHeaders = {
   customerName: ["cliente", "customer", "nome do cliente"],
   businessUnit: ["bu", "business unit"],
-  hunterTarget: ["target rl hunter", "meta hunter", "hunter"],
-  farmerRenewalTarget: ["target rl farmer", "meta farmer", "renovacao", "renovação", "renovacao ampliacao", "renovação ampliação"],
+  hunterTarget: ["target rl hunter", "meta hunter", "hunter", "od novo", "od - novo"],
+  farmerRenewalTarget: ["target rl farmer", "meta farmer", "renovacao", "renovação", "renovacao ampliacao", "renovação ampliação", "od renovacao ampliacao", "od renovação ampliação", "od - renovacao ampliacao", "od - renovação ampliação", "od - renovacao & ampliacao", "od - renovação & ampliação"],
   totalTarget: ["total rl 2026", "meta total", "total"],
 };
 
@@ -85,7 +85,8 @@ const zeroMoneyTolerance = 0.01;
 export function parseTargetBaselineRows(rows: SpreadsheetCell[][]): TargetBaselineRow[] {
   if (!rows.length) throw new Error("A planilha está vazia.");
 
-  const headers = rows[0].map((cell) => normalizeHeader(String(cell ?? "")));
+  const headerRowIndex = findTargetHeaderRowIndex(rows);
+  const headers = rows[headerRowIndex].map((cell) => normalizeHeader(String(cell ?? "")));
   const indexes = {
     customerName: findHeaderIndex(headers, requiredHeaders.customerName, "Cliente"),
     businessUnit: findHeaderIndex(headers, requiredHeaders.businessUnit, "BU"),
@@ -96,7 +97,7 @@ export function parseTargetBaselineRows(rows: SpreadsheetCell[][]): TargetBaseli
     responsibleCode: findOptionalHeaderIndex(headers, optionalHeaders.responsibleCode),
   };
 
-  return rows.slice(1)
+  return rows.slice(headerRowIndex + 1)
     .map((row, index) => {
       const hunterTarget = parseMoney(row[indexes.hunterTarget]);
       const farmerRenewalTarget = parseMoney(row[indexes.farmerRenewalTarget]);
@@ -109,7 +110,7 @@ export function parseTargetBaselineRows(rows: SpreadsheetCell[][]): TargetBaseli
         : Math.max(roundCurrency(totalTarget - hunterTarget - farmerRenewalTarget), 0);
 
       return {
-        rowNumber: index + 2,
+        rowNumber: headerRowIndex + index + 2,
         customerName: String(row[indexes.customerName] ?? "").trim(),
         businessUnit: String(row[indexes.businessUnit] ?? "").trim(),
         hunterTarget,
@@ -120,6 +121,19 @@ export function parseTargetBaselineRows(rows: SpreadsheetCell[][]): TargetBaseli
       };
     })
     .filter((row) => row.customerName);
+}
+
+function findTargetHeaderRowIndex(rows: SpreadsheetCell[][]) {
+  const index = rows.findIndex((row) => {
+    const headers = row.map((cell) => normalizeHeader(String(cell ?? "")));
+    return findOptionalHeaderIndex(headers, requiredHeaders.customerName) >= 0
+      && findOptionalHeaderIndex(headers, requiredHeaders.businessUnit) >= 0
+      && findOptionalHeaderIndex(headers, requiredHeaders.hunterTarget) >= 0
+      && findOptionalHeaderIndex(headers, requiredHeaders.farmerRenewalTarget) >= 0
+      && findOptionalHeaderIndex(headers, requiredHeaders.totalTarget) >= 0;
+  });
+  if (index >= 0) return index;
+  throw new Error("Cabeçalho da baseline não encontrado. Verifique Cliente, BU, Hunter/Renovação e Total RL 2026.");
 }
 
 export function buildTargetBaselineComparisons(

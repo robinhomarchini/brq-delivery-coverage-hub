@@ -150,6 +150,7 @@ Centralizar importação de baselines em uma nova rota, removendo uploads antigo
 - [x] Bloquear `corporate-sso` pendente no `AuthGate` para evitar bypass caso o provider seja selecionado antes da integração real.
 - [x] Publicar o provider selecionável de auth no deployment Vercel `dpl_AZofjL9ecDjJECPXdWwk3TYEvb8r`, aliasado em `https://brq-delivery-coverage-hub.vercel.app`.
 - [x] Fazer a importação da Curva principal criar automaticamente a foto `Baseline geral de Studios` a partir da coluna Áreas/Studios da própria Curva.
+- [x] Definir a extração detalhada da Curva para baseline de Studios: aba `Sheet1`, cliente na coluna C, Studio/Habilitador na L, Tipo Opp na O, Total RL 2026 na AH e filtro BU Financial na BR.
 
 ## Previous Completed Work
 
@@ -258,6 +259,8 @@ Centralizar importação de baselines em uma nova rota, removendo uploads antigo
 - Cada origem de baseline de Studio/Área pode declarar layouts aceitos. A primeira implementação suporta layout detalhado de Studios e layout largo Cliente + Renovação/Manut + Novos Projetos/Hunter; linhas `Grupo ...` são ruído visual e não entram no domínio.
 - Na central de Baselines, o batimento por Cliente + Studio/Origem deve exibir três origens distintas: `Baseline` importada da planilha da origem, `Alocado` em `studio_target_allocations` e `Baseline Curva` vinda de `customer_target_years`/`customer.studioTarget` no ano selecionado. Snapshots antigos com duas linhas continuam compatíveis.
 - A origem `Baseline geral de Studios` deve ser atualizada automaticamente pela importação da Curva principal. Snapshots manuais antigos de Studio continuam históricos, mas não devem ser a fonte mais recente quando uma nova Curva principal for importada com valores de Áreas/Studios.
+- Na Curva principal, o baseline detalhado de Studios vem da aba `Sheet1`: `Grupo Cliente` coluna C, `Studio/Habilitador` coluna L, `Tipo Opp` coluna O para separar Novo/Ampliação como Studio Hunter e demais tipos como Manutenção/Renovação, `Total RL 2026` coluna AH, e somente `CC CROSS`/coluna BR igual a `BU Financial`. Buckets `Squad` e `Times` ficam fora para nao inflar o baseline de Studios com o bloco operacional principal. A planilha `Visão Agrupada` vira conferência de teste de mesa, não função sistêmica nem origem obrigatória.
+- Na importação manual de baseline de Studio/Área, se a planilha trouxer `BU` ou `CC CROSS`, somente linhas `BU Financial` entram no snapshot; isso evita poluir a base com clientes de outras BUs e preserva as marcações Financial já salvas em snapshots anteriores.
 - A serialização/restauração de linhas de Baseline de Studios e a montagem das linhas de relatório ficam centralizadas em `src/lib/studio-baseline-report.ts`; telas não devem recriar localmente essa lógica.
 - A revisão de componentização está documentada em `docs/COMPONENTIZATION_REVIEW.md`; próximos alvos seguros são builders puros de `person-target-report.tsx` e `customer-management.tsx`, antes de extrair componentes visuais.
 - A geração da Planilha oficial do Relatório de Metas fica centralizada em `src/lib/reports/person-target-official-export.ts`. `person-target-report.tsx` apenas reexporta `buildOfficialRowsForView` para compatibilidade com o gate `test:reports`.

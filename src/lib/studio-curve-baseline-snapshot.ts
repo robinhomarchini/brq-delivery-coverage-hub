@@ -1,6 +1,9 @@
-import type { StudioTargetAllocation } from "@/data/mockData";
+import type { Area, Customer, StudioTargetAllocation } from "@/data/mockData";
 import {
+  buildStudioBaselineComparisons,
   getStudioBaselineSource,
+  isStudioHunterOpportunity,
+  type StudioBaselineRow,
   type StudioBaselineComparisonRow,
   type StudioBaselineSnapshot,
 } from "@/lib/studio-baseline-import";
@@ -9,29 +12,50 @@ import {
   type StudioBaselineReportRow,
 } from "@/lib/studio-baseline-report";
 import type { TargetBaselineComparison } from "@/lib/target-baseline-import";
-import { roundCurrency } from "@/lib/utils";
+import { normalizeBusinessName, roundCurrency } from "@/lib/utils";
 
 type StudioCurveSnapshotInput = {
+  curveStudioRows: StudioBaselineRow[];
   comparisons: TargetBaselineComparison[];
+  customers: Customer[];
+  areas: Area[];
   studioTargetAllocations: StudioTargetAllocation[];
   year: number;
   fileName: string;
 };
 
+const curveSheetColumns = {
+  customerName: 2, // C - Grupo Cliente
+  studioName: 11, // L - Studio/Habilitador
+  opportunityType: 14, // O - Tipo Opp (Renovação/Novo-ampliação)
+  totalAmount: 33, // AH - Total RL 2026
+  businessUnit: 69, // BR - CC CROSS
+};
+
 export function buildStudioCurveBaselineSnapshotInput({
+  curveStudioRows,
   comparisons,
+  customers,
+  areas,
   studioTargetAllocations,
   year,
   fileName,
 }: StudioCurveSnapshotInput): Omit<StudioBaselineSnapshot, "id" | "createdAt"> | null {
   const source = getStudioBaselineSource("studio_general");
-  const rows = buildStudioCurveBaselineComparisonRows(comparisons, studioTargetAllocations, year);
+  const rows = buildStudioCurveBaselineComparisonRows(
+    curveStudioRows,
+    comparisons,
+    customers,
+    areas,
+    studioTargetAllocations,
+    year,
+  );
   if (!rows.length) return null;
 
   const reportRows = rows.flatMap((row) =>
     buildStudioBaselineReportRows(row, year, {
       sourceNote: "Gerado automaticamente pela importação da Curva principal.",
-      allocatedDifferenceLabel: "Diferença entre a alocação detalhada em Studios e a Curva principal.",
+      allocatedDifferenceLabel: "Diferença entre a alocação detalhada em Studios e a Curva principal filtrada por BU Financial.",
       includeDifferenceLabels: true,
     })
   );
@@ -46,68 +70,83 @@ export function buildStudioCurveBaselineSnapshotInput({
   };
 }
 
+export function parseCurveStudioBaselineRows(rows: unknown[][]): StudioBaselineRow[] {
+  const grouped = new Map<string, StudioBaselineRow>();
+
+  rows.forEach((row, index) => {
+    const businessUnit = String(row[curveSheetColumns.businessUnit] ?? "").trim();
+    if (normalizeBusinessName(businessUnit) !== "bu financial") return;
+
+    const customerName = String(row[curveSheetColumns.customerName] ?? "").trim();
+    const studioName = String(row[curveSheetColumns.studioName] ?? "").trim();
+    const opportunityType = String(row[curveSheetColumns.opportunityType] ?? "").trim();
+    const amount = parseMoney(row[curveSheetColumns.totalAmount]);
+    if (!isEligibleCurveStudioName(studioName)) return;
+    if (!customerName || !studioName || amount <= 0) return;
+
+    const key = `${normalizeBusinessName(customerName)}:${normalizeBusinessName(studioName)}`;
+    const current = grouped.get(key) ?? {
+      rowNumber: index + 1,
+      salesUnit: "Curva principal",
+      tower: "Sheet1",
+      businessUnit,
+      customerName,
+      studioName,
+      opportunityType: "",
+      hunterAmount: 0,
+      maintenanceAmount: 0,
+      totalAmount: 0,
+    };
+
+    if (isStudioHunterOpportunity(opportunityType)) {
+      current.hunterAmount = roundCurrency(current.hunterAmount + amount);
+    } else {
+      current.maintenanceAmount = roundCurrency(current.maintenanceAmount + amount);
+    }
+    current.opportunityType = [current.opportunityType, opportunityType].filter(Boolean).join(" / ");
+    current.totalAmount = roundCurrency(current.hunterAmount + current.maintenanceAmount);
+    grouped.set(key, current);
+  });
+
+  return Array.from(grouped.values()).sort((first, second) =>
+    first.customerName.localeCompare(second.customerName, "pt-BR")
+    || first.studioName.localeCompare(second.studioName, "pt-BR")
+  );
+}
+
+function isEligibleCurveStudioName(value: string) {
+  const normalized = normalizeBusinessName(value);
+  return normalized !== "squad" && normalized !== "times";
+}
+
 function buildStudioCurveBaselineComparisonRows(
+  curveStudioRows: StudioBaselineRow[],
   comparisons: TargetBaselineComparison[],
+  customers: Customer[],
+  areas: Area[],
   studioTargetAllocations: StudioTargetAllocation[],
   year: number,
 ): StudioBaselineComparisonRow[] {
-  const allocationsByCustomer = summarizeStudioAllocationsByCustomer(studioTargetAllocations, year);
+  const importedTargetsByCustomer = new Map(
+    comparisons
+      .filter((comparison) => comparison.valueStatus !== "invalid_total")
+      .map((comparison) => [normalizeBusinessName(comparison.row.customerName), comparison])
+  );
 
-  return comparisons
-    .filter((comparison) => comparison.valueStatus !== "invalid_total")
-    .map((comparison) => {
-      const allocated = comparison.customer
-        ? allocationsByCustomer.get(comparison.customer.id) ?? { hunter: 0, maintenance: 0, total: 0 }
-        : { hunter: 0, maintenance: 0, total: 0 };
-      const curveStudioTarget = roundCurrency(comparison.effectiveStudioTarget);
-      const baselineTotal = curveStudioTarget;
-      const allocationDelta = roundCurrency(allocated.total - baselineTotal);
+  return buildStudioBaselineComparisons(curveStudioRows, customers, areas, studioTargetAllocations, year)
+    .map((row) => {
+      const targetComparison = importedTargetsByCustomer.get(normalizeBusinessName(row.customerName));
+      if (!targetComparison) return row;
 
       return {
-        key: `${comparison.row.customerName}:Baseline Curva`,
-        customerName: comparison.row.customerName,
-        registeredCustomerName: comparison.matchedCustomerName ?? "",
-        studioName: "Baseline Curva",
-        registeredStudioName: "Baseline Curva",
-        registeredCustomerHunterTarget: roundCurrency(comparison.effectiveHunterTarget),
-        registeredCustomerMaintenanceTarget: roundCurrency(comparison.effectiveFarmerRenewalTarget),
-        registeredCustomerStudioTarget: curveStudioTarget,
-        registeredCustomerTotalTarget: roundCurrency(comparison.effectiveRevenue),
-        baselineHunter: 0,
-        baselineMaintenance: baselineTotal,
-        baselineTotal,
-        allocatedHunter: allocated.hunter,
-        allocatedMaintenance: allocated.maintenance,
-        allocatedTotal: allocated.total,
-        hunterDelta: allocated.hunter,
-        maintenanceDelta: roundCurrency(allocated.maintenance - baselineTotal),
-        allocationDelta,
-        status: comparison.customer
-          ? Math.abs(allocationDelta) <= 0.01 ? "ok" : "allocation_gap"
-          : "missing_customer",
-      } satisfies StudioBaselineComparisonRow;
+        ...row,
+        registeredCustomerHunterTarget: roundCurrency(targetComparison.effectiveHunterTarget),
+        registeredCustomerMaintenanceTarget: roundCurrency(targetComparison.effectiveFarmerRenewalTarget),
+        registeredCustomerStudioTarget: roundCurrency(targetComparison.effectiveStudioTarget),
+        registeredCustomerTotalTarget: roundCurrency(targetComparison.effectiveRevenue),
+      };
     })
-    .filter((row) => row.registeredCustomerStudioTarget > 0.01 || row.allocatedTotal > 0.01)
     .sort((first, second) => first.customerName.localeCompare(second.customerName, "pt-BR"));
-}
-
-function summarizeStudioAllocationsByCustomer(
-  allocations: StudioTargetAllocation[],
-  year: number,
-) {
-  const totals = new Map<string, { hunter: number; maintenance: number; total: number }>();
-
-  allocations
-    .filter((allocation) => allocation.year === year)
-    .forEach((allocation) => {
-      const current = totals.get(allocation.customerId) ?? { hunter: 0, maintenance: 0, total: 0 };
-      current.hunter = roundCurrency(current.hunter + allocation.hunterAmount);
-      current.maintenance = roundCurrency(current.maintenance + allocation.maintenanceAmount);
-      current.total = roundCurrency(current.hunter + current.maintenance);
-      totals.set(allocation.customerId, current);
-    });
-
-  return totals;
 }
 
 function getStudioCurveSnapshotTotals(rows: StudioBaselineReportRow[]) {
@@ -122,4 +161,18 @@ function getStudioCurveSnapshotTotals(rows: StudioBaselineReportRow[]) {
     curveStudioTotal: 0,
     allocationDelta: 0,
   });
+}
+
+function parseMoney(value: unknown) {
+  if (typeof value === "number") return roundCurrency(value);
+  if (typeof value !== "string") return 0;
+
+  const normalized = value
+    .trim()
+    .replace(/R\$/gi, "")
+    .replace(/\s/g, "")
+    .replace(/\.(?=\d{3}(?:\D|$))/g, "")
+    .replace(",", ".");
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? roundCurrency(parsed) : 0;
 }

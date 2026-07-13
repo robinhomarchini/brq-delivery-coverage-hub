@@ -6,6 +6,7 @@ export interface StudioBaselineRow {
   rowNumber: number;
   salesUnit: string;
   tower: string;
+  businessUnit?: string;
   customerName: string;
   studioName: string;
   opportunityType: string;
@@ -65,6 +66,7 @@ const studioBaselineHeaders = {
   studioName: ["studio/habilitador", "studio", "habilitador"],
   opportunityType: ["tipo opp", "tipo oportunidade", "tipo"],
   netRevenue: ["receita liquida", "receita líquida", "rl"],
+  businessUnit: ["cc cross", "bu", "business unit"],
 };
 
 const wideStudioBaselineHeaders = {
@@ -109,6 +111,7 @@ export function parseStudioBaselineRows(rows: unknown[][], source: StudioBaselin
     studioName: findHeaderIndex(headers, studioBaselineHeaders.studioName, "Studio/Habilitador"),
     opportunityType: findHeaderIndex(headers, studioBaselineHeaders.opportunityType, "Tipo Opp"),
     netRevenue: findHeaderIndex(headers, studioBaselineHeaders.netRevenue, "Receita Líquida"),
+    businessUnit: findOptionalHeaderIndex(headers, studioBaselineHeaders.businessUnit),
   };
 
   const grouped = new Map<string, StudioBaselineRow>();
@@ -124,6 +127,7 @@ export function parseStudioBaselineRows(rows: unknown[][], source: StudioBaselin
       rowNumber: index + 2,
       salesUnit: String(row[indexes.salesUnit] ?? "").trim(),
       tower: String(row[indexes.tower] ?? "").trim(),
+      businessUnit: indexes.businessUnit >= 0 ? String(row[indexes.businessUnit] ?? "").trim() : undefined,
       customerName,
       studioName,
       opportunityType: "",
@@ -178,6 +182,7 @@ function tryParseWideStudioBaselineRows(rows: unknown[][], source: StudioBaselin
       rowNumber: headerRowIndex + offset + 2,
       salesUnit: source.name,
       tower: source.name,
+      businessUnit: undefined,
       customerName,
       studioName,
       opportunityType: "Baseline centralizado",
@@ -196,6 +201,10 @@ function tryParseWideStudioBaselineRows(rows: unknown[][], source: StudioBaselin
     first.customerName.localeCompare(second.customerName, "pt-BR")
     || first.studioName.localeCompare(second.studioName, "pt-BR")
   );
+}
+
+export function isFinancialStudioBaselineRow(row: StudioBaselineRow) {
+  return !row.businessUnit || normalizeBusinessName(row.businessUnit) === "bu financial";
 }
 
 function findWideCustomerColumnIndex(rows: unknown[][], headerRowIndex: number, maintenanceIndex: number, hunterIndex: number) {
@@ -335,7 +344,7 @@ function parseAmount(value: unknown) {
   return Number.isFinite(amount) && amount > 0 ? roundCurrency(amount) : 0;
 }
 
-function isStudioHunterOpportunity(value: string) {
+export function isStudioHunterOpportunity(value: string) {
   const normalized = normalizeHeader(value);
   return normalized.includes("novo") || normalized.includes("ampliacao");
 }
