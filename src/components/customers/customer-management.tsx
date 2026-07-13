@@ -1707,15 +1707,16 @@ function getCustomerTargetPeopleByType(
 
   const peopleById = new Map(people.map((person) => [person.id, person]));
   const totalsByPerson = new Map<string, CustomerTargetPerson>();
+  const primaryHunterId = type === "hunter" ? getPrimaryHunterIdForCustomer(customer.id, people) : "";
 
   people
     .filter((person) =>
       person.clientIds.includes(customer.id)
       && (type === "hunter"
-        ? isHunterRole(person.roleType)
+        ? person.id === primaryHunterId
         : type === "farmer_renewal"
-          ? isCustomerFarmerResponsibleProfile(person.roleType, person.isManager)
-          : isTargetAssignableRole(person.roleType))
+        ? isCustomerFarmerResponsibleProfile(person.roleType, person.isManager)
+        : isTargetAssignableRole(person.roleType))
     )
     .forEach((person) => {
       totalsByPerson.set(person.id, {
@@ -1770,8 +1771,12 @@ function getCustomerTargetPeopleByType(
     });
   }
 
-  return Array.from(totalsByPerson.values())
-    .map((person) => ({ ...person, amount: roundCurrency(person.amount) }))
+  const rows = Array.from(totalsByPerson.values())
+    .map((person) => ({ ...person, amount: roundCurrency(person.amount) }));
+  const hasHunterWithValue = type === "hunter" && rows.some((person) => person.amount > 0.01);
+
+  return rows
+    .filter((person) => type !== "hunter" || person.amount > 0.01 || (!hasHunterWithValue && person.personId === primaryHunterId))
     .sort((first, second) => second.amount - first.amount || first.name.localeCompare(second.name));
 }
 

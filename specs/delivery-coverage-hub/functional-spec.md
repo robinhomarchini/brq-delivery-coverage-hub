@@ -425,7 +425,9 @@ pelas associações e a diferença entre os dois valores para conciliação. Dev
 permitir alternar a visão entre com valores e sem valores; a opção sem valores
 oculta números financeiros na tela e exportação, sem alterar a regra de
 cobertura. Hunters nessa visão devem representar meta Hunter/Studio Hunter com
-valor associado, evitando vínculo operacional sem meta na coluna comercial. Na visão por diretoria de
+valor associado; se não houver nenhum Hunter com valor para o cliente, pode
+aparecer somente o Hunter principal com valor zero. Vínculos comerciais
+zerados adicionais não devem aparecer na coluna comercial. Na visão por diretoria de
 Delivery, o usuário deve escolher uma pessoa consolidadora vinda do cadastro de
 Pessoas: perfis Diretor ou pessoas ativas com subordinados apontando para seu
 `people.directorId`. Após a escolha, o relatório abre os dados na chave Pessoa

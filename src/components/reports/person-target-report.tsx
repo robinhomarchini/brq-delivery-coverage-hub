@@ -1906,7 +1906,8 @@ function buildClientCoverageRows({
         if (maintenancePersonId) deliveryPersonIds.add(maintenancePersonId);
       });
 
-      const hunters = Array.from(hunterPersonIds).map((personId) => {
+      const primaryHunterId = getPrimaryClientCoverageHunterId(customer.id, people);
+      const hunterCandidates = Array.from(hunterPersonIds).map((personId) => {
         const person = peopleById.get(personId);
         const directHunter = customerAllocations
           .filter((allocation) => allocation.personId === personId && allocation.type === "hunter")
@@ -1918,7 +1919,11 @@ function buildClientCoverageRows({
           roleType: person?.roleType ?? "Hunter",
           amount: Math.max(directHunter, studioHunter),
         };
-      }).filter((person) => person.amount > 0.01);
+      });
+      const hasHunterWithValue = hunterCandidates.some((person) => person.amount > 0.01);
+      const hunters = hunterCandidates.filter((person) =>
+        person.amount > 0.01 || (!hasHunterWithValue && person.personId === primaryHunterId)
+      );
 
       const deliveryManagers = Array.from(deliveryPersonIds).map((personId) => {
         const person = peopleById.get(personId);
@@ -1996,6 +2001,15 @@ function formatClientCoveragePerson(person: ClientCoveragePerson) {
 
 function formatClientCoveragePeopleNames(people: ClientCoveragePerson[]) {
   return people.map((person) => person.personName).join(", ");
+}
+
+function getPrimaryClientCoverageHunterId(
+  customerId: string,
+  people: Array<{ id: string; name: string; roleType: RoleType; active: boolean; clientIds: string[] }>,
+) {
+  return people
+    .filter((person) => person.active && isHunterRole(person.roleType) && person.clientIds.includes(customerId))
+    .sort((first, second) => first.name.localeCompare(second.name, "pt-BR"))[0]?.id ?? "";
 }
 
 function getHunterOwnAmount(
