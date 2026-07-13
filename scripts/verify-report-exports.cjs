@@ -105,7 +105,8 @@ const requiredClientCoverageTokens = [
   "Hunters Especializados",
   "Meta do cliente",
   "Diferença",
-  "clientCoverageReportColumns",
+  "getClientCoverageReportColumns",
+  "showClientCoverageValues",
 ];
 const missingClientCoverageTokens = requiredClientCoverageTokens.filter((token) => !source.includes(token));
 if (missingClientCoverageTokens.length) {

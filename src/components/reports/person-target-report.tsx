@@ -47,6 +47,7 @@ export function PersonTargetReport() {
   const [peopleSort, setPeopleSort] = useState<SortState<PeopleSortKey>>({ key: "total", direction: "desc" });
   const [areaSort, setAreaSort] = useState<SortState<AreaSortKey>>({ key: "total", direction: "desc" });
   const [hunterSort, setHunterSort] = useState<SortState<HunterSortKey>>({ key: "totalHunter", direction: "desc" });
+  const [showClientCoverageValues, setShowClientCoverageValues] = useState(true);
   const [selectedPersonIds, setSelectedPersonIds] = useState<Set<string>>(new Set());
 
   const selectedYear = Number(year) || currentYear;
@@ -193,6 +194,10 @@ export function PersonTargetReport() {
       !query || `${row.customerName} ${row.huntersText} ${row.deliveryManagersText} ${row.specialistHuntersText} ${row.studiosText}`.toLowerCase().includes(query)
     );
   }, [clientCoverageRows, search]);
+  const clientCoverageExportColumns = useMemo(
+    () => getClientCoverageReportColumns(showClientCoverageValues),
+    [showClientCoverageValues],
+  );
   const filteredSpecialistHunterRows = useMemo(() => {
     const query = search.toLowerCase();
     return specialistHunterRows.filter((row) =>
@@ -461,10 +466,10 @@ export function PersonTargetReport() {
             )}
             {effectiveView === "clients" && (
               <ReportExportActions
-                title={`Relatório Clientes x Hunters x Delivery · ${year}`}
-                filename={`relatorio-clientes-hunters-delivery-${year}`}
+                title={`Relatório Clientes x Hunters x Delivery · ${year}${showClientCoverageValues ? "" : " · sem valores"}`}
+                filename={`relatorio-clientes-hunters-delivery-${showClientCoverageValues ? "com-valores" : "sem-valores"}-${year}`}
                 rows={filteredClientCoverageRows}
-                columns={clientCoverageReportColumns}
+                columns={clientCoverageExportColumns}
               />
             )}
             {effectiveView === "specialistHunters" && (
@@ -1055,14 +1060,36 @@ export function PersonTargetReport() {
 
       {effectiveView === "clients" && (
         <Card className="overflow-hidden shadow-sm">
-          <div className="border-b border-slate-200 px-5 py-4">
-            <p className="text-sm font-bold text-slate-900">Clientes x Hunters x Delivery</p>
-            <p className="text-xs text-slate-500">
-              Visão por cliente com participantes derivados das metas diretas, governança Delivery, Studios e seleção de Hunter Especializado.
-            </p>
+          <div className="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-sm font-bold text-slate-900">Clientes x Hunters x Delivery</p>
+              <p className="text-xs text-slate-500">
+                Visão por cliente com participantes derivados das metas diretas, governança Delivery, Studios e seleção de Hunter Especializado.
+              </p>
+            </div>
+            <div className="flex w-full rounded-lg border border-slate-200 bg-slate-50 p-1 sm:w-auto">
+              <button
+                type="button"
+                className={`flex-1 rounded-md px-3 py-1.5 text-sm font-bold transition sm:flex-none ${
+                  showClientCoverageValues ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-900"
+                }`}
+                onClick={() => setShowClientCoverageValues(true)}
+              >
+                Com valores
+              </button>
+              <button
+                type="button"
+                className={`flex-1 rounded-md px-3 py-1.5 text-sm font-bold transition sm:flex-none ${
+                  !showClientCoverageValues ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-900"
+                }`}
+                onClick={() => setShowClientCoverageValues(false)}
+              >
+                Sem valores
+              </button>
+            </div>
           </div>
           <div className="overflow-x-auto">
-            <Table className="min-w-[1280px]">
+            <Table className={showClientCoverageValues ? "min-w-[1520px]" : "min-w-[1120px]"}>
               <TableHeader>
                 <TableRow>
                   <TableHead>Cliente</TableHead>
@@ -1070,9 +1097,13 @@ export function PersonTargetReport() {
                   <TableHead>Delivery / Farmers</TableHead>
                   <TableHead>Hunters Especializados</TableHead>
                   <TableHead>Studios</TableHead>
-                  <TableHead className="text-right">Meta do cliente</TableHead>
-                  <TableHead className="text-right">Meta ligada</TableHead>
-                  <TableHead className="text-right">Diferença</TableHead>
+                  {showClientCoverageValues && (
+                    <>
+                      <TableHead className="text-right">Meta do cliente</TableHead>
+                      <TableHead className="text-right">Meta ligada</TableHead>
+                      <TableHead className="text-right">Diferença</TableHead>
+                    </>
+                  )}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1083,13 +1114,13 @@ export function PersonTargetReport() {
                       <p className="text-xs text-slate-400">{row.participantCount} participante(s)</p>
                     </TableCell>
                     <TableCell>
-                      <PersonBadgeList people={row.hunters} emptyLabel="Sem Hunter" tone="sky" />
+                      <PersonBadgeList people={row.hunters} emptyLabel="Sem Hunter" tone="sky" showValues={showClientCoverageValues} />
                     </TableCell>
                     <TableCell>
-                      <PersonBadgeList people={row.deliveryManagers} emptyLabel="Sem Delivery/Farmer" tone="purple" />
+                      <PersonBadgeList people={row.deliveryManagers} emptyLabel="Sem Delivery/Farmer" tone="purple" showValues={showClientCoverageValues} />
                     </TableCell>
                     <TableCell>
-                      <PersonBadgeList people={row.specialistHunters} emptyLabel="Sem Hunter Especializado" tone="slate" />
+                      <PersonBadgeList people={row.specialistHunters} emptyLabel="Sem Hunter Especializado" tone="slate" showValues={showClientCoverageValues} />
                     </TableCell>
                     <TableCell>
                       <div className="flex max-w-sm flex-wrap gap-1.5">
@@ -1099,14 +1130,18 @@ export function PersonTargetReport() {
                         ))}
                       </div>
                     </TableCell>
-                    <TableCell className="text-right font-semibold tabular-nums text-slate-700">{formatCurrency(row.customerTargetTotal)}</TableCell>
-                    <TableCell className="text-right font-bold tabular-nums text-slate-950">{formatCurrency(row.totalLinkedTarget)}</TableCell>
-                    <TableCell className={`text-right font-bold tabular-nums ${row.coverageDelta >= -0.01 ? "text-emerald-700" : "text-red-700"}`}>
-                      {formatCurrency(row.coverageDelta)}
-                    </TableCell>
+                    {showClientCoverageValues && (
+                      <>
+                        <TableCell className="text-right font-semibold tabular-nums text-slate-700">{formatCurrency(row.customerTargetTotal)}</TableCell>
+                        <TableCell className="text-right font-bold tabular-nums text-slate-950">{formatCurrency(row.totalLinkedTarget)}</TableCell>
+                        <TableCell className={`text-right font-bold tabular-nums ${row.coverageDelta >= -0.01 ? "text-emerald-700" : "text-red-700"}`}>
+                          {formatCurrency(row.coverageDelta)}
+                        </TableCell>
+                      </>
+                    )}
                   </TableRow>
                 ))}
-                {filteredClientCoverageRows.length > 0 && (
+                {showClientCoverageValues && filteredClientCoverageRows.length > 0 && (
                   <TableRow className="bg-slate-900 text-white hover:bg-slate-900">
                     <TableCell colSpan={5} className="font-bold">Total dos clientes filtrados</TableCell>
                     <TableCell className="text-right font-bold tabular-nums">{formatCurrency(sumClientCoverageCustomerTarget(filteredClientCoverageRows))}</TableCell>
@@ -1264,10 +1299,12 @@ function PersonBadgeList({
   people,
   emptyLabel,
   tone,
+  showValues = true,
 }: {
   people: ClientCoveragePerson[];
   emptyLabel: string;
   tone: "sky" | "purple" | "slate";
+  showValues?: boolean;
 }) {
   const toneClass = tone === "sky"
     ? "bg-sky-100 text-sky-800 hover:bg-sky-100"
@@ -1282,7 +1319,7 @@ function PersonBadgeList({
       {people.map((person) => (
         <Badge key={person.personId} className={toneClass} title={person.roleType}>
           {person.personName}
-          {person.amount > 0.01 ? ` · ${formatCurrency(person.amount)}` : ""}
+          {showValues && person.amount > 0.01 ? ` · ${formatCurrency(person.amount)}` : ""}
         </Badge>
       ))}
     </div>
@@ -1881,7 +1918,7 @@ function buildClientCoverageRows({
           roleType: person?.roleType ?? "Hunter",
           amount: Math.max(directHunter, studioHunter),
         };
-      }).filter((person) => person.amount > 0.01 || peopleById.get(person.personId)?.clientIds.includes(customer.id));
+      }).filter((person) => person.amount > 0.01);
 
       const deliveryManagers = Array.from(deliveryPersonIds).map((personId) => {
         const person = peopleById.get(personId);
@@ -1955,6 +1992,10 @@ function sortClientCoveragePeople(people: ClientCoveragePerson[]) {
 
 function formatClientCoveragePerson(person: ClientCoveragePerson) {
   return person.amount > 0.01 ? `${person.personName} (${formatCurrency(person.amount)})` : person.personName;
+}
+
+function formatClientCoveragePeopleNames(people: ClientCoveragePerson[]) {
+  return people.map((person) => person.personName).join(", ");
 }
 
 function getHunterOwnAmount(
@@ -2548,17 +2589,25 @@ const hunterClientReportColumns: ReportColumn<HunterClientRow>[] = [
   { key: "observations", label: "Observações", value: (row) => row.observations },
 ];
 
-const clientCoverageReportColumns: ReportColumn<ClientCoverageRow>[] = [
-  { key: "customerName", label: "Cliente", value: (row) => row.customerName },
-  { key: "huntersText", label: "Hunters", value: (row) => row.huntersText },
-  { key: "deliveryManagersText", label: "Delivery / Farmers", value: (row) => row.deliveryManagersText },
-  { key: "specialistHuntersText", label: "Hunters Especializados", value: (row) => row.specialistHuntersText },
-  { key: "studiosText", label: "Studios", value: (row) => row.studiosText },
-  { key: "participantCount", label: "Participantes", value: (row) => row.participantCount, format: "number", align: "right" },
-  { key: "customerTargetTotal", label: "Meta do cliente", value: (row) => row.customerTargetTotal, format: "currency", align: "right" },
-  { key: "totalLinkedTarget", label: "Meta ligada", value: (row) => row.totalLinkedTarget, format: "currency", align: "right" },
-  { key: "coverageDelta", label: "Diferença", value: (row) => row.coverageDelta, format: "currency", align: "right" },
-];
+function getClientCoverageReportColumns(showValues: boolean): ReportColumn<ClientCoverageRow>[] {
+  const columns: ReportColumn<ClientCoverageRow>[] = [
+    { key: "customerName", label: "Cliente", value: (row) => row.customerName },
+    { key: "huntersText", label: "Hunters", value: (row) => showValues ? row.huntersText : formatClientCoveragePeopleNames(row.hunters) },
+    { key: "deliveryManagersText", label: "Delivery / Farmers", value: (row) => showValues ? row.deliveryManagersText : formatClientCoveragePeopleNames(row.deliveryManagers) },
+    { key: "specialistHuntersText", label: "Hunters Especializados", value: (row) => showValues ? row.specialistHuntersText : formatClientCoveragePeopleNames(row.specialistHunters) },
+    { key: "studiosText", label: "Studios", value: (row) => row.studiosText },
+    { key: "participantCount", label: "Participantes", value: (row) => row.participantCount, format: "number", align: "right" },
+  ];
+
+  if (!showValues) return columns;
+
+  return [
+    ...columns,
+    { key: "customerTargetTotal", label: "Meta do cliente", value: (row) => row.customerTargetTotal, format: "currency", align: "right" },
+    { key: "totalLinkedTarget", label: "Meta ligada", value: (row) => row.totalLinkedTarget, format: "currency", align: "right" },
+    { key: "coverageDelta", label: "Diferença", value: (row) => row.coverageDelta, format: "currency", align: "right" },
+  ];
+}
 
 const specialistHunterReportColumns: ReportColumn<SpecialistHunterRow>[] = [
   { key: "personName", label: "Hunter Especializado", value: (row) => row.personName },
