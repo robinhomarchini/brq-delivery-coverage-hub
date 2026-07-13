@@ -1,10 +1,11 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { FileSearch, RefreshCw, UploadCloud } from "lucide-react";
 import { TargetBaselineImport } from "@/components/insights/target-baseline-import";
 import { ErrorNotice, SuccessNotice } from "@/components/shared/success-notice";
 import { KpiSummaryCard } from "@/components/shared/kpi-summary-card";
+import { ReportExportActions, type ReportColumn } from "@/components/shared/report-export-actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -23,6 +24,7 @@ import {
 import { cn, formatCurrency } from "@/lib/utils";
 
 const maxFileSizeInBytes = 5 * 1024 * 1024;
+type BaselineImportMode = "main_curve" | "studio_sources";
 
 type StudioSnapshotRow = {
   key: string;
@@ -44,6 +46,7 @@ type StudioSnapshotRow = {
 
 export function BaselineImportCenter() {
   const { areas, customers, customerTargets, studioTargetAllocations, studioBaselineSnapshots, saveStudioBaselineSnapshot } = useDeliveryStore();
+  const [mode, setMode] = useState<BaselineImportMode>("studio_sources");
   const [year, setYear] = useState(defaultTargetYear);
   const [sourceCode, setSourceCode] = useState<StudioBaselineSourceCode>("studio_px");
   const [fileName, setFileName] = useState("");
@@ -71,7 +74,24 @@ export function BaselineImportCenter() {
   const rows = importedRows.length ? importedRows : latestSnapshotRows;
   const activeFileName = importedRows.length ? fileName : loadedFromSnapshot ? latestSnapshot?.fileName ?? "" : fileName;
   const totals = useMemo(() => getStudioTotals(rows), [rows]);
-  const snapshotRows = useMemo(() => importedRows.flatMap((row) => buildSnapshotRows(row, year)), [importedRows, year]);
+  const importedSnapshotRows = useMemo(() => importedRows.flatMap((row) => buildSnapshotRows(row, year)), [importedRows, year]);
+  const exportRows = useMemo(() => rows.flatMap((row) => buildSnapshotRows(row, year)), [rows, year]);
+  const exportColumns = useMemo<ReportColumn<StudioSnapshotRow>[]>(() => [
+    { key: "customerName", label: "Cliente", value: (row) => row.customerName },
+    { key: "studioName", label: "Studio/Origem", value: (row) => row.studioName },
+    { key: "view", label: "Visão", value: (row) => row.view },
+    { key: "hunterAmount", label: "Hunter", value: (row) => row.hunterAmount, format: "currency", align: "right" },
+    { key: "maintenanceAmount", label: "Manutenção", value: (row) => row.maintenanceAmount, format: "currency", align: "right" },
+    { key: "totalAmount", label: "Total", value: (row) => row.totalAmount, format: "currency", align: "right" },
+    { key: "hunterDelta", label: "Dif. Hunter", value: (row) => row.hunterDelta, format: "currency", align: "right" },
+    { key: "maintenanceDelta", label: "Dif. Manutenção", value: (row) => row.maintenanceDelta, format: "currency", align: "right" },
+    { key: "difference", label: "Dif. Total", value: (row) => row.difference, format: "currency", align: "right" },
+    { key: "customerHunterTarget", label: "Cliente Hunter", value: (row) => row.customerHunterTarget, format: "currency", align: "right" },
+    { key: "customerMaintenanceTarget", label: "Cliente Manutenção", value: (row) => row.customerMaintenanceTarget, format: "currency", align: "right" },
+    { key: "customerTotalTarget", label: "Cliente Total", value: (row) => row.customerTotalTarget, format: "currency", align: "right" },
+    { key: "status", label: "Status", value: (row) => row.status },
+    { key: "year", label: "Ano", value: (row) => row.year, format: "number", align: "center" },
+  ], []);
 
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -102,7 +122,7 @@ export function BaselineImportCenter() {
   }
 
   async function saveSnapshot() {
-    if (!snapshotRows.length) {
+    if (!importedSnapshotRows.length) {
       setError("Importe uma baseline de Studio/Área antes de salvar.");
       return;
     }
@@ -116,7 +136,7 @@ export function BaselineImportCenter() {
         sourceCode: source.code,
         sourceName: source.name,
         fileName: fileName || `${source.code}-${year}.xlsx`,
-        rows: snapshotRows,
+        rows: importedSnapshotRows,
         totals,
       });
       setSuccess(`Baseline ${saved.sourceName} salva como foto do resultado.`);
@@ -143,12 +163,27 @@ export function BaselineImportCenter() {
             <p className="mt-1 text-sm leading-6 text-slate-500">
               Use esta central para carregar planilhas de baseline. As telas de comparação passam a consumir fotos salvas aqui; grupo da planilha é ignorado, valem Cliente, tipo de receita e valor.
             </p>
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              <ModeButton
+                active={mode === "main_curve"}
+                title="Curva principal"
+                description="Cliente, Hunter, Farmer e Total."
+                onClick={() => setMode("main_curve")}
+              />
+              <ModeButton
+                active={mode === "studio_sources"}
+                title="Áreas / Studios"
+                description="PX, Alianças, Mobile, Analytics e GENAI."
+                onClick={() => setMode("studio_sources")}
+              />
+            </div>
           </div>
         </div>
       </Card>
 
-      <TargetBaselineImport />
-
+      {mode === "main_curve" ? (
+        <TargetBaselineImport />
+      ) : (
       <section className="space-y-5">
         <Card className="p-5 shadow-sm">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -200,6 +235,12 @@ export function BaselineImportCenter() {
               <p className="mt-1 text-sm text-slate-500">Salvar cria uma foto imutável para comparação; não altera metas de clientes, pessoas ou studios.</p>
             </div>
             <div className="flex flex-wrap gap-2">
+              <ReportExportActions
+                title={`Baseline ${source.name} · ${year}`}
+                filename={`baseline-${source.code}-${year}`}
+                rows={exportRows}
+                columns={exportColumns}
+              />
               <Button type="button" variant="outline" onClick={() => {
                 setImportedRows([]);
                 setFileName("");
@@ -232,42 +273,32 @@ export function BaselineImportCenter() {
               </TableHeader>
               <TableBody>
                 {rows.map((row) => (
-                  <Fragment key={row.key}>
-                    <TableRow className="border-b-0">
-                      <TableCell rowSpan={2} className="align-top">
-                        <p className="font-bold text-slate-950">{row.customerName}</p>
-                        <p className="text-xs text-slate-500">{row.registeredCustomerName || "Cliente não encontrado"}</p>
-                      </TableCell>
-                      <TableCell rowSpan={2} className="align-top">
-                        <p className="font-semibold text-slate-800">{row.studioName}</p>
-                        <p className="text-xs text-slate-500">{row.registeredStudioName || "Studio não encontrado"}</p>
-                      </TableCell>
-                      <TableCell className="font-bold text-slate-900">Baseline</TableCell>
-                      <MoneyCell value={row.baselineHunter} />
-                      <MoneyCell value={row.baselineMaintenance} />
-                      <MoneyCell value={row.baselineTotal} bold />
-                      <TableCell className="text-right text-slate-300">-</TableCell>
-                      <TableCell className="text-right text-slate-300">-</TableCell>
-                      <TableCell rowSpan={2} className="align-middle">
-                        <p className={cn("text-sm font-semibold", getDivergenceClassName(row))}>{getDivergenceLabel(row)}</p>
-                        {Math.abs(row.allocationDelta) > 0.01 && (
-                          <p className="mt-1 text-xs text-slate-500">Dif. total: {formatCurrency(row.allocationDelta)}</p>
-                        )}
-                      </TableCell>
-                      <TableCell rowSpan={2} className="align-middle">
-                        <CustomerTargetStack row={row} />
-                      </TableCell>
-                      <TableCell rowSpan={2} className="align-middle"><StudioStatusBadge status={row.status} /></TableCell>
-                    </TableRow>
-                    <TableRow className="border-t-0 bg-slate-50/70">
-                      <TableCell className="font-bold text-slate-900">Alocado</TableCell>
-                      <MoneyCell value={row.allocatedHunter} />
-                      <MoneyCell value={row.allocatedMaintenance} />
-                      <MoneyCell value={row.allocatedTotal} bold />
-                      <MoneyCell value={row.hunterDelta} tone />
-                      <MoneyCell value={row.maintenanceDelta} tone />
-                    </TableRow>
-                  </Fragment>
+                  <TableRow key={row.key}>
+                    <TableCell>
+                      <p className="font-bold text-slate-950">{row.customerName}</p>
+                      <p className="text-xs text-slate-500">{row.registeredCustomerName || "Cliente não encontrado"}</p>
+                    </TableCell>
+                    <TableCell>
+                      <p className="font-semibold text-slate-800">{row.studioName}</p>
+                      <p className="text-xs text-slate-500">{row.registeredStudioName || "Studio não encontrado"}</p>
+                    </TableCell>
+                    <TwoLineTextCell first="Baseline" second="Alocado" />
+                    <TwoLineMoneyCell first={row.baselineHunter} second={row.allocatedHunter} />
+                    <TwoLineMoneyCell first={row.baselineMaintenance} second={row.allocatedMaintenance} />
+                    <TwoLineMoneyCell first={row.baselineTotal} second={row.allocatedTotal} bold />
+                    <TwoLineMoneyCell first={undefined} second={row.hunterDelta} tone />
+                    <TwoLineMoneyCell first={undefined} second={row.maintenanceDelta} tone />
+                    <TableCell>
+                      <p className={cn("text-sm font-semibold", getDivergenceClassName(row))}>{getDivergenceLabel(row)}</p>
+                      {Math.abs(row.allocationDelta) > 0.01 && (
+                        <p className="mt-1 text-xs text-slate-500">Dif. total: {formatCurrency(row.allocationDelta)}</p>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <CustomerTargetStack row={row} />
+                    </TableCell>
+                    <TableCell><StudioStatusBadge status={row.status} /></TableCell>
+                  </TableRow>
                 ))}
               </TableBody>
             </Table>
@@ -277,18 +308,76 @@ export function BaselineImportCenter() {
           )}
         </Card>
       </section>
+      )}
     </div>
   );
 }
 
-function MoneyCell({ value, bold = false, tone = false }: { value: number; bold?: boolean; tone?: boolean }) {
+function ModeButton({
+  active,
+  title,
+  description,
+  onClick,
+}: {
+  active: boolean;
+  title: string;
+  description: string;
+  onClick: () => void;
+}) {
   return (
-    <TableCell className={cn(
-      "text-right tabular-nums",
-      bold ? "font-black text-slate-950" : "font-semibold text-slate-800",
-      tone && getDeltaTextClassName(value),
-    )}>
-      {formatCurrency(value)}
+    <button
+      type="button"
+      className={cn(
+        "rounded-xl border px-4 py-3 text-left transition",
+        active
+          ? "border-primary bg-primary text-primary-foreground shadow-sm"
+          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
+      )}
+      onClick={onClick}
+      aria-pressed={active}
+    >
+      <span className="block text-sm font-bold">{title}</span>
+      <span className={cn("mt-1 block text-xs", active ? "text-purple-100" : "text-slate-500")}>{description}</span>
+    </button>
+  );
+}
+
+function TwoLineTextCell({ first, second }: { first: string; second: string }) {
+  return (
+    <TableCell>
+      <div className="grid gap-2">
+        <p className="min-h-7 font-bold leading-7 text-slate-900">{first}</p>
+        <p className="min-h-7 rounded-md bg-slate-50 px-2 font-bold leading-7 text-slate-900">{second}</p>
+      </div>
+    </TableCell>
+  );
+}
+
+function TwoLineMoneyCell({
+  first,
+  second,
+  bold = false,
+  tone = false,
+}: {
+  first?: number;
+  second: number;
+  bold?: boolean;
+  tone?: boolean;
+}) {
+  return (
+    <TableCell className="text-right tabular-nums">
+      <div className="grid gap-2">
+        <p className={cn("min-h-7 leading-7", bold ? "font-black text-slate-950" : "font-semibold text-slate-800")}>
+          {first === undefined ? <span className="text-slate-300">-</span> : formatCurrency(first)}
+        </p>
+        <p className={cn(
+          "min-h-7 rounded-md bg-slate-50 px-2 leading-7",
+          bold ? "font-black text-slate-950" : "font-semibold text-slate-800",
+          tone && getDeltaTextClassName(second),
+        )}>
+          {formatCurrency(second)}
+        </p>
+      </div>
     </TableCell>
   );
 }
