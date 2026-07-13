@@ -255,10 +255,11 @@ Centralizar importação de baselines em uma nova rota, removendo uploads antigo
 - A importação de baselines oficiais fica centralizada na rota Baselines. Insights não deve renderizar o importador antigo, e Comparativo Baseline não deve possuir upload/salvamento próprio de planilhas oficiais.
 - `studio_baseline_snapshots` agora guarda `source_code` e `source_name` para separar fotos de PX, Alianças, Mobile, Analytics, GENAI e baseline geral.
 - Cada origem de baseline de Studio/Área pode declarar layouts aceitos. A primeira implementação suporta layout detalhado de Studios e layout largo Cliente + Renovação/Manut + Novos Projetos/Hunter; linhas `Grupo ...` são ruído visual e não entram no domínio.
+- Na central de Baselines, o batimento por Cliente + Studio/Origem deve exibir três origens distintas: `Baseline` importada da planilha da origem, `Alocado` em `studio_target_allocations` e `Baseline Curva` vinda de `customer_target_years`/`customer.studioTarget` no ano selecionado. Snapshots antigos com duas linhas continuam compatíveis.
 
 ## Next Pending Step
 
-Próximo passo: publicar e validar em produção a nova aba Clientes no Relatório de Metas, conferindo cliente, Hunters, Delivery/Farmers, Hunters Especializados quando houver e exportação CSV/Excel.
+Próximo passo: publicar e validar em produção a terceira linha `Baseline Curva` na central de Baselines e no Comparativo Baseline, conferindo visualmente uma origem PX/Alianças com snapshot salvo e exportação CSV/Excel.
 
 ## Discovered Commands
 

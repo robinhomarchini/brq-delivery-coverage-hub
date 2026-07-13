@@ -37,7 +37,7 @@ type StudioReportRow = {
   customerName: string;
   studioName: string;
   sourceNote: string;
-  view: "Baseline" | "Hunters / Alocações";
+  view: "Baseline" | "Alocado" | "Hunters / Alocações" | "Baseline Curva";
   hunterAmount: number;
   maintenanceAmount: number;
   totalAmount: number;
@@ -668,25 +668,37 @@ function buildStudioReportRows(row: StudioBaselineComparisonRow, year: number): 
     {
       ...base,
       key: `${row.key}:allocated`,
-      view: "Hunters / Alocações" as const,
+      view: "Alocado" as const,
       hunterAmount: row.allocatedHunter,
       maintenanceAmount: row.allocatedMaintenance,
       totalAmount: row.allocatedTotal,
       difference: row.allocationDelta,
       differenceLabel: getStudioComparisonReference(row),
     },
+    {
+      ...base,
+      key: `${row.key}:curve`,
+      view: "Baseline Curva" as const,
+      hunterAmount: 0,
+      maintenanceAmount: 0,
+      totalAmount: row.registeredCustomerStudioTarget,
+      difference: row.allocatedTotal - row.registeredCustomerStudioTarget,
+      differenceLabel: "Baseline de Studio da Curva principal do cliente no ano selecionado.",
+    },
   ];
 }
 
 function restoreStudioComparisonRowsFromSnapshot(rows: unknown[]): StudioBaselineComparisonRow[] {
   const reportRows = rows.filter(isStudioReportRow);
-  const groups = new Map<string, { baseline?: StudioReportRow; allocated?: StudioReportRow }>();
+  const groups = new Map<string, { baseline?: StudioReportRow; allocated?: StudioReportRow; curve?: StudioReportRow }>();
 
   reportRows.forEach((row) => {
     const key = `${row.customerName}:${row.studioName}`;
     const group = groups.get(key) ?? {};
     if (row.view === "Baseline") {
       group.baseline = row;
+    } else if (row.view === "Baseline Curva") {
+      group.curve = row;
     } else {
       group.allocated = row;
     }
@@ -697,9 +709,10 @@ function restoreStudioComparisonRowsFromSnapshot(rows: unknown[]): StudioBaselin
     .map((group) => {
       const baseline = group.baseline;
       const allocated = group.allocated;
-      if (!baseline && !allocated) return null;
+      const curve = group.curve;
+      if (!baseline && !allocated && !curve) return null;
 
-      const reference = baseline ?? allocated;
+      const reference = baseline ?? allocated ?? curve;
       if (!reference) return null;
 
       const baselineTotal = baseline?.totalAmount ?? 0;
@@ -708,6 +721,7 @@ function restoreStudioComparisonRowsFromSnapshot(rows: unknown[]): StudioBaselin
       const baselineMaintenance = baseline?.maintenanceAmount ?? 0;
       const allocatedHunter = allocated?.hunterAmount ?? 0;
       const allocatedMaintenance = allocated?.maintenanceAmount ?? 0;
+      const registeredCustomerStudioTarget = curve?.totalAmount ?? getSnapshotNumber(reference, "customerStudioTarget");
       const sourceNote = reference.sourceNote ?? "";
       const status = restoreStudioStatus(reference.status);
 
@@ -719,6 +733,7 @@ function restoreStudioComparisonRowsFromSnapshot(rows: unknown[]): StudioBaselin
         registeredStudioName: sourceNote.includes("Studio não cadastrado") ? "" : reference.studioName,
         registeredCustomerHunterTarget: getSnapshotNumber(reference, "customerHunterTarget"),
         registeredCustomerMaintenanceTarget: getSnapshotNumber(reference, "customerMaintenanceTarget"),
+        registeredCustomerStudioTarget,
         registeredCustomerTotalTarget: getSnapshotNumber(reference, "customerTotalTarget"),
         baselineHunter,
         baselineMaintenance,
@@ -744,7 +759,7 @@ function isStudioReportRow(row: unknown): row is StudioReportRow {
   const item = row as Partial<StudioReportRow>;
   return typeof item.customerName === "string"
     && typeof item.studioName === "string"
-    && (item.view === "Baseline" || item.view === "Hunters / Alocações")
+    && (item.view === "Baseline" || item.view === "Alocado" || item.view === "Hunters / Alocações" || item.view === "Baseline Curva")
     && typeof item.hunterAmount === "number"
     && typeof item.maintenanceAmount === "number"
     && typeof item.totalAmount === "number";

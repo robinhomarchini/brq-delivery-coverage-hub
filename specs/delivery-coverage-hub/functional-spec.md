@@ -657,26 +657,29 @@ Studios/Áreas por origem. O layout detalhado usa `SU`, `Torre`, `Grupo Cliente`
 origem podem usar colunas de Cliente, Renovação/Manutenção e
 Novos Projetos/Hunter. Essa importação é apenas comparativa e não sobrescreve
 dados. O batimento deve mostrar três referências: baseline por
-Cliente + Studio vindo da planilha e alocação detalhada em
-`studio_target_allocations` por Cliente + Área/Studio + Hunter + Ano. Essa visão
-não deve comparar contra o total de Studios cadastrado no Cliente. `Tipo Opp`
+Cliente + Studio vindo da planilha, alocação detalhada em
+`studio_target_allocations` por Cliente + Área/Studio + Hunter + Ano e baseline
+de Studio vindo da Curva principal do cliente (`customer_target_years` /
+`customers.studioTarget`) no ano selecionado. Essa visão não deve misturar essas
+origens como se fossem o mesmo fato. `Tipo Opp`
 com Novo/Ampliação compõe Studio Hunter e deve bater contra valores alocados aos
 Hunters ou pessoas que exercem papel de Hunter; demais tipos compõem Studio
 Manutenção/Renovação e devem bater contra a manutenção alocada no próprio
 Cliente + Studio. A leitura da planilha deve tolerar células `inlineStr` vazias
 exportadas pelo Excel. Exportações desse batimento devem usar leitura executiva
-no grão Cliente + Studio, com linhas separadas para Baseline e Hunters /
-Alocações, e colunas de Hunter, Manutenção, Total e Diferença. Divergências
+no grão Cliente + Studio, com linhas separadas para Baseline, Alocado e
+Baseline Curva, e colunas de Hunter, Manutenção, Total e Diferença. Divergências
 entre o nome/origem da planilha e o cadastro devem aparecer apenas como
 indicativo contextual de origem quando existirem; quando estiverem consistentes,
 não devem ocupar coluna nem poluir a visualização.
 A prévia da central de Baselines deve expor, por Cliente + Studio/Origem, os
 valores do baseline importado, os valores alocados no sistema em Hunter e
-Manutenção/Renovação, as diferenças por componente e o total cadastrado no
-Cliente para Hunter, Manutenção/Renovação e Total. O diagnóstico visual deve
+Manutenção/Renovação, a baseline de Studio vinda da Curva principal, as
+diferenças por componente e o total cadastrado no Cliente para Hunter,
+Manutenção/Renovação, Studio Curva e Total. O diagnóstico visual deve
 indicar se a divergência está em Hunter, Manutenção/Renovação ou nos dois. Para
-legibilidade, cada Cliente + Studio/Origem deve aparecer em duas linhas: uma
-linha Baseline e uma linha Alocado. Diferenças devem usar vermelho quando o
+legibilidade, cada Cliente + Studio/Origem deve aparecer em três linhas: uma
+linha Baseline, uma linha Alocado e uma linha Baseline Curva. Diferenças devem usar vermelho quando o
 alocado estiver menor que o baseline, verde quando estiver maior e azul quando
 estiver igual.
 A central de Baselines deve carregar automaticamente a última foto salva para a

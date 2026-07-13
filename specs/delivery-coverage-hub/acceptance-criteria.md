@@ -459,11 +459,14 @@
   ignoradas; o domínio importado é Cliente + tipo de receita
   Manutenção/Renovação ou Novo/Hunter + valor + origem selecionada.
 - A prévia de Baselines por área/studio mostra baseline importado, alocado no
-  sistema e diferença separada por Hunter e Manutenção/Renovação.
-- Cada Cliente + Studio/Origem aparece em duas linhas, uma `Baseline` e outra
-  `Alocado`, em vez de repetir todas as métricas em colunas separadas.
+  sistema, baseline de Studio vinda da Curva principal e diferença separada por
+  Hunter e Manutenção/Renovação.
+- Cada Cliente + Studio/Origem aparece em três linhas, uma `Baseline`, uma
+  `Alocado` e uma `Baseline Curva`, em vez de repetir todas as métricas em
+  colunas separadas.
 - A mesma prévia mostra os totais cadastrados no Cliente para Hunter,
-  Manutenção/Renovação e Total, permitindo comparação visual automática.
+  Manutenção/Renovação, Studio Curva e Total, permitindo comparação visual
+  automática.
 - Quando houver divergência, a linha indica se ela está em Hunter, em
   Manutenção/Renovação ou nos dois componentes.
 - Diferenças visuais usam vermelho para alocado menor que baseline, verde para

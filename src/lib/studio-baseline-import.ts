@@ -33,6 +33,7 @@ export interface StudioBaselineComparisonRow {
   registeredStudioName: string;
   registeredCustomerHunterTarget: number;
   registeredCustomerMaintenanceTarget: number;
+  registeredCustomerStudioTarget: number;
   registeredCustomerTotalTarget: number;
   baselineHunter: number;
   baselineMaintenance: number;
@@ -241,6 +242,7 @@ export function buildStudioBaselineComparisons(
     const allocationDelta = roundCurrency(allocatedTotal - row.totalAmount);
     const registeredCustomerHunterTarget = customer ? roundCurrency(customer.hunterTarget) : 0;
     const registeredCustomerMaintenanceTarget = customer ? roundCurrency(customer.farmerRenewalTarget) : 0;
+    const registeredCustomerStudioTarget = customer ? roundCurrency(customer.studioTarget) : 0;
     const registeredCustomerTotalTarget = customer ? roundCurrency(customer.hunterTarget + customer.farmerRenewalTarget + customer.studioTarget) : 0;
 
     return {
@@ -251,6 +253,7 @@ export function buildStudioBaselineComparisons(
       registeredStudioName: area?.name ?? "",
       registeredCustomerHunterTarget,
       registeredCustomerMaintenanceTarget,
+      registeredCustomerStudioTarget,
       registeredCustomerTotalTarget,
       baselineHunter: row.hunterAmount,
       baselineMaintenance: row.maintenanceAmount,

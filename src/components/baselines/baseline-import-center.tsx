@@ -30,12 +30,13 @@ type StudioSnapshotRow = {
   key: string;
   customerName: string;
   studioName: string;
-  view: "Baseline" | "Hunters / Alocações";
+  view: "Baseline" | "Alocado" | "Hunters / Alocações" | "Baseline Curva";
   hunterAmount: number;
   maintenanceAmount: number;
   totalAmount: number;
   customerHunterTarget: number;
   customerMaintenanceTarget: number;
+  customerStudioTarget: number;
   customerTotalTarget: number;
   difference: number;
   hunterDelta: number;
@@ -88,6 +89,7 @@ export function BaselineImportCenter() {
     { key: "difference", label: "Dif. Total", value: (row) => row.difference, format: "currency", align: "right" },
     { key: "customerHunterTarget", label: "Cliente Hunter", value: (row) => row.customerHunterTarget, format: "currency", align: "right" },
     { key: "customerMaintenanceTarget", label: "Cliente Manutenção", value: (row) => row.customerMaintenanceTarget, format: "currency", align: "right" },
+    { key: "customerStudioTarget", label: "Cliente Studio Curva", value: (row) => row.customerStudioTarget, format: "currency", align: "right" },
     { key: "customerTotalTarget", label: "Cliente Total", value: (row) => row.customerTotalTarget, format: "currency", align: "right" },
     { key: "status", label: "Status", value: (row) => row.status },
     { key: "year", label: "Ano", value: (row) => row.year, format: "number", align: "center" },
@@ -222,10 +224,10 @@ export function BaselineImportCenter() {
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
           <KpiSummaryCard label="Baseline importado" currencyValue={totals.baselineTotal} tone="purple" />
           <KpiSummaryCard label="Alocado no sistema" currencyValue={totals.allocatedTotal} tone="sky" />
+          <KpiSummaryCard label="Studio na curva" currencyValue={totals.curveStudioTotal} tone="purple" />
           <KpiSummaryCard label="Diferença total" currencyValue={totals.allocationDelta} tone={getDeltaTone(totals.allocationDelta)} />
           <KpiSummaryCard label="Hunter / Novo" currencyValue={totals.hunterTotal} tone="sky" />
           <KpiSummaryCard label="Manutenção" currencyValue={totals.maintenanceTotal} />
-          <KpiSummaryCard label="Linhas" value={rows.length} />
         </section>
 
         <Card className="overflow-hidden shadow-sm">
@@ -282,12 +284,12 @@ export function BaselineImportCenter() {
                       <p className="font-semibold text-slate-800">{row.studioName}</p>
                       <p className="text-xs text-slate-500">{row.registeredStudioName || "Studio não encontrado"}</p>
                     </TableCell>
-                    <TwoLineTextCell first="Baseline" second="Alocado" />
-                    <TwoLineMoneyCell first={row.baselineHunter} second={row.allocatedHunter} />
-                    <TwoLineMoneyCell first={row.baselineMaintenance} second={row.allocatedMaintenance} />
-                    <TwoLineMoneyCell first={row.baselineTotal} second={row.allocatedTotal} bold />
-                    <TwoLineMoneyCell first={undefined} second={row.hunterDelta} tone />
-                    <TwoLineMoneyCell first={undefined} second={row.maintenanceDelta} tone />
+                    <ThreeLineTextCell first="Baseline" second="Alocado" third="Curva" />
+                    <ThreeLineMoneyCell first={row.baselineHunter} second={row.allocatedHunter} third={undefined} />
+                    <ThreeLineMoneyCell first={row.baselineMaintenance} second={row.allocatedMaintenance} third={undefined} />
+                    <ThreeLineMoneyCell first={row.baselineTotal} second={row.allocatedTotal} third={row.registeredCustomerStudioTarget} bold />
+                    <ThreeLineMoneyCell first={undefined} second={row.hunterDelta} third={undefined} tone />
+                    <ThreeLineMoneyCell first={undefined} second={row.maintenanceDelta} third={undefined} tone />
                     <TableCell>
                       <p className={cn("text-sm font-semibold", getDivergenceClassName(row))}>{getDivergenceLabel(row)}</p>
                       {Math.abs(row.allocationDelta) > 0.01 && (
@@ -342,25 +344,28 @@ function ModeButton({
   );
 }
 
-function TwoLineTextCell({ first, second }: { first: string; second: string }) {
+function ThreeLineTextCell({ first, second, third }: { first: string; second: string; third: string }) {
   return (
     <TableCell>
       <div className="grid gap-2">
         <p className="min-h-7 font-bold leading-7 text-slate-900">{first}</p>
         <p className="min-h-7 rounded-md bg-slate-50 px-2 font-bold leading-7 text-slate-900">{second}</p>
+        <p className="min-h-7 rounded-md bg-purple-50 px-2 font-bold leading-7 text-brq-purple">{third}</p>
       </div>
     </TableCell>
   );
 }
 
-function TwoLineMoneyCell({
+function ThreeLineMoneyCell({
   first,
   second,
+  third,
   bold = false,
   tone = false,
 }: {
   first?: number;
   second: number;
+  third?: number;
   bold?: boolean;
   tone?: boolean;
 }) {
@@ -377,6 +382,12 @@ function TwoLineMoneyCell({
         )}>
           {formatCurrency(second)}
         </p>
+        <p className={cn(
+          "min-h-7 rounded-md bg-purple-50 px-2 leading-7",
+          bold ? "font-black text-brq-purple" : "font-semibold text-brq-purple",
+        )}>
+          {third === undefined ? <span className="text-purple-200">-</span> : formatCurrency(third)}
+        </p>
       </div>
     </TableCell>
   );
@@ -387,6 +398,7 @@ function CustomerTargetStack({ row }: { row: StudioBaselineComparisonRow }) {
     <div className="space-y-1 text-xs text-slate-500">
       <p>Hunter: <span className="font-semibold text-slate-900">{formatCurrency(row.registeredCustomerHunterTarget)}</span></p>
       <p>Manut.: <span className="font-semibold text-slate-900">{formatCurrency(row.registeredCustomerMaintenanceTarget)}</span></p>
+      <p>Studio curva: <span className="font-semibold text-brq-purple">{formatCurrency(row.registeredCustomerStudioTarget)}</span></p>
       <p>Total: <span className="font-black text-slate-950">{formatCurrency(row.registeredCustomerTotalTarget)}</span></p>
     </div>
   );
@@ -416,6 +428,7 @@ function buildSnapshotRows(row: StudioBaselineComparisonRow, year: number): Stud
       totalAmount: row.baselineTotal,
       customerHunterTarget: row.registeredCustomerHunterTarget,
       customerMaintenanceTarget: row.registeredCustomerMaintenanceTarget,
+      customerStudioTarget: row.registeredCustomerStudioTarget,
       customerTotalTarget: row.registeredCustomerTotalTarget,
       difference: 0,
       hunterDelta: 0,
@@ -424,16 +437,32 @@ function buildSnapshotRows(row: StudioBaselineComparisonRow, year: number): Stud
     {
       ...base,
       key: `${row.key}:allocated`,
-      view: "Hunters / Alocações",
+      view: "Alocado",
       hunterAmount: row.allocatedHunter,
       maintenanceAmount: row.allocatedMaintenance,
       totalAmount: row.allocatedTotal,
       customerHunterTarget: row.registeredCustomerHunterTarget,
       customerMaintenanceTarget: row.registeredCustomerMaintenanceTarget,
+      customerStudioTarget: row.registeredCustomerStudioTarget,
       customerTotalTarget: row.registeredCustomerTotalTarget,
       difference: row.allocationDelta,
       hunterDelta: row.hunterDelta,
       maintenanceDelta: row.maintenanceDelta,
+    },
+    {
+      ...base,
+      key: `${row.key}:curve`,
+      view: "Baseline Curva",
+      hunterAmount: 0,
+      maintenanceAmount: 0,
+      totalAmount: row.registeredCustomerStudioTarget,
+      customerHunterTarget: row.registeredCustomerHunterTarget,
+      customerMaintenanceTarget: row.registeredCustomerMaintenanceTarget,
+      customerStudioTarget: row.registeredCustomerStudioTarget,
+      customerTotalTarget: row.registeredCustomerTotalTarget,
+      difference: roundCurrency(row.allocatedTotal - row.registeredCustomerStudioTarget),
+      hunterDelta: 0,
+      maintenanceDelta: 0,
     },
   ];
 }
@@ -444,24 +473,27 @@ function getStudioTotals(rows: StudioBaselineComparisonRow[]) {
     hunterTotal: totals.hunterTotal + row.baselineHunter,
     maintenanceTotal: totals.maintenanceTotal + row.baselineMaintenance,
     allocatedTotal: totals.allocatedTotal + row.allocatedTotal,
+    curveStudioTotal: totals.curveStudioTotal + row.registeredCustomerStudioTarget,
     allocationDelta: totals.allocationDelta + row.allocationDelta,
   }), {
     baselineTotal: 0,
     hunterTotal: 0,
     maintenanceTotal: 0,
     allocatedTotal: 0,
+    curveStudioTotal: 0,
     allocationDelta: 0,
   });
 }
 
 function restoreSnapshotRows(rows: unknown[]): StudioBaselineComparisonRow[] {
   const reportRows = rows.filter(isSnapshotRow);
-  const groups = new Map<string, { baseline?: StudioSnapshotRow; allocated?: StudioSnapshotRow }>();
+  const groups = new Map<string, { baseline?: StudioSnapshotRow; allocated?: StudioSnapshotRow; curve?: StudioSnapshotRow }>();
 
   reportRows.forEach((row) => {
     const key = `${row.customerName}:${row.studioName}`;
     const group = groups.get(key) ?? {};
     if (row.view === "Baseline") group.baseline = row;
+    else if (row.view === "Baseline Curva") group.curve = row;
     else group.allocated = row;
     groups.set(key, group);
   });
@@ -470,7 +502,8 @@ function restoreSnapshotRows(rows: unknown[]): StudioBaselineComparisonRow[] {
     .map((group) => {
       const baseline = group.baseline;
       const allocated = group.allocated;
-      const reference = baseline ?? allocated;
+      const curve = group.curve;
+      const reference = baseline ?? allocated ?? curve;
       if (!reference) return null;
 
       const baselineHunter = baseline?.hunterAmount ?? 0;
@@ -479,6 +512,7 @@ function restoreSnapshotRows(rows: unknown[]): StudioBaselineComparisonRow[] {
       const allocatedHunter = allocated?.hunterAmount ?? 0;
       const allocatedMaintenance = allocated?.maintenanceAmount ?? 0;
       const allocatedTotal = allocated?.totalAmount ?? 0;
+      const registeredCustomerStudioTarget = curve?.totalAmount ?? reference.customerStudioTarget ?? 0;
       const hunterDelta = allocated?.hunterDelta ?? roundCurrency(allocatedHunter - baselineHunter);
       const maintenanceDelta = allocated?.maintenanceDelta ?? roundCurrency(allocatedMaintenance - baselineMaintenance);
       const allocationDelta = allocated?.difference ?? roundCurrency(allocatedTotal - baselineTotal);
@@ -491,6 +525,7 @@ function restoreSnapshotRows(rows: unknown[]): StudioBaselineComparisonRow[] {
         registeredStudioName: reference.studioName,
         registeredCustomerHunterTarget: reference.customerHunterTarget,
         registeredCustomerMaintenanceTarget: reference.customerMaintenanceTarget,
+        registeredCustomerStudioTarget,
         registeredCustomerTotalTarget: reference.customerTotalTarget,
         baselineHunter,
         baselineMaintenance,
@@ -516,7 +551,7 @@ function isSnapshotRow(row: unknown): row is StudioSnapshotRow {
   const item = row as Partial<StudioSnapshotRow>;
   return typeof item.customerName === "string"
     && typeof item.studioName === "string"
-    && (item.view === "Baseline" || item.view === "Hunters / Alocações")
+    && (item.view === "Baseline" || item.view === "Alocado" || item.view === "Hunters / Alocações" || item.view === "Baseline Curva")
     && typeof item.hunterAmount === "number"
     && typeof item.maintenanceAmount === "number"
     && typeof item.totalAmount === "number";
