@@ -103,6 +103,8 @@ const requiredClientCoverageTokens = [
   "Clientes x Hunters x Delivery",
   "Delivery / Farmers",
   "Hunters Especializados",
+  "Meta do cliente",
+  "Diferença",
   "clientCoverageReportColumns",
 ];
 const missingClientCoverageTokens = requiredClientCoverageTokens.filter((token) => !source.includes(token));

@@ -491,8 +491,8 @@ export function PersonTargetReport() {
 
       <section className="mb-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <KpiSummaryCard label={totals.countLabel} value={totals.count} />
-        <KpiSummaryCard label={totals.firstLabel} {...(effectiveView === "specialistHunters" ? { value: totals.first } : { currencyValue: totals.first })} />
-        <KpiSummaryCard label={totals.secondLabel} {...(effectiveView === "specialistHunters" ? { value: totals.second } : { currencyValue: totals.second })} />
+        <KpiSummaryCard label={totals.firstLabel} {...(effectiveView === "specialistHunters" || effectiveView === "clients" ? { value: totals.first } : { currencyValue: totals.first })} />
+        <KpiSummaryCard label={totals.secondLabel} {...(effectiveView === "specialistHunters" || effectiveView === "clients" ? { value: totals.second } : { currencyValue: totals.second })} />
         <KpiSummaryCard label={totals.totalLabel} currencyValue={totals.total} />
       </section>
 
@@ -636,7 +636,7 @@ export function PersonTargetReport() {
       {effectiveView === "people" && (
         <Card className="overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
-            <Table className="min-w-[1280px]">
+            <Table className="min-w-[1520px]">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-12">
@@ -1070,7 +1070,9 @@ export function PersonTargetReport() {
                   <TableHead>Delivery / Farmers</TableHead>
                   <TableHead>Hunters Especializados</TableHead>
                   <TableHead>Studios</TableHead>
+                  <TableHead className="text-right">Meta do cliente</TableHead>
                   <TableHead className="text-right">Meta ligada</TableHead>
+                  <TableHead className="text-right">Diferença</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1097,13 +1099,19 @@ export function PersonTargetReport() {
                         ))}
                       </div>
                     </TableCell>
+                    <TableCell className="text-right font-semibold tabular-nums text-slate-700">{formatCurrency(row.customerTargetTotal)}</TableCell>
                     <TableCell className="text-right font-bold tabular-nums text-slate-950">{formatCurrency(row.totalLinkedTarget)}</TableCell>
+                    <TableCell className={`text-right font-bold tabular-nums ${row.coverageDelta >= -0.01 ? "text-emerald-700" : "text-red-700"}`}>
+                      {formatCurrency(row.coverageDelta)}
+                    </TableCell>
                   </TableRow>
                 ))}
                 {filteredClientCoverageRows.length > 0 && (
                   <TableRow className="bg-slate-900 text-white hover:bg-slate-900">
-                    <TableCell colSpan={5} className="font-bold">Total ligado aos clientes filtrados</TableCell>
+                    <TableCell colSpan={5} className="font-bold">Total dos clientes filtrados</TableCell>
+                    <TableCell className="text-right font-bold tabular-nums">{formatCurrency(sumClientCoverageCustomerTarget(filteredClientCoverageRows))}</TableCell>
                     <TableCell className="text-right font-bold tabular-nums">{formatCurrency(sumClientCoverageTarget(filteredClientCoverageRows))}</TableCell>
+                    <TableCell className="text-right font-bold tabular-nums">{formatCurrency(sumClientCoverageDelta(filteredClientCoverageRows))}</TableCell>
                   </TableRow>
                 )}
               </TableBody>
@@ -1794,7 +1802,15 @@ function buildClientCoverageRows({
   areaNames,
   year,
 }: {
-  customers: Array<{ id: string; name: string; managerResponsibleIds: string[] }>;
+  customers: Array<{
+    id: string;
+    name: string;
+    managerResponsibleIds: string[];
+    hunterTarget: number;
+    farmerRenewalTarget: number;
+    studioTarget: number;
+    revenue: number;
+  }>;
   people: Array<{ id: string; name: string; roleType: RoleType; active: boolean; clientIds: string[]; isManager: boolean }>;
   allocations: Array<{ id: string; customerId: string; personId: string; type: string; year: number; amount: number; ownAmount?: number }>;
   studioAllocations: Array<{ id: string; customerId: string; areaId: string; hunterPersonId?: string; maintenancePersonId?: string; year: number; hunterAmount: number; maintenanceAmount: number }>;
@@ -1881,6 +1897,9 @@ function buildClientCoverageRows({
       }).filter((person) => person.amount > 0.01 || customer.managerResponsibleIds.includes(person.personId));
 
       const specialistHunters = specialistRowsByCustomer.get(customer.id) ?? [];
+      const customerTargetTotal = customer.revenue || customer.hunterTarget + customer.farmerRenewalTarget + customer.studioTarget;
+      const totalLinkedTarget = hunters.reduce((total, person) => total + person.amount, 0)
+        + deliveryManagers.reduce((total, person) => total + person.amount, 0);
       const participantIds = new Set([
         ...hunters.map((person) => person.personId),
         ...deliveryManagers.map((person) => person.personId),
@@ -1895,8 +1914,9 @@ function buildClientCoverageRows({
         specialistHunters: sortClientCoveragePeople(specialistHunters),
         studios: Array.from(studioNames).sort((first, second) => first.localeCompare(second, "pt-BR")),
         participantCount: participantIds.size,
-        totalLinkedTarget: hunters.reduce((total, person) => total + person.amount, 0)
-          + deliveryManagers.reduce((total, person) => total + person.amount, 0),
+        customerTargetTotal,
+        totalLinkedTarget,
+        coverageDelta: totalLinkedTarget - customerTargetTotal,
         huntersText: sortClientCoveragePeople(hunters).map(formatClientCoveragePerson).join(", "),
         deliveryManagersText: sortClientCoveragePeople(deliveryManagers).map(formatClientCoveragePerson).join(", "),
         specialistHuntersText: sortClientCoveragePeople(specialistHunters).map(formatClientCoveragePerson).join(", "),
@@ -2298,11 +2318,11 @@ function getViewTotals(
     const hunterPeople = new Set(clientCoverageRows.flatMap((row) => row.hunters.map((person) => person.personId)));
     const deliveryPeople = new Set(clientCoverageRows.flatMap((row) => row.deliveryManagers.map((person) => person.personId)));
     return {
-      ...emptyTotals("Clientes", "Hunters", "Delivery/Farmers", "Meta ligada"),
+      ...emptyTotals("Clientes", "Hunters", "Delivery/Farmers", "Meta dos clientes"),
       count: clientCoverageRows.length,
       first: hunterPeople.size,
       second: deliveryPeople.size,
-      total: sumClientCoverageTarget(clientCoverageRows),
+      total: sumClientCoverageCustomerTarget(clientCoverageRows),
     };
   }
   if (view === "areas") {
@@ -2457,6 +2477,14 @@ function sumClientCoverageTarget(rows: ClientCoverageRow[]) {
   return rows.reduce((total, row) => total + row.totalLinkedTarget, 0);
 }
 
+function sumClientCoverageCustomerTarget(rows: ClientCoverageRow[]) {
+  return rows.reduce((total, row) => total + row.customerTargetTotal, 0);
+}
+
+function sumClientCoverageDelta(rows: ClientCoverageRow[]) {
+  return rows.reduce((total, row) => total + row.coverageDelta, 0);
+}
+
 function sumAmount(rows: Array<{ amount: number }>) {
   return rows.reduce((total, row) => total + row.amount, 0);
 }
@@ -2527,7 +2555,9 @@ const clientCoverageReportColumns: ReportColumn<ClientCoverageRow>[] = [
   { key: "specialistHuntersText", label: "Hunters Especializados", value: (row) => row.specialistHuntersText },
   { key: "studiosText", label: "Studios", value: (row) => row.studiosText },
   { key: "participantCount", label: "Participantes", value: (row) => row.participantCount, format: "number", align: "right" },
+  { key: "customerTargetTotal", label: "Meta do cliente", value: (row) => row.customerTargetTotal, format: "currency", align: "right" },
   { key: "totalLinkedTarget", label: "Meta ligada", value: (row) => row.totalLinkedTarget, format: "currency", align: "right" },
+  { key: "coverageDelta", label: "Diferença", value: (row) => row.coverageDelta, format: "currency", align: "right" },
 ];
 
 const specialistHunterReportColumns: ReportColumn<SpecialistHunterRow>[] = [
@@ -3199,7 +3229,9 @@ type ClientCoverageRow = {
   specialistHunters: ClientCoveragePerson[];
   studios: string[];
   participantCount: number;
+  customerTargetTotal: number;
   totalLinkedTarget: number;
+  coverageDelta: number;
   huntersText: string;
   deliveryManagersText: string;
   specialistHuntersText: string;

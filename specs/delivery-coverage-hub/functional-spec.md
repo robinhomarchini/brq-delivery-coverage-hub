@@ -420,7 +420,8 @@ grão Cliente + Ano, os Hunters envolvidos, Delivery Managers/Farmers
 responsáveis e Hunters Especializados quando houver seleção gerencial de
 Studios. Essa visão é derivada de vínculos pessoa-cliente, metas diretas,
 alocações de Studio e seleções de Hunter Especializado; ela não cria nova fonte
-de verdade. Na visão por diretoria de
+de verdade. Ela deve exibir a meta total cadastrada do cliente, a meta ligada
+pelas associações e a diferença entre os dois valores para conciliação. Na visão por diretoria de
 Delivery, o usuário deve escolher uma pessoa consolidadora vinda do cadastro de
 Pessoas: perfis Diretor ou pessoas ativas com subordinados apontando para seu
 `people.directorId`. Após a escolha, o relatório abre os dados na chave Pessoa
