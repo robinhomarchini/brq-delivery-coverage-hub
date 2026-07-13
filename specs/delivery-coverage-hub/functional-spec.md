@@ -674,7 +674,15 @@ A prévia da central de Baselines deve expor, por Cliente + Studio/Origem, os
 valores do baseline importado, os valores alocados no sistema em Hunter e
 Manutenção/Renovação, as diferenças por componente e o total cadastrado no
 Cliente para Hunter, Manutenção/Renovação e Total. O diagnóstico visual deve
-indicar se a divergência está em Hunter, Manutenção/Renovação ou nos dois.
+indicar se a divergência está em Hunter, Manutenção/Renovação ou nos dois. Para
+legibilidade, cada Cliente + Studio/Origem deve aparecer em duas linhas: uma
+linha Baseline e uma linha Alocado. Diferenças devem usar vermelho quando o
+alocado estiver menor que o baseline, verde quando estiver maior e azul quando
+estiver igual.
+A central de Baselines deve carregar automaticamente a última foto salva para a
+origem e o ano selecionados quando existir, sem exigir nova importação do mesmo
+arquivo. O botão de salvar nova foto deve permanecer habilitado apenas após uma
+nova importação.
 A visão de Baseline de Studios no Comparativo deve consumir a última foto salva
 na central para a origem e ano selecionados, sem permitir upload ou gravação
 local naquela tela. A visão deve permitir filtro por Status e por Studio. O

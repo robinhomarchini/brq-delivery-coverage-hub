@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { FileSearch, RefreshCw, UploadCloud } from "lucide-react";
 import { TargetBaselineImport } from "@/components/insights/target-baseline-import";
 import { ErrorNotice, SuccessNotice } from "@/components/shared/success-notice";
@@ -43,11 +43,12 @@ type StudioSnapshotRow = {
 };
 
 export function BaselineImportCenter() {
-  const { areas, customers, customerTargets, studioTargetAllocations, saveStudioBaselineSnapshot } = useDeliveryStore();
+  const { areas, customers, customerTargets, studioTargetAllocations, studioBaselineSnapshots, saveStudioBaselineSnapshot } = useDeliveryStore();
   const [year, setYear] = useState(defaultTargetYear);
   const [sourceCode, setSourceCode] = useState<StudioBaselineSourceCode>("studio_px");
   const [fileName, setFileName] = useState("");
-  const [rows, setRows] = useState<StudioBaselineComparisonRow[]>([]);
+  const [importedRows, setImportedRows] = useState<StudioBaselineComparisonRow[]>([]);
+  const [dismissedSnapshotId, setDismissedSnapshotId] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState("");
@@ -56,8 +57,21 @@ export function BaselineImportCenter() {
   const years = useMemo(() => getAvailableTargetYears(customerTargets, defaultTargetYear), [customerTargets]);
   const source = useMemo(() => getStudioBaselineSource(sourceCode), [sourceCode]);
   const yearCustomers = useMemo(() => applyCustomerTargetsForYear(customers, customerTargets, year), [customerTargets, customers, year]);
+  const latestSnapshot = useMemo(
+    () => studioBaselineSnapshots.find((snapshot) => snapshot.year === year && snapshot.sourceCode === sourceCode),
+    [sourceCode, studioBaselineSnapshots, year],
+  );
+  const latestSnapshotRows = useMemo(
+    () => latestSnapshot && latestSnapshot.id !== dismissedSnapshotId
+      ? restoreSnapshotRows(latestSnapshot.rows)
+      : [],
+    [dismissedSnapshotId, latestSnapshot],
+  );
+  const loadedFromSnapshot = importedRows.length === 0 && latestSnapshotRows.length > 0;
+  const rows = importedRows.length ? importedRows : latestSnapshotRows;
+  const activeFileName = importedRows.length ? fileName : loadedFromSnapshot ? latestSnapshot?.fileName ?? "" : fileName;
   const totals = useMemo(() => getStudioTotals(rows), [rows]);
-  const snapshotRows = useMemo(() => rows.flatMap((row) => buildSnapshotRows(row, year)), [rows, year]);
+  const snapshotRows = useMemo(() => importedRows.flatMap((row) => buildSnapshotRows(row, year)), [importedRows, year]);
 
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -72,12 +86,13 @@ export function BaselineImportCenter() {
       }
       const baselineRows = await readStudioBaselineWorkbook(file, source);
       const comparisonRows = buildStudioBaselineComparisons(baselineRows, yearCustomers, areas, studioTargetAllocations, year);
-      setRows(comparisonRows);
+      setImportedRows(comparisonRows);
+      setDismissedSnapshotId("");
       setFileName(file.name);
       setSuccess(`${baselineRows.length} linha(s) importada(s) para ${source.name}. Revise o match antes de salvar a foto.`);
       window.setTimeout(() => setSuccess(""), 4500);
     } catch (importError) {
-      setRows([]);
+      setImportedRows([]);
       setFileName("");
       setError(getImportErrorMessage(importError));
     } finally {
@@ -159,9 +174,12 @@ export function BaselineImportCenter() {
               </label>
             </div>
           </div>
-          {fileName && (
+          {activeFileName && (
             <p className="mt-4 rounded-xl border bg-slate-50 px-4 py-3 text-sm text-slate-600">
-              Arquivo carregado: <span className="font-semibold text-slate-900">{fileName}</span>
+              {loadedFromSnapshot ? "Última foto salva carregada" : "Arquivo carregado"}: <span className="font-semibold text-slate-900">{activeFileName}</span>
+              {loadedFromSnapshot && latestSnapshot?.createdAt && (
+                <span> · salva em {formatDateTime(latestSnapshot.createdAt)}</span>
+              )}
             </p>
           )}
         </Card>
@@ -183,74 +201,79 @@ export function BaselineImportCenter() {
             </div>
             <div className="flex flex-wrap gap-2">
               <Button type="button" variant="outline" onClick={() => {
-                setRows([]);
+                setImportedRows([]);
                 setFileName("");
+                if (loadedFromSnapshot && latestSnapshot) setDismissedSnapshotId(latestSnapshot.id);
               }} disabled={!rows.length || loading || saving}>
                 Limpar
               </Button>
-              <Button type="button" onClick={saveSnapshot} disabled={!rows.length || loading || saving}>
+              <Button type="button" onClick={saveSnapshot} disabled={!importedRows.length || loading || saving}>
                 {saving ? <RefreshCw className="h-4 w-4 animate-spin" /> : null}
                 Salvar foto da baseline
               </Button>
             </div>
           </div>
           <div className="overflow-x-auto">
-            <Table className="min-w-[1480px]">
+            <Table className="min-w-[1120px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Cliente</TableHead>
                   <TableHead>Studio/Origem</TableHead>
-                  <TableHead className="text-right">Baseline Hunter</TableHead>
-                  <TableHead className="text-right">Baseline Manut.</TableHead>
-                  <TableHead className="text-right">Baseline Total</TableHead>
-                  <TableHead className="text-right">Alocado Hunter</TableHead>
-                  <TableHead className="text-right">Alocado Manut.</TableHead>
-                  <TableHead className="text-right">Alocado Total</TableHead>
+                  <TableHead>Visão</TableHead>
+                  <TableHead className="text-right">Hunter</TableHead>
+                  <TableHead className="text-right">Manutenção</TableHead>
+                  <TableHead className="text-right">Total</TableHead>
                   <TableHead className="text-right">Dif. Hunter</TableHead>
                   <TableHead className="text-right">Dif. Manut.</TableHead>
                   <TableHead>Onde diverge</TableHead>
-                  <TableHead className="text-right">Cliente Hunter</TableHead>
-                  <TableHead className="text-right">Cliente Manut.</TableHead>
-                  <TableHead className="text-right">Cliente Total</TableHead>
+                  <TableHead>Cadastro do cliente</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {rows.map((row) => (
-                  <TableRow key={row.key}>
-                    <TableCell>
-                      <p className="font-bold text-slate-950">{row.customerName}</p>
-                      <p className="text-xs text-slate-500">{row.registeredCustomerName || "Cliente não encontrado"}</p>
-                    </TableCell>
-                    <TableCell>
-                      <p className="font-semibold text-slate-800">{row.studioName}</p>
-                      <p className="text-xs text-slate-500">{row.registeredStudioName || "Studio não encontrado"}</p>
-                    </TableCell>
-                    <MoneyCell value={row.baselineHunter} />
-                    <MoneyCell value={row.baselineMaintenance} />
-                    <MoneyCell value={row.baselineTotal} bold />
-                    <MoneyCell value={row.allocatedHunter} />
-                    <MoneyCell value={row.allocatedMaintenance} />
-                    <MoneyCell value={row.allocatedTotal} />
-                    <MoneyCell value={row.hunterDelta} tone />
-                    <MoneyCell value={row.maintenanceDelta} tone />
-                    <TableCell>
-                      <p className={cn("text-sm font-semibold", getDivergenceClassName(row))}>{getDivergenceLabel(row)}</p>
-                      {Math.abs(row.allocationDelta) > 0.01 && (
-                        <p className="mt-1 text-xs text-slate-500">Dif. total: {formatCurrency(row.allocationDelta)}</p>
-                      )}
-                    </TableCell>
-                    <MoneyCell value={row.registeredCustomerHunterTarget} />
-                    <MoneyCell value={row.registeredCustomerMaintenanceTarget} />
-                    <MoneyCell value={row.registeredCustomerTotalTarget} bold />
-                    <TableCell><StudioStatusBadge status={row.status} /></TableCell>
-                  </TableRow>
+                  <Fragment key={row.key}>
+                    <TableRow className="border-b-0">
+                      <TableCell rowSpan={2} className="align-top">
+                        <p className="font-bold text-slate-950">{row.customerName}</p>
+                        <p className="text-xs text-slate-500">{row.registeredCustomerName || "Cliente não encontrado"}</p>
+                      </TableCell>
+                      <TableCell rowSpan={2} className="align-top">
+                        <p className="font-semibold text-slate-800">{row.studioName}</p>
+                        <p className="text-xs text-slate-500">{row.registeredStudioName || "Studio não encontrado"}</p>
+                      </TableCell>
+                      <TableCell className="font-bold text-slate-900">Baseline</TableCell>
+                      <MoneyCell value={row.baselineHunter} />
+                      <MoneyCell value={row.baselineMaintenance} />
+                      <MoneyCell value={row.baselineTotal} bold />
+                      <TableCell className="text-right text-slate-300">-</TableCell>
+                      <TableCell className="text-right text-slate-300">-</TableCell>
+                      <TableCell rowSpan={2} className="align-middle">
+                        <p className={cn("text-sm font-semibold", getDivergenceClassName(row))}>{getDivergenceLabel(row)}</p>
+                        {Math.abs(row.allocationDelta) > 0.01 && (
+                          <p className="mt-1 text-xs text-slate-500">Dif. total: {formatCurrency(row.allocationDelta)}</p>
+                        )}
+                      </TableCell>
+                      <TableCell rowSpan={2} className="align-middle">
+                        <CustomerTargetStack row={row} />
+                      </TableCell>
+                      <TableCell rowSpan={2} className="align-middle"><StudioStatusBadge status={row.status} /></TableCell>
+                    </TableRow>
+                    <TableRow className="border-t-0 bg-slate-50/70">
+                      <TableCell className="font-bold text-slate-900">Alocado</TableCell>
+                      <MoneyCell value={row.allocatedHunter} />
+                      <MoneyCell value={row.allocatedMaintenance} />
+                      <MoneyCell value={row.allocatedTotal} bold />
+                      <MoneyCell value={row.hunterDelta} tone />
+                      <MoneyCell value={row.maintenanceDelta} tone />
+                    </TableRow>
+                  </Fragment>
                 ))}
               </TableBody>
             </Table>
           </div>
           {!rows.length && (
-            <div className="p-5 text-sm text-slate-500">Importe uma planilha para visualizar os clientes e calibrar o match antes de salvar.</div>
+            <div className="p-5 text-sm text-slate-500">Importe uma planilha ou selecione uma origem/ano com foto salva para visualizar os clientes e calibrar o match.</div>
           )}
         </Card>
       </section>
@@ -263,11 +286,20 @@ function MoneyCell({ value, bold = false, tone = false }: { value: number; bold?
     <TableCell className={cn(
       "text-right tabular-nums",
       bold ? "font-black text-slate-950" : "font-semibold text-slate-800",
-      tone && value > 0.01 && "text-emerald-700",
-      tone && value < -0.01 && "text-red-700",
+      tone && getDeltaTextClassName(value),
     )}>
       {formatCurrency(value)}
     </TableCell>
+  );
+}
+
+function CustomerTargetStack({ row }: { row: StudioBaselineComparisonRow }) {
+  return (
+    <div className="space-y-1 text-xs text-slate-500">
+      <p>Hunter: <span className="font-semibold text-slate-900">{formatCurrency(row.registeredCustomerHunterTarget)}</span></p>
+      <p>Manut.: <span className="font-semibold text-slate-900">{formatCurrency(row.registeredCustomerMaintenanceTarget)}</span></p>
+      <p>Total: <span className="font-black text-slate-950">{formatCurrency(row.registeredCustomerTotalTarget)}</span></p>
+    </div>
   );
 }
 
@@ -333,6 +365,74 @@ function getStudioTotals(rows: StudioBaselineComparisonRow[]) {
   });
 }
 
+function restoreSnapshotRows(rows: unknown[]): StudioBaselineComparisonRow[] {
+  const reportRows = rows.filter(isSnapshotRow);
+  const groups = new Map<string, { baseline?: StudioSnapshotRow; allocated?: StudioSnapshotRow }>();
+
+  reportRows.forEach((row) => {
+    const key = `${row.customerName}:${row.studioName}`;
+    const group = groups.get(key) ?? {};
+    if (row.view === "Baseline") group.baseline = row;
+    else group.allocated = row;
+    groups.set(key, group);
+  });
+
+  return Array.from(groups.values())
+    .map((group) => {
+      const baseline = group.baseline;
+      const allocated = group.allocated;
+      const reference = baseline ?? allocated;
+      if (!reference) return null;
+
+      const baselineHunter = baseline?.hunterAmount ?? 0;
+      const baselineMaintenance = baseline?.maintenanceAmount ?? 0;
+      const baselineTotal = baseline?.totalAmount ?? 0;
+      const allocatedHunter = allocated?.hunterAmount ?? 0;
+      const allocatedMaintenance = allocated?.maintenanceAmount ?? 0;
+      const allocatedTotal = allocated?.totalAmount ?? 0;
+      const hunterDelta = allocated?.hunterDelta ?? roundCurrency(allocatedHunter - baselineHunter);
+      const maintenanceDelta = allocated?.maintenanceDelta ?? roundCurrency(allocatedMaintenance - baselineMaintenance);
+      const allocationDelta = allocated?.difference ?? roundCurrency(allocatedTotal - baselineTotal);
+
+      return {
+        key: `${reference.customerName}:${reference.studioName}`,
+        customerName: reference.customerName,
+        registeredCustomerName: reference.customerName,
+        studioName: reference.studioName,
+        registeredStudioName: reference.studioName,
+        registeredCustomerHunterTarget: reference.customerHunterTarget,
+        registeredCustomerMaintenanceTarget: reference.customerMaintenanceTarget,
+        registeredCustomerTotalTarget: reference.customerTotalTarget,
+        baselineHunter,
+        baselineMaintenance,
+        baselineTotal,
+        allocatedHunter,
+        allocatedMaintenance,
+        allocatedTotal,
+        hunterDelta,
+        maintenanceDelta,
+        allocationDelta,
+        status: restoreStudioStatus(reference.status),
+      } satisfies StudioBaselineComparisonRow;
+    })
+    .filter((row): row is StudioBaselineComparisonRow => Boolean(row))
+    .sort((first, second) =>
+      first.customerName.localeCompare(second.customerName, "pt-BR")
+      || first.studioName.localeCompare(second.studioName, "pt-BR")
+    );
+}
+
+function isSnapshotRow(row: unknown): row is StudioSnapshotRow {
+  if (!row || typeof row !== "object") return false;
+  const item = row as Partial<StudioSnapshotRow>;
+  return typeof item.customerName === "string"
+    && typeof item.studioName === "string"
+    && (item.view === "Baseline" || item.view === "Hunters / Alocações")
+    && typeof item.hunterAmount === "number"
+    && typeof item.maintenanceAmount === "number"
+    && typeof item.totalAmount === "number";
+}
+
 function getStudioStatusLabel(status: StudioBaselineComparisonRow["status"]) {
   if (status === "ok") return "OK";
   if (status === "missing_customer") return "Cliente ausente";
@@ -353,13 +453,36 @@ function getDivergenceLabel(row: StudioBaselineComparisonRow) {
 
 function getDivergenceClassName(row: StudioBaselineComparisonRow) {
   if (row.status === "missing_customer" || row.status === "missing_studio") return "text-red-700";
-  if (Math.abs(row.hunterDelta) > 0.01 || Math.abs(row.maintenanceDelta) > 0.01) return "text-amber-700";
-  return "text-emerald-700";
+  if (row.allocationDelta > 0.01) return "text-emerald-700";
+  if (row.allocationDelta < -0.01) return "text-red-700";
+  return "text-sky-700";
 }
 
 function getDeltaTone(value: number) {
-  if (Math.abs(value) <= 0.01) return "ok";
-  return "warning";
+  if (Math.abs(value) <= 0.01) return "sky";
+  if (value > 0.01) return "ok";
+  return "danger";
+}
+
+function getDeltaTextClassName(value: number) {
+  if (value > 0.01) return "text-emerald-700";
+  if (value < -0.01) return "text-red-700";
+  return "text-sky-700";
+}
+
+function restoreStudioStatus(label: string): StudioBaselineComparisonRow["status"] {
+  if (label === "OK" || label === "Reconciliado") return "ok";
+  if (label === "Cliente ausente") return "missing_customer";
+  if (label === "Studio ausente") return "missing_studio";
+  return "allocation_gap";
+}
+
+function formatDateTime(value: string) {
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(value));
+}
+
+function roundCurrency(value: number) {
+  return Math.round(value * 100) / 100;
 }
 
 function getImportErrorMessage(error: unknown) {

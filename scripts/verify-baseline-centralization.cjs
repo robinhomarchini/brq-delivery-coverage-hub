@@ -19,11 +19,15 @@ const requiredCenterTokens = [
   "sourceCode: source.code",
   "sourceName: source.name",
   "Salvar foto da baseline",
-  "Baseline Hunter",
-  "Alocado Hunter",
+  "Baseline</TableCell>",
+  "Alocado</TableCell>",
+  "Última foto salva carregada",
+  "restoreSnapshotRows",
+  "rowSpan={2}",
   "Dif. Hunter",
-  "Cliente Total",
+  "Cadastro do cliente",
   "getDivergenceLabel",
+  "getDeltaTextClassName",
 ];
 
 const missingCenterTokens = requiredCenterTokens.filter((token) => !baselineCenter.includes(token));

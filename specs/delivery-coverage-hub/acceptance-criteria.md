@@ -460,10 +460,16 @@
   Manutenção/Renovação ou Novo/Hunter + valor + origem selecionada.
 - A prévia de Baselines por área/studio mostra baseline importado, alocado no
   sistema e diferença separada por Hunter e Manutenção/Renovação.
+- Cada Cliente + Studio/Origem aparece em duas linhas, uma `Baseline` e outra
+  `Alocado`, em vez de repetir todas as métricas em colunas separadas.
 - A mesma prévia mostra os totais cadastrados no Cliente para Hunter,
   Manutenção/Renovação e Total, permitindo comparação visual automática.
 - Quando houver divergência, a linha indica se ela está em Hunter, em
   Manutenção/Renovação ou nos dois componentes.
+- Diferenças visuais usam vermelho para alocado menor que baseline, verde para
+  alocado maior que baseline e azul quando estiver igual.
+- Ao selecionar origem e ano, a central carrega automaticamente a última foto
+  salva quando existir; salvar nova foto exige uma nova importação.
 - Ao abrir Baseline de Studios no Comparativo, a última foto salva em
   `studio_baseline_snapshots` para a origem e ano selecionados é carregada
   automaticamente e identificada como foto salva.
