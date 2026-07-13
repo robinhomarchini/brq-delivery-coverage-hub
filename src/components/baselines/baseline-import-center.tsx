@@ -32,7 +32,12 @@ type StudioSnapshotRow = {
   hunterAmount: number;
   maintenanceAmount: number;
   totalAmount: number;
+  customerHunterTarget: number;
+  customerMaintenanceTarget: number;
+  customerTotalTarget: number;
   difference: number;
+  hunterDelta: number;
+  maintenanceDelta: number;
   status: string;
   year: number;
 };
@@ -161,12 +166,13 @@ export function BaselineImportCenter() {
           )}
         </Card>
 
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
           <KpiSummaryCard label="Baseline importado" currencyValue={totals.baselineTotal} tone="purple" />
+          <KpiSummaryCard label="Alocado no sistema" currencyValue={totals.allocatedTotal} tone="sky" />
+          <KpiSummaryCard label="Diferença total" currencyValue={totals.allocationDelta} tone={getDeltaTone(totals.allocationDelta)} />
           <KpiSummaryCard label="Hunter / Novo" currencyValue={totals.hunterTotal} tone="sky" />
           <KpiSummaryCard label="Manutenção" currencyValue={totals.maintenanceTotal} />
           <KpiSummaryCard label="Linhas" value={rows.length} />
-          <KpiSummaryCard label="Pendências de match" value={rows.filter((row) => row.status !== "ok").length} tone={rows.some((row) => row.status !== "ok") ? "warning" : "ok"} />
         </section>
 
         <Card className="overflow-hidden shadow-sm">
@@ -189,15 +195,23 @@ export function BaselineImportCenter() {
             </div>
           </div>
           <div className="overflow-x-auto">
-            <Table className="min-w-[980px]">
+            <Table className="min-w-[1480px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Cliente</TableHead>
                   <TableHead>Studio/Origem</TableHead>
-                  <TableHead className="text-right">Novo/Hunter</TableHead>
-                  <TableHead className="text-right">Manutenção</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                  <TableHead className="text-right">Alocado atual</TableHead>
+                  <TableHead className="text-right">Baseline Hunter</TableHead>
+                  <TableHead className="text-right">Baseline Manut.</TableHead>
+                  <TableHead className="text-right">Baseline Total</TableHead>
+                  <TableHead className="text-right">Alocado Hunter</TableHead>
+                  <TableHead className="text-right">Alocado Manut.</TableHead>
+                  <TableHead className="text-right">Alocado Total</TableHead>
+                  <TableHead className="text-right">Dif. Hunter</TableHead>
+                  <TableHead className="text-right">Dif. Manut.</TableHead>
+                  <TableHead>Onde diverge</TableHead>
+                  <TableHead className="text-right">Cliente Hunter</TableHead>
+                  <TableHead className="text-right">Cliente Manut.</TableHead>
+                  <TableHead className="text-right">Cliente Total</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
@@ -215,7 +229,20 @@ export function BaselineImportCenter() {
                     <MoneyCell value={row.baselineHunter} />
                     <MoneyCell value={row.baselineMaintenance} />
                     <MoneyCell value={row.baselineTotal} bold />
+                    <MoneyCell value={row.allocatedHunter} />
+                    <MoneyCell value={row.allocatedMaintenance} />
                     <MoneyCell value={row.allocatedTotal} />
+                    <MoneyCell value={row.hunterDelta} tone />
+                    <MoneyCell value={row.maintenanceDelta} tone />
+                    <TableCell>
+                      <p className={cn("text-sm font-semibold", getDivergenceClassName(row))}>{getDivergenceLabel(row)}</p>
+                      {Math.abs(row.allocationDelta) > 0.01 && (
+                        <p className="mt-1 text-xs text-slate-500">Dif. total: {formatCurrency(row.allocationDelta)}</p>
+                      )}
+                    </TableCell>
+                    <MoneyCell value={row.registeredCustomerHunterTarget} />
+                    <MoneyCell value={row.registeredCustomerMaintenanceTarget} />
+                    <MoneyCell value={row.registeredCustomerTotalTarget} bold />
                     <TableCell><StudioStatusBadge status={row.status} /></TableCell>
                   </TableRow>
                 ))}
@@ -231,9 +258,14 @@ export function BaselineImportCenter() {
   );
 }
 
-function MoneyCell({ value, bold = false }: { value: number; bold?: boolean }) {
+function MoneyCell({ value, bold = false, tone = false }: { value: number; bold?: boolean; tone?: boolean }) {
   return (
-    <TableCell className={cn("text-right tabular-nums", bold ? "font-black text-slate-950" : "font-semibold text-slate-800")}>
+    <TableCell className={cn(
+      "text-right tabular-nums",
+      bold ? "font-black text-slate-950" : "font-semibold text-slate-800",
+      tone && value > 0.01 && "text-emerald-700",
+      tone && value < -0.01 && "text-red-700",
+    )}>
       {formatCurrency(value)}
     </TableCell>
   );
@@ -261,7 +293,12 @@ function buildSnapshotRows(row: StudioBaselineComparisonRow, year: number): Stud
       hunterAmount: row.baselineHunter,
       maintenanceAmount: row.baselineMaintenance,
       totalAmount: row.baselineTotal,
+      customerHunterTarget: row.registeredCustomerHunterTarget,
+      customerMaintenanceTarget: row.registeredCustomerMaintenanceTarget,
+      customerTotalTarget: row.registeredCustomerTotalTarget,
       difference: 0,
+      hunterDelta: 0,
+      maintenanceDelta: 0,
     },
     {
       ...base,
@@ -270,7 +307,12 @@ function buildSnapshotRows(row: StudioBaselineComparisonRow, year: number): Stud
       hunterAmount: row.allocatedHunter,
       maintenanceAmount: row.allocatedMaintenance,
       totalAmount: row.allocatedTotal,
+      customerHunterTarget: row.registeredCustomerHunterTarget,
+      customerMaintenanceTarget: row.registeredCustomerMaintenanceTarget,
+      customerTotalTarget: row.registeredCustomerTotalTarget,
       difference: row.allocationDelta,
+      hunterDelta: row.hunterDelta,
+      maintenanceDelta: row.maintenanceDelta,
     },
   ];
 }
@@ -296,6 +338,28 @@ function getStudioStatusLabel(status: StudioBaselineComparisonRow["status"]) {
   if (status === "missing_customer") return "Cliente ausente";
   if (status === "missing_studio") return "Studio ausente";
   return "Alocação divergente";
+}
+
+function getDivergenceLabel(row: StudioBaselineComparisonRow) {
+  if (row.status === "missing_customer") return "Cliente ausente";
+  if (row.status === "missing_studio") return "Studio ausente";
+  const hunterDiverges = Math.abs(row.hunterDelta) > 0.01;
+  const maintenanceDiverges = Math.abs(row.maintenanceDelta) > 0.01;
+  if (hunterDiverges && maintenanceDiverges) return "Hunter e Manutenção";
+  if (hunterDiverges) return "Hunter";
+  if (maintenanceDiverges) return "Manutenção";
+  return "Reconciliado";
+}
+
+function getDivergenceClassName(row: StudioBaselineComparisonRow) {
+  if (row.status === "missing_customer" || row.status === "missing_studio") return "text-red-700";
+  if (Math.abs(row.hunterDelta) > 0.01 || Math.abs(row.maintenanceDelta) > 0.01) return "text-amber-700";
+  return "text-emerald-700";
+}
+
+function getDeltaTone(value: number) {
+  if (Math.abs(value) <= 0.01) return "ok";
+  return "warning";
 }
 
 function getImportErrorMessage(error: unknown) {

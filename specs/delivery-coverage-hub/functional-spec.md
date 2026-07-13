@@ -635,9 +635,9 @@ Total. Depois de aprovado, esse baseline é persistido em
 canônica de leitura para Dashboard Executivo e Comparativo Baseline. O arquivo
 local versionado permanece apenas como fallback técnico de desenvolvimento e
 semente idempotente da migração. O baseline do board não é editável nessa tela;
-ele é referência fixa para análise. A tela também permite importar uma planilha
-`.xlsx` temporária no mesmo formato para comparar contra o cadastro do ano
-selecionado. Nenhum valor é aplicado automaticamente: cada linha com cliente
+ele é referência fixa para análise. A importação temporária de planilhas nesse
+mesmo formato acontece na central de Baselines, não no Comparativo. Nenhum valor
+é aplicado automaticamente: cada linha com cliente
 cadastrado deve oferecer uma ação explícita para atualizar somente a meta anual
 daquele cliente (`customer_target_years`), usando os valores da planilha ou do
 baseline, sem alterar as metas cadastradas nas pessoas em
@@ -670,6 +670,11 @@ Alocações, e colunas de Hunter, Manutenção, Total e Diferença. Divergência
 entre o nome/origem da planilha e o cadastro devem aparecer apenas como
 indicativo contextual de origem quando existirem; quando estiverem consistentes,
 não devem ocupar coluna nem poluir a visualização.
+A prévia da central de Baselines deve expor, por Cliente + Studio/Origem, os
+valores do baseline importado, os valores alocados no sistema em Hunter e
+Manutenção/Renovação, as diferenças por componente e o total cadastrado no
+Cliente para Hunter, Manutenção/Renovação e Total. O diagnóstico visual deve
+indicar se a divergência está em Hunter, Manutenção/Renovação ou nos dois.
 A visão de Baseline de Studios no Comparativo deve consumir a última foto salva
 na central para a origem e ano selecionados, sem permitir upload ou gravação
 local naquela tela. A visão deve permitir filtro por Status e por Studio. O

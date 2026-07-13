@@ -704,6 +704,10 @@ function restoreStudioComparisonRowsFromSnapshot(rows: unknown[]): StudioBaselin
 
       const baselineTotal = baseline?.totalAmount ?? 0;
       const allocatedTotal = allocated?.totalAmount ?? 0;
+      const baselineHunter = baseline?.hunterAmount ?? 0;
+      const baselineMaintenance = baseline?.maintenanceAmount ?? 0;
+      const allocatedHunter = allocated?.hunterAmount ?? 0;
+      const allocatedMaintenance = allocated?.maintenanceAmount ?? 0;
       const sourceNote = reference.sourceNote ?? "";
       const status = restoreStudioStatus(reference.status);
 
@@ -713,12 +717,17 @@ function restoreStudioComparisonRowsFromSnapshot(rows: unknown[]): StudioBaselin
         registeredCustomerName: sourceNote.includes("Cliente não cadastrado") ? "" : reference.customerName,
         studioName: reference.studioName,
         registeredStudioName: sourceNote.includes("Studio não cadastrado") ? "" : reference.studioName,
-        baselineHunter: baseline?.hunterAmount ?? 0,
-        baselineMaintenance: baseline?.maintenanceAmount ?? 0,
+        registeredCustomerHunterTarget: getSnapshotNumber(reference, "customerHunterTarget"),
+        registeredCustomerMaintenanceTarget: getSnapshotNumber(reference, "customerMaintenanceTarget"),
+        registeredCustomerTotalTarget: getSnapshotNumber(reference, "customerTotalTarget"),
+        baselineHunter,
+        baselineMaintenance,
         baselineTotal,
-        allocatedHunter: allocated?.hunterAmount ?? 0,
-        allocatedMaintenance: allocated?.maintenanceAmount ?? 0,
+        allocatedHunter,
+        allocatedMaintenance,
         allocatedTotal,
+        hunterDelta: getSnapshotNumber(allocated, "hunterDelta", allocatedHunter - baselineHunter),
+        maintenanceDelta: getSnapshotNumber(allocated, "maintenanceDelta", allocatedMaintenance - baselineMaintenance),
         allocationDelta: allocated?.difference ?? allocatedTotal - baselineTotal,
         status,
       } satisfies StudioBaselineComparisonRow;
@@ -739,6 +748,12 @@ function isStudioReportRow(row: unknown): row is StudioReportRow {
     && typeof item.hunterAmount === "number"
     && typeof item.maintenanceAmount === "number"
     && typeof item.totalAmount === "number";
+}
+
+function getSnapshotNumber(row: unknown, key: string, fallback = 0) {
+  if (!row || typeof row !== "object") return fallback;
+  const value = (row as Record<string, unknown>)[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
 function restoreStudioStatus(label: string): StudioBaselineComparisonRow["status"] {

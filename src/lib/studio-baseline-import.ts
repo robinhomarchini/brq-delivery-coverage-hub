@@ -31,12 +31,17 @@ export interface StudioBaselineComparisonRow {
   registeredCustomerName: string;
   studioName: string;
   registeredStudioName: string;
+  registeredCustomerHunterTarget: number;
+  registeredCustomerMaintenanceTarget: number;
+  registeredCustomerTotalTarget: number;
   baselineHunter: number;
   baselineMaintenance: number;
   baselineTotal: number;
   allocatedHunter: number;
   allocatedMaintenance: number;
   allocatedTotal: number;
+  hunterDelta: number;
+  maintenanceDelta: number;
   allocationDelta: number;
   status: "ok" | "allocation_gap" | "missing_customer" | "missing_studio";
 }
@@ -231,7 +236,12 @@ export function buildStudioBaselineComparisons(
     const allocatedHunter = roundCurrency(customerAllocations.reduce((total, allocation) => total + allocation.hunterAmount, 0));
     const allocatedMaintenance = roundCurrency(customerAllocations.reduce((total, allocation) => total + allocation.maintenanceAmount, 0));
     const allocatedTotal = roundCurrency(allocatedHunter + allocatedMaintenance);
+    const hunterDelta = roundCurrency(allocatedHunter - row.hunterAmount);
+    const maintenanceDelta = roundCurrency(allocatedMaintenance - row.maintenanceAmount);
     const allocationDelta = roundCurrency(allocatedTotal - row.totalAmount);
+    const registeredCustomerHunterTarget = customer ? roundCurrency(customer.hunterTarget) : 0;
+    const registeredCustomerMaintenanceTarget = customer ? roundCurrency(customer.farmerRenewalTarget) : 0;
+    const registeredCustomerTotalTarget = customer ? roundCurrency(customer.hunterTarget + customer.farmerRenewalTarget + customer.studioTarget) : 0;
 
     return {
       key: `${row.customerName}:${row.studioName}`,
@@ -239,12 +249,17 @@ export function buildStudioBaselineComparisons(
       registeredCustomerName: customer?.name ?? "",
       studioName: row.studioName,
       registeredStudioName: area?.name ?? "",
+      registeredCustomerHunterTarget,
+      registeredCustomerMaintenanceTarget,
+      registeredCustomerTotalTarget,
       baselineHunter: row.hunterAmount,
       baselineMaintenance: row.maintenanceAmount,
       baselineTotal: row.totalAmount,
       allocatedHunter,
       allocatedMaintenance,
       allocatedTotal,
+      hunterDelta,
+      maintenanceDelta,
       allocationDelta,
       status: getStudioComparisonStatus(Boolean(customer), Boolean(area), allocationDelta),
     };
