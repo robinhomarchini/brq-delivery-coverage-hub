@@ -31,6 +31,10 @@ import { cn, formatCurrency } from "@/lib/utils";
 
 const maxFileSizeInBytes = 5 * 1024 * 1024;
 type BaselineImportMode = "main_curve" | "studio_sources";
+type StudioBaselineImportStats = {
+  acceptedRows: number;
+  ignoredRows: number;
+};
 
 export function BaselineImportCenter() {
   const { areas, customers, customerTargets, studioTargetAllocations, studioBaselineSnapshots, saveStudioBaselineSnapshot } = useDeliveryStore();
@@ -39,6 +43,8 @@ export function BaselineImportCenter() {
   const [sourceCode, setSourceCode] = useState<StudioBaselineSourceCode>("studio_px");
   const [fileName, setFileName] = useState("");
   const [importedRows, setImportedRows] = useState<StudioBaselineComparisonRow[]>([]);
+  const [importStats, setImportStats] = useState<StudioBaselineImportStats | null>(null);
+  const [acceptMissingBusinessUnitAsFinancial, setAcceptMissingBusinessUnitAsFinancial] = useState(false);
   const [dismissedSnapshotId, setDismissedSnapshotId] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -97,15 +103,27 @@ export function BaselineImportCenter() {
         throw new Error("Arquivo maior que 5 MB. Use uma planilha menor para homologação.");
       }
       const baselineRows = await readStudioBaselineWorkbook(file, source);
-      const financialRows = baselineRows.filter(isFinancialStudioBaselineRow);
+      const rowsWithoutBusinessUnit = baselineRows.filter((row) => !row.businessUnit).length;
+      const financialRows = baselineRows.filter((row) => isFinancialStudioBaselineRow(row, {
+        acceptMissingBusinessUnit: acceptMissingBusinessUnitAsFinancial,
+      }));
+      if (!financialRows.length && rowsWithoutBusinessUnit > 0 && !acceptMissingBusinessUnitAsFinancial) {
+        setImportedRows([]);
+        setImportStats(null);
+        setFileName("");
+        setError("A planilha não possui BU/CC CROSS. Marque a opção manual para tratar esta origem como BU Financial e importe novamente.");
+        return;
+      }
       const comparisonRows = sortStudioBaselineRows(buildStudioBaselineComparisons(financialRows, yearCustomers, areas, studioTargetAllocations, year));
       setImportedRows(comparisonRows);
+      setImportStats({ acceptedRows: financialRows.length, ignoredRows: baselineRows.length - financialRows.length });
       setDismissedSnapshotId("");
       setFileName(file.name);
       setSuccess(`${financialRows.length} linha(s) Financial importada(s) para ${source.name}. ${baselineRows.length - financialRows.length} linha(s) de outras BUs foram ignoradas.`);
       window.setTimeout(() => setSuccess(""), 4500);
     } catch (importError) {
       setImportedRows([]);
+      setImportStats(null);
       setFileName("");
       setError(getImportErrorMessage(importError));
     } finally {
@@ -187,6 +205,29 @@ export function BaselineImportCenter() {
                 A planilha pode estar no layout detalhado de Studios ou no layout com Cliente, Renovação/Manut e Novos Projetos/Hunter.
                 Linhas de agrupamento e registros com BU diferente de Financial são descartados automaticamente quando a coluna BU/CC CROSS existir.
               </p>
+              <div className="mt-4 grid max-w-4xl gap-3 md:grid-cols-[minmax(220px,280px)_1fr]">
+                <div className="rounded-xl border border-purple-200 bg-purple-50 px-4 py-3">
+                  <p className="text-xs font-bold uppercase tracking-wide text-brq-purple">BU considerada</p>
+                  <p className="mt-1 text-base font-black text-slate-950">BU Financial</p>
+                </div>
+                <div className="rounded-xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm leading-6 text-slate-600">
+                  A importação usa somente linhas marcadas como <span className="font-semibold text-slate-950">BU Financial</span> nas colunas <span className="font-semibold text-slate-950">BU</span> ou <span className="font-semibold text-slate-950">CC CROSS</span>.
+                  Se a planilha não trouxer essa coluna, marque manualmente a confirmação abaixo antes de importar.
+                </div>
+              </div>
+              <label className="mt-3 flex max-w-4xl cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
+                <input
+                  type="checkbox"
+                  className="mt-1 h-4 w-4 rounded border-slate-300 accent-[#8733d1]"
+                  checked={acceptMissingBusinessUnitAsFinancial}
+                  onChange={(event) => setAcceptMissingBusinessUnitAsFinancial(event.target.checked)}
+                  disabled={loading || saving}
+                />
+                <span>
+                  <span className="block font-bold text-slate-950">Planilha sem BU/CC CROSS pertence à BU Financial</span>
+                  <span className="mt-1 block leading-6">Use para origens como PX quando o arquivo não informa a BU. Sem esta marcação, linhas sem BU são ignoradas para não poluir a base.</span>
+                </span>
+              </label>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Select value={String(year)} onChange={(event) => setYear(Number(event.target.value))} disabled={loading || saving}>
@@ -209,6 +250,12 @@ export function BaselineImportCenter() {
                 <span> · salva em {formatDateTime(latestSnapshot.createdAt)}</span>
               )}
             </p>
+          )}
+          {importStats && (
+            <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
+              <span className="rounded-full bg-emerald-50 px-3 py-1 text-emerald-700">{importStats.acceptedRows} linha(s) BU Financial importada(s)</span>
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-600">{importStats.ignoredRows} linha(s) de outras BUs ignorada(s)</span>
+            </div>
           )}
         </Card>
 
@@ -236,6 +283,7 @@ export function BaselineImportCenter() {
               />
               <Button type="button" variant="outline" onClick={() => {
                 setImportedRows([]);
+                setImportStats(null);
                 setFileName("");
                 if (loadedFromSnapshot && latestSnapshot) setDismissedSnapshotId(latestSnapshot.id);
               }} disabled={!rows.length || loading || saving}>

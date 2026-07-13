@@ -8,6 +8,7 @@ const targetManagementPath = path.join(root, "src", "components", "targets", "ta
 const personTargetReportPath = path.join(root, "src", "components", "reports", "person-target-report.tsx");
 const customerPortfolioPath = path.join(root, "src", "components", "portfolio", "customer-portfolio-management.tsx");
 const deliveryStorePath = path.join(root, "src", "store", "delivery-store.tsx");
+const studioBaselineImportPath = path.join(root, "src", "lib", "studio-baseline-import.ts");
 const performanceMigrationPath = path.join(root, "supabase", "migrations", "20260709113000_performance_indexes_for_target_reports.sql");
 const packagePath = path.join(root, "package.json");
 
@@ -15,6 +16,7 @@ const targetManagementSource = fs.readFileSync(targetManagementPath, "utf8");
 const personTargetReportSource = fs.readFileSync(personTargetReportPath, "utf8");
 const customerPortfolioSource = fs.readFileSync(customerPortfolioPath, "utf8");
 const deliveryStoreSource = fs.readFileSync(deliveryStorePath, "utf8");
+const studioBaselineImportSource = fs.readFileSync(studioBaselineImportPath, "utf8");
 const performanceMigrationSource = fs.readFileSync(performanceMigrationPath, "utf8");
 const packageSource = fs.readFileSync(packagePath, "utf8");
 
@@ -44,6 +46,9 @@ assertIncludes(deliveryStoreSource, "for (const personId of [allocation.hunterPe
 assertIncludes(deliveryStoreSource, "setCustomerTargets((current) => current.filter((item) => item.customerId !== id))", "Delivery store must clear customer target snapshots after partial customer delete.");
 assertIncludes(deliveryStoreSource, "removedStudioAllocationIds", "Delivery store must clear specialist Hunter selections linked to deleted customer Studio allocations.");
 assertIncludes(deliveryStoreSource, "const saved = await repository.saveSubject(subject)", "Delivery store must use canonical saved Subject returned by the repository.");
+assertIncludes(studioBaselineImportSource, "buildStudioAllocationIndex", "Studio baseline comparison must pre-index allocations by customer/studio/year.");
+assertIncludes(studioBaselineImportSource, "allocationsByCustomerArea", "Studio baseline comparison must reuse indexed allocation totals per row.");
+assertNotIncludes(studioBaselineImportSource, "studioAllocations.filter((allocation) =>", "Studio baseline comparison must not scan all Studio allocations for every baseline row.");
 assertIncludes(performanceMigrationSource, "revenue_target_allocations_customer_person_type_year_idx", "Performance migration must index target allocation lookup by customer/person/type/year.");
 assertIncludes(performanceMigrationSource, "studio_target_allocations_customer_area_year_idx", "Performance migration must index studio allocation lookup by customer/area/year.");
 assertIncludes(performanceMigrationSource, "specialist_hunter_studio_assignments_person_year_idx", "Performance migration must index specialist hunter report lookup by person/year.");

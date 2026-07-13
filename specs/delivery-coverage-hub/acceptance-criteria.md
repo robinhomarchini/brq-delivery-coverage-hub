@@ -467,6 +467,9 @@
   vira PX somente quando a coluna A/SU for Weme.
 - Ao importar baseline manual de Studio/Área, linhas com BU/CC CROSS diferente
   de Financial são ignoradas quando a coluna existir.
+- Ao importar baseline manual de Studio/Área sem coluna BU/CC CROSS, a tela
+  exige confirmação manual de que a planilha pertence à BU Financial antes de
+  aceitar essas linhas.
 - Para planilhas de origem de Studio/Área no layout largo, linhas de grupo são
   ignoradas; o domínio importado é Cliente + tipo de receita
   Manutenção/Renovação ou Novo/Hunter + valor + origem selecionada.

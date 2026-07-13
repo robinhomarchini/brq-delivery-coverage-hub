@@ -672,6 +672,10 @@ Baseline Curva, e colunas de Hunter, Manutenção, Total e Diferença. Divergên
 entre o nome/origem da planilha e o cadastro devem aparecer apenas como
 indicativo contextual de origem quando existirem; quando estiverem consistentes,
 não devem ocupar coluna nem poluir a visualização.
+Quando a planilha manual de origem trouxer `BU` ou `CC CROSS`, somente linhas
+`BU Financial` entram na prévia/snapshot. Quando a origem não trouxer coluna de
+BU, como em planilhas PX simplificadas, a tela deve exigir confirmação manual de
+que a planilha pertence à BU Financial antes de aceitar linhas sem BU.
 A prévia da central de Baselines deve expor, por Cliente + Studio/Origem, os
 valores do baseline importado, os valores alocados no sistema em Hunter e
 Manutenção/Renovação, a baseline de Studio vinda da Curva principal, as

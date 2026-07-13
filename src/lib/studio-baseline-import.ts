@@ -203,8 +203,13 @@ function tryParseWideStudioBaselineRows(rows: unknown[][], source: StudioBaselin
   );
 }
 
-export function isFinancialStudioBaselineRow(row: StudioBaselineRow) {
-  return !row.businessUnit || normalizeBusinessName(row.businessUnit) === "bu financial";
+export function isFinancialStudioBaselineRow(
+  row: StudioBaselineRow,
+  options: { acceptMissingBusinessUnit?: boolean } = {},
+) {
+  const businessUnit = normalizeBusinessName(row.businessUnit ?? "");
+  if (businessUnit) return businessUnit === "bu financial";
+  return options.acceptMissingBusinessUnit === true;
 }
 
 function findWideCustomerColumnIndex(rows: unknown[][], headerRowIndex: number, maintenanceIndex: number, hunterIndex: number) {
@@ -231,20 +236,17 @@ export function buildStudioBaselineComparisons(
 ): StudioBaselineComparisonRow[] {
   const customersByName = new Map(customers.map((customer) => [normalizeBusinessName(customer.name), customer]));
   const areasByName = new Map(areas.map((area) => [normalizeBusinessName(area.name), area]));
+  const allocationsByCustomerArea = buildStudioAllocationIndex(studioAllocations, year);
 
   return baselineRows.map((row) => {
     const customerKey = normalizeBusinessName(row.customerName);
     const customer = customersByName.get(customerKey);
     const area = areasByName.get(normalizeBusinessName(row.studioName));
-    const customerAllocations = customer && area
-      ? studioAllocations.filter((allocation) =>
-        allocation.customerId === customer.id
-        && allocation.areaId === area.id
-        && allocation.year === year
-      )
-      : [];
-    const allocatedHunter = roundCurrency(customerAllocations.reduce((total, allocation) => total + allocation.hunterAmount, 0));
-    const allocatedMaintenance = roundCurrency(customerAllocations.reduce((total, allocation) => total + allocation.maintenanceAmount, 0));
+    const allocated = customer && area
+      ? allocationsByCustomerArea.get(getStudioAllocationIndexKey(customer.id, area.id))
+      : undefined;
+    const allocatedHunter = allocated?.hunterAmount ?? 0;
+    const allocatedMaintenance = allocated?.maintenanceAmount ?? 0;
     const allocatedTotal = roundCurrency(allocatedHunter + allocatedMaintenance);
     const hunterDelta = roundCurrency(allocatedHunter - row.hunterAmount);
     const maintenanceDelta = roundCurrency(allocatedMaintenance - row.maintenanceAmount);
@@ -276,6 +278,23 @@ export function buildStudioBaselineComparisons(
       status: getStudioComparisonStatus(Boolean(customer), Boolean(area), allocationDelta),
     };
   });
+}
+
+function buildStudioAllocationIndex(studioAllocations: StudioTargetAllocation[], year: number) {
+  const index = new Map<string, { hunterAmount: number; maintenanceAmount: number }>();
+  studioAllocations.forEach((allocation) => {
+    if (allocation.year !== year) return;
+    const key = getStudioAllocationIndexKey(allocation.customerId, allocation.areaId);
+    const current = index.get(key) ?? { hunterAmount: 0, maintenanceAmount: 0 };
+    current.hunterAmount = roundCurrency(current.hunterAmount + allocation.hunterAmount);
+    current.maintenanceAmount = roundCurrency(current.maintenanceAmount + allocation.maintenanceAmount);
+    index.set(key, current);
+  });
+  return index;
+}
+
+function getStudioAllocationIndexKey(customerId: string, areaId: string) {
+  return `${customerId}:${areaId}`;
 }
 
 function readWorkbookRows(buffer: ArrayBuffer) {
