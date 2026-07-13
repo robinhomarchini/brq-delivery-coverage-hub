@@ -25,7 +25,9 @@ type StudioCurveSnapshotInput = {
 };
 
 const curveSheetColumns = {
+  salesUnit: 0, // A - SU
   customerName: 2, // C - Grupo Cliente
+  revenueStream: 9, // J - Revenue Stream
   studioName: 11, // L - Studio/Habilitador
   opportunityType: 14, // O - Tipo Opp (Renovação/Novo-ampliação)
   totalAmount: 33, // AH - Total RL 2026
@@ -74,14 +76,16 @@ export function parseCurveStudioBaselineRows(rows: unknown[][]): StudioBaselineR
   const grouped = new Map<string, StudioBaselineRow>();
 
   rows.forEach((row, index) => {
+    const salesUnit = String(row[curveSheetColumns.salesUnit] ?? "").trim();
     const businessUnit = String(row[curveSheetColumns.businessUnit] ?? "").trim();
     if (normalizeBusinessName(businessUnit) !== "bu financial") return;
 
     const customerName = String(row[curveSheetColumns.customerName] ?? "").trim();
-    const studioName = String(row[curveSheetColumns.studioName] ?? "").trim();
+    const revenueStream = String(row[curveSheetColumns.revenueStream] ?? "").trim();
+    const rawStudioName = String(row[curveSheetColumns.studioName] ?? "").trim();
+    const studioName = getEligibleCurveStudioName(rawStudioName, revenueStream, customerName, salesUnit);
     const opportunityType = String(row[curveSheetColumns.opportunityType] ?? "").trim();
     const amount = parseMoney(row[curveSheetColumns.totalAmount]);
-    if (!isEligibleCurveStudioName(studioName)) return;
     if (!customerName || !studioName || amount <= 0) return;
 
     const key = `${normalizeBusinessName(customerName)}:${normalizeBusinessName(studioName)}`;
@@ -114,9 +118,41 @@ export function parseCurveStudioBaselineRows(rows: unknown[][]): StudioBaselineR
   );
 }
 
-function isEligibleCurveStudioName(value: string) {
+function getEligibleCurveStudioName(studioName: string, revenueStream: string, customerName: string, salesUnit: string) {
+  const normalizedStudio = normalizeBusinessName(studioName);
+  if (!normalizedStudio || normalizedStudio === "squad" || normalizedStudio === "times" || normalizedStudio === "resell") {
+    return "";
+  }
+
+  if (normalizedStudio === "arquitetura") {
+    return normalizeBusinessName(salesUnit) === "weme" ? "PX" : "";
+  }
+
+  if (normalizedStudio === "cloud") {
+    const allianceStudioName = getCloudAllianceStudioName(customerName);
+    if (allianceStudioName) return allianceStudioName;
+    if (isManagedServicesCustomer(customerName)) return "Managed Services";
+    return isManagedServicesRevenueStream(revenueStream) ? "Managed Services" : "";
+  }
+
+  return studioName;
+}
+
+function getCloudAllianceStudioName(customerName: string) {
+  const normalized = normalizeBusinessName(customerName);
+  if (normalized === "google llc") return "Alianças Google";
+  if (normalized === "microsoft") return "Alianças Microsoft";
+  if (normalized === "amazon web") return "Alianças AWS";
+  return "";
+}
+
+function isManagedServicesCustomer(customerName: string) {
+  return normalizeBusinessName(customerName) === "managed services";
+}
+
+function isManagedServicesRevenueStream(value: string) {
   const normalized = normalizeBusinessName(value);
-  return normalized !== "squad" && normalized !== "times";
+  return normalized === "managed services / finops" || normalized === "managed services";
 }
 
 function buildStudioCurveBaselineComparisonRows(

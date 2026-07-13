@@ -460,7 +460,11 @@
   L, `Tipo Opp` na coluna O para separar Novo/Ampliação de
   Manutenção/Renovação, `Total RL 2026` na coluna AH e filtrando `CC CROSS` na
   coluna BR igual a `BU Financial`; buckets `Squad` e `Times` não entram no
-  baseline de Studios.
+  baseline de Studios; `RESELL` não entra; `Cloud` é remapeado para
+  `Managed Services` quando o cliente da coluna C for Managed Services ou a
+  coluna J indicar Managed Services, e para Alianças Google/Microsoft/AWS quando
+  o cliente da coluna C for Google LLC, Microsoft ou Amazon Web; `Arquitetura`
+  vira PX somente quando a coluna A/SU for Weme.
 - Ao importar baseline manual de Studio/Área, linhas com BU/CC CROSS diferente
   de Financial são ignoradas quando a coluna existir.
 - Para planilhas de origem de Studio/Área no layout largo, linhas de grupo são
