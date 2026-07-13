@@ -59,10 +59,13 @@ export function BaselineImportCenter() {
     [dismissedSnapshotId, latestSnapshot],
   );
   const loadedFromSnapshot = importedRows.length === 0 && latestSnapshotRows.length > 0;
-  const rows = importedRows.length ? importedRows : latestSnapshotRows;
+  const rows = useMemo(
+    () => sortStudioBaselineRows(importedRows.length ? importedRows : latestSnapshotRows),
+    [importedRows, latestSnapshotRows],
+  );
   const activeFileName = importedRows.length ? fileName : loadedFromSnapshot ? latestSnapshot?.fileName ?? "" : fileName;
   const totals = useMemo(() => getStudioTotals(rows), [rows]);
-  const importedSnapshotRows = useMemo(() => importedRows.flatMap((row) => buildStudioBaselineReportRows(row, year)), [importedRows, year]);
+  const importedSnapshotRows = useMemo(() => sortStudioBaselineRows(importedRows).flatMap((row) => buildStudioBaselineReportRows(row, year)), [importedRows, year]);
   const exportRows = useMemo(() => rows.flatMap((row) => buildStudioBaselineReportRows(row, year)), [rows, year]);
   const exportColumns = useMemo<ReportColumn<StudioBaselineReportRow>[]>(() => [
     { key: "customerName", label: "Cliente", value: (row) => row.customerName },
@@ -95,7 +98,7 @@ export function BaselineImportCenter() {
       }
       const baselineRows = await readStudioBaselineWorkbook(file, source);
       const financialRows = baselineRows.filter(isFinancialStudioBaselineRow);
-      const comparisonRows = buildStudioBaselineComparisons(financialRows, yearCustomers, areas, studioTargetAllocations, year);
+      const comparisonRows = sortStudioBaselineRows(buildStudioBaselineComparisons(financialRows, yearCustomers, areas, studioTargetAllocations, year));
       setImportedRows(comparisonRows);
       setDismissedSnapshotId("");
       setFileName(file.name);
@@ -397,6 +400,19 @@ function StudioStatusBadge({ status }: { status: StudioBaselineComparisonRow["st
   if (status === "missing_customer") return <Badge variant="destructive">Cliente ausente</Badge>;
   if (status === "missing_studio") return <Badge variant="destructive">Studio ausente</Badge>;
   return <Badge variant="warning">Alocação divergente</Badge>;
+}
+
+function sortStudioBaselineRows(rows: StudioBaselineComparisonRow[]) {
+  return rows.slice().sort((first, second) =>
+    compareBusinessLabel(first.customerName, second.customerName)
+    || compareBusinessLabel(first.studioName, second.studioName)
+    || compareBusinessLabel(first.registeredStudioName, second.registeredStudioName)
+    || compareBusinessLabel(first.status, second.status)
+  );
+}
+
+function compareBusinessLabel(first: string, second: string) {
+  return first.localeCompare(second, "pt-BR", { sensitivity: "base", numeric: true });
 }
 
 function getStudioTotals(rows: StudioBaselineComparisonRow[]) {

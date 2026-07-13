@@ -12,6 +12,7 @@ logs
 tmp
 temp
 output
+outputs
 screenshots
 videos
 *.log

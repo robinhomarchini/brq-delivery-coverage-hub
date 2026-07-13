@@ -146,7 +146,10 @@ function buildStudioCurveBaselineComparisonRows(
         registeredCustomerTotalTarget: roundCurrency(targetComparison.effectiveRevenue),
       };
     })
-    .sort((first, second) => first.customerName.localeCompare(second.customerName, "pt-BR"));
+    .sort((first, second) =>
+      first.customerName.localeCompare(second.customerName, "pt-BR", { sensitivity: "base", numeric: true })
+      || first.studioName.localeCompare(second.studioName, "pt-BR", { sensitivity: "base", numeric: true })
+    );
 }
 
 function getStudioCurveSnapshotTotals(rows: StudioBaselineReportRow[]) {

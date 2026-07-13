@@ -40,6 +40,8 @@ const requiredCenterTokens = [
   "getDivergenceLabel",
   "getDeltaTextClassName",
   "isFinancialStudioBaselineRow",
+  "sortStudioBaselineRows",
+  "compareBusinessLabel",
   "linha(s) de outras BUs foram ignoradas",
 ];
 
