@@ -42,12 +42,22 @@ dos botões, enquanto a regra de exportação oficial fica em um módulo de dom�
 testável. A função `buildOfficialRowsForView` permanece reexportada pelo
 componente apenas para compatibilidade com o gate atual de QA.
 
+Os rollups compartilhados de Studio/Hunter usados pelo relatório e pela
+Planilha oficial agora ficam em:
+
+- `src/lib/reports/person-target-rollups.ts`
+
+Esse módulo centraliza cálculo de Studio Hunter efetivo, manutenção elegível por
+pessoa, meta própria versus meta herdada e fallback de Hunter principal do
+cliente. Ele evita que relatório visual e exportação oficial implementem a mesma
+regra em paralelo.
+
 ## Próximas oportunidades
 
 1. Extrair view models restantes de relatórios
    - Prioridade: `src/components/reports/person-target-report.tsx`
-   - Motivo: o export oficial já foi separado, mas o arquivo ainda concentra
-     builders de tela, filtros e tabelas.
+   - Motivo: o export oficial e rollups comuns já foram separados, mas o arquivo
+     ainda concentra builders de tela, filtros e tabelas.
    - Caminho seguro: mover builders de Clientes, Hunters e Diretoria para
      `src/lib/reports/` em fatias independentes.
 
