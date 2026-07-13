@@ -21,29 +21,15 @@ import {
   type StudioBaselineComparisonRow,
   type StudioBaselineSourceCode,
 } from "@/lib/studio-baseline-import";
+import {
+  buildStudioBaselineReportRows,
+  restoreStudioBaselineComparisonRows,
+  type StudioBaselineReportRow,
+} from "@/lib/studio-baseline-report";
 import { cn, formatCurrency } from "@/lib/utils";
 
 const maxFileSizeInBytes = 5 * 1024 * 1024;
 type BaselineImportMode = "main_curve" | "studio_sources";
-
-type StudioSnapshotRow = {
-  key: string;
-  customerName: string;
-  studioName: string;
-  view: "Baseline" | "Alocado" | "Hunters / Alocações" | "Baseline Curva";
-  hunterAmount: number;
-  maintenanceAmount: number;
-  totalAmount: number;
-  customerHunterTarget: number;
-  customerMaintenanceTarget: number;
-  customerStudioTarget: number;
-  customerTotalTarget: number;
-  difference: number;
-  hunterDelta: number;
-  maintenanceDelta: number;
-  status: string;
-  year: number;
-};
 
 export function BaselineImportCenter() {
   const { areas, customers, customerTargets, studioTargetAllocations, studioBaselineSnapshots, saveStudioBaselineSnapshot } = useDeliveryStore();
@@ -67,7 +53,7 @@ export function BaselineImportCenter() {
   );
   const latestSnapshotRows = useMemo(
     () => latestSnapshot && latestSnapshot.id !== dismissedSnapshotId
-      ? restoreSnapshotRows(latestSnapshot.rows)
+      ? restoreStudioBaselineComparisonRows(latestSnapshot.rows)
       : [],
     [dismissedSnapshotId, latestSnapshot],
   );
@@ -75,9 +61,9 @@ export function BaselineImportCenter() {
   const rows = importedRows.length ? importedRows : latestSnapshotRows;
   const activeFileName = importedRows.length ? fileName : loadedFromSnapshot ? latestSnapshot?.fileName ?? "" : fileName;
   const totals = useMemo(() => getStudioTotals(rows), [rows]);
-  const importedSnapshotRows = useMemo(() => importedRows.flatMap((row) => buildSnapshotRows(row, year)), [importedRows, year]);
-  const exportRows = useMemo(() => rows.flatMap((row) => buildSnapshotRows(row, year)), [rows, year]);
-  const exportColumns = useMemo<ReportColumn<StudioSnapshotRow>[]>(() => [
+  const importedSnapshotRows = useMemo(() => importedRows.flatMap((row) => buildStudioBaselineReportRows(row, year)), [importedRows, year]);
+  const exportRows = useMemo(() => rows.flatMap((row) => buildStudioBaselineReportRows(row, year)), [rows, year]);
+  const exportColumns = useMemo<ReportColumn<StudioBaselineReportRow>[]>(() => [
     { key: "customerName", label: "Cliente", value: (row) => row.customerName },
     { key: "studioName", label: "Studio/Origem", value: (row) => row.studioName },
     { key: "view", label: "Visão", value: (row) => row.view },
@@ -411,62 +397,6 @@ function StudioStatusBadge({ status }: { status: StudioBaselineComparisonRow["st
   return <Badge variant="warning">Alocação divergente</Badge>;
 }
 
-function buildSnapshotRows(row: StudioBaselineComparisonRow, year: number): StudioSnapshotRow[] {
-  const base = {
-    customerName: row.customerName,
-    studioName: row.studioName,
-    status: getStudioStatusLabel(row.status),
-    year,
-  };
-  return [
-    {
-      ...base,
-      key: `${row.key}:baseline`,
-      view: "Baseline",
-      hunterAmount: row.baselineHunter,
-      maintenanceAmount: row.baselineMaintenance,
-      totalAmount: row.baselineTotal,
-      customerHunterTarget: row.registeredCustomerHunterTarget,
-      customerMaintenanceTarget: row.registeredCustomerMaintenanceTarget,
-      customerStudioTarget: row.registeredCustomerStudioTarget,
-      customerTotalTarget: row.registeredCustomerTotalTarget,
-      difference: 0,
-      hunterDelta: 0,
-      maintenanceDelta: 0,
-    },
-    {
-      ...base,
-      key: `${row.key}:allocated`,
-      view: "Alocado",
-      hunterAmount: row.allocatedHunter,
-      maintenanceAmount: row.allocatedMaintenance,
-      totalAmount: row.allocatedTotal,
-      customerHunterTarget: row.registeredCustomerHunterTarget,
-      customerMaintenanceTarget: row.registeredCustomerMaintenanceTarget,
-      customerStudioTarget: row.registeredCustomerStudioTarget,
-      customerTotalTarget: row.registeredCustomerTotalTarget,
-      difference: row.allocationDelta,
-      hunterDelta: row.hunterDelta,
-      maintenanceDelta: row.maintenanceDelta,
-    },
-    {
-      ...base,
-      key: `${row.key}:curve`,
-      view: "Baseline Curva",
-      hunterAmount: 0,
-      maintenanceAmount: 0,
-      totalAmount: row.registeredCustomerStudioTarget,
-      customerHunterTarget: row.registeredCustomerHunterTarget,
-      customerMaintenanceTarget: row.registeredCustomerMaintenanceTarget,
-      customerStudioTarget: row.registeredCustomerStudioTarget,
-      customerTotalTarget: row.registeredCustomerTotalTarget,
-      difference: roundCurrency(row.allocatedTotal - row.registeredCustomerStudioTarget),
-      hunterDelta: 0,
-      maintenanceDelta: 0,
-    },
-  ];
-}
-
 function getStudioTotals(rows: StudioBaselineComparisonRow[]) {
   return rows.reduce((totals, row) => ({
     baselineTotal: totals.baselineTotal + row.baselineTotal,
@@ -483,85 +413,6 @@ function getStudioTotals(rows: StudioBaselineComparisonRow[]) {
     curveStudioTotal: 0,
     allocationDelta: 0,
   });
-}
-
-function restoreSnapshotRows(rows: unknown[]): StudioBaselineComparisonRow[] {
-  const reportRows = rows.filter(isSnapshotRow);
-  const groups = new Map<string, { baseline?: StudioSnapshotRow; allocated?: StudioSnapshotRow; curve?: StudioSnapshotRow }>();
-
-  reportRows.forEach((row) => {
-    const key = `${row.customerName}:${row.studioName}`;
-    const group = groups.get(key) ?? {};
-    if (row.view === "Baseline") group.baseline = row;
-    else if (row.view === "Baseline Curva") group.curve = row;
-    else group.allocated = row;
-    groups.set(key, group);
-  });
-
-  return Array.from(groups.values())
-    .map((group) => {
-      const baseline = group.baseline;
-      const allocated = group.allocated;
-      const curve = group.curve;
-      const reference = baseline ?? allocated ?? curve;
-      if (!reference) return null;
-
-      const baselineHunter = baseline?.hunterAmount ?? 0;
-      const baselineMaintenance = baseline?.maintenanceAmount ?? 0;
-      const baselineTotal = baseline?.totalAmount ?? 0;
-      const allocatedHunter = allocated?.hunterAmount ?? 0;
-      const allocatedMaintenance = allocated?.maintenanceAmount ?? 0;
-      const allocatedTotal = allocated?.totalAmount ?? 0;
-      const registeredCustomerStudioTarget = curve?.totalAmount ?? reference.customerStudioTarget ?? 0;
-      const hunterDelta = allocated?.hunterDelta ?? roundCurrency(allocatedHunter - baselineHunter);
-      const maintenanceDelta = allocated?.maintenanceDelta ?? roundCurrency(allocatedMaintenance - baselineMaintenance);
-      const allocationDelta = allocated?.difference ?? roundCurrency(allocatedTotal - baselineTotal);
-
-      return {
-        key: `${reference.customerName}:${reference.studioName}`,
-        customerName: reference.customerName,
-        registeredCustomerName: reference.customerName,
-        studioName: reference.studioName,
-        registeredStudioName: reference.studioName,
-        registeredCustomerHunterTarget: reference.customerHunterTarget,
-        registeredCustomerMaintenanceTarget: reference.customerMaintenanceTarget,
-        registeredCustomerStudioTarget,
-        registeredCustomerTotalTarget: reference.customerTotalTarget,
-        baselineHunter,
-        baselineMaintenance,
-        baselineTotal,
-        allocatedHunter,
-        allocatedMaintenance,
-        allocatedTotal,
-        hunterDelta,
-        maintenanceDelta,
-        allocationDelta,
-        status: restoreStudioStatus(reference.status),
-      } satisfies StudioBaselineComparisonRow;
-    })
-    .filter((row): row is StudioBaselineComparisonRow => Boolean(row))
-    .sort((first, second) =>
-      first.customerName.localeCompare(second.customerName, "pt-BR")
-      || first.studioName.localeCompare(second.studioName, "pt-BR")
-    );
-}
-
-function isSnapshotRow(row: unknown): row is StudioSnapshotRow {
-  if (!row || typeof row !== "object") return false;
-  const item = row as Partial<StudioSnapshotRow>;
-  return typeof item.customerName === "string"
-    && typeof item.studioName === "string"
-    && (item.view === "Baseline" || item.view === "Alocado" || item.view === "Hunters / Alocações" || item.view === "Baseline Curva")
-    && typeof item.hunterAmount === "number"
-    && typeof item.maintenanceAmount === "number"
-    && typeof item.totalAmount === "number";
-}
-
-function getStudioStatusLabel(status: StudioBaselineComparisonRow["status"]) {
-  if (status === "ok") return "OK";
-  if (status === "missing_customer") return "Cliente ausente";
-  if (status === "missing_studio") return "Studio ausente";
-  return "Alocação divergente";
 }
 
 function getDivergenceLabel(row: StudioBaselineComparisonRow) {
@@ -594,19 +445,8 @@ function getDeltaTextClassName(value: number) {
   return "text-sky-700";
 }
 
-function restoreStudioStatus(label: string): StudioBaselineComparisonRow["status"] {
-  if (label === "OK" || label === "Reconciliado") return "ok";
-  if (label === "Cliente ausente") return "missing_customer";
-  if (label === "Studio ausente") return "missing_studio";
-  return "allocation_gap";
-}
-
 function formatDateTime(value: string) {
   return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(value));
-}
-
-function roundCurrency(value: number) {
-  return Math.round(value * 100) / 100;
 }
 
 function getImportErrorMessage(error: unknown) {

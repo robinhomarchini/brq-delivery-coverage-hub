@@ -1,0 +1,187 @@
+import type { StudioBaselineComparisonRow } from "@/lib/studio-baseline-import";
+import { roundCurrency } from "@/lib/utils";
+
+export type StudioBaselineReportView = "Baseline" | "Alocado" | "Hunters / Alocações" | "Baseline Curva";
+
+export type StudioBaselineReportRow = {
+  key: string;
+  customerName: string;
+  studioName: string;
+  sourceNote?: string;
+  view: StudioBaselineReportView;
+  hunterAmount: number;
+  maintenanceAmount: number;
+  totalAmount: number;
+  customerHunterTarget: number;
+  customerMaintenanceTarget: number;
+  customerStudioTarget: number;
+  customerTotalTarget: number;
+  difference: number;
+  hunterDelta: number;
+  maintenanceDelta: number;
+  differenceLabel?: string;
+  status: string;
+  year: number;
+};
+
+type BuildStudioBaselineReportOptions = {
+  sourceNote?: string;
+  allocatedDifferenceLabel?: string;
+  includeDifferenceLabels?: boolean;
+};
+
+export function buildStudioBaselineReportRows(
+  row: StudioBaselineComparisonRow,
+  year: number,
+  options: BuildStudioBaselineReportOptions = {},
+): StudioBaselineReportRow[] {
+  const base = {
+    customerName: row.customerName,
+    studioName: row.studioName,
+    sourceNote: options.sourceNote ?? "",
+    status: getStudioStatusLabel(row.status),
+    year,
+  };
+  const includeLabels = options.includeDifferenceLabels ?? false;
+
+  return [
+    {
+      ...base,
+      key: `${row.key}:baseline`,
+      view: "Baseline",
+      hunterAmount: row.baselineHunter,
+      maintenanceAmount: row.baselineMaintenance,
+      totalAmount: row.baselineTotal,
+      customerHunterTarget: row.registeredCustomerHunterTarget,
+      customerMaintenanceTarget: row.registeredCustomerMaintenanceTarget,
+      customerStudioTarget: row.registeredCustomerStudioTarget,
+      customerTotalTarget: row.registeredCustomerTotalTarget,
+      difference: 0,
+      hunterDelta: 0,
+      maintenanceDelta: 0,
+      differenceLabel: includeLabels ? "Valor da planilha importada, classificado pelo Tipo Opp." : undefined,
+    },
+    {
+      ...base,
+      key: `${row.key}:allocated`,
+      view: "Alocado",
+      hunterAmount: row.allocatedHunter,
+      maintenanceAmount: row.allocatedMaintenance,
+      totalAmount: row.allocatedTotal,
+      customerHunterTarget: row.registeredCustomerHunterTarget,
+      customerMaintenanceTarget: row.registeredCustomerMaintenanceTarget,
+      customerStudioTarget: row.registeredCustomerStudioTarget,
+      customerTotalTarget: row.registeredCustomerTotalTarget,
+      difference: row.allocationDelta,
+      hunterDelta: row.hunterDelta,
+      maintenanceDelta: row.maintenanceDelta,
+      differenceLabel: includeLabels ? options.allocatedDifferenceLabel ?? "" : undefined,
+    },
+    {
+      ...base,
+      key: `${row.key}:curve`,
+      view: "Baseline Curva",
+      hunterAmount: 0,
+      maintenanceAmount: 0,
+      totalAmount: row.registeredCustomerStudioTarget,
+      customerHunterTarget: row.registeredCustomerHunterTarget,
+      customerMaintenanceTarget: row.registeredCustomerMaintenanceTarget,
+      customerStudioTarget: row.registeredCustomerStudioTarget,
+      customerTotalTarget: row.registeredCustomerTotalTarget,
+      difference: roundCurrency(row.allocatedTotal - row.registeredCustomerStudioTarget),
+      hunterDelta: 0,
+      maintenanceDelta: 0,
+      differenceLabel: includeLabels ? "Baseline de Studio da Curva principal do cliente no ano selecionado." : undefined,
+    },
+  ];
+}
+
+export function restoreStudioBaselineComparisonRows(rows: unknown[]): StudioBaselineComparisonRow[] {
+  const reportRows = rows.filter(isStudioBaselineReportRow);
+  const groups = new Map<string, { baseline?: StudioBaselineReportRow; allocated?: StudioBaselineReportRow; curve?: StudioBaselineReportRow }>();
+
+  reportRows.forEach((row) => {
+    const key = `${row.customerName}:${row.studioName}`;
+    const group = groups.get(key) ?? {};
+    if (row.view === "Baseline") group.baseline = row;
+    else if (row.view === "Baseline Curva") group.curve = row;
+    else group.allocated = row;
+    groups.set(key, group);
+  });
+
+  return Array.from(groups.values())
+    .map((group) => restoreStudioBaselineGroup(group))
+    .filter((row): row is StudioBaselineComparisonRow => Boolean(row))
+    .sort((first, second) =>
+      first.customerName.localeCompare(second.customerName, "pt-BR")
+      || first.studioName.localeCompare(second.studioName, "pt-BR")
+    );
+}
+
+export function getStudioStatusLabel(status: StudioBaselineComparisonRow["status"]) {
+  if (status === "ok") return "OK";
+  if (status === "missing_customer") return "Cliente ausente";
+  if (status === "missing_studio") return "Studio ausente";
+  return "Alocação divergente";
+}
+
+function restoreStudioBaselineGroup(group: {
+  baseline?: StudioBaselineReportRow;
+  allocated?: StudioBaselineReportRow;
+  curve?: StudioBaselineReportRow;
+}) {
+  const baseline = group.baseline;
+  const allocated = group.allocated;
+  const curve = group.curve;
+  const reference = baseline ?? allocated ?? curve;
+  if (!reference) return null;
+
+  const baselineHunter = baseline?.hunterAmount ?? 0;
+  const baselineMaintenance = baseline?.maintenanceAmount ?? 0;
+  const baselineTotal = baseline?.totalAmount ?? 0;
+  const allocatedHunter = allocated?.hunterAmount ?? 0;
+  const allocatedMaintenance = allocated?.maintenanceAmount ?? 0;
+  const allocatedTotal = allocated?.totalAmount ?? 0;
+  const registeredCustomerStudioTarget = curve?.totalAmount ?? reference.customerStudioTarget ?? 0;
+  const sourceNote = reference.sourceNote ?? "";
+
+  return {
+    key: `${reference.customerName}:${reference.studioName}`,
+    customerName: reference.customerName,
+    registeredCustomerName: sourceNote.includes("Cliente não cadastrado") ? "" : reference.customerName,
+    studioName: reference.studioName,
+    registeredStudioName: sourceNote.includes("Studio não cadastrado") ? "" : reference.studioName,
+    registeredCustomerHunterTarget: reference.customerHunterTarget ?? 0,
+    registeredCustomerMaintenanceTarget: reference.customerMaintenanceTarget ?? 0,
+    registeredCustomerStudioTarget,
+    registeredCustomerTotalTarget: reference.customerTotalTarget ?? 0,
+    baselineHunter,
+    baselineMaintenance,
+    baselineTotal,
+    allocatedHunter,
+    allocatedMaintenance,
+    allocatedTotal,
+    hunterDelta: allocated?.hunterDelta ?? roundCurrency(allocatedHunter - baselineHunter),
+    maintenanceDelta: allocated?.maintenanceDelta ?? roundCurrency(allocatedMaintenance - baselineMaintenance),
+    allocationDelta: allocated?.difference ?? roundCurrency(allocatedTotal - baselineTotal),
+    status: restoreStudioStatus(reference.status),
+  } satisfies StudioBaselineComparisonRow;
+}
+
+function isStudioBaselineReportRow(row: unknown): row is StudioBaselineReportRow {
+  if (!row || typeof row !== "object") return false;
+  const item = row as Partial<StudioBaselineReportRow>;
+  return typeof item.customerName === "string"
+    && typeof item.studioName === "string"
+    && (item.view === "Baseline" || item.view === "Alocado" || item.view === "Hunters / Alocações" || item.view === "Baseline Curva")
+    && typeof item.hunterAmount === "number"
+    && typeof item.maintenanceAmount === "number"
+    && typeof item.totalAmount === "number";
+}
+
+function restoreStudioStatus(label: string): StudioBaselineComparisonRow["status"] {
+  if (label === "OK" || label === "Reconciliado") return "ok";
+  if (label === "Cliente ausente") return "missing_customer";
+  if (label === "Studio ausente") return "missing_studio";
+  return "allocation_gap";
+}

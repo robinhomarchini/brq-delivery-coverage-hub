@@ -1,6 +1,6 @@
 import { strFromU8, unzipSync } from "fflate";
 import type { Area, Customer, StudioTargetAllocation } from "@/data/mockData";
-import { normalizeBusinessName } from "@/lib/utils";
+import { normalizeBusinessName, roundCurrency } from "@/lib/utils";
 
 export interface StudioBaselineRow {
   rowNumber: number;
@@ -349,8 +349,4 @@ function getStudioComparisonStatus(
   if (!hasStudio) return "missing_studio";
   if (Math.abs(allocationDelta) > 0.01) return "allocation_gap";
   return "ok";
-}
-
-function roundCurrency(value: number) {
-  return Math.round(value * 100) / 100;
 }

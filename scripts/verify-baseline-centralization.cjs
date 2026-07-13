@@ -9,6 +9,7 @@ const baselineCenter = fs.readFileSync(path.join(root, "src", "components", "bas
 const insightsPage = fs.readFileSync(path.join(root, "src", "app", "insights", "page.tsx"), "utf8");
 const comparison = fs.readFileSync(path.join(root, "src", "components", "insights", "baseline-comparison.tsx"), "utf8");
 const parser = fs.readFileSync(path.join(root, "src", "lib", "studio-baseline-import.ts"), "utf8");
+const studioReport = fs.readFileSync(path.join(root, "src", "lib", "studio-baseline-report.ts"), "utf8");
 const appShell = fs.readFileSync(path.join(root, "src", "components", "layout", "app-shell.tsx"), "utf8");
 
 const requiredCenterTokens = [
@@ -25,9 +26,9 @@ const requiredCenterTokens = [
   'first="Baseline"',
   'second="Alocado"',
   'third="Curva"',
-  "Baseline Curva",
   "Última foto salva carregada",
-  "restoreSnapshotRows",
+  "restoreStudioBaselineComparisonRows",
+  "buildStudioBaselineReportRows",
   "ThreeLineMoneyCell",
   "ThreeLineTextCell",
   "Dif. Hunter",
@@ -78,6 +79,19 @@ const requiredParserTokens = [
 const missingParserTokens = requiredParserTokens.filter((token) => !parser.includes(token));
 if (missingParserTokens.length) {
   throw new Error(`Studio baseline parser is missing layout centralization tokens: ${missingParserTokens.join(", ")}`);
+}
+
+const requiredStudioReportTokens = [
+  "StudioBaselineReportRow",
+  "buildStudioBaselineReportRows",
+  "restoreStudioBaselineComparisonRows",
+  "Baseline Curva",
+  "customerStudioTarget",
+];
+
+const missingStudioReportTokens = requiredStudioReportTokens.filter((token) => !studioReport.includes(token));
+if (missingStudioReportTokens.length) {
+  throw new Error(`Studio baseline report helpers are missing shared snapshot/report behavior: ${missingStudioReportTokens.join(", ")}`);
 }
 
 console.log("Baseline centralization QA checks passed.");

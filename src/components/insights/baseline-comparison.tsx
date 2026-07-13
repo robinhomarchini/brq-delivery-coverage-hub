@@ -28,24 +28,15 @@ import {
   type StudioBaselineComparisonRow,
   type StudioBaselineSourceCode,
 } from "@/lib/studio-baseline-import";
+import {
+  buildStudioBaselineReportRows,
+  restoreStudioBaselineComparisonRows,
+  type StudioBaselineReportRow,
+} from "@/lib/studio-baseline-report";
 import { cn, formatCurrency, normalizeBusinessName } from "@/lib/utils";
 
 type ComparisonRow = ReturnType<typeof buildBoardTargetComparisonRows>[number];
 type BaselineWorkspace = "board" | "studios";
-type StudioReportRow = {
-  key: string;
-  customerName: string;
-  studioName: string;
-  sourceNote: string;
-  view: "Baseline" | "Alocado" | "Hunters / Alocações" | "Baseline Curva";
-  hunterAmount: number;
-  maintenanceAmount: number;
-  totalAmount: number;
-  difference: number;
-  differenceLabel: string;
-  status: string;
-  year: number;
-};
 
 export function BaselineComparison() {
   const { customers, customerTargets, boardTargetBaselines, studioBaselineSnapshots, saveCustomers } = useDeliveryStore();
@@ -120,7 +111,7 @@ export function BaselineComparison() {
   );
   const latestStudioSnapshotRows = useMemo(
     () => latestStudioSnapshot && dismissedStudioSnapshotId !== latestStudioSnapshot.id
-      ? restoreStudioComparisonRowsFromSnapshot(latestStudioSnapshot.rows)
+      ? restoreStudioBaselineComparisonRows(latestStudioSnapshot.rows)
       : [],
     [dismissedStudioSnapshotId, latestStudioSnapshot],
   );
@@ -136,11 +127,11 @@ export function BaselineComparison() {
     && (!studioFilter || row.studioName === studioFilter)
   ), [studioComparisonRows, studioFilter, studioStatus]);
   const studioComparisonTotals = useMemo(() => getStudioComparisonTotals(filteredStudioComparisonRows), [filteredStudioComparisonRows]);
-  const studioReportRows = useMemo<StudioReportRow[]>(
-    () => filteredStudioComparisonRows.flatMap((row) => buildStudioReportRows(row, year)),
+  const studioReportRows = useMemo<StudioBaselineReportRow[]>(
+    () => filteredStudioComparisonRows.flatMap((row) => buildStudioRowsForReport(row, year)),
     [filteredStudioComparisonRows, year],
   );
-  const studioReportColumns = useMemo<ReportColumn<StudioReportRow>[]>(() => [
+  const studioReportColumns = useMemo<ReportColumn<StudioBaselineReportRow>[]>(() => [
     { key: "customerName", label: "Cliente", value: (row) => row.customerName },
     { key: "studioName", label: "Studio", value: (row) => row.studioName },
     { key: "sourceNote", label: "Origem", value: (row) => row.sourceNote },
@@ -478,8 +469,8 @@ function StudioBaselineSection({
   year: number;
   rows: StudioBaselineComparisonRow[];
   totals: ReturnType<typeof getStudioComparisonTotals>;
-  reportRows: StudioReportRow[];
-  reportColumns: ReportColumn<StudioReportRow>[];
+  reportRows: StudioBaselineReportRow[];
+  reportColumns: ReportColumn<StudioBaselineReportRow>[];
   fileName: string;
   loadedFromSnapshot: boolean;
   snapshotCreatedAt: string;
@@ -590,7 +581,7 @@ function StudioBaselineSection({
 }
 
 function StudioComparisonCard({ row, year }: { row: StudioBaselineComparisonRow; year: number }) {
-  const reportRows = buildStudioReportRows(row, year);
+  const reportRows = buildStudioRowsForReport(row, year);
   const sourceNotes = getStudioSourceNotes(row);
   return (
     <Card className="overflow-hidden shadow-sm">
@@ -645,137 +636,12 @@ function StudioComparisonCard({ row, year }: { row: StudioBaselineComparisonRow;
   );
 }
 
-function buildStudioReportRows(row: StudioBaselineComparisonRow, year: number): StudioReportRow[] {
-  const sourceNote = getStudioSourceNotes(row).join(" · ");
-  const base = {
-    customerName: row.customerName,
-    studioName: row.studioName,
-    sourceNote,
-    status: getStudioStatusLabel(row.status),
-    year,
-  };
-  return [
-    {
-      ...base,
-      key: `${row.key}:baseline`,
-      view: "Baseline" as const,
-      hunterAmount: row.baselineHunter,
-      maintenanceAmount: row.baselineMaintenance,
-      totalAmount: row.baselineTotal,
-      difference: 0,
-      differenceLabel: "Valor da planilha importada, classificado pelo Tipo Opp.",
-    },
-    {
-      ...base,
-      key: `${row.key}:allocated`,
-      view: "Alocado" as const,
-      hunterAmount: row.allocatedHunter,
-      maintenanceAmount: row.allocatedMaintenance,
-      totalAmount: row.allocatedTotal,
-      difference: row.allocationDelta,
-      differenceLabel: getStudioComparisonReference(row),
-    },
-    {
-      ...base,
-      key: `${row.key}:curve`,
-      view: "Baseline Curva" as const,
-      hunterAmount: 0,
-      maintenanceAmount: 0,
-      totalAmount: row.registeredCustomerStudioTarget,
-      difference: row.allocatedTotal - row.registeredCustomerStudioTarget,
-      differenceLabel: "Baseline de Studio da Curva principal do cliente no ano selecionado.",
-    },
-  ];
-}
-
-function restoreStudioComparisonRowsFromSnapshot(rows: unknown[]): StudioBaselineComparisonRow[] {
-  const reportRows = rows.filter(isStudioReportRow);
-  const groups = new Map<string, { baseline?: StudioReportRow; allocated?: StudioReportRow; curve?: StudioReportRow }>();
-
-  reportRows.forEach((row) => {
-    const key = `${row.customerName}:${row.studioName}`;
-    const group = groups.get(key) ?? {};
-    if (row.view === "Baseline") {
-      group.baseline = row;
-    } else if (row.view === "Baseline Curva") {
-      group.curve = row;
-    } else {
-      group.allocated = row;
-    }
-    groups.set(key, group);
+function buildStudioRowsForReport(row: StudioBaselineComparisonRow, year: number): StudioBaselineReportRow[] {
+  return buildStudioBaselineReportRows(row, year, {
+    sourceNote: getStudioSourceNotes(row).join(" · "),
+    allocatedDifferenceLabel: getStudioComparisonReference(row),
+    includeDifferenceLabels: true,
   });
-
-  return Array.from(groups.values())
-    .map((group) => {
-      const baseline = group.baseline;
-      const allocated = group.allocated;
-      const curve = group.curve;
-      if (!baseline && !allocated && !curve) return null;
-
-      const reference = baseline ?? allocated ?? curve;
-      if (!reference) return null;
-
-      const baselineTotal = baseline?.totalAmount ?? 0;
-      const allocatedTotal = allocated?.totalAmount ?? 0;
-      const baselineHunter = baseline?.hunterAmount ?? 0;
-      const baselineMaintenance = baseline?.maintenanceAmount ?? 0;
-      const allocatedHunter = allocated?.hunterAmount ?? 0;
-      const allocatedMaintenance = allocated?.maintenanceAmount ?? 0;
-      const registeredCustomerStudioTarget = curve?.totalAmount ?? getSnapshotNumber(reference, "customerStudioTarget");
-      const sourceNote = reference.sourceNote ?? "";
-      const status = restoreStudioStatus(reference.status);
-
-      return {
-        key: `${reference.customerName}:${reference.studioName}`,
-        customerName: reference.customerName,
-        registeredCustomerName: sourceNote.includes("Cliente não cadastrado") ? "" : reference.customerName,
-        studioName: reference.studioName,
-        registeredStudioName: sourceNote.includes("Studio não cadastrado") ? "" : reference.studioName,
-        registeredCustomerHunterTarget: getSnapshotNumber(reference, "customerHunterTarget"),
-        registeredCustomerMaintenanceTarget: getSnapshotNumber(reference, "customerMaintenanceTarget"),
-        registeredCustomerStudioTarget,
-        registeredCustomerTotalTarget: getSnapshotNumber(reference, "customerTotalTarget"),
-        baselineHunter,
-        baselineMaintenance,
-        baselineTotal,
-        allocatedHunter,
-        allocatedMaintenance,
-        allocatedTotal,
-        hunterDelta: getSnapshotNumber(allocated, "hunterDelta", allocatedHunter - baselineHunter),
-        maintenanceDelta: getSnapshotNumber(allocated, "maintenanceDelta", allocatedMaintenance - baselineMaintenance),
-        allocationDelta: allocated?.difference ?? allocatedTotal - baselineTotal,
-        status,
-      } satisfies StudioBaselineComparisonRow;
-    })
-    .filter((row): row is StudioBaselineComparisonRow => Boolean(row))
-    .sort((first, second) =>
-      first.customerName.localeCompare(second.customerName, "pt-BR")
-      || first.studioName.localeCompare(second.studioName, "pt-BR")
-    );
-}
-
-function isStudioReportRow(row: unknown): row is StudioReportRow {
-  if (!row || typeof row !== "object") return false;
-  const item = row as Partial<StudioReportRow>;
-  return typeof item.customerName === "string"
-    && typeof item.studioName === "string"
-    && (item.view === "Baseline" || item.view === "Alocado" || item.view === "Hunters / Alocações" || item.view === "Baseline Curva")
-    && typeof item.hunterAmount === "number"
-    && typeof item.maintenanceAmount === "number"
-    && typeof item.totalAmount === "number";
-}
-
-function getSnapshotNumber(row: unknown, key: string, fallback = 0) {
-  if (!row || typeof row !== "object") return fallback;
-  const value = (row as Record<string, unknown>)[key];
-  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
-}
-
-function restoreStudioStatus(label: string): StudioBaselineComparisonRow["status"] {
-  if (label === "OK") return "ok";
-  if (label === "Cliente ausente") return "missing_customer";
-  if (label === "Studio ausente") return "missing_studio";
-  return "allocation_gap";
 }
 
 function getStudioComparisonReference(row: StudioBaselineComparisonRow) {
@@ -817,14 +683,14 @@ function MoneyStack({ main, lines = [] }: { main: number; lines?: Array<[string,
   );
 }
 
-function StudioExportPreview({ rows }: { rows: StudioReportRow[] }) {
+function StudioExportPreview({ rows }: { rows: StudioBaselineReportRow[] }) {
   const groups = rows.reduce((accumulator, row) => {
     const key = `${row.customerName}:${row.studioName}`;
     const current = accumulator.get(key) ?? [];
     current.push(row);
     accumulator.set(key, current);
     return accumulator;
-  }, new Map<string, StudioReportRow[]>());
+  }, new Map<string, StudioBaselineReportRow[]>());
 
   return (
     <div className="space-y-3">
@@ -893,13 +759,6 @@ function StudioStatusBadge({ status }: { status: StudioBaselineComparisonRow["st
   if (status === "missing_customer") return <Badge variant="destructive">Cliente ausente</Badge>;
   if (status === "missing_studio") return <Badge variant="destructive">Studio ausente</Badge>;
   return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Alocação divergente</Badge>;
-}
-
-function getStudioStatusLabel(status: StudioBaselineComparisonRow["status"]) {
-  if (status === "ok") return "OK";
-  if (status === "missing_customer") return "Cliente ausente";
-  if (status === "missing_studio") return "Studio ausente";
-  return "Alocação divergente";
 }
 
 function formatDateTime(value: string) {

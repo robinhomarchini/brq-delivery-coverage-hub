@@ -32,6 +32,10 @@ export function formatCompactCurrency(value: number) {
   return formatCurrency(value);
 }
 
+export function roundCurrency(value: number) {
+  return Math.round(value * 100) / 100;
+}
+
 export function makeId(prefix: string) {
   return `${prefix}-${crypto.randomUUID()}`;
 }

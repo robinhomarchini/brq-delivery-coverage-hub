@@ -256,10 +256,12 @@ Centralizar importação de baselines em uma nova rota, removendo uploads antigo
 - `studio_baseline_snapshots` agora guarda `source_code` e `source_name` para separar fotos de PX, Alianças, Mobile, Analytics, GENAI e baseline geral.
 - Cada origem de baseline de Studio/Área pode declarar layouts aceitos. A primeira implementação suporta layout detalhado de Studios e layout largo Cliente + Renovação/Manut + Novos Projetos/Hunter; linhas `Grupo ...` são ruído visual e não entram no domínio.
 - Na central de Baselines, o batimento por Cliente + Studio/Origem deve exibir três origens distintas: `Baseline` importada da planilha da origem, `Alocado` em `studio_target_allocations` e `Baseline Curva` vinda de `customer_target_years`/`customer.studioTarget` no ano selecionado. Snapshots antigos com duas linhas continuam compatíveis.
+- A serialização/restauração de linhas de Baseline de Studios e a montagem das linhas de relatório ficam centralizadas em `src/lib/studio-baseline-report.ts`; telas não devem recriar localmente essa lógica.
+- A revisão de componentização está documentada em `docs/COMPONENTIZATION_REVIEW.md`; próximos alvos seguros são builders puros de `person-target-report.tsx` e `customer-management.tsx`, antes de extrair componentes visuais.
 
 ## Next Pending Step
 
-Próximo passo: publicar e validar em produção a terceira linha `Baseline Curva` na central de Baselines e no Comparativo Baseline, conferindo visualmente uma origem PX/Alianças com snapshot salvo e exportação CSV/Excel.
+Próximo passo: evoluir componentização dos relatórios movendo builders puros de `person-target-report.tsx` para `src/lib/reports/`, com testes de exportação antes de qualquer quebra visual.
 
 ## Discovered Commands
 
