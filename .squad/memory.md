@@ -149,6 +149,7 @@ Centralizar importação de baselines em uma nova rota, removendo uploads antigo
 - [x] Adicionar `NEXT_PUBLIC_AUTH_PROVIDER=supabase` em `.env.example` e documentar que credenciais não devem ir para código/frontend.
 - [x] Bloquear `corporate-sso` pendente no `AuthGate` para evitar bypass caso o provider seja selecionado antes da integração real.
 - [x] Publicar o provider selecionável de auth no deployment Vercel `dpl_AZofjL9ecDjJECPXdWwk3TYEvb8r`, aliasado em `https://brq-delivery-coverage-hub.vercel.app`.
+- [x] Fazer a importação da Curva principal criar automaticamente a foto `Baseline geral de Studios` a partir da coluna Áreas/Studios da própria Curva.
 
 ## Previous Completed Work
 
@@ -256,6 +257,7 @@ Centralizar importação de baselines em uma nova rota, removendo uploads antigo
 - `studio_baseline_snapshots` agora guarda `source_code` e `source_name` para separar fotos de PX, Alianças, Mobile, Analytics, GENAI e baseline geral.
 - Cada origem de baseline de Studio/Área pode declarar layouts aceitos. A primeira implementação suporta layout detalhado de Studios e layout largo Cliente + Renovação/Manut + Novos Projetos/Hunter; linhas `Grupo ...` são ruído visual e não entram no domínio.
 - Na central de Baselines, o batimento por Cliente + Studio/Origem deve exibir três origens distintas: `Baseline` importada da planilha da origem, `Alocado` em `studio_target_allocations` e `Baseline Curva` vinda de `customer_target_years`/`customer.studioTarget` no ano selecionado. Snapshots antigos com duas linhas continuam compatíveis.
+- A origem `Baseline geral de Studios` deve ser atualizada automaticamente pela importação da Curva principal. Snapshots manuais antigos de Studio continuam históricos, mas não devem ser a fonte mais recente quando uma nova Curva principal for importada com valores de Áreas/Studios.
 - A serialização/restauração de linhas de Baseline de Studios e a montagem das linhas de relatório ficam centralizadas em `src/lib/studio-baseline-report.ts`; telas não devem recriar localmente essa lógica.
 - A revisão de componentização está documentada em `docs/COMPONENTIZATION_REVIEW.md`; próximos alvos seguros são builders puros de `person-target-report.tsx` e `customer-management.tsx`, antes de extrair componentes visuais.
 - A geração da Planilha oficial do Relatório de Metas fica centralizada em `src/lib/reports/person-target-official-export.ts`. `person-target-report.tsx` apenas reexporta `buildOfficialRowsForView` para compatibilidade com o gate `test:reports`.

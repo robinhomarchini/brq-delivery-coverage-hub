@@ -8,8 +8,10 @@ const baselinesPage = fs.readFileSync(path.join(root, "src", "app", "baselines",
 const baselineCenter = fs.readFileSync(path.join(root, "src", "components", "baselines", "baseline-import-center.tsx"), "utf8");
 const insightsPage = fs.readFileSync(path.join(root, "src", "app", "insights", "page.tsx"), "utf8");
 const comparison = fs.readFileSync(path.join(root, "src", "components", "insights", "baseline-comparison.tsx"), "utf8");
+const targetImporter = fs.readFileSync(path.join(root, "src", "components", "insights", "target-baseline-import.tsx"), "utf8");
 const parser = fs.readFileSync(path.join(root, "src", "lib", "studio-baseline-import.ts"), "utf8");
 const studioReport = fs.readFileSync(path.join(root, "src", "lib", "studio-baseline-report.ts"), "utf8");
+const studioCurveSnapshot = fs.readFileSync(path.join(root, "src", "lib", "studio-curve-baseline-snapshot.ts"), "utf8");
 const appShell = fs.readFileSync(path.join(root, "src", "components", "layout", "app-shell.tsx"), "utf8");
 
 const requiredCenterTokens = [
@@ -92,6 +94,21 @@ const requiredStudioReportTokens = [
 const missingStudioReportTokens = requiredStudioReportTokens.filter((token) => !studioReport.includes(token));
 if (missingStudioReportTokens.length) {
   throw new Error(`Studio baseline report helpers are missing shared snapshot/report behavior: ${missingStudioReportTokens.join(", ")}`);
+}
+
+const requiredCurveSnapshotTokens = [
+  "buildStudioCurveBaselineSnapshotInput",
+  "getStudioBaselineSource(\"studio_general\")",
+  "Baseline Curva",
+  "studioTargetAllocations",
+  "saveStudioBaselineSnapshot",
+];
+
+const missingCurveSnapshotTokens = requiredCurveSnapshotTokens.filter((token) =>
+  !studioCurveSnapshot.includes(token) && !targetImporter.includes(token)
+);
+if (missingCurveSnapshotTokens.length) {
+  throw new Error(`Curve import no longer creates the general Studio baseline snapshot: ${missingCurveSnapshotTokens.join(", ")}`);
 }
 
 console.log("Baseline centralization QA checks passed.");

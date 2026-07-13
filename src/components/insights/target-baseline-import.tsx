@@ -19,13 +19,22 @@ import {
   type TargetBaselineComparison,
   type TargetBaselineRow,
 } from "@/lib/target-baseline-import";
+import { buildStudioCurveBaselineSnapshotInput } from "@/lib/studio-curve-baseline-snapshot";
 import { cn, formatCurrency } from "@/lib/utils";
 
 const currentYear = defaultTargetYear;
 const maxFileSizeInBytes = 5 * 1024 * 1024;
 
 export function TargetBaselineImport() {
-  const { customers, customerTargets, people, studioTargetAllocations, targetAllocations, saveCustomers } = useDeliveryStore();
+  const {
+    customers,
+    customerTargets,
+    people,
+    studioTargetAllocations,
+    targetAllocations,
+    saveCustomers,
+    saveStudioBaselineSnapshot,
+  } = useDeliveryStore();
   const [year, setYear] = useState(currentYear);
   const [fileName, setFileName] = useState("");
   const [rows, setRows] = useState<TargetBaselineRow[]>([]);
@@ -62,9 +71,28 @@ export function TargetBaselineImport() {
       }
       const spreadsheetRows = await readSheet(file);
       const parsedRows = parseTargetBaselineRows(spreadsheetRows);
+      const parsedComparisons = buildTargetBaselineComparisons(
+        parsedRows,
+        yearCustomers,
+        people,
+        targetAllocations,
+        studioTargetAllocations,
+        year,
+      );
+      const studioSnapshot = buildStudioCurveBaselineSnapshotInput({
+        comparisons: parsedComparisons,
+        studioTargetAllocations,
+        year,
+        fileName: file.name,
+      });
+      if (studioSnapshot) {
+        await saveStudioBaselineSnapshot(studioSnapshot);
+      }
       setRows(parsedRows);
       setFileName(file.name);
-      setSuccess(`${parsedRows.length} cliente(s) lido(s) da planilha.`);
+      setSuccess(studioSnapshot
+        ? `${parsedRows.length} cliente(s) lido(s). A foto geral de Studios também foi atualizada pela Curva principal.`
+        : `${parsedRows.length} cliente(s) lido(s) da planilha. Não havia valores de Studios para criar a foto geral.`);
       window.setTimeout(() => setSuccess(""), 4000);
     } catch (error) {
       setRows([]);

@@ -686,6 +686,13 @@ A central de Baselines deve carregar automaticamente a última foto salva para a
 origem e o ano selecionados quando existir, sem exigir nova importação do mesmo
 arquivo. O botão de salvar nova foto deve permanecer habilitado apenas após uma
 nova importação.
+Ao importar a Curva principal na central de Baselines, a aplicação também deve
+criar/atualizar automaticamente a foto `Baseline geral de Studios` para o mesmo
+ano, usando a coluna de Áreas / Studios da própria Curva. Essa foto geral é
+comparativa e não altera metas de clientes, metas de pessoas nem alocações de
+Studios; ela serve para que o Comparativo Baseline carregue a última Curva como
+origem canônica geral de Studios, em vez de depender de uma importação manual
+antiga de planilha de Studios.
 A visão de Baseline de Studios no Comparativo deve consumir a última foto salva
 na central para a origem e ano selecionados, sem permitir upload ou gravação
 local naquela tela. A visão deve permitir filtro por Status e por Studio. O
