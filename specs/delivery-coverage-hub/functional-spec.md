@@ -533,10 +533,12 @@ grade ou incluir clientes. Os campos de Meta Hunter própria e Meta Renovação 
 Ampliação própria devem ser inputs monetários largos, com prefixo visual de R$,
 seleção automática ao focar e suporte a digitação em formato brasileiro, como
 `11.033.497,00`.
-O seletor "Cliente em foco" não deve filtrar a grade para apenas um cliente. Ele
-serve como referência contextual e, quando um cliente adicional for incluído,
-deve apenas acrescentar uma nova linha à grade, preservando os clientes que a
-pessoa já tinha por vínculo ou meta existente.
+O seletor "Cliente em foco" é um filtro explícito da grade. Ao escolher um
+cliente, a grade deve exibir apenas esse cliente; ao escolher "Todos os clientes
+da pessoa", a grade volta a exibir todos os clientes vinculados, com meta
+existente ou incluídos manualmente. Quando um cliente adicional for incluído,
+ele deve entrar na lista de clientes visíveis da pessoa e pode ser usado como
+foco sem apagar os demais vínculos.
 O grid também deve exibir, por cliente e ano, quais pessoas compõem a meta
 Hunter, quais pessoas compõem a meta Renovação + Ampliação/Farmer e quais
 pessoas compõem Studio Hunter pelas alocações de Áreas / Studios, incluindo

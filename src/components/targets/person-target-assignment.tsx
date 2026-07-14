@@ -69,8 +69,10 @@ export function PersonTargetAssignment() {
   );
   const effectiveSelectedCustomerId = visibleCustomerIds.has(selectedCustomerId) ? selectedCustomerId : "";
   const scopedVisibleCustomers = useMemo(
-    () => visibleCustomers,
-    [visibleCustomers],
+    () => effectiveSelectedCustomerId
+      ? visibleCustomers.filter((customer) => customer.id === effectiveSelectedCustomerId)
+      : visibleCustomers,
+    [effectiveSelectedCustomerId, visibleCustomers],
   );
   const availableCustomersToAdd = useMemo(
     () => effectivePersonId ? yearCustomers.filter((customer) => !visibleCustomerIds.has(customer.id)) : [],

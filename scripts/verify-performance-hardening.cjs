@@ -5,6 +5,7 @@ const path = require("node:path");
 
 const root = process.cwd();
 const targetManagementPath = path.join(root, "src", "components", "targets", "target-management.tsx");
+const personTargetAssignmentPath = path.join(root, "src", "components", "targets", "person-target-assignment.tsx");
 const customerManagementPath = path.join(root, "src", "components", "customers", "customer-management.tsx");
 const customerCoverageViewModelPath = path.join(root, "src", "lib", "customers", "customer-coverage-view-model.ts");
 const personTargetReportPath = path.join(root, "src", "components", "reports", "person-target-report.tsx");
@@ -15,6 +16,7 @@ const performanceMigrationPath = path.join(root, "supabase", "migrations", "2026
 const packagePath = path.join(root, "package.json");
 
 const targetManagementSource = fs.readFileSync(targetManagementPath, "utf8");
+const personTargetAssignmentSource = fs.readFileSync(personTargetAssignmentPath, "utf8");
 const customerManagementSource = fs.readFileSync(customerManagementPath, "utf8");
 const customerCoverageViewModelSource = fs.readFileSync(customerCoverageViewModelPath, "utf8");
 const personTargetReportSource = fs.readFileSync(personTargetReportPath, "utf8");
@@ -29,6 +31,9 @@ assertIncludes(targetManagementSource, "allocationSummaryByCustomer", "Target ma
 assertIncludes(targetManagementSource, "customerNamesById", "Target management must use indexed customer lookups in render/filter paths.");
 assertIncludes(targetManagementSource, "peopleNamesById", "Target management must use indexed people lookups in render/filter paths.");
 assertNotIncludes(targetManagementSource, "function sumAllocations(", "Target management must not recalculate customer allocation totals per row.");
+assertIncludes(personTargetAssignmentSource, "effectiveSelectedCustomerId", "Person target assignment must keep an explicit focused customer state.");
+assertIncludes(personTargetAssignmentSource, "visibleCustomers.filter((customer) => customer.id === effectiveSelectedCustomerId)", "Person target assignment focused customer selector must filter the grid.");
+assertIncludes(personTargetAssignmentSource, "Todos os clientes da pessoa", "Person target assignment must let users clear the focused customer filter.");
 assertIncludes(customerManagementSource, "@/lib/customers/customer-coverage-view-model", "Customer management must consume the extracted coverage view model.");
 assertIncludes(customerCoverageViewModelSource, "export function getCustomerCoverageStatus", "Customer coverage status must stay outside the UI component.");
 assertIncludes(customerCoverageViewModelSource, "export function getCustomerAllocationComposition", "Customer allocation composition must stay outside the UI component.");

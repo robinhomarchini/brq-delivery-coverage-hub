@@ -215,6 +215,8 @@
   preservando o total atual.
 - Em Metas por Pessoa, incluir ou focar um novo cliente adiciona uma linha à
   grade sem ocultar os clientes já vinculados ou com meta existente da pessoa.
+- Em Metas por Pessoa, selecionar `Cliente em foco` filtra a grade para o
+  cliente escolhido; selecionar `Todos os clientes da pessoa` remove esse filtro.
 - Em Metas por Pessoa, o cabeçalho de totais mostra também a base esperada das
   contas da pessoa: Hunter considera Meta Hunter, Delivery/Farmer considera
   Renovação + Ampliação e Hunter + Farmer considera ambas.
