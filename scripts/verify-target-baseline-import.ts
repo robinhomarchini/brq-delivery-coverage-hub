@@ -41,4 +41,16 @@ const parsedFinancialOnlyRows = parseTargetBaselineRows(officialFinancialOnlyRow
 assert(parsedFinancialOnlyRows.length === 1, "O segundo quadro Financial sem coluna BU deve ser aceito como BU Financial.");
 assert(parsedFinancialOnlyRows[0]?.businessUnit === "BU Financial", "Quando a coluna BU não existe no segundo quadro, a BU deve ser inferida como Financial.");
 
+const compactReaderRows: SpreadsheetCell[][] = [
+  firstTableHeader,
+  firstTableRow,
+  ["Cliente", "Hunter Novo - AWS", "Target RL Hunter", "Target RL Farmer", "Total RL 2026"],
+  ["AGIBANK", 100_000, 100_000, 0, 100_000],
+];
+
+const parsedCompactReaderRows = parseTargetBaselineRows(compactReaderRows);
+
+assert(parsedCompactReaderRows.length === 1, "O parser deve escolher o último cabeçalho válido quando o leitor XLSX não preservar linhas vazias.");
+assert(parsedCompactReaderRows[0]?.hunterTarget === 100_000, "O parser deve usar o segundo quadro Financial, não o primeiro quadro duplicado.");
+
 console.log("Target baseline import QA checks passed.");
