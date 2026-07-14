@@ -189,6 +189,7 @@ export function TargetBaselineImport() {
             </div>
             <p className="mt-2 max-w-4xl text-sm leading-6 text-slate-500">
               Faça upload da planilha com Cliente, Target RL Hunter, Target RL Farmer e Total RL 2026.
+              Apenas linhas com BU Financial entram no baseline de clientes.
               A coluna resp é opcional.
               A coluna de Áreas / Studios é opcional; se não existir, o saldo entre total, Hunter e Renovação será usado.
               A tela compara contra o Supabase e só atualiza os clientes marcados por você.

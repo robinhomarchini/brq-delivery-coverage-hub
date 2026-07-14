@@ -53,6 +53,8 @@ const requiredCenterTokens = [
   "sortStudioBaselineRows",
   "compareBusinessLabel",
   "Marque Financial somente nas linhas que devem entrar no snapshot",
+  "baselineImportModeStorageKey",
+  "getStoredBaselineImportMode",
 ];
 
 const missingCenterTokens = requiredCenterTokens.filter((token) => !baselineCenter.includes(token));
@@ -172,6 +174,18 @@ const requiredCurveImportProgressTokens = [
 const missingCurveImportProgressTokens = requiredCurveImportProgressTokens.filter((token) => !targetImporter.includes(token));
 if (missingCurveImportProgressTokens.length) {
   throw new Error(`Curve baseline import must show progress steps: ${missingCurveImportProgressTokens.join(", ")}`);
+}
+
+const targetParser = fs.readFileSync(path.join(root, "src", "lib", "target-baseline-import.ts"), "utf8");
+const requiredTargetParserTokens = [
+  "normalizeHeader(row.businessUnit) === \"bu financial\"",
+  "normalizeHeader(row.customerName) !== \"total\"",
+  "row.totalTarget > zeroMoneyTolerance",
+];
+
+const missingTargetParserTokens = requiredTargetParserTokens.filter((token) => !targetParser.includes(token));
+if (missingTargetParserTokens.length) {
+  throw new Error(`Target baseline import must filter the main Curve to valid BU Financial customer rows: ${missingTargetParserTokens.join(", ")}`);
 }
 
 if (targetImporter.includes("read-excel-file/browser")) {

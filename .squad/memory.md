@@ -154,6 +154,8 @@ Centralizar importação de baselines em uma nova rota, removendo uploads antigo
 - [x] Corrigir a importação rápida da Curva para exigir a aba `Resumo RL 2026`, sem fallback silencioso para a primeira aba.
 - [x] Corrigir a linha `Baseline Curva` de Studios para usar valor no grão Cliente + Studio, sem repetir o total de Studio do cliente em cada Studio.
 - [x] Criar rotina operacional de limpeza de `studio_baseline_snapshots` com dry-run, retenção por ano/origem e confirmação explícita antes de apagar.
+- [x] Corrigir a Curva de clientes para filtrar `BU Financial` na aba `Resumo RL 2026`, ignorando outras BUs, linhas zeradas e linha Total.
+- [x] Fazer a central de Baselines abrir em `Curva principal` por padrão e preservar a última visão escolhida no navegador.
 
 ## Previous Completed Work
 
@@ -267,8 +269,10 @@ Centralizar importação de baselines em uma nova rota, removendo uploads antigo
 - Na importação manual de baseline de Studio/Área, se a planilha trouxer `BU` ou `CC CROSS`, linhas `BU Financial` vêm pré-marcadas; se a planilha não trouxer essa coluna, a prévia exibe checkbox por Cliente + Studio para marcar quais linhas são Financial. KPIs, exportação e snapshot salvo usam somente as linhas marcadas, evitando poluir a base com outras BUs e preservando calibração manual.
 - A serialização/restauração de linhas de Baseline de Studios e a montagem das linhas de relatório ficam centralizadas em `src/lib/studio-baseline-report.ts`; telas não devem recriar localmente essa lógica.
 - O leitor leve de XLSX deve resolver abas nomeadas pelo workbook/relationship interno e falhar com mensagem clara quando `Resumo RL 2026` estiver ausente; nunca usar `Sheet1` como fallback para a Curva de clientes.
+- A Curva de clientes da central de Baselines deve importar somente linhas `BU Financial` com total maior que zero na aba `Resumo RL 2026`; outras BUs e a linha Total não entram na comparação nem nos updates.
 - Na comparação de Studios, `registeredCustomerStudioTarget` representa a Baseline Curva por Cliente + Studio/Habilitador. O total de Studio do cliente inteiro não deve ser repetido nas linhas individuais de Studio.
 - Snapshots antigos de baseline devem ser limpos por `npm run maintenance:baseline-snapshots`, com `DRY-RUN` padrão e retenção mínima de 1 foto por ano/origem. Não apagar snapshots manualmente fora da rotina auditável.
+- A central de Baselines deve preservar a última visão escolhida no navegador; sem preferência salva, abre em `Curva principal` para favorecer o fluxo oficial da Curva.
 - A revisão de componentização está documentada em `docs/COMPONENTIZATION_REVIEW.md`; próximos alvos seguros são builders puros de `person-target-report.tsx` e `customer-management.tsx`, antes de extrair componentes visuais.
 - A geração da Planilha oficial do Relatório de Metas fica centralizada em `src/lib/reports/person-target-official-export.ts`. `person-target-report.tsx` apenas reexporta `buildOfficialRowsForView` para compatibilidade com o gate `test:reports`.
 - Rollups comuns do Relatório de Metas ficam em `src/lib/reports/person-target-rollups.ts`: Studio Hunter efetivo, renovação de Studio elegível por pessoa, meta própria descontando herança e fallback de Hunter principal. Não duplicar esses cálculos em tela/export.

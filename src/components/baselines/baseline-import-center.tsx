@@ -37,10 +37,11 @@ type StudioBaselineImportStats = {
   totalRows: number;
 };
 const manualStudioBaselineSources = studioBaselineSources.filter((item) => item.code !== "studio_general");
+const baselineImportModeStorageKey = "delivery-baseline-import-mode";
 
 export function BaselineImportCenter() {
   const { areas, customers, customerTargets, studioTargetAllocations, studioBaselineSnapshots, saveStudioBaselineSnapshot } = useDeliveryStore();
-  const [mode, setMode] = useState<BaselineImportMode>("studio_sources");
+  const [mode, setMode] = useState<BaselineImportMode>(() => getStoredBaselineImportMode());
   const [year, setYear] = useState(defaultTargetYear);
   const [sourceCode, setSourceCode] = useState<StudioBaselineSourceCode>("studio_px");
   const [fileName, setFileName] = useState("");
@@ -102,6 +103,11 @@ export function BaselineImportCenter() {
     { key: "status", label: "Status", value: (row) => row.status },
     { key: "year", label: "Ano", value: (row) => row.year, format: "number", align: "center" },
   ], []);
+
+  function updateMode(nextMode: BaselineImportMode) {
+    setMode(nextMode);
+    window.localStorage.setItem(baselineImportModeStorageKey, nextMode);
+  }
 
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -217,13 +223,13 @@ export function BaselineImportCenter() {
                 active={mode === "main_curve"}
                 title="Curva principal"
                 description="Cliente, Hunter, Farmer e Total."
-                onClick={() => setMode("main_curve")}
+                onClick={() => updateMode("main_curve")}
               />
               <ModeButton
                 active={mode === "studio_sources"}
                 title="Áreas / Studios"
                 description="PX, Alianças, Mobile, Analytics e GENAI."
-                onClick={() => setMode("studio_sources")}
+                onClick={() => updateMode("studio_sources")}
               />
             </div>
           </div>
@@ -409,6 +415,12 @@ export function BaselineImportCenter() {
       )}
     </div>
   );
+}
+
+function getStoredBaselineImportMode(): BaselineImportMode {
+  if (typeof window === "undefined") return "main_curve";
+  const storedMode = window.localStorage.getItem(baselineImportModeStorageKey);
+  return storedMode === "studio_sources" || storedMode === "main_curve" ? storedMode : "main_curve";
 }
 
 function ModeButton({

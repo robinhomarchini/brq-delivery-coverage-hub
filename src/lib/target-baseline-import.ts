@@ -120,7 +120,12 @@ export function parseTargetBaselineRows(rows: SpreadsheetCell[][]): TargetBaseli
         responsibleCode: indexes.responsibleCode >= 0 ? String(row[indexes.responsibleCode] ?? "").trim() : "",
       };
     })
-    .filter((row) => row.customerName);
+    .filter((row) =>
+      row.customerName
+      && normalizeHeader(row.customerName) !== "total"
+      && normalizeHeader(row.businessUnit) === "bu financial"
+      && row.totalTarget > zeroMoneyTolerance
+    );
 }
 
 function findTargetHeaderRowIndex(rows: SpreadsheetCell[][]) {

@@ -468,6 +468,8 @@
 - Na importação da Curva principal, a curva de clientes vem da aba
   `Resumo RL 2026`; a aba `Sheet1` é usada para derivar a baseline geral de
   Studios.
+- A curva de clientes importa somente linhas válidas de `BU Financial` da aba
+  `Resumo RL 2026`, excluindo outras BUs, linhas zeradas e a linha `Total`.
 - A importação da Curva principal não pode cair silenciosamente para a primeira
   aba quando `Resumo RL 2026` não for encontrada; a tela deve exibir erro claro
   de aba obrigatória ausente.
@@ -501,6 +503,9 @@
   alocado maior que baseline e azul quando estiver igual.
 - Ao selecionar origem e ano, a central carrega automaticamente a última foto
   salva quando existir; salvar nova foto exige uma nova importação.
+- A central de Baselines mantém a última visão escolhida pelo usuário entre
+  `Curva principal` e `Áreas / Studios`, e abre em `Curva principal` quando não
+  houver preferência salva.
 - Ao abrir Baseline de Studios no Comparativo, a última foto salva em
   `studio_baseline_snapshots` para a origem e ano selecionados é carregada
   automaticamente e identificada como foto salva.
