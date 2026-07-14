@@ -28,6 +28,7 @@ type StudioBaselineLayout = "detailed-studio" | "wide-customer-values";
 
 export interface StudioBaselineComparisonRow {
   key: string;
+  sourceBusinessUnit?: string;
   customerName: string;
   registeredCustomerName: string;
   studioName: string;
@@ -208,8 +209,12 @@ export function isFinancialStudioBaselineRow(
   options: { acceptMissingBusinessUnit?: boolean } = {},
 ) {
   const businessUnit = normalizeBusinessName(row.businessUnit ?? "");
-  if (businessUnit) return businessUnit === "bu financial";
+  if (businessUnit) return isFinancialBusinessUnit(businessUnit);
   return options.acceptMissingBusinessUnit === true;
+}
+
+export function isFinancialBusinessUnit(value?: string) {
+  return normalizeBusinessName(value ?? "") === "bu financial";
 }
 
 function findWideCustomerColumnIndex(rows: unknown[][], headerRowIndex: number, maintenanceIndex: number, hunterIndex: number) {
@@ -258,6 +263,7 @@ export function buildStudioBaselineComparisons(
 
     return {
       key: `${row.customerName}:${row.studioName}`,
+      sourceBusinessUnit: row.businessUnit,
       customerName: row.customerName,
       registeredCustomerName: customer?.name ?? "",
       studioName: row.studioName,

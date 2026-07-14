@@ -190,10 +190,10 @@ function buildStudioCurveBaselineComparisonRows(
 
 function getStudioCurveSnapshotTotals(rows: StudioBaselineReportRow[]) {
   return rows.reduce((totals, row) => ({
-    baselineTotal: row.view === "Baseline" ? roundCurrency(totals.baselineTotal + row.totalAmount) : totals.baselineTotal,
-    allocatedTotal: row.view === "Alocado" ? roundCurrency(totals.allocatedTotal + row.totalAmount) : totals.allocatedTotal,
+    baselineTotal: (row.view === "Baseline" || row.view === "Baseline Studio") ? roundCurrency(totals.baselineTotal + row.totalAmount) : totals.baselineTotal,
+    allocatedTotal: (row.view === "Alocado" || row.view === "Cadastrado") ? roundCurrency(totals.allocatedTotal + row.totalAmount) : totals.allocatedTotal,
     curveStudioTotal: row.view === "Baseline Curva" ? roundCurrency(totals.curveStudioTotal + row.totalAmount) : totals.curveStudioTotal,
-    allocationDelta: row.view === "Alocado" ? roundCurrency(totals.allocationDelta + row.difference) : totals.allocationDelta,
+    allocationDelta: (row.view === "Alocado" || row.view === "Cadastrado") ? roundCurrency(totals.allocationDelta + row.difference) : totals.allocationDelta,
   }), {
     baselineTotal: 0,
     allocatedTotal: 0,

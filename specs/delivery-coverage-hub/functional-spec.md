@@ -667,15 +667,18 @@ Hunters ou pessoas que exercem papel de Hunter; demais tipos compõem Studio
 Manutenção/Renovação e devem bater contra a manutenção alocada no próprio
 Cliente + Studio. A leitura da planilha deve tolerar células `inlineStr` vazias
 exportadas pelo Excel. Exportações desse batimento devem usar leitura executiva
-no grão Cliente + Studio, com linhas separadas para Baseline, Alocado e
-Baseline Curva, e colunas de Hunter, Manutenção, Total e Diferença. Divergências
+no grão Cliente + Studio, com linhas separadas para Baseline Studio, Cadastrado
+e Baseline Curva, e colunas de Hunter, Manutenção, Total e Diferença. Divergências
 entre o nome/origem da planilha e o cadastro devem aparecer apenas como
 indicativo contextual de origem quando existirem; quando estiverem consistentes,
 não devem ocupar coluna nem poluir a visualização.
 Quando a planilha manual de origem trouxer `BU` ou `CC CROSS`, somente linhas
 `BU Financial` entram na prévia/snapshot. Quando a origem não trouxer coluna de
-BU, como em planilhas PX simplificadas, a tela deve exigir confirmação manual de
-que a planilha pertence à BU Financial antes de aceitar linhas sem BU.
+BU, como em planilhas PX simplificadas, a prévia deve permitir marcar
+manualmente quais linhas Cliente + Studio são Financial. Os KPIs, exportações e
+a ação de salvar foto devem considerar somente as linhas marcadas como
+Financial, preservando as demais apenas como leitura/calibração antes do
+salvamento.
 A prévia da central de Baselines deve expor, por Cliente + Studio/Origem, os
 valores do baseline importado, os valores alocados no sistema em Hunter e
 Manutenção/Renovação, a baseline de Studio vinda da Curva principal, as
@@ -683,7 +686,7 @@ diferenças por componente e o total cadastrado no Cliente para Hunter,
 Manutenção/Renovação, Studio Curva e Total. O diagnóstico visual deve
 indicar se a divergência está em Hunter, Manutenção/Renovação ou nos dois. Para
 legibilidade, cada Cliente + Studio/Origem deve aparecer em três linhas: uma
-linha Baseline, uma linha Alocado e uma linha Baseline Curva. Diferenças devem usar vermelho quando o
+linha Baseline Studio, uma linha Cadastrado e uma linha Baseline Curva. Diferenças devem usar vermelho quando o
 alocado estiver menor que o baseline, verde quando estiver maior e azul quando
 estiver igual.
 A central de Baselines deve carregar automaticamente a última foto salva para a
@@ -708,7 +711,8 @@ a coluna J `Managed Services / FinOps` ou `Managed Services` fica como fallback
 para a mesma classificação; linhas cujo cliente da coluna C seja `Google LLC`,
 `Microsoft` ou `Amazon Web` viram, respectivamente, `Alianças Google`,
 `Alianças Microsoft` e `Alianças AWS`. A aba `Resumo RL 2026`
-continua sendo a origem da baseline de cliente. Essa foto geral é comparativa e
+continua sendo a origem da curva/baseline de clientes; a aba `Sheet1` é usada
+somente para derivar a baseline geral de Studios. Essa foto geral é comparativa e
 não altera metas de clientes, metas de pessoas nem alocações de Studios; ela
 serve para que o Comparativo Baseline carregue a última Curva como origem
 canônica geral de Studios, em vez de depender de uma importação manual antiga de

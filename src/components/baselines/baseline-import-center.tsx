@@ -16,7 +16,7 @@ import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears
 import {
   buildStudioBaselineComparisons,
   getStudioBaselineSource,
-  isFinancialStudioBaselineRow,
+  isFinancialBusinessUnit,
   readStudioBaselineWorkbook,
   studioBaselineSources,
   type StudioBaselineComparisonRow,
@@ -34,7 +34,9 @@ type BaselineImportMode = "main_curve" | "studio_sources";
 type StudioBaselineImportStats = {
   acceptedRows: number;
   ignoredRows: number;
+  totalRows: number;
 };
+const manualStudioBaselineSources = studioBaselineSources.filter((item) => item.code !== "studio_general");
 
 export function BaselineImportCenter() {
   const { areas, customers, customerTargets, studioTargetAllocations, studioBaselineSnapshots, saveStudioBaselineSnapshot } = useDeliveryStore();
@@ -43,8 +45,8 @@ export function BaselineImportCenter() {
   const [sourceCode, setSourceCode] = useState<StudioBaselineSourceCode>("studio_px");
   const [fileName, setFileName] = useState("");
   const [importedRows, setImportedRows] = useState<StudioBaselineComparisonRow[]>([]);
+  const [financialKeys, setFinancialKeys] = useState<Set<string>>(new Set());
   const [importStats, setImportStats] = useState<StudioBaselineImportStats | null>(null);
-  const [acceptMissingBusinessUnitAsFinancial, setAcceptMissingBusinessUnitAsFinancial] = useState(false);
   const [dismissedSnapshotId, setDismissedSnapshotId] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -65,13 +67,18 @@ export function BaselineImportCenter() {
     [dismissedSnapshotId, latestSnapshot],
   );
   const loadedFromSnapshot = importedRows.length === 0 && latestSnapshotRows.length > 0;
-  const rows = useMemo(
+  const displayRows = useMemo(
     () => sortStudioBaselineRows(importedRows.length ? importedRows : latestSnapshotRows),
     [importedRows, latestSnapshotRows],
   );
+  const selectedImportedRows = useMemo(
+    () => sortStudioBaselineRows(importedRows.filter((row) => financialKeys.has(row.key))),
+    [financialKeys, importedRows],
+  );
+  const rows = importedRows.length ? selectedImportedRows : displayRows;
   const activeFileName = importedRows.length ? fileName : loadedFromSnapshot ? latestSnapshot?.fileName ?? "" : fileName;
   const totals = useMemo(() => getStudioTotals(rows), [rows]);
-  const importedSnapshotRows = useMemo(() => sortStudioBaselineRows(importedRows).flatMap((row) => buildStudioBaselineReportRows(row, year)), [importedRows, year]);
+  const importedSnapshotRows = useMemo(() => selectedImportedRows.flatMap((row) => buildStudioBaselineReportRows(row, year)), [selectedImportedRows, year]);
   const exportRows = useMemo(() => rows.flatMap((row) => buildStudioBaselineReportRows(row, year)), [rows, year]);
   const exportColumns = useMemo<ReportColumn<StudioBaselineReportRow>[]>(() => [
     { key: "customerName", label: "Cliente", value: (row) => row.customerName },
@@ -103,26 +110,22 @@ export function BaselineImportCenter() {
         throw new Error("Arquivo maior que 5 MB. Use uma planilha menor para homologação.");
       }
       const baselineRows = await readStudioBaselineWorkbook(file, source);
-      const rowsWithoutBusinessUnit = baselineRows.filter((row) => !row.businessUnit).length;
-      const financialRows = baselineRows.filter((row) => isFinancialStudioBaselineRow(row, {
-        acceptMissingBusinessUnit: acceptMissingBusinessUnitAsFinancial,
-      }));
-      if (!financialRows.length && rowsWithoutBusinessUnit > 0 && !acceptMissingBusinessUnitAsFinancial) {
-        setImportedRows([]);
-        setImportStats(null);
-        setFileName("");
-        setError("A planilha não possui BU/CC CROSS. Marque a opção manual para tratar esta origem como BU Financial e importe novamente.");
-        return;
-      }
-      const comparisonRows = sortStudioBaselineRows(buildStudioBaselineComparisons(financialRows, yearCustomers, areas, studioTargetAllocations, year));
+      const comparisonRows = sortStudioBaselineRows(buildStudioBaselineComparisons(baselineRows, yearCustomers, areas, studioTargetAllocations, year));
+      const defaultFinancialKeys = new Set(
+        comparisonRows
+          .filter((row) => isFinancialBusinessUnit(row.sourceBusinessUnit))
+          .map((row) => row.key),
+      );
       setImportedRows(comparisonRows);
-      setImportStats({ acceptedRows: financialRows.length, ignoredRows: baselineRows.length - financialRows.length });
+      setFinancialKeys(defaultFinancialKeys);
+      setImportStats({ acceptedRows: defaultFinancialKeys.size, ignoredRows: comparisonRows.length - defaultFinancialKeys.size, totalRows: comparisonRows.length });
       setDismissedSnapshotId("");
       setFileName(file.name);
-      setSuccess(`${financialRows.length} linha(s) Financial importada(s) para ${source.name}. ${baselineRows.length - financialRows.length} linha(s) de outras BUs foram ignoradas.`);
+      setSuccess(`${comparisonRows.length} linha(s) lida(s) para ${source.name}. Marque Financial somente nas linhas que devem entrar no snapshot.`);
       window.setTimeout(() => setSuccess(""), 4500);
     } catch (importError) {
       setImportedRows([]);
+      setFinancialKeys(new Set());
       setImportStats(null);
       setFileName("");
       setError(getImportErrorMessage(importError));
@@ -133,8 +136,12 @@ export function BaselineImportCenter() {
   }
 
   async function saveSnapshot() {
-    if (!importedSnapshotRows.length) {
+    if (!importedRows.length) {
       setError("Importe uma baseline de Studio/Área antes de salvar.");
+      return;
+    }
+    if (!importedSnapshotRows.length) {
+      setError("Marque ao menos uma linha como Financial antes de salvar a foto da baseline.");
       return;
     }
     setSaving(true);
@@ -157,6 +164,32 @@ export function BaselineImportCenter() {
     } finally {
       setSaving(false);
     }
+  }
+
+  function toggleFinancialRow(key: string) {
+    setFinancialKeys((current) => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      updateImportStats(next);
+      return next;
+    });
+  }
+
+  function updateAllFinancialRows(selected: boolean) {
+    const next = selected ? new Set(importedRows.map((row) => row.key)) : new Set<string>();
+    setFinancialKeys(next);
+    updateImportStats(next);
+  }
+
+  function updateImportStats(nextFinancialKeys: Set<string>) {
+    setImportStats((current) => current
+      ? {
+        ...current,
+        acceptedRows: nextFinancialKeys.size,
+        ignoredRows: Math.max(current.totalRows - nextFinancialKeys.size, 0),
+      }
+      : current);
   }
 
   return (
@@ -212,29 +245,16 @@ export function BaselineImportCenter() {
                 </div>
                 <div className="rounded-xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm leading-6 text-slate-600">
                   A importação usa somente linhas marcadas como <span className="font-semibold text-slate-950">BU Financial</span> nas colunas <span className="font-semibold text-slate-950">BU</span> ou <span className="font-semibold text-slate-950">CC CROSS</span>.
-                  Se a planilha não trouxer essa coluna, marque manualmente a confirmação abaixo antes de importar.
+                  Se a planilha não trouxer essa coluna, marque manualmente as linhas Financial na prévia antes de salvar.
                 </div>
               </div>
-              <label className="mt-3 flex max-w-4xl cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600 shadow-sm">
-                <input
-                  type="checkbox"
-                  className="mt-1 h-4 w-4 rounded border-slate-300 accent-[#8733d1]"
-                  checked={acceptMissingBusinessUnitAsFinancial}
-                  onChange={(event) => setAcceptMissingBusinessUnitAsFinancial(event.target.checked)}
-                  disabled={loading || saving}
-                />
-                <span>
-                  <span className="block font-bold text-slate-950">Planilha sem BU/CC CROSS pertence à BU Financial</span>
-                  <span className="mt-1 block leading-6">Use para origens como PX quando o arquivo não informa a BU. Sem esta marcação, linhas sem BU são ignoradas para não poluir a base.</span>
-                </span>
-              </label>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Select value={String(year)} onChange={(event) => setYear(Number(event.target.value))} disabled={loading || saving}>
                 {years.map((item) => <option key={item} value={item}>{item}</option>)}
               </Select>
               <Select value={sourceCode} onChange={(event) => setSourceCode(event.target.value as StudioBaselineSourceCode)} disabled={loading || saving}>
-                {studioBaselineSources.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}
+                {manualStudioBaselineSources.map((item) => <option key={item.code} value={item.code}>{item.name}</option>)}
               </Select>
               <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-[#6823a7]">
                 {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <UploadCloud className="h-4 w-4" />}
@@ -253,15 +273,16 @@ export function BaselineImportCenter() {
           )}
           {importStats && (
             <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
-              <span className="rounded-full bg-emerald-50 px-3 py-1 text-emerald-700">{importStats.acceptedRows} linha(s) BU Financial importada(s)</span>
-              <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-600">{importStats.ignoredRows} linha(s) de outras BUs ignorada(s)</span>
+              <span className="rounded-full bg-emerald-50 px-3 py-1 text-emerald-700">{importStats.acceptedRows} linha(s) marcada(s) como Financial</span>
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-600">{importStats.ignoredRows} linha(s) fora do snapshot</span>
+              <span className="rounded-full bg-sky-50 px-3 py-1 text-sky-700">{importStats.totalRows} linha(s) lida(s)</span>
             </div>
           )}
         </Card>
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
           <KpiSummaryCard label="Baseline importado" currencyValue={totals.baselineTotal} tone="purple" />
-          <KpiSummaryCard label="Alocado no sistema" currencyValue={totals.allocatedTotal} tone="sky" />
+          <KpiSummaryCard label="Cadastrado no sistema" currencyValue={totals.allocatedTotal} tone="sky" />
           <KpiSummaryCard label="Studio na curva" currencyValue={totals.curveStudioTotal} tone="purple" />
           <KpiSummaryCard label="Diferença total" currencyValue={totals.allocationDelta} tone={getDeltaTone(totals.allocationDelta)} />
           <KpiSummaryCard label="Hunter / Novo" currencyValue={totals.hunterTotal} tone="sky" />
@@ -272,9 +293,19 @@ export function BaselineImportCenter() {
           <div className="flex flex-col gap-3 border-b bg-white p-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h2 className="text-lg font-bold text-slate-950">Prévia e match da baseline</h2>
-              <p className="mt-1 text-sm text-slate-500">Salvar cria uma foto imutável para comparação; não altera metas de clientes, pessoas ou studios.</p>
+              <p className="mt-1 text-sm text-slate-500">Salvar cria uma foto imutável apenas com as linhas marcadas como Financial; não altera metas de clientes, pessoas ou studios.</p>
             </div>
             <div className="flex flex-wrap gap-2">
+              {importedRows.length > 0 && (
+                <>
+                  <Button type="button" variant="outline" onClick={() => updateAllFinancialRows(true)} disabled={loading || saving}>
+                    Marcar todos Financial
+                  </Button>
+                  <Button type="button" variant="outline" onClick={() => updateAllFinancialRows(false)} disabled={loading || saving || !financialKeys.size}>
+                    Limpar Financial
+                  </Button>
+                </>
+              )}
               <ReportExportActions
                 title={`Baseline ${source.name} · ${year}`}
                 filename={`baseline-${source.code}-${year}`}
@@ -283,22 +314,24 @@ export function BaselineImportCenter() {
               />
               <Button type="button" variant="outline" onClick={() => {
                 setImportedRows([]);
+                setFinancialKeys(new Set());
                 setImportStats(null);
                 setFileName("");
                 if (loadedFromSnapshot && latestSnapshot) setDismissedSnapshotId(latestSnapshot.id);
-              }} disabled={!rows.length || loading || saving}>
+              }} disabled={!displayRows.length || loading || saving}>
                 Limpar
               </Button>
-              <Button type="button" onClick={saveSnapshot} disabled={!importedRows.length || loading || saving}>
+              <Button type="button" onClick={saveSnapshot} disabled={!importedRows.length || !selectedImportedRows.length || loading || saving}>
                 {saving ? <RefreshCw className="h-4 w-4 animate-spin" /> : null}
                 Salvar foto da baseline
               </Button>
             </div>
           </div>
           <div className="overflow-x-auto">
-            <Table className="min-w-[1120px]">
+            <Table className="min-w-[1220px]">
               <TableHeader>
                 <TableRow>
+                  {importedRows.length > 0 && <TableHead className="w-28">Financial</TableHead>}
                   <TableHead>Cliente</TableHead>
                   <TableHead>Studio/Origem</TableHead>
                   <TableHead>Visão</TableHead>
@@ -313,8 +346,26 @@ export function BaselineImportCenter() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {rows.map((row) => (
-                  <TableRow key={row.key}>
+                {displayRows.map((row) => {
+                  const selectedAsFinancial = !importedRows.length || financialKeys.has(row.key);
+                  return (
+                  <TableRow key={row.key} className={cn(importedRows.length && !selectedAsFinancial && "bg-slate-50/70 text-slate-500")}>
+                    {importedRows.length > 0 && (
+                      <TableCell>
+                        <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-700">
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-slate-300 accent-[#8733d1]"
+                            checked={selectedAsFinancial}
+                            onChange={() => toggleFinancialRow(row.key)}
+                            disabled={loading || saving}
+                            aria-label={`Marcar ${row.customerName} ${row.studioName} como Financial`}
+                          />
+                          Sim
+                        </label>
+                        <p className="mt-1 text-[11px] text-slate-400">{row.sourceBusinessUnit || "sem BU"}</p>
+                      </TableCell>
+                    )}
                     <TableCell>
                       <p className="font-bold text-slate-950">{row.customerName}</p>
                       <p className="text-xs text-slate-500">{row.registeredCustomerName || "Cliente não encontrado"}</p>
@@ -323,7 +374,7 @@ export function BaselineImportCenter() {
                       <p className="font-semibold text-slate-800">{row.studioName}</p>
                       <p className="text-xs text-slate-500">{row.registeredStudioName || "Studio não encontrado"}</p>
                     </TableCell>
-                    <ThreeLineTextCell first="Baseline" second="Alocado" third="Curva" />
+                    <ThreeLineTextCell first="Baseline Studio" second="Cadastrado" third="Baseline Curva" />
                     <ThreeLineMoneyCell first={row.baselineHunter} second={row.allocatedHunter} third={undefined} />
                     <ThreeLineMoneyCell first={row.baselineMaintenance} second={row.allocatedMaintenance} third={undefined} />
                     <ThreeLineMoneyCell first={row.baselineTotal} second={row.allocatedTotal} third={row.registeredCustomerStudioTarget} bold />
@@ -340,11 +391,12 @@ export function BaselineImportCenter() {
                     </TableCell>
                     <TableCell><StudioStatusBadge status={row.status} /></TableCell>
                   </TableRow>
-                ))}
+                );
+                })}
               </TableBody>
             </Table>
           </div>
-          {!rows.length && (
+          {!displayRows.length && (
             <div className="p-5 text-sm text-slate-500">Importe uma planilha ou selecione uma origem/ano com foto salva para visualizar os clientes e calibrar o match.</div>
           )}
         </Card>

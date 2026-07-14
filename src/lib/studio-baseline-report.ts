@@ -1,7 +1,7 @@
 import type { StudioBaselineComparisonRow } from "@/lib/studio-baseline-import";
 import { roundCurrency } from "@/lib/utils";
 
-export type StudioBaselineReportView = "Baseline" | "Alocado" | "Hunters / Alocações" | "Baseline Curva";
+export type StudioBaselineReportView = "Baseline Studio" | "Cadastrado" | "Hunters / Alocações" | "Baseline Curva" | "Baseline" | "Alocado";
 
 export type StudioBaselineReportRow = {
   key: string;
@@ -48,7 +48,7 @@ export function buildStudioBaselineReportRows(
     {
       ...base,
       key: `${row.key}:baseline`,
-      view: "Baseline",
+      view: "Baseline Studio",
       hunterAmount: row.baselineHunter,
       maintenanceAmount: row.baselineMaintenance,
       totalAmount: row.baselineTotal,
@@ -59,12 +59,12 @@ export function buildStudioBaselineReportRows(
       difference: 0,
       hunterDelta: 0,
       maintenanceDelta: 0,
-      differenceLabel: includeLabels ? "Valor da planilha importada, classificado pelo Tipo Opp." : undefined,
+      differenceLabel: includeLabels ? "Valor da planilha fornecida pelo Studio, classificado pelo Tipo Opp." : undefined,
     },
     {
       ...base,
       key: `${row.key}:allocated`,
-      view: "Alocado",
+      view: "Cadastrado",
       hunterAmount: row.allocatedHunter,
       maintenanceAmount: row.allocatedMaintenance,
       totalAmount: row.allocatedTotal,
@@ -103,7 +103,7 @@ export function restoreStudioBaselineComparisonRows(rows: unknown[]): StudioBase
   reportRows.forEach((row) => {
     const key = `${row.customerName}:${row.studioName}`;
     const group = groups.get(key) ?? {};
-    if (row.view === "Baseline") group.baseline = row;
+    if (row.view === "Baseline" || row.view === "Baseline Studio") group.baseline = row;
     else if (row.view === "Baseline Curva") group.curve = row;
     else group.allocated = row;
     groups.set(key, group);
@@ -173,7 +173,7 @@ function isStudioBaselineReportRow(row: unknown): row is StudioBaselineReportRow
   const item = row as Partial<StudioBaselineReportRow>;
   return typeof item.customerName === "string"
     && typeof item.studioName === "string"
-    && (item.view === "Baseline" || item.view === "Alocado" || item.view === "Hunters / Alocações" || item.view === "Baseline Curva")
+    && (item.view === "Baseline" || item.view === "Baseline Studio" || item.view === "Alocado" || item.view === "Cadastrado" || item.view === "Hunters / Alocações" || item.view === "Baseline Curva")
     && typeof item.hunterAmount === "number"
     && typeof item.maintenanceAmount === "number"
     && typeof item.totalAmount === "number";

@@ -465,22 +465,26 @@
   coluna J indicar Managed Services, e para Alianças Google/Microsoft/AWS quando
   o cliente da coluna C for Google LLC, Microsoft ou Amazon Web; `Arquitetura`
   vira PX somente quando a coluna A/SU for Weme.
+- Na importação da Curva principal, a curva de clientes vem da aba
+  `Resumo RL 2026`; a aba `Sheet1` é usada para derivar a baseline geral de
+  Studios.
 - A importação da Curva principal exibe progresso por etapa enquanto processa o
   arquivo, incluindo leitura do baseline, leitura de Studios, comparação,
   geração da foto e salvamento.
 - Ao importar baseline manual de Studio/Área, linhas com BU/CC CROSS diferente
   de Financial são ignoradas quando a coluna existir.
-- Ao importar baseline manual de Studio/Área sem coluna BU/CC CROSS, a tela
-  exige confirmação manual de que a planilha pertence à BU Financial antes de
-  aceitar essas linhas.
+- Ao importar baseline manual de Studio/Área sem coluna BU/CC CROSS, a prévia
+  exibe checkbox por Cliente + Studio para marcar quais linhas são Financial.
+- Salvar foto de baseline manual de Studio/Área grava somente as linhas
+  marcadas como Financial.
 - Para planilhas de origem de Studio/Área no layout largo, linhas de grupo são
   ignoradas; o domínio importado é Cliente + tipo de receita
   Manutenção/Renovação ou Novo/Hunter + valor + origem selecionada.
 - A prévia de Baselines por área/studio mostra baseline importado, alocado no
   sistema, baseline de Studio vinda da Curva principal e diferença separada por
   Hunter e Manutenção/Renovação.
-- Cada Cliente + Studio/Origem aparece em três linhas, uma `Baseline`, uma
-  `Alocado` e uma `Baseline Curva`, em vez de repetir todas as métricas em
+- Cada Cliente + Studio/Origem aparece em três linhas, uma `Baseline Studio`,
+  uma `Cadastrado` e uma `Baseline Curva`, em vez de repetir todas as métricas em
   colunas separadas.
 - A mesma prévia mostra os totais cadastrados no Cliente para Hunter,
   Manutenção/Renovação, Studio Curva e Total, permitindo comparação visual
