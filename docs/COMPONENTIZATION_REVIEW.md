@@ -52,6 +52,17 @@ pessoa, meta própria versus meta herdada e fallback de Hunter principal do
 cliente. Ele evita que relatório visual e exportação oficial implementem a mesma
 regra em paralelo.
 
+A conciliação e a view model de cobertura da tela de Clientes também foram
+extraídas para:
+
+- `src/lib/customers/customer-coverage-view-model.ts`
+
+O componente `customer-management.tsx` permanece responsável por CRUD, modais e
+eventos de tela. Regras derivadas de cobertura, status, composição por pessoa,
+composição por área/studio e ordenação ficam no módulo de domínio reutilizável.
+O gate `npm run test:performance` bloqueia o retorno dessas funções grandes para
+dentro do componente.
+
 ## Próximas oportunidades
 
 1. Extrair view models restantes de relatórios
@@ -61,11 +72,12 @@ regra em paralelo.
    - Caminho seguro: mover builders de Clientes, Hunters e Diretoria para
      `src/lib/reports/` em fatias independentes.
 
-2. Extrair view models de Clientes
+2. Continuar a extração de Clientes
    - Prioridade: `src/components/customers/customer-management.tsx`
-   - Motivo: CRUD, conciliação, seleção de responsáveis e tabelas convivem no
-     mesmo arquivo.
-   - Caminho seguro: separar builders/predicados antes de extrair componentes.
+   - Motivo: o cálculo de cobertura já saiu da tela, mas CRUD, seleção de
+     responsáveis e blocos visuais ainda convivem no mesmo arquivo.
+   - Caminho seguro: extrair componentes de modais/tabelas somente depois de
+     estabilizar os builders e preservar os gates atuais.
 
 3. Padronizar formatação monetária
    - `roundCurrency` agora existe em `src/lib/utils.ts`.

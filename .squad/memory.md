@@ -280,10 +280,11 @@ Centralizar importação de baselines em uma nova rota, removendo uploads antigo
 - A revisão de componentização está documentada em `docs/COMPONENTIZATION_REVIEW.md`; próximos alvos seguros são builders puros de `person-target-report.tsx` e `customer-management.tsx`, antes de extrair componentes visuais.
 - A geração da Planilha oficial do Relatório de Metas fica centralizada em `src/lib/reports/person-target-official-export.ts`. `person-target-report.tsx` apenas reexporta `buildOfficialRowsForView` para compatibilidade com o gate `test:reports`.
 - Rollups comuns do Relatório de Metas ficam em `src/lib/reports/person-target-rollups.ts`: Studio Hunter efetivo, renovação de Studio elegível por pessoa, meta própria descontando herança e fallback de Hunter principal. Não duplicar esses cálculos em tela/export.
+- A view model de cobertura/conciliação da tela Clientes fica centralizada em `src/lib/customers/customer-coverage-view-model.ts`. `customer-management.tsx` não deve reintroduzir cálculos inline de status, composição por pessoa, composição por área/studio ou ordenação de cobertura; `npm run test:performance` bloqueia essa regressão.
 
 ## Next Pending Step
 
-Próximo passo: mover a view model de Clientes (`buildClientCoverageRows` e colunas/totalizadores relacionados) para `src/lib/reports/`, reutilizando `person-target-rollups.ts` e mantendo `npm run test:reports` como gate obrigatório.
+Próximo passo: mover a view model de Clientes do Relatório de Metas (`buildClientCoverageRows` e colunas/totalizadores relacionados) para `src/lib/reports/`, reutilizando `person-target-rollups.ts` e mantendo `npm run test:reports` como gate obrigatório.
 
 ## Discovered Commands
 

@@ -5,6 +5,8 @@ const path = require("node:path");
 
 const root = process.cwd();
 const targetManagementPath = path.join(root, "src", "components", "targets", "target-management.tsx");
+const customerManagementPath = path.join(root, "src", "components", "customers", "customer-management.tsx");
+const customerCoverageViewModelPath = path.join(root, "src", "lib", "customers", "customer-coverage-view-model.ts");
 const personTargetReportPath = path.join(root, "src", "components", "reports", "person-target-report.tsx");
 const customerPortfolioPath = path.join(root, "src", "components", "portfolio", "customer-portfolio-management.tsx");
 const deliveryStorePath = path.join(root, "src", "store", "delivery-store.tsx");
@@ -13,6 +15,8 @@ const performanceMigrationPath = path.join(root, "supabase", "migrations", "2026
 const packagePath = path.join(root, "package.json");
 
 const targetManagementSource = fs.readFileSync(targetManagementPath, "utf8");
+const customerManagementSource = fs.readFileSync(customerManagementPath, "utf8");
+const customerCoverageViewModelSource = fs.readFileSync(customerCoverageViewModelPath, "utf8");
 const personTargetReportSource = fs.readFileSync(personTargetReportPath, "utf8");
 const customerPortfolioSource = fs.readFileSync(customerPortfolioPath, "utf8");
 const deliveryStoreSource = fs.readFileSync(deliveryStorePath, "utf8");
@@ -25,6 +29,13 @@ assertIncludes(targetManagementSource, "allocationSummaryByCustomer", "Target ma
 assertIncludes(targetManagementSource, "customerNamesById", "Target management must use indexed customer lookups in render/filter paths.");
 assertIncludes(targetManagementSource, "peopleNamesById", "Target management must use indexed people lookups in render/filter paths.");
 assertNotIncludes(targetManagementSource, "function sumAllocations(", "Target management must not recalculate customer allocation totals per row.");
+assertIncludes(customerManagementSource, "@/lib/customers/customer-coverage-view-model", "Customer management must consume the extracted coverage view model.");
+assertIncludes(customerCoverageViewModelSource, "export function getCustomerCoverageStatus", "Customer coverage status must stay outside the UI component.");
+assertIncludes(customerCoverageViewModelSource, "export function getCustomerAllocationComposition", "Customer allocation composition must stay outside the UI component.");
+assertIncludes(customerCoverageViewModelSource, "export function getCustomerStudioComposition", "Customer studio composition must stay outside the UI component.");
+assertNotIncludes(customerManagementSource, "function getCustomerCoverageStatus(", "Customer management must not reintroduce coverage calculations inline.");
+assertNotIncludes(customerManagementSource, "function getCustomerAllocationComposition(", "Customer management must not reintroduce allocation composition inline.");
+assertNotIncludes(customerManagementSource, "function sortCustomerRows(", "Customer management must not sort rows with inline derived calculations.");
 assertIncludes(personTargetReportSource, "const hunterClientTotals = useMemo", "Person target report must memoize Hunter x Clientes footer totals.");
 assertIncludes(personTargetReportSource, "function summarizeHunterClientRows", "Person target report must centralize Hunter x Clientes totalization.");
 assertIncludes(personTargetReportSource, "function sumAmount", "Person target report must reuse a small amount totalizer for report footers.");
