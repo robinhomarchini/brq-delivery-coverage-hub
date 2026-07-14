@@ -105,7 +105,7 @@ export function parseTargetBaselineRows(rows: SpreadsheetCell[][]): TargetBaseli
   const headers = rows[headerRowIndex].map((cell) => normalizeHeader(String(cell ?? "")));
   const indexes = {
     customerName: findHeaderIndex(headers, requiredHeaders.customerName, "Cliente"),
-    businessUnit: findHeaderIndex(headers, requiredHeaders.businessUnit, "BU"),
+    businessUnit: findOptionalHeaderIndex(headers, requiredHeaders.businessUnit),
     hunterTarget: findHeaderIndex(headers, requiredHeaders.hunterTarget, "Target RL Hunter"),
     farmerRenewalTarget: findHeaderIndex(headers, requiredHeaders.farmerRenewalTarget, "Target RL Farmer"),
     studioTarget: findOptionalHeaderIndex(headers, optionalHeaders.studioTarget),
@@ -128,7 +128,7 @@ export function parseTargetBaselineRows(rows: SpreadsheetCell[][]): TargetBaseli
       return {
         rowNumber: headerRowIndex + index + 2,
         customerName: String(row[indexes.customerName] ?? "").trim(),
-        businessUnit: String(row[indexes.businessUnit] ?? "").trim(),
+        businessUnit: indexes.businessUnit >= 0 ? String(row[indexes.businessUnit] ?? "").trim() : "BU Financial",
         hunterTarget,
         farmerRenewalTarget,
         studioTarget,
@@ -175,7 +175,6 @@ function findTargetHeaderRowIndex(rows: SpreadsheetCell[][], firstAllowedRowNumb
     if (rowIndex < firstAllowedIndex) return false;
     const headers = row.map((cell) => normalizeHeader(String(cell ?? "")));
     return findOptionalHeaderIndex(headers, requiredHeaders.customerName) >= 0
-      && findOptionalHeaderIndex(headers, requiredHeaders.businessUnit) >= 0
       && findOptionalHeaderIndex(headers, requiredHeaders.hunterTarget) >= 0
       && findOptionalHeaderIndex(headers, requiredHeaders.farmerRenewalTarget) >= 0
       && findOptionalHeaderIndex(headers, requiredHeaders.totalTarget) >= 0;

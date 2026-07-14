@@ -28,4 +28,17 @@ assert(parsedRows[0]?.customerName === "AGIBANK", "A linha oficial do cliente AG
 assert(parsedRows[0]?.hunterTarget === 100_000, "A linha do primeiro quadro não deve sobrescrever o valor oficial da linha 125+.");
 assert(parsedRows[0]?.rowNumber === 126, "O número da linha importada deve apontar para a linha real da planilha.");
 
+const officialFinancialOnlyRows: SpreadsheetCell[][] = [
+  firstTableHeader,
+  firstTableRow,
+  ...Array.from({ length: 122 }, () => []),
+  ["Cliente", "Hunter Novo - AWS", "Target RL Hunter", "Target RL Farmer", "Total RL 2026"],
+  ["AGIBANK", 100_000, 100_000, 0, 100_000],
+];
+
+const parsedFinancialOnlyRows = parseTargetBaselineRows(officialFinancialOnlyRows);
+
+assert(parsedFinancialOnlyRows.length === 1, "O segundo quadro Financial sem coluna BU deve ser aceito como BU Financial.");
+assert(parsedFinancialOnlyRows[0]?.businessUnit === "BU Financial", "Quando a coluna BU não existe no segundo quadro, a BU deve ser inferida como Financial.");
+
 console.log("Target baseline import QA checks passed.");

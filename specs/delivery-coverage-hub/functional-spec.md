@@ -628,7 +628,9 @@ como total efetivo daquela linha.
 Na Curva principal oficial, a aba `Resumo RL 2026` possui mais de um quadro; o
 baseline de clientes deve usar somente o segundo quadro Financial, procurando o
 cabeçalho a partir da linha 125. Quadros anteriores da mesma aba são ignorados
-para evitar duplicidade de clientes no upload.
+para evitar duplicidade de clientes no upload. Como esse segundo quadro já é a
+visão Financial, a coluna `BU` é opcional nele; quando ausente, as linhas
+válidas são inferidas como `BU Financial`.
 
 A rota Comparativo Baseline apresenta a foto inicial aprovada pelo board para o
 ano de referência e compara essa foto contra o cadastro operacional atual. Para
