@@ -506,6 +506,10 @@
 - Tabelas comparativas com sublinhas empilhadas usam componente compartilhado de
   célula com altura fixa por sublinha, largura mínima para rótulos e valores
   alinhados entre colunas; rótulos quebrados não podem desalinha valores.
+- Tabelas operacionais e comparativas devem usar o componente compartilhado de
+  cabeçalho ordenável. Na central de Baselines, a prévia por área/studio ordena
+  por Cliente, Studio/Origem, valores, divergência e Status, e consolida linhas
+  duplicadas no grão Cliente + Studio/Origem antes de renderizar ou exportar.
 - A mesma prévia mostra os totais cadastrados no Cliente para Hunter,
   Manutenção/Renovação, Studio Curva e Total, permitindo comparação visual
   automática.

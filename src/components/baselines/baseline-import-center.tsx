@@ -6,6 +6,7 @@ import { TargetBaselineImport } from "@/components/insights/target-baseline-impo
 import { ErrorNotice, SuccessNotice } from "@/components/shared/success-notice";
 import { KpiSummaryCard } from "@/components/shared/kpi-summary-card";
 import { ReportExportActions, type ReportColumn } from "@/components/shared/report-export-actions";
+import { SortableTableHead, type SortDirection, type SortState } from "@/components/shared/sortable-table-head";
 import { StackedComparisonCell } from "@/components/shared/stacked-comparison-cell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,10 +26,11 @@ import {
 } from "@/lib/studio-baseline-import";
 import {
   buildStudioBaselineReportRows,
+  getStudioStatusLabel,
   restoreStudioBaselineComparisonRows,
   type StudioBaselineReportRow,
 } from "@/lib/studio-baseline-report";
-import { cn, formatCurrency, normalizeBusinessName } from "@/lib/utils";
+import { cn, formatCurrency, normalizeBusinessName, roundCurrency } from "@/lib/utils";
 
 const maxFileSizeInBytes = 5 * 1024 * 1024;
 type BaselineImportMode = "main_curve" | "studio_sources";
@@ -37,6 +39,7 @@ type StudioBaselineImportStats = {
   ignoredRows: number;
   totalRows: number;
 };
+type StudioBaselineSortKey = "customer" | "studio" | "hunter" | "maintenance" | "total" | "hunterDelta" | "maintenanceDelta" | "divergence" | "status";
 const manualStudioBaselineSources = studioBaselineSources.filter((item) => item.code !== "studio_general");
 const baselineImportModeStorageKey = "delivery-baseline-import-mode";
 
@@ -50,6 +53,7 @@ export function BaselineImportCenter() {
   const [financialKeys, setFinancialKeys] = useState<Set<string>>(new Set());
   const [importStats, setImportStats] = useState<StudioBaselineImportStats | null>(null);
   const [dismissedSnapshotId, setDismissedSnapshotId] = useState("");
+  const [sortState, setSortState] = useState<SortState<StudioBaselineSortKey>>({ key: "customer", direction: "asc" });
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState("");
@@ -75,12 +79,12 @@ export function BaselineImportCenter() {
   );
   const loadedFromSnapshot = importedRows.length === 0 && latestSnapshotRows.length > 0;
   const displayRows = useMemo(
-    () => sortStudioBaselineRows(applyCurveBaselineToRows(importedRows.length ? importedRows : latestSnapshotRows, latestCurveSnapshotRows)),
-    [importedRows, latestCurveSnapshotRows, latestSnapshotRows],
+    () => sortStudioBaselineRows(dedupeStudioBaselineRows(applyCurveBaselineToRows(importedRows.length ? importedRows : latestSnapshotRows, latestCurveSnapshotRows)), sortState),
+    [importedRows, latestCurveSnapshotRows, latestSnapshotRows, sortState],
   );
   const selectedImportedRows = useMemo(
-    () => sortStudioBaselineRows(applyCurveBaselineToRows(importedRows.filter((row) => financialKeys.has(row.key)), latestCurveSnapshotRows)),
-    [financialKeys, importedRows, latestCurveSnapshotRows],
+    () => sortStudioBaselineRows(dedupeStudioBaselineRows(applyCurveBaselineToRows(importedRows.filter((row) => financialKeys.has(row.key)), latestCurveSnapshotRows)), sortState),
+    [financialKeys, importedRows, latestCurveSnapshotRows, sortState],
   );
   const rows = importedRows.length ? selectedImportedRows : displayRows;
   const activeFileName = importedRows.length ? fileName : loadedFromSnapshot ? latestSnapshot?.fileName ?? "" : fileName;
@@ -122,7 +126,7 @@ export function BaselineImportCenter() {
         throw new Error("Arquivo maior que 5 MB. Use uma planilha menor para homologação.");
       }
       const baselineRows = await readStudioBaselineWorkbook(file, source);
-      const comparisonRows = sortStudioBaselineRows(buildStudioBaselineComparisons(baselineRows, yearCustomers, areas, studioTargetAllocations, year));
+      const comparisonRows = dedupeStudioBaselineRows(buildStudioBaselineComparisons(baselineRows, yearCustomers, areas, studioTargetAllocations, year));
       const defaultFinancialKeys = new Set(
         comparisonRows
           .filter((row) => isFinancialBusinessUnit(row.sourceBusinessUnit))
@@ -344,17 +348,17 @@ export function BaselineImportCenter() {
               <TableHeader>
                 <TableRow>
                   {importedRows.length > 0 && <TableHead className="w-28">Financial</TableHead>}
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Studio/Origem</TableHead>
+                  <SortableTableHead label="Cliente" sortKey="customer" sortState={sortState} onSort={setSortState} />
+                  <SortableTableHead label="Studio/Origem" sortKey="studio" sortState={sortState} onSort={setSortState} />
                   <TableHead className="w-44">Visão</TableHead>
-                  <TableHead className="text-right">Hunter</TableHead>
-                  <TableHead className="text-right">Manutenção</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                  <TableHead className="text-right">Dif. Hunter</TableHead>
-                  <TableHead className="text-right">Dif. Manut.</TableHead>
-                  <TableHead>Onde diverge</TableHead>
+                  <SortableTableHead label="Hunter" sortKey="hunter" sortState={sortState} onSort={setSortState} className="text-right" />
+                  <SortableTableHead label="Manutenção" sortKey="maintenance" sortState={sortState} onSort={setSortState} className="text-right" />
+                  <SortableTableHead label="Total" sortKey="total" sortState={sortState} onSort={setSortState} className="text-right" />
+                  <SortableTableHead label="Dif. Hunter" sortKey="hunterDelta" sortState={sortState} onSort={setSortState} className="text-right" />
+                  <SortableTableHead label="Dif. Manut." sortKey="maintenanceDelta" sortState={sortState} onSort={setSortState} className="text-right" />
+                  <SortableTableHead label="Onde diverge" sortKey="divergence" sortState={sortState} onSort={setSortState} />
                   <TableHead>Cadastro do cliente</TableHead>
-                  <TableHead>Status</TableHead>
+                  <SortableTableHead label="Status" sortKey="status" sortState={sortState} onSort={setSortState} />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -513,13 +517,91 @@ function StudioStatusBadge({ status }: { status: StudioBaselineComparisonRow["st
   return <Badge variant="warning">Alocação divergente</Badge>;
 }
 
-function sortStudioBaselineRows(rows: StudioBaselineComparisonRow[]) {
+function dedupeStudioBaselineRows(rows: StudioBaselineComparisonRow[]) {
+  const rowsByCustomerStudio = new Map<string, StudioBaselineComparisonRow>();
+  rows.forEach((row) => {
+    const key = getCustomerStudioKey(row.customerName, row.studioName);
+    const current = rowsByCustomerStudio.get(key);
+    rowsByCustomerStudio.set(key, current ? mergeStudioBaselineRows(current, row) : { ...row, key });
+  });
+  return Array.from(rowsByCustomerStudio.values());
+}
+
+function mergeStudioBaselineRows(first: StudioBaselineComparisonRow, second: StudioBaselineComparisonRow): StudioBaselineComparisonRow {
+  const baselineHunter = roundCurrency(first.baselineHunter + second.baselineHunter);
+  const baselineMaintenance = roundCurrency(first.baselineMaintenance + second.baselineMaintenance);
+  const baselineTotal = roundCurrency(first.baselineTotal + second.baselineTotal);
+  const allocatedHunter = Math.max(first.allocatedHunter, second.allocatedHunter);
+  const allocatedMaintenance = Math.max(first.allocatedMaintenance, second.allocatedMaintenance);
+  const allocatedTotal = Math.max(first.allocatedTotal, second.allocatedTotal);
+  const registeredCustomerStudioHunterTarget = Math.max(first.registeredCustomerStudioHunterTarget, second.registeredCustomerStudioHunterTarget);
+  const registeredCustomerStudioMaintenanceTarget = Math.max(first.registeredCustomerStudioMaintenanceTarget, second.registeredCustomerStudioMaintenanceTarget);
+  const registeredCustomerStudioTarget = Math.max(first.registeredCustomerStudioTarget, second.registeredCustomerStudioTarget);
+
+  return {
+    ...first,
+    sourceBusinessUnit: first.sourceBusinessUnit || second.sourceBusinessUnit,
+    registeredCustomerName: first.registeredCustomerName || second.registeredCustomerName,
+    registeredStudioName: first.registeredStudioName || second.registeredStudioName,
+    registeredCustomerHunterTarget: Math.max(first.registeredCustomerHunterTarget, second.registeredCustomerHunterTarget),
+    registeredCustomerMaintenanceTarget: Math.max(first.registeredCustomerMaintenanceTarget, second.registeredCustomerMaintenanceTarget),
+    registeredCustomerStudioHunterTarget,
+    registeredCustomerStudioMaintenanceTarget,
+    registeredCustomerStudioTarget,
+    registeredCustomerTotalTarget: Math.max(first.registeredCustomerTotalTarget, second.registeredCustomerTotalTarget),
+    baselineHunter,
+    baselineMaintenance,
+    baselineTotal,
+    allocatedHunter,
+    allocatedMaintenance,
+    allocatedTotal,
+    hunterDelta: roundCurrency(allocatedHunter - baselineHunter),
+    maintenanceDelta: roundCurrency(allocatedMaintenance - baselineMaintenance),
+    allocationDelta: roundCurrency(allocatedTotal - baselineTotal),
+    status: mergeStudioStatus(first.status, second.status),
+  };
+}
+
+function mergeStudioStatus(first: StudioBaselineComparisonRow["status"], second: StudioBaselineComparisonRow["status"]) {
+  if (first === "missing_customer" || second === "missing_customer") return "missing_customer";
+  if (first === "missing_studio" || second === "missing_studio") return "missing_studio";
+  if (first === "allocation_gap" || second === "allocation_gap") return "allocation_gap";
+  return "ok";
+}
+
+function sortStudioBaselineRows(rows: StudioBaselineComparisonRow[], sortState: SortState<StudioBaselineSortKey>) {
+  if (!sortState) return defaultSortStudioBaselineRows(rows);
+  return sortRows(defaultSortStudioBaselineRows(rows), sortState.direction, (first, second) => {
+    if (sortState.key === "customer") return compareBusinessLabel(first.customerName, second.customerName);
+    if (sortState.key === "studio") return compareBusinessLabel(first.studioName, second.studioName);
+    if (sortState.key === "hunter") return compareNumber(first.baselineHunter, second.baselineHunter);
+    if (sortState.key === "maintenance") return compareNumber(first.baselineMaintenance, second.baselineMaintenance);
+    if (sortState.key === "total") return compareNumber(first.baselineTotal, second.baselineTotal);
+    if (sortState.key === "hunterDelta") return compareNumber(first.hunterDelta, second.hunterDelta);
+    if (sortState.key === "maintenanceDelta") return compareNumber(first.maintenanceDelta, second.maintenanceDelta);
+    if (sortState.key === "divergence") return compareBusinessLabel(getDivergenceLabel(first), getDivergenceLabel(second));
+    return compareBusinessLabel(getStudioStatusLabel(first.status), getStudioStatusLabel(second.status));
+  });
+}
+
+function defaultSortStudioBaselineRows(rows: StudioBaselineComparisonRow[]) {
   return rows.slice().sort((first, second) =>
     compareBusinessLabel(first.customerName, second.customerName)
     || compareBusinessLabel(first.studioName, second.studioName)
     || compareBusinessLabel(first.registeredStudioName, second.registeredStudioName)
     || compareBusinessLabel(first.status, second.status)
   );
+}
+
+function sortRows<T>(rows: T[], direction: SortDirection, compare: (first: T, second: T) => number) {
+  return rows.slice().sort((first, second) => {
+    const result = compare(first, second);
+    return direction === "asc" ? result : -result;
+  });
+}
+
+function compareNumber(first: number, second: number) {
+  return first - second;
 }
 
 function applyCurveBaselineToRows(rows: StudioBaselineComparisonRow[], curveRows: StudioBaselineComparisonRow[]) {
