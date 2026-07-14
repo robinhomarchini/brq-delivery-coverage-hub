@@ -429,9 +429,5 @@ function readCurveStudioRows(buffer: ArrayBuffer) {
 }
 
 function readTargetBaselineSheet(buffer: ArrayBuffer) {
-  try {
-    return readXlsxSheetRows(buffer, "Resumo RL 2026");
-  } catch {
-    return readXlsxSheetRows(buffer);
-  }
+  return readXlsxSheetRows(buffer, "Resumo RL 2026");
 }

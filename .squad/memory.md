@@ -151,6 +151,8 @@ Centralizar importação de baselines em uma nova rota, removendo uploads antigo
 - [x] Publicar o provider selecionável de auth no deployment Vercel `dpl_AZofjL9ecDjJECPXdWwk3TYEvb8r`, aliasado em `https://brq-delivery-coverage-hub.vercel.app`.
 - [x] Fazer a importação da Curva principal criar automaticamente a foto `Baseline geral de Studios` a partir da coluna Áreas/Studios da própria Curva.
 - [x] Definir a extração detalhada da Curva para baseline de Studios: aba `Sheet1`, cliente na coluna C, Studio/Habilitador na L, Tipo Opp na O, Total RL 2026 na AH e filtro BU Financial na BR.
+- [x] Corrigir a importação rápida da Curva para exigir a aba `Resumo RL 2026`, sem fallback silencioso para a primeira aba.
+- [x] Corrigir a linha `Baseline Curva` de Studios para usar valor no grão Cliente + Studio, sem repetir o total de Studio do cliente em cada Studio.
 
 ## Previous Completed Work
 
@@ -263,6 +265,8 @@ Centralizar importação de baselines em uma nova rota, removendo uploads antigo
 - A importação da Curva principal precisa mostrar progresso por etapa para diferenciar processamento ativo de travamento: baseline de clientes, parsing, Sheet1 de Studios, comparação, geração da foto e salvamento.
 - Na importação manual de baseline de Studio/Área, se a planilha trouxer `BU` ou `CC CROSS`, linhas `BU Financial` vêm pré-marcadas; se a planilha não trouxer essa coluna, a prévia exibe checkbox por Cliente + Studio para marcar quais linhas são Financial. KPIs, exportação e snapshot salvo usam somente as linhas marcadas, evitando poluir a base com outras BUs e preservando calibração manual.
 - A serialização/restauração de linhas de Baseline de Studios e a montagem das linhas de relatório ficam centralizadas em `src/lib/studio-baseline-report.ts`; telas não devem recriar localmente essa lógica.
+- O leitor leve de XLSX deve resolver abas nomeadas pelo workbook/relationship interno e falhar com mensagem clara quando `Resumo RL 2026` estiver ausente; nunca usar `Sheet1` como fallback para a Curva de clientes.
+- Na comparação de Studios, `registeredCustomerStudioTarget` representa a Baseline Curva por Cliente + Studio/Habilitador. O total de Studio do cliente inteiro não deve ser repetido nas linhas individuais de Studio.
 - A revisão de componentização está documentada em `docs/COMPONENTIZATION_REVIEW.md`; próximos alvos seguros são builders puros de `person-target-report.tsx` e `customer-management.tsx`, antes de extrair componentes visuais.
 - A geração da Planilha oficial do Relatório de Metas fica centralizada em `src/lib/reports/person-target-official-export.ts`. `person-target-report.tsx` apenas reexporta `buildOfficialRowsForView` para compatibilidade com o gate `test:reports`.
 - Rollups comuns do Relatório de Metas ficam em `src/lib/reports/person-target-rollups.ts`: Studio Hunter efetivo, renovação de Studio elegível por pessoa, meta própria descontando herança e fallback de Hunter principal. Não duplicar esses cálculos em tela/export.

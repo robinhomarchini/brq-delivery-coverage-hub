@@ -2,7 +2,7 @@ import { strFromU8, unzipSync } from "fflate";
 
 export function readXlsxSheetRows(buffer: ArrayBuffer, sheetName?: string) {
   const files = unzipSync(new Uint8Array(buffer));
-  const sheetPath = getWorksheetPath(files, sheetName);
+  const sheetPath = sheetName ? getRequiredWorksheetPath(files, sheetName) : getFirstWorksheetPath(files);
   const sheetEntry = files[sheetPath];
   if (!sheetEntry) {
     throw new Error(sheetName ? `Aba não encontrada na planilha: ${sheetName}.` : "Não foi possível localizar a primeira aba da planilha.");
@@ -23,25 +23,70 @@ export function readXlsxSheetRows(buffer: ArrayBuffer, sheetName?: string) {
   });
 }
 
-function getWorksheetPath(files: Record<string, Uint8Array>, sheetName?: string) {
-  if (!sheetName) return "xl/worksheets/sheet1.xml";
-
+function getRequiredWorksheetPath(files: Record<string, Uint8Array>, sheetName: string) {
   const workbook = files["xl/workbook.xml"];
   const relationships = files["xl/_rels/workbook.xml.rels"];
-  if (!workbook || !relationships) return "xl/worksheets/sheet1.xml";
+  if (!workbook || !relationships) {
+    throw new Error(`Não foi possível ler o índice de abas da planilha para localizar: ${sheetName}.`);
+  }
 
   const workbookXml = new DOMParser().parseFromString(strFromU8(workbook), "application/xml");
   const relsXml = new DOMParser().parseFromString(strFromU8(relationships), "application/xml");
-  const sheet = Array.from(workbookXml.getElementsByTagName("sheet"))
-    .find((node) => normalizeSheetName(node.getAttribute("name") ?? "") === normalizeSheetName(sheetName));
-  const relationshipId = sheet?.getAttribute("r:id");
-  if (!relationshipId) return "xl/worksheets/sheet1.xml";
+  const sheets = Array.from(workbookXml.getElementsByTagName("sheet"));
+  const sheet = sheets.find((node) => normalizeSheetName(node.getAttribute("name") ?? "") === normalizeSheetName(sheetName));
+  if (!sheet) {
+    const availableSheets = sheets.map((node) => node.getAttribute("name") ?? "").filter(Boolean).join(", ");
+    throw new Error(`Aba obrigatória não encontrada na planilha: ${sheetName}. Abas disponíveis: ${availableSheets || "nenhuma"}.`);
+  }
+
+  const relationshipId = getRelationshipId(sheet);
+  if (!relationshipId) {
+    throw new Error(`Aba ${sheetName} encontrada sem relacionamento interno no arquivo XLSX.`);
+  }
 
   const relationship = Array.from(relsXml.getElementsByTagName("Relationship"))
     .find((node) => node.getAttribute("Id") === relationshipId);
   const target = relationship?.getAttribute("Target") ?? "";
-  if (!target) return "xl/worksheets/sheet1.xml";
-  return target.startsWith("xl/") ? target : `xl/${target.replace(/^\//, "")}`;
+  if (!target) {
+    throw new Error(`Aba ${sheetName} encontrada, mas sem destino interno no arquivo XLSX.`);
+  }
+
+  const worksheetPath = normalizeWorksheetTarget(target);
+  if (!files[worksheetPath]) {
+    throw new Error(`Aba ${sheetName} aponta para uma planilha interna inexistente: ${worksheetPath}.`);
+  }
+  return worksheetPath;
+}
+
+function getFirstWorksheetPath(files: Record<string, Uint8Array>) {
+  return Object.keys(files)
+    .filter((filePath) => filePath.startsWith("xl/worksheets/") && filePath.endsWith(".xml"))
+    .sort((first, second) => first.localeCompare(second, undefined, { numeric: true }))[0] ?? "xl/worksheets/sheet1.xml";
+}
+
+function getRelationshipId(sheetNode: Element) {
+  return sheetNode.getAttribute("r:id")
+    ?? sheetNode.getAttributeNS("http://schemas.openxmlformats.org/officeDocument/2006/relationships", "id")
+    ?? Array.from(sheetNode.attributes).find((attribute) =>
+      attribute.localName === "id" && (attribute.name === "r:id" || attribute.namespaceURI?.includes("relationships"))
+    )?.value
+    ?? "";
+}
+
+function normalizeWorksheetTarget(target: string) {
+  const normalizedTarget = target.replace(/\\/g, "/").replace(/^\//, "");
+  if (normalizedTarget.startsWith("xl/")) return normalizeZipPath(normalizedTarget);
+  return normalizeZipPath(`xl/${normalizedTarget}`);
+}
+
+function normalizeZipPath(filePath: string) {
+  const parts: string[] = [];
+  filePath.split("/").forEach((part) => {
+    if (!part || part === ".") return;
+    if (part === "..") parts.pop();
+    else parts.push(part);
+  });
+  return parts.join("/");
 }
 
 function readSharedStrings(entry?: Uint8Array) {
@@ -64,5 +109,10 @@ function getColumnIndex(columnRef: string) {
 }
 
 function normalizeSheetName(value: string) {
-  return value.trim().toLowerCase();
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
 }

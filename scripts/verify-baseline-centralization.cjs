@@ -12,6 +12,7 @@ const targetImporter = fs.readFileSync(path.join(root, "src", "components", "ins
 const parser = fs.readFileSync(path.join(root, "src", "lib", "studio-baseline-import.ts"), "utf8");
 const studioReport = fs.readFileSync(path.join(root, "src", "lib", "studio-baseline-report.ts"), "utf8");
 const studioCurveSnapshot = fs.readFileSync(path.join(root, "src", "lib", "studio-curve-baseline-snapshot.ts"), "utf8");
+const xlsxReader = fs.readFileSync(path.join(root, "src", "lib", "xlsx-reader.ts"), "utf8");
 const appShell = fs.readFileSync(path.join(root, "src", "components", "layout", "app-shell.tsx"), "utf8");
 
 const requiredCenterTokens = [
@@ -175,6 +176,41 @@ if (missingCurveImportProgressTokens.length) {
 
 if (targetImporter.includes("read-excel-file/browser")) {
   throw new Error("Curve baseline import must use the lightweight XLSX reader instead of read-excel-file/browser.");
+}
+
+const forbiddenCurveImportTokens = [
+  "return readXlsxSheetRows(buffer);",
+  "if (!workbook || !relationships) return \"xl/worksheets/sheet1.xml\"",
+  "if (!relationshipId) return \"xl/worksheets/sheet1.xml\"",
+];
+
+const leakedCurveImportTokens = forbiddenCurveImportTokens.filter((token) => targetImporter.includes(token) || xlsxReader.includes(token));
+if (leakedCurveImportTokens.length) {
+  throw new Error(`Curve import must not silently fall back to the first worksheet: ${leakedCurveImportTokens.join(", ")}`);
+}
+
+const requiredXlsxReaderTokens = [
+  "getRequiredWorksheetPath",
+  "Aba obrigatória não encontrada",
+  "getRelationshipId",
+  "normalizeWorksheetTarget",
+];
+
+const missingXlsxReaderTokens = requiredXlsxReaderTokens.filter((token) => !xlsxReader.includes(token));
+if (missingXlsxReaderTokens.length) {
+  throw new Error(`Lightweight XLSX reader must resolve named sheets explicitly: ${missingXlsxReaderTokens.join(", ")}`);
+}
+
+const requiredCurveGrainTokens = [
+  "registeredCustomerStudioTarget: roundCurrency(row.baselineTotal)",
+  "applyCurveBaselineToRows",
+  "latestCurveSnapshotRows",
+  "getCustomerStudioKey",
+];
+
+const missingCurveGrainTokens = requiredCurveGrainTokens.filter((token) => !studioCurveSnapshot.includes(token) && !baselineCenter.includes(token));
+if (missingCurveGrainTokens.length) {
+  throw new Error(`Studio Curve baseline must stay at customer + studio grain: ${missingCurveGrainTokens.join(", ")}`);
 }
 
 console.log("Baseline centralization QA checks passed.");

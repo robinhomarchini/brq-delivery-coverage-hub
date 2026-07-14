@@ -178,7 +178,7 @@ function buildStudioCurveBaselineComparisonRows(
         ...row,
         registeredCustomerHunterTarget: roundCurrency(targetComparison.effectiveHunterTarget),
         registeredCustomerMaintenanceTarget: roundCurrency(targetComparison.effectiveFarmerRenewalTarget),
-        registeredCustomerStudioTarget: roundCurrency(targetComparison.effectiveStudioTarget),
+        registeredCustomerStudioTarget: roundCurrency(row.baselineTotal),
         registeredCustomerTotalTarget: roundCurrency(targetComparison.effectiveRevenue),
       };
     })

@@ -468,6 +468,12 @@
 - Na importação da Curva principal, a curva de clientes vem da aba
   `Resumo RL 2026`; a aba `Sheet1` é usada para derivar a baseline geral de
   Studios.
+- A importação da Curva principal não pode cair silenciosamente para a primeira
+  aba quando `Resumo RL 2026` não for encontrada; a tela deve exibir erro claro
+  de aba obrigatória ausente.
+- A linha `Baseline Curva` da comparação de Studios usa o valor da própria
+  Curva no grão Cliente + Studio/Habilitador, nunca o total de Studio do cliente
+  inteiro repetido para cada Studio.
 - A importação da Curva principal exibe progresso por etapa enquanto processa o
   arquivo, incluindo leitura do baseline, leitura de Studios, comparação,
   geração da foto e salvamento.

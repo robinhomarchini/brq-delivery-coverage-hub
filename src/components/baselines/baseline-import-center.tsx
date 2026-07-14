@@ -27,7 +27,7 @@ import {
   restoreStudioBaselineComparisonRows,
   type StudioBaselineReportRow,
 } from "@/lib/studio-baseline-report";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCurrency, normalizeBusinessName } from "@/lib/utils";
 
 const maxFileSizeInBytes = 5 * 1024 * 1024;
 type BaselineImportMode = "main_curve" | "studio_sources";
@@ -60,6 +60,11 @@ export function BaselineImportCenter() {
     () => studioBaselineSnapshots.find((snapshot) => snapshot.year === year && snapshot.sourceCode === sourceCode),
     [sourceCode, studioBaselineSnapshots, year],
   );
+  const latestCurveSnapshotRows = useMemo(() => {
+    if (sourceCode === "studio_general") return [];
+    const curveSnapshot = studioBaselineSnapshots.find((snapshot) => snapshot.year === year && snapshot.sourceCode === "studio_general");
+    return curveSnapshot ? restoreStudioBaselineComparisonRows(curveSnapshot.rows) : [];
+  }, [sourceCode, studioBaselineSnapshots, year]);
   const latestSnapshotRows = useMemo(
     () => latestSnapshot && latestSnapshot.id !== dismissedSnapshotId
       ? restoreStudioBaselineComparisonRows(latestSnapshot.rows)
@@ -68,12 +73,12 @@ export function BaselineImportCenter() {
   );
   const loadedFromSnapshot = importedRows.length === 0 && latestSnapshotRows.length > 0;
   const displayRows = useMemo(
-    () => sortStudioBaselineRows(importedRows.length ? importedRows : latestSnapshotRows),
-    [importedRows, latestSnapshotRows],
+    () => sortStudioBaselineRows(applyCurveBaselineToRows(importedRows.length ? importedRows : latestSnapshotRows, latestCurveSnapshotRows)),
+    [importedRows, latestCurveSnapshotRows, latestSnapshotRows],
   );
   const selectedImportedRows = useMemo(
-    () => sortStudioBaselineRows(importedRows.filter((row) => financialKeys.has(row.key))),
-    [financialKeys, importedRows],
+    () => sortStudioBaselineRows(applyCurveBaselineToRows(importedRows.filter((row) => financialKeys.has(row.key)), latestCurveSnapshotRows)),
+    [financialKeys, importedRows, latestCurveSnapshotRows],
   );
   const rows = importedRows.length ? selectedImportedRows : displayRows;
   const activeFileName = importedRows.length ? fileName : loadedFromSnapshot ? latestSnapshot?.fileName ?? "" : fileName;
@@ -509,6 +514,26 @@ function sortStudioBaselineRows(rows: StudioBaselineComparisonRow[]) {
     || compareBusinessLabel(first.registeredStudioName, second.registeredStudioName)
     || compareBusinessLabel(first.status, second.status)
   );
+}
+
+function applyCurveBaselineToRows(rows: StudioBaselineComparisonRow[], curveRows: StudioBaselineComparisonRow[]) {
+  if (!curveRows.length) return rows;
+  const curveBaselineByCustomerStudio = new Map(
+    curveRows.map((row) => [getCustomerStudioKey(row.customerName, row.studioName), row.registeredCustomerStudioTarget || row.baselineTotal]),
+  );
+
+  return rows.map((row) => {
+    const curveStudioTarget = curveBaselineByCustomerStudio.get(getCustomerStudioKey(row.customerName, row.studioName));
+    if (curveStudioTarget === undefined) return row;
+    return {
+      ...row,
+      registeredCustomerStudioTarget: curveStudioTarget,
+    };
+  });
+}
+
+function getCustomerStudioKey(customerName: string, studioName: string) {
+  return `${normalizeBusinessName(customerName)}:${normalizeBusinessName(studioName)}`;
 }
 
 function compareBusinessLabel(first: string, second: string) {
