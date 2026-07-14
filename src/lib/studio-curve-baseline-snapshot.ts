@@ -129,7 +129,7 @@ function getEligibleCurveStudioName(studioName: string, revenueStream: string, c
   }
 
   if (normalizedStudio === "cloud") {
-    const allianceStudioName = getCloudAllianceStudioName(customerName);
+    const allianceStudioName = getCloudAllianceStudioName(customerName, revenueStream);
     if (allianceStudioName) return allianceStudioName;
     if (isManagedServicesCustomer(customerName)) return "Managed Services";
     return isManagedServicesRevenueStream(revenueStream) ? "Managed Services" : "";
@@ -138,11 +138,11 @@ function getEligibleCurveStudioName(studioName: string, revenueStream: string, c
   return studioName;
 }
 
-function getCloudAllianceStudioName(customerName: string) {
-  const normalized = normalizeBusinessName(customerName);
-  if (normalized === "google llc") return "Alianças Google";
-  if (normalized === "microsoft") return "Alianças Microsoft";
-  if (normalized === "amazon web") return "Alianças AWS";
+function getCloudAllianceStudioName(customerName: string, revenueStream: string) {
+  const normalizedLabels = [customerName, revenueStream].map((value) => normalizeBusinessName(value));
+  if (normalizedLabels.some((label) => label === "google llc" || label.includes("google llc"))) return "Alianças Google";
+  if (normalizedLabels.some((label) => label === "microsoft" || label.includes("microsoft"))) return "Alianças Microsoft";
+  if (normalizedLabels.some((label) => label === "amazon web" || label.includes("amazon web"))) return "Alianças AWS";
   return "";
 }
 

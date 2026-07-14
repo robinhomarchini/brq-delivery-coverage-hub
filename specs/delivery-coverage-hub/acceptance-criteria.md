@@ -463,7 +463,8 @@
   baseline de Studios; `RESELL` não entra; `Cloud` é remapeado para
   `Managed Services` quando o cliente da coluna C for Managed Services ou a
   coluna J indicar Managed Services, e para Alianças Google/Microsoft/AWS quando
-  o cliente da coluna C for Google LLC, Microsoft ou Amazon Web; `Arquitetura`
+  o cliente da coluna C ou o Revenue Stream da coluna J indicar Google LLC,
+  Microsoft ou Amazon Web; `Arquitetura`
   vira PX somente quando a coluna A/SU for Weme.
 - Na importação da Curva principal, a curva de clientes vem da aba
   `Resumo RL 2026`; a aba `Sheet1` é usada para derivar a baseline geral de
