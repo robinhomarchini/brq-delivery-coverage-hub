@@ -19,6 +19,8 @@ const authGatePath = path.join(root, "src", "components", "auth", "auth-gate.tsx
 const appShellPath = path.join(root, "src", "components", "layout", "app-shell.tsx");
 const settingsPagePath = path.join(root, "src", "app", "configuracoes", "page.tsx");
 const providerPath = path.join(root, "src", "lib", "repositories", "provider.ts");
+const nextConfigPath = path.join(root, "next.config.ts");
+const proxyPath = path.join(root, "src", "proxy.ts");
 const rlsMigrationPath = path.join(root, "supabase", "migrations", "20260709102000_harden_rls_audit_for_financial_targets.sql");
 const targetBaselineMigrationPath = path.join(root, "supabase", "migrations", "20260714112000_target_baseline_snapshots.sql");
 const rlsSmokePath = path.join(root, "scripts", "smoke-rls-access.mjs");
@@ -46,6 +48,8 @@ const authGateSource = fs.readFileSync(authGatePath, "utf8");
 const appShellSource = fs.readFileSync(appShellPath, "utf8");
 const settingsPageSource = fs.readFileSync(settingsPagePath, "utf8");
 const providerSource = fs.readFileSync(providerPath, "utf8");
+const nextConfigSource = fs.readFileSync(nextConfigPath, "utf8");
+const proxySource = fs.readFileSync(proxyPath, "utf8");
 const rlsMigrationSource = fs.readFileSync(rlsMigrationPath, "utf8");
 const targetBaselineMigrationSource = fs.readFileSync(targetBaselineMigrationPath, "utf8");
 const rlsSmokeSource = fs.readFileSync(rlsSmokePath, "utf8");
@@ -108,6 +112,12 @@ assertIncludes(settingsPageSource, "createAccessRepositorySelection", "Settings 
 assertNotIncludes(settingsPageSource, "getSupabaseBrowserClient", "Settings page must not create the Supabase client directly.");
 assertNotIncludes(settingsPageSource, ".rpc(", "Settings page must not call Supabase RPCs directly.");
 assertIncludes(providerSource, "if (process.env.NODE_ENV === \"production\") return \"unavailable\"", "Production must not fall back to local mock data.");
+assertIncludes(nextConfigSource, "X-Frame-Options", "Next config must set frame protection headers.");
+assertIncludes(nextConfigSource, "X-Content-Type-Options", "Next config must set MIME sniffing protection.");
+assertIncludes(proxySource, "Content-Security-Policy", "Proxy must set CSP per request.");
+assertIncludes(proxySource, "nonce-", "CSP proxy must set a script nonce.");
+assertIncludes(proxySource, "`'nonce-${nonce}'`", "CSP script-src must use a per-request nonce.");
+assertNotIncludes(proxySource, "script-src 'self' 'unsafe-inline'", "CSP script-src must not allow unsafe-inline.");
 assertIncludes(rlsMigrationSource, "drop policy if exists \"Authenticated users manage person customer assignments\"", "RLS hardening must drop broad assignment write policy.");
 assertIncludes(rlsMigrationSource, "drop policy if exists \"Authenticated users manage revenue target allocations\"", "RLS hardening must drop broad target allocation write policy.");
 assertIncludes(rlsMigrationSource, "using (public.is_active_brq_user())", "RLS hardening must restrict reads to active BRQ users.");
@@ -152,6 +162,7 @@ assertIncludes(packageSource, "\"security:check\": \"node scripts/security-check
 assertIncludes(securityDocSource, "npm run security:check", "Security documentation must explain the security check command.");
 assertIncludes(securityDocSource, "NEXT_PUBLIC_AUTH_PROVIDER", "Security documentation must explain auth provider selection.");
 assertIncludes(envExampleSource, "NEXT_PUBLIC_AUTH_PROVIDER=supabase", ".env.example must expose the auth provider selector without secrets.");
+assertNotIncludes(envExampleSource, "SUPABASE_SERVICE_ROLE_KEY=", ".env.example must not expose or model service role key assignments.");
 
 console.log("Security hardening QA checks passed.");
 

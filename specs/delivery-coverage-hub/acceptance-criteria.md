@@ -470,7 +470,8 @@
   `Resumo RL 2026`; a aba `Sheet1` é usada para derivar a baseline geral de
   Studios.
 - A curva de clientes importa somente linhas válidas de `BU Financial` da aba
-  `Resumo RL 2026`, excluindo outras BUs, linhas zeradas e a linha `Total`.
+  `Resumo RL 2026`, usando o segundo quadro oficial que começa na linha 125 e
+  excluindo quadros anteriores, outras BUs, linhas zeradas e a linha `Total`.
 - Na comparação da Curva principal, mensagens longas de divergência Hunter não
   devem alongar a linha da tabela; a grade mostra resumo curto e um botão de
   detalhes para abrir o racional completo.

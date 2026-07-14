@@ -1,0 +1,252 @@
+# Security Gates — Automated Quality Checks
+# Update .squad/memory.md with status and run date
+
+gates:
+  # CRITICAL: Deployment Blockers
+
+  csp_script_src_safe:
+    name: "CSP script-src safe for production"
+    rule: "script-src must not contain 'unsafe-inline' in production"
+    check: |
+      #!/bin/bash
+      if grep -E "script-src.*unsafe-inline" src/proxy.ts next.config.ts; then
+        echo "❌ FAIL: script-src has unsafe-inline"
+        exit 1
+      fi
+      if ! grep -q "nonce-" src/proxy.ts; then
+        echo "❌ FAIL: CSP proxy must set a script nonce"
+        exit 1
+      fi
+      echo "✅ PASS: CSP script-src safe"
+    fail_message: "CSP Violation! script-src in production must use nonce, not unsafe-inline. Update next.config.ts."
+    severity: CRITICAL
+    run_on:
+      - every_commit_to_main
+      - pre_deploy_production
+    related_files:
+      - next.config.ts
+      - src/proxy.ts
+
+  hardcoded_test_data:
+    name: "No hardcoded test data in migrations"
+    rule: "Changed migrations must not contain hardcoded emails, credentials, or test data"
+    check: |
+      #!/bin/bash
+      changed_files=$(git diff --name-only HEAD~1 HEAD -- supabase/migrations || true)
+      if [ -z "$changed_files" ]; then
+        echo "✅ PASS: No changed migrations to scan"
+        exit 0
+      fi
+      patterns=(
+        "robinson.marchini"
+        "acoelho"
+        "test@brq"
+        "demo@brq"
+        "password.*="
+        "secret.*="
+      )
+      found=0
+      for pattern in "${patterns[@]}"; do
+        if echo "$changed_files" | xargs grep -nE "$pattern"; then
+          echo "❌ Found hardcoded data: $pattern"
+          found=1
+        fi
+      done
+      if [ $found -eq 1 ]; then
+        exit 1
+      fi
+      echo "✅ PASS: No hardcoded test data"
+    fail_message: "Hardcoded test data found in migrations! Remove before pushing. Use variables or feature flags."
+    severity: CRITICAL
+    run_on:
+      - every_commit_to_main
+      - pre_deploy_production
+    related_files:
+      - supabase/migrations/*
+
+  service_role_key_exposure:
+    name: "SERVICE_ROLE_KEY never exposed"
+    rule: ".env.example and .env.production must not contain SUPABASE_SERVICE_ROLE_KEY"
+    check: |
+      #!/bin/bash
+      if grep "^SUPABASE_SERVICE_ROLE_KEY=" .env.example 2>/dev/null; then
+        echo "❌ FAIL: SUPABASE_SERVICE_ROLE_KEY found in .env.example"
+        exit 1
+      fi
+      if grep "^SUPABASE_SERVICE_ROLE_KEY=" .env.production 2>/dev/null; then
+        echo "❌ FAIL: SUPABASE_SERVICE_ROLE_KEY found in .env.production"
+        exit 1
+      fi
+      echo "✅ PASS: SERVICE_ROLE_KEY protected"
+    fail_message: "SERVICE_ROLE_KEY exposed in environment file! Remove immediately. Set only in .env.local."
+    severity: CRITICAL
+    run_on:
+      - every_commit_to_main
+      - pre_deploy_production
+    related_files:
+      - .env.example
+      - .env.production
+
+  env_local_gitignored:
+    name: ".env.local in .gitignore"
+    rule: ".env.local must be tracked in .gitignore"
+    check: |
+      #!/bin/bash
+      if grep -q "\.env\.local" .gitignore; then
+        echo "✅ PASS: .env.local is gitignored"
+        exit 0
+      else
+        echo "❌ FAIL: .env.local not found in .gitignore"
+        exit 1
+      fi
+    fail_message: ".env.local must be in .gitignore to prevent accidental credential leaks."
+    severity: CRITICAL
+    run_on:
+      - every_commit
+      - pre_deploy_production
+
+  build_includes_tests:
+    name: "npm run build includes all validations"
+    rule: "build script must run: lint, typecheck, test:contracts, build"
+    check: |
+      #!/bin/bash
+      build_script=$(grep -A1 '"build"' package.json | tail -1)
+      if echo "$build_script" | grep -q "lint" && \
+         echo "$build_script" | grep -q "typecheck" && \
+         echo "$build_script" | grep -q "test:contracts"; then
+        echo "✅ PASS: build script includes all gates"
+        exit 0
+      else
+        echo "❌ FAIL: build script missing gates"
+        echo "Expected: lint && npm run typecheck && npm run test:contracts && next build"
+        echo "Got: $build_script"
+        exit 1
+      fi
+    fail_message: "Build script incomplete! Must include: lint, typecheck, test:contracts"
+    severity: CRITICAL
+    run_on:
+      - every_commit_to_main
+      - pre_deploy_production
+
+  # HIGH: Pre-Deploy Gates
+
+  rls_validations_pass:
+    name: "RLS and migrations validated"
+    rule: "npm run db:migrations:check must pass"
+    command: "npm run db:migrations:check"
+    fail_message: "RLS/migrations check failed! Review schema policies before deploying."
+    severity: HIGH
+    run_on:
+      - pre_deploy_production
+      - any_migration_change
+    related_files:
+      - supabase/migrations/*
+
+  security_check_pass:
+    name: "Security comprehensive check"
+    rule: "npm run security:check must pass (CSP, secrets, audit, pentest)"
+    command: "npm run security:check"
+    fail_message: "Security check failed! Review hardening before deploying."
+    severity: HIGH
+    run_on:
+      - pre_deploy_production
+    related_files:
+      - next.config.ts
+      - src/server/auth/*
+      - src/lib/repositories/*
+
+  # MEDIUM: Quality Gates
+
+  lint_pass:
+    name: "Code linting"
+    rule: "npm run lint must pass (ESLint)"
+    command: "npm run lint"
+    fail_message: "Linting failed! Fix issues before pushing."
+    severity: MEDIUM
+    run_on:
+      - every_commit_to_main
+
+  typecheck_pass:
+    name: "Type safety"
+    rule: "npm run typecheck must pass (TypeScript strict)"
+    command: "npm run typecheck"
+    fail_message: "Type errors detected! Fix before pushing."
+    severity: MEDIUM
+    run_on:
+      - every_commit_to_main
+
+  contracts_pass:
+    name: "Repository contracts"
+    rule: "npm run test:contracts must pass"
+    command: "npm run test:contracts"
+    fail_message: "Repository contract test failed! Check adapter compatibility."
+    severity: MEDIUM
+    run_on:
+      - every_commit_to_main
+
+# CI/CD Integration
+
+ci_cd:
+  platform: github_actions
+  workflow_file: .github/workflows/security-quality-gate.yml
+
+  on_pull_request:
+    - lint_pass
+    - typecheck_pass
+    - contracts_pass
+    - security_check_pass
+    - csp_script_src_safe
+    - hardcoded_test_data
+    - service_role_key_exposure
+    - env_local_gitignored
+
+  on_push_to_main:
+    - lint_pass
+    - typecheck_pass
+    - contracts_pass
+    - build_includes_tests
+    - security_check_pass
+    - csp_script_src_safe
+    - hardcoded_test_data
+    - service_role_key_exposure
+    - env_local_gitignored
+
+  on_deploy_production:
+    - lint_pass
+    - typecheck_pass
+    - contracts_pass
+    - security_check_pass
+    - rls_validations_pass
+    - csp_script_src_safe
+    - hardcoded_test_data
+    - service_role_key_exposure
+    - env_local_gitignored
+    - build_includes_tests
+
+# Local Usage
+
+local:
+  before_push: |
+    npm run lint && \
+    npm run typecheck && \
+    npm run test:contracts && \
+    npm run security:check && \
+    npm run build
+
+  before_production_deploy: |
+    npm run db:migrations:check && \
+    npm run test:performance && \
+    npm run smoke:critical && \
+    npm run smoke:rls && \
+    npm run security:pentest-lite
+
+  check_all: |
+    echo "Running all security gates..."
+    npm run lint && \
+    npm run typecheck && \
+    npm run test:contracts && \
+    npm run security:check && \
+    npm run build && \
+    npm run db:migrations:check && \
+    npm run test:performance && \
+    npm run smoke:critical

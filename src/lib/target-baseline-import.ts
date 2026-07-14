@@ -96,11 +96,12 @@ const responsibleAliases: Record<string, string[]> = {
 };
 
 const zeroMoneyTolerance = 0.01;
+const officialFinancialCurveTableStartRow = 125;
 
 export function parseTargetBaselineRows(rows: SpreadsheetCell[][]): TargetBaselineRow[] {
   if (!rows.length) throw new Error("A planilha está vazia.");
 
-  const headerRowIndex = findTargetHeaderRowIndex(rows);
+  const headerRowIndex = findTargetHeaderRowIndex(rows, officialFinancialCurveTableStartRow);
   const headers = rows[headerRowIndex].map((cell) => normalizeHeader(String(cell ?? "")));
   const indexes = {
     customerName: findHeaderIndex(headers, requiredHeaders.customerName, "Cliente"),
@@ -168,8 +169,10 @@ export function buildTargetBaselineSnapshotInput(
   };
 }
 
-function findTargetHeaderRowIndex(rows: SpreadsheetCell[][]) {
-  const index = rows.findIndex((row) => {
+function findTargetHeaderRowIndex(rows: SpreadsheetCell[][], firstAllowedRowNumber = 1) {
+  const firstAllowedIndex = Math.max(firstAllowedRowNumber - 1, 0);
+  const index = rows.findIndex((row, rowIndex) => {
+    if (rowIndex < firstAllowedIndex) return false;
     const headers = row.map((cell) => normalizeHeader(String(cell ?? "")));
     return findOptionalHeaderIndex(headers, requiredHeaders.customerName) >= 0
       && findOptionalHeaderIndex(headers, requiredHeaders.businessUnit) >= 0
@@ -178,6 +181,9 @@ function findTargetHeaderRowIndex(rows: SpreadsheetCell[][]) {
       && findOptionalHeaderIndex(headers, requiredHeaders.totalTarget) >= 0;
   });
   if (index >= 0) return index;
+  if (firstAllowedRowNumber > 1) {
+    throw new Error(`Cabeçalho da tabela Financial da baseline não encontrado a partir da linha ${firstAllowedRowNumber}. Verifique a aba Resumo RL 2026 da Curva principal.`);
+  }
   throw new Error("Cabeçalho da baseline não encontrado. Verifique Cliente, BU, Hunter/Renovação e Total RL 2026.");
 }
 

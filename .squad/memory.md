@@ -1,5 +1,91 @@
 # Squad Memory - BRQ Delivery Coverage Hub
 
+## Quality Patterns & Anti-Patterns (2026-07-14+)
+
+### Established Patterns to Preserve
+
+✅ **Adapter Pattern**: DeliveryRepository centraliza persistência, permite trocar Supabase por SQL Server no futuro sem alterar UI
+
+✅ **BFF for Sensitive Operations**: `/api/delivery/customers`, `/api/delivery/person-customer-targets` validam session, papel, RLS servidor-side
+
+✅ **RLS Enforcement**: `is_active_brq_user()`, `can_edit_delivery_data()`, `is_delivery_admin()` em todas tabelas públicas
+
+✅ **Validation Cascade**: Zod em cliente → BFF → Banco (nunca confiar em uma camada)
+
+✅ **Transactions for Consistency**: RPCs como `save_person_with_assignments`, `save_customer_with_managers` para multi-write atomicity
+
+✅ **Normalized Data Model**: `person_customer_assignments` N:N, targets por pessoa/cliente/tipo/ano, baselines separados
+
+✅ **View Models Extracted**: `customer-coverage-view-model.ts`, `person-target-rollups.ts`, `studio-baseline-report.ts` fora de componentes
+
+✅ **Partial Store Sync**: `setCustomerTargets((current) => ...)` + `syncStudioDerivedTargetsFromStudioAllocations()` vs full `getAll()`
+
+### Security Anti-Patterns to Block
+
+❌ **Never**:
+
+- Use `unsafe-inline` em `script-src` CSP
+- Hardcode user emails, credentials, dados de teste em migrations
+- Expor `SUPABASE_SERVICE_ROLE_KEY` em `.env.example`, `.env.production`, versionado
+- Chamar Supabase direto do browser para operações sensíveis (sem BFF)
+- Deixar `.env.local` sem `.gitignore`
+- Deploy sem `npm run security:check` passando
+
+### Performance Anti-Patterns to Block
+
+❌ **Never**:
+
+- `getAll()` sem paginação em tabelas >100 registros
+- Componentes >500 linhas sem extração de view models
+- Full re-render em Store Context sem memoização
+- Lazy loading de componentes pesados sem `<Suspense>`
+- Recharts com 10k+ pontos sem downsampling
+- HTML-to-Image PDF com 10k+ linhas sem streaming
+
+### Architecture Anti-Patterns to Block
+
+❌ **Never**:
+
+- Hardcode operational data (pessoas, clientes, managers, hunters, áreas, studios) em UI
+- Duplicar business rules apenas em UI (deve estar em repo/API/RPC/RLS/constraints)
+- Usar string queries em Supabase sem type-safe builder
+- Manter soft state em localStorage sem validação de servidor
+- Chamadas diretas a `client.auth` em componentes (usar `authService`)
+- Sem soft delete (dados deletados ficam órfãos)
+
+### Quality Gates Obrigatórias
+
+✅ **Sempre executar antes de push**:
+
+```bash
+npm run lint              # ESLint
+npm run typecheck         # TypeScript strict
+npm run test:contracts    # Repository contract
+npm run security:check    # CSP, secrets, RLS
+npm run build             # Next.js build
+npm run smoke:critical    # Fluxos críticos
+```
+
+✅ **Antes de deploy para produção**:
+
+```bash
+npm run db:migrations:check  # Valida RLS/migrations
+npm run test:performance     # Memoização, índices
+npm run security:pentest-lite # Pentest contra URL
+npm run smoke:rls            # RLS com perfis reais
+```
+
+### Incident Lessons (2026-07-14 Assessment)
+
+1. **CSP unsafe-inline XSS**: Agora usa nonce em `src/proxy.ts` (produção safe no Next 16)
+2. **Hardcoded test data**: Bloqueado por `grep` em security:check
+3. **SERVICE_ROLE_KEY leak**: Documentado com SECURITY WARNING, nunca em .env.example
+4. **Missing BFF**: Completar para `savePerson`, `saveArea`, `saveSubject`
+5. **Manual deploy**: GitHub Actions CI/CD em progresso
+6. **No rate limiting**: Implementar em `/api/delivery/*`
+7. **No pagination**: Adicionar `limit`, `offset` ao `getAll()`
+8. **Untested RLS**: `npm run smoke:rls` agora bloqueia regressões
+
 ## Current Task Objective
 
 Centralizar importação de baselines em uma nova rota, removendo uploads antigos de Insights/Comparativo Baseline e preservando telas operacionais atuais.

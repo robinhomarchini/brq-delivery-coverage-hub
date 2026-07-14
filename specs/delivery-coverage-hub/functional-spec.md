@@ -625,6 +625,10 @@ o responsável informado na planilha para análise, mas não reclassifica
 automaticamente valores entre os componentes. Se a coluna Total vier com texto
 não numérico em uma linha, o sistema deve usar Hunter + Renovação + Ampliação
 como total efetivo daquela linha.
+Na Curva principal oficial, a aba `Resumo RL 2026` possui mais de um quadro; o
+baseline de clientes deve usar somente o segundo quadro Financial, procurando o
+cabeçalho a partir da linha 125. Quadros anteriores da mesma aba são ignorados
+para evitar duplicidade de clientes no upload.
 
 A rota Comparativo Baseline apresenta a foto inicial aprovada pelo board para o
 ano de referência e compara essa foto contra o cadastro operacional atual. Para

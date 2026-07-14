@@ -79,6 +79,162 @@ For final handoff after implementation or review, use this structure:
   instead of switching to browser/manual SQL or inventing a new path.
 - Automation scripts must use local/project cache paths, bounded retries, and clear failure messages. Do not keep changing command strategy after one path has produced a reliable result.
 
+## Security & Production Readiness Gates
+
+**OBRIGATÓRIO** para qualquer mudança que toque: autenticação, autorização, RLS, migrations, schema, APIs sensíveis, configurações de ambiente, CSP, headers, ou secrets.
+
+### Critical Security Checklist
+
+- [ ] **CSP never uses `unsafe-inline` for script-src in production**
+  - script-src must be `'self'` + nonce (computed per request in `src/proxy.ts`)
+  - Validate in `next.config.ts` — production build must NOT have `unsafe-inline` in script-src
+  - Development can use `unsafe-eval` for debugging, but **never commit**
+
+- [ ] **Hardcoded test data never in migrations**
+  - Before commit, run: `grep -r "robinson.marchini|acoelho|test@|demo@" supabase/migrations/`
+  - All seed data must use variables or conditional imports, never static SQL INSERTs
+  - Run `npm run security:check` — blocks commits with hardcoded sensitive data
+
+- [ ] **Secrets protected in environment files**
+  - `SUPABASE_SERVICE_ROLE_KEY` must NEVER appear in `.env.example` or `.env.production`
+  - If mentioning in `.env.example`, add **SECURITY WARNING** comment explaining local-only usage
+  - `.env.local` must be in `.gitignore` (verify with `grep .env.local .gitignore`)
+  - No credentials, tokens, or API keys in version control
+
+- [ ] **Supabase Auth sign-up disabled in production**
+  - If enabled, any `@brq.com` email can register
+  - Validate in Supabase dashboard: Auth → Settings → disable Email/Password signup for production
+  - Document status in [PRODUCTION_READINESS.md](docs/PRODUCTION_READINESS.md)
+
+- [ ] **BFF required for sensitive write operations**
+  - `savePerson()`, `saveArea()`, `saveSubject()` must have corresponding `POST /api/delivery/[entity]`
+  - BFF must validate: session (via bearer token) + papel (viewer/editor/admin) + RLS rules
+  - Never send raw `DeliveryRepository` writes directly from browser to Supabase
+  - Example: [src/app/api/delivery/customers/route.ts](src/app/api/delivery/customers/route.ts)
+
+- [ ] **Rate limiting on `/api/delivery/*` routes**
+  - Prevents DoS even from authenticated users
+  - Use `@upstash/ratelimit` or custom middleware with time-window buckets
+  - Example: 100 requests/minute per user per endpoint
+
+- [ ] **Migrations pass `npm run db:migrations:check`**
+  - Validates RLS policies are explicit (not generic)
+  - Confirms no forward references or circular dependencies
+  - Policies must use `SECURITY DEFINER` for sensitive RPCs
+  - No migration bypasses RLS or removes constraints without justification
+
+### Review Lenses for Security
+
+**Deploy blocked if ANY of these fail**:
+
+1. **CSP Reviewer**: `src/proxy.ts` script-src has no `unsafe-inline` in production
+2. **Secrets Reviewer**: grep `.env.*` and migrations for credentials — found = fail
+3. **RLS Reviewer**: all table policies use `is_active_brq_user()`, `can_edit_delivery_data()`, `is_delivery_admin()`
+4. **BFF Reviewer**: no sensitive writes bypass `/api/delivery/*` routes
+5. **Migration Reviewer**: `npm run db:migrations:check` passes
+
+### Commands Before Every Push
+
+```bash
+npm run lint                 # ESLint
+npm run typecheck           # TypeScript strict
+npm run test:contracts      # Repository contract
+npm run security:check      # CSP, secrets, RLS, audit
+npm run build               # Includes all above
+```
+
+### Commands Before Every Production Deploy
+
+```bash
+npm run db:migrations:check   # RLS/migrations validation
+npm run test:performance      # Memoization, indexes
+npm run smoke:critical        # Customer-hunter, targets
+npm run smoke:rls             # RLS with real roles
+npm run security:pentest-lite # Pentest against URL
+```
+
+## Incident Prevention — Lessons from 2026-07-14
+
+### Incident 1: CSP unsafe-inline Allowed XSS
+
+**Root cause**: `script-src 'self' 'unsafe-inline'` permitted direct XSS via attribute events.
+
+**Prevention**:
+
+- CSP must be computed per-request with nonce in `src/proxy.ts` on Next 16+
+- `next.config.ts` must NOT have `unsafe-inline` in script-src for production
+- Review gate: block any PR adding `unsafe-inline` to script-src
+
+### Incident 2: Hardcoded Test Data in Migrations
+
+**Root cause**: User emails (`robinson.marchini@brq.com`, `acoelho@brq.com`) were hardcoded in migration SQL INSERTs.
+
+**Prevention**:
+
+- CI/CD gate: `grep -r "robinson.marchini|acoelho|test@|demo@" supabase/migrations/ && exit 1`
+- `npm run security:check` must block commits with hardcoded sensitive data
+- All seed data via variables or feature flags, never static SQL
+
+### Incident 3: SERVICE_ROLE_KEY Exposed in .env.example
+
+**Root cause**: Sensitive Supabase key was documented (even commented) in version control.
+
+**Prevention**:
+
+- **Never** add `SUPABASE_SERVICE_ROLE_KEY` to `.env.example` or `.env.production`
+- If mentioning, add SECURITY WARNING explaining local-only usage in comments
+- CI/CD gate: `grep "SUPABASE_SERVICE_ROLE_KEY=" .env.example && exit 1`
+
+### Incident 4: Missing BFF for Sensitive Operations
+
+**Root cause**: `savePerson()` called Supabase directly from browser, bypassing server-side validation.
+
+**Prevention**:
+
+- All CRUD writes must go through BFF routes (`/api/delivery/*`)
+- BFF validates session + papel + RLS before touching database
+- Review gate: "no sensitive write operation without corresponding BFF"
+
+### Incident 5: Incomplete CI/CD — Manual Deploys
+
+**Root cause**: Deploy was manual `npx vercel deploy --prod --yes`, without automated checks.
+
+**Prevention**:
+
+- GitHub Actions workflow (`.github/workflows/`) runs lint → typecheck → test → build → deploy
+- Pipeline blocks deploy if any check fails
+- Rollback plan documented in [docs/ROLLBACK_PLAN.md](docs/ROLLBACK_PLAN.md)
+
+### Incident 6: Missing Rate Limiting
+
+**Root cause**: Authenticated users could DoS `/api/delivery/*` with parallel requests.
+
+**Prevention**:
+
+- Rate limiting middleware on all `/api/delivery/*` routes
+- Example: 100 requests/minute per user
+- Use `@upstash/ratelimit` or custom middleware
+
+### Incident 7: Store Without Pagination
+
+**Root cause**: `getAll()` loaded all 10k+ rows, blocking UI on first load.
+
+**Prevention**:
+
+- `DeliveryRepository.getAll()` must support `{ limit: 100, offset: 0 }`
+- Store implements lazy loading — loads paginated chunks, not full dataset
+- Performance test blocks any full-load reintroduction
+
+### Incident 8: RLS Changes Untested
+
+**Root cause**: Migration changed RLS policies without automated tests.
+
+**Prevention**:
+
+- `npm run smoke:rls` obrigatório before deploy
+- Docker Postgres container runs migrations locally + tests each policy with viewer/editor/admin/blocked roles
+- CI/CD runs smoke RLS with dedicated test accounts
+
 ## Architecture
 
 - Next.js App Router and TypeScript

@@ -220,6 +220,8 @@ if (targetImporter.includes("Resp. planilha")) {
 
 const targetParser = fs.readFileSync(path.join(root, "src", "lib", "target-baseline-import.ts"), "utf8");
 const requiredTargetParserTokens = [
+  "officialFinancialCurveTableStartRow = 125",
+  "findTargetHeaderRowIndex(rows, officialFinancialCurveTableStartRow)",
   "normalizeHeader(row.businessUnit) === \"bu financial\"",
   "normalizeHeader(row.customerName) !== \"total\"",
   "row.totalTarget > zeroMoneyTolerance",
