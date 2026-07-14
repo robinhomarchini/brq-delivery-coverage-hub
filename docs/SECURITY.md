@@ -82,6 +82,27 @@ Depois rode `npm run smoke:rls:provision` e `npm run smoke:rls`. As contas devem
 ser dedicadas a teste e usar e-mail corporativo `@brq.com`; o provisionador
 recusa contas que não pareçam ser de smoke/teste.
 
+## Limpeza de snapshots de baseline
+
+Fotos de baseline de Studios são históricas e não devem ser apagadas
+manualmente pelo navegador. Para reduzir acúmulo de planilhas antigas, use:
+
+```bash
+npm run maintenance:baseline-snapshots
+```
+
+Por padrão o comando roda em `DRY-RUN`: lista quantas fotos existem por
+`ano + origem` e quais seriam apagadas. A retenção padrão mantém as 2 fotos mais
+recentes por combinação. Para executar a limpeza real em ambiente controlado:
+
+```bash
+BASELINE_SNAPSHOT_RETENTION=2 CONFIRM_BASELINE_SNAPSHOT_CLEANUP=delete-old-snapshots npm run maintenance:baseline-snapshots
+```
+
+O script usa `SUPABASE_SERVICE_ROLE_KEY` apenas em execução local/operacional,
+nunca no frontend. A operação preserva RLS da aplicação e deixa trilha no audit
+trigger da tabela `studio_baseline_snapshots`.
+
 ## Migration de hardening
 
 A migration `20260701193000_access_admin_invites.sql` substitui policies

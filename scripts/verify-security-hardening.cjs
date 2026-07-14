@@ -22,6 +22,7 @@ const providerPath = path.join(root, "src", "lib", "repositories", "provider.ts"
 const rlsMigrationPath = path.join(root, "supabase", "migrations", "20260709102000_harden_rls_audit_for_financial_targets.sql");
 const rlsSmokePath = path.join(root, "scripts", "smoke-rls-access.mjs");
 const rlsProvisionPath = path.join(root, "scripts", "provision-rls-smoke-users.mjs");
+const baselineCleanupPath = path.join(root, "scripts", "cleanup-baseline-snapshots.mjs");
 const envLoaderPath = path.join(root, "scripts", "env-loader.mjs");
 const pentestLitePath = path.join(root, "scripts", "pentest-lite.mjs");
 const securityCheckPath = path.join(root, "scripts", "security-check.mjs");
@@ -47,6 +48,7 @@ const providerSource = fs.readFileSync(providerPath, "utf8");
 const rlsMigrationSource = fs.readFileSync(rlsMigrationPath, "utf8");
 const rlsSmokeSource = fs.readFileSync(rlsSmokePath, "utf8");
 const rlsProvisionSource = fs.readFileSync(rlsProvisionPath, "utf8");
+const baselineCleanupSource = fs.readFileSync(baselineCleanupPath, "utf8");
 const envLoaderSource = fs.readFileSync(envLoaderPath, "utf8");
 const pentestLiteSource = fs.readFileSync(pentestLitePath, "utf8");
 const securityCheckSource = fs.readFileSync(securityCheckPath, "utf8");
@@ -126,6 +128,12 @@ assertIncludes(rlsProvisionSource, "isDedicatedSmokeEmail", "RLS smoke provision
 assertIncludes(rlsProvisionSource, "app_access_invites", "RLS smoke provisioning must create access invite rows.");
 assertIncludes(rlsProvisionSource, "app_users", "RLS smoke provisioning must create app user rows.");
 assertIncludes(packageSource, "\"smoke:rls:provision\": \"node scripts/provision-rls-smoke-users.mjs\"", "package.json must expose smoke:rls:provision.");
+assertIncludes(baselineCleanupSource, "CONFIRM_BASELINE_SNAPSHOT_CLEANUP", "Baseline snapshot cleanup must require explicit confirmation before deletion.");
+assertIncludes(baselineCleanupSource, "delete-old-snapshots", "Baseline snapshot cleanup must use a precise destructive confirmation value.");
+assertIncludes(baselineCleanupSource, "SUPABASE_SERVICE_ROLE_KEY", "Baseline snapshot cleanup must use a server-only service role key.");
+assertIncludes(baselineCleanupSource, "DRY-RUN", "Baseline snapshot cleanup must default to dry-run reporting.");
+assertIncludes(baselineCleanupSource, "BASELINE_SNAPSHOT_RETENTION", "Baseline snapshot cleanup must expose retention count as configuration.");
+assertIncludes(packageSource, "\"maintenance:baseline-snapshots\": \"node scripts/cleanup-baseline-snapshots.mjs\"", "package.json must expose baseline snapshot maintenance.");
 assertIncludes(pentestLiteSource, "/api/challenge-analysis without auth must return 401/403", "Pentest-lite must verify challenge analysis auth.");
 assertIncludes(pentestLiteSource, "/api/delivery/customers without auth must return 401/403", "Pentest-lite must verify customer command auth.");
 assertIncludes(pentestLiteSource, "/api/delivery/person-customer-targets without auth must return 401/403", "Pentest-lite must verify person/customer target command auth.");

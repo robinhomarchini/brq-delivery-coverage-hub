@@ -21,6 +21,7 @@
     "security:check": "node scripts/security-check.mjs",
     "security:pentest-lite": "node scripts/pentest-lite.mjs",
     "audit:background": "powershell -ExecutionPolicy Bypass -File scripts/audit-background.ps1",
+    "maintenance:baseline-snapshots": "node scripts/cleanup-baseline-snapshots.mjs",
     "db:migrations:check": "node scripts/check-supabase-migration-history.mjs",
     "ai:route": "tsx .ai/router/task-router.ts",
     "ai:context": "tsx .ai/router/context-selector.ts",
