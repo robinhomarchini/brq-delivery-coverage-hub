@@ -465,6 +465,9 @@
   coluna J indicar Managed Services, e para Alianças Google/Microsoft/AWS quando
   o cliente da coluna C for Google LLC, Microsoft ou Amazon Web; `Arquitetura`
   vira PX somente quando a coluna A/SU for Weme.
+- A importação da Curva principal exibe progresso por etapa enquanto processa o
+  arquivo, incluindo leitura do baseline, leitura de Studios, comparação,
+  geração da foto e salvamento.
 - Ao importar baseline manual de Studio/Área, linhas com BU/CC CROSS diferente
   de Financial são ignoradas quando a coluna existir.
 - Ao importar baseline manual de Studio/Área sem coluna BU/CC CROSS, a tela

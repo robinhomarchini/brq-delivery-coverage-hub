@@ -24,6 +24,14 @@ import { cn, formatCurrency } from "@/lib/utils";
 
 const currentYear = defaultTargetYear;
 const maxFileSizeInBytes = 5 * 1024 * 1024;
+type ImportProgress = {
+  step: number;
+  totalSteps: number;
+  label: string;
+  detail: string;
+};
+
+const importProgressTotalSteps = 6;
 
 export function TargetBaselineImport() {
   const {
@@ -42,6 +50,7 @@ export function TargetBaselineImport() {
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [applying, setApplying] = useState(false);
+  const [importProgress, setImportProgress] = useState<ImportProgress | null>(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -62,6 +71,7 @@ export function TargetBaselineImport() {
     const file = event.target.files?.[0];
     if (!file) return;
     setLoading(true);
+    setImportProgress(null);
     setError("");
     setSuccess("");
     setSelectedKeys(new Set());
@@ -70,9 +80,13 @@ export function TargetBaselineImport() {
       if (file.size > maxFileSizeInBytes) {
         throw new Error("Arquivo maior que 5 MB. Use uma planilha menor para homologação.");
       }
+      await updateImportProgress(setImportProgress, 1, "Lendo baseline de clientes", "Abrindo a aba Resumo RL 2026 da Curva principal.");
       const spreadsheetRows = await readTargetBaselineSheet(file);
+      await updateImportProgress(setImportProgress, 2, "Interpretando clientes", "Normalizando clientes, Hunter, Farmer e Total RL 2026.");
       const parsedRows = parseTargetBaselineRows(spreadsheetRows);
+      await updateImportProgress(setImportProgress, 3, "Lendo abertura de Studios", "Abrindo a aba Sheet1 para extrair BU Financial por Studio/Habilitador.");
       const curveStudioRows = await readCurveStudioRows(file);
+      await updateImportProgress(setImportProgress, 4, "Comparando com cadastro", "Calculando diferenças contra clientes, metas e alocações atuais.");
       const parsedComparisons = buildTargetBaselineComparisons(
         parsedRows,
         yearCustomers,
@@ -81,6 +95,7 @@ export function TargetBaselineImport() {
         studioTargetAllocations,
         year,
       );
+      await updateImportProgress(setImportProgress, 5, "Gerando baseline de Studios", "Montando a foto geral de Studios a partir da Curva principal.");
       const studioSnapshot = buildStudioCurveBaselineSnapshotInput({
         curveStudioRows,
         comparisons: parsedComparisons,
@@ -91,7 +106,10 @@ export function TargetBaselineImport() {
         fileName: file.name,
       });
       if (studioSnapshot) {
+        await updateImportProgress(setImportProgress, 6, "Salvando foto de Studios", "Persistindo a última foto para o Comparativo Baseline.");
         await saveStudioBaselineSnapshot(studioSnapshot);
+      } else {
+        await updateImportProgress(setImportProgress, 6, "Finalizando importação", "Nenhuma linha BU Financial de Studio foi encontrada para salvar.");
       }
       setRows(parsedRows);
       setFileName(file.name);
@@ -105,6 +123,7 @@ export function TargetBaselineImport() {
       setError(getImportErrorMessage(error));
     } finally {
       setLoading(false);
+      window.setTimeout(() => setImportProgress(null), 1200);
       event.target.value = "";
     }
   }
@@ -183,6 +202,7 @@ export function TargetBaselineImport() {
             Arquivo carregado: <span className="font-semibold text-slate-900">{fileName}</span>
           </div>
         )}
+        {importProgress && <ImportProgressPanel progress={importProgress} />}
       </Card>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
@@ -304,6 +324,40 @@ export function TargetBaselineImport() {
       )}
     </div>
   );
+}
+
+function ImportProgressPanel({ progress }: { progress: ImportProgress }) {
+  const percentage = Math.round((progress.step / progress.totalSteps) * 100);
+  return (
+    <div className="mt-4 rounded-xl border border-purple-100 bg-purple-50/70 px-4 py-3">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-bold text-slate-950">{progress.label}</p>
+          <p className="text-xs leading-5 text-slate-500">{progress.detail}</p>
+        </div>
+        <p className="text-xs font-bold text-brq-purple">{progress.step}/{progress.totalSteps} · {percentage}%</p>
+      </div>
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-white">
+        <div className="h-full rounded-full bg-brq-purple transition-all duration-300" style={{ width: `${percentage}%` }} />
+      </div>
+    </div>
+  );
+}
+
+async function updateImportProgress(
+  setImportProgress: React.Dispatch<React.SetStateAction<ImportProgress | null>>,
+  step: number,
+  label: string,
+  detail: string,
+) {
+  setImportProgress({ step, totalSteps: importProgressTotalSteps, label, detail });
+  await waitForNextPaint();
+}
+
+function waitForNextPaint() {
+  return new Promise<void>((resolve) => {
+    window.requestAnimationFrame(() => window.setTimeout(resolve, 0));
+  });
 }
 
 function MoneyCell({ value, highlight = false }: { value: number; highlight?: boolean }) {

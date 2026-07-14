@@ -148,4 +148,19 @@ if (missingCurveSnapshotTokens.length) {
   throw new Error(`Curve import no longer creates the general Studio baseline snapshot: ${missingCurveSnapshotTokens.join(", ")}`);
 }
 
+const requiredCurveImportProgressTokens = [
+  "ImportProgressPanel",
+  "updateImportProgress",
+  "Lendo baseline de clientes",
+  "Lendo abertura de Studios",
+  "Comparando com cadastro",
+  "Gerando baseline de Studios",
+  "Salvando foto de Studios",
+];
+
+const missingCurveImportProgressTokens = requiredCurveImportProgressTokens.filter((token) => !targetImporter.includes(token));
+if (missingCurveImportProgressTokens.length) {
+  throw new Error(`Curve baseline import must show progress steps: ${missingCurveImportProgressTokens.join(", ")}`);
+}
+
 console.log("Baseline centralization QA checks passed.");

@@ -715,6 +715,10 @@ canônica geral de Studios, em vez de depender de uma importação manual antiga
 planilha de Studios. A planilha `Visão Agrupada` pode ser usada como conferência
 de teste de mesa do resultado, mas não deve virar função sistêmica nem ser
 necessária como origem quando a Curva trouxer essas colunas.
+Durante a importação da Curva principal, a tela deve exibir progresso por etapa
+para indicar que o processamento está avançando: leitura do baseline de clientes,
+interpretação dos clientes, leitura da aba `Sheet1`, comparação com o cadastro,
+geração do baseline de Studios e salvamento da foto quando existir.
 A visão de Baseline de Studios no Comparativo deve consumir a última foto salva
 na central para a origem e ano selecionados, sem permitir upload ou gravação
 local naquela tela. A visão deve permitir filtro por Status e por Studio. O
