@@ -86,8 +86,8 @@ For final handoff after implementation or review, use this structure:
 ### Critical Security Checklist
 
 - [ ] **CSP never uses `unsafe-inline` for script-src in production**
-  - script-src must be `'self'` + nonce (computed per request in `src/proxy.ts`)
-  - Validate in `next.config.ts` — production build must NOT have `unsafe-inline` in script-src
+  - script-src must not be tightened unless browser hydration smoke proves Next scripts run
+  - Validate rendered HTML and browser console before production deployment
   - Development can use `unsafe-eval` for debugging, but **never commit**
 
 - [ ] **Hardcoded test data never in migrations**
@@ -127,7 +127,7 @@ For final handoff after implementation or review, use this structure:
 
 **Deploy blocked if ANY of these fail**:
 
-1. **CSP Reviewer**: `src/proxy.ts` script-src has no `unsafe-inline` in production
+1. **CSP Reviewer**: CSP changes require rendered HTML + browser hydration evidence
 2. **Secrets Reviewer**: grep `.env.*` and migrations for credentials — found = fail
 3. **RLS Reviewer**: all table policies use `is_active_brq_user()`, `can_edit_delivery_data()`, `is_delivery_admin()`
 4. **BFF Reviewer**: no sensitive writes bypass `/api/delivery/*` routes
@@ -161,9 +161,9 @@ npm run security:pentest-lite # Pentest against URL
 
 **Prevention**:
 
-- CSP must be computed per-request with nonce in `src/proxy.ts` on Next 16+
-- `next.config.ts` must NOT have `unsafe-inline` in script-src for production
-- Review gate: block any PR adding `unsafe-inline` to script-src
+- Do not publish a nonce CSP unless rendered Next scripts receive matching nonces
+- `next.config.ts` must NOT add static CSP without browser hydration smoke
+- Review gate: block CSP changes without console/network evidence
 
 ### Incident 2: Hardcoded Test Data in Migrations
 

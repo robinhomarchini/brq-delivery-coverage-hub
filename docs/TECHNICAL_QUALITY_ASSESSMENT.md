@@ -18,7 +18,7 @@
 | **Qualidade de Código** | 8/10       | ✅ Bom, componentes bem separados                     |
 | **MÉDIA GERAL**         | **7.6/10** | 🟡 **Pronto para homologação, ajustes para produção** |
 
-**Status**: Aplicação adequada para **homologação interna controlada**. Para **produção corporativa**, recomenda-se concluir os hardenings críticos remanescentes e as melhorias estratégicas documentadas abaixo. O hardening de CSP com nonce foi aplicado após esta avaliação.
+**Status**: Aplicação adequada para **homologação interna controlada**. Para **produção corporativa**, recomenda-se concluir os hardenings críticos remanescentes e as melhorias estratégicas documentadas abaixo. O hardening de CSP com nonce permanece pendente até existir smoke real de hidratação no navegador.
 
 ---
 
@@ -96,7 +96,7 @@ UI Components
 #### Headers HTTP de segurança
 
 ```
-Content-Security-Policy: script-src 'self' + nonce por request (corrigido em `src/proxy.ts`)
+Content-Security-Policy: pendente; não publicar nonce CSP sem smoke de navegador/hidratação
 X-Frame-Options: DENY
 X-Content-Type-Options: nosniff
 Referrer-Policy: strict-origin-when-cross-origin
@@ -124,7 +124,7 @@ HSTS: max-age=31536000 (em produção)
 
 ### ⚠️ Fraquezas
 
-#### CSP insegura (corrigida)
+#### CSP insegura (pendente com gate de smoke)
 
 ```javascript
 // Antes do hardening:
@@ -155,7 +155,7 @@ HSTS: max-age=31536000 (em produção)
 
 ### 🔴 Riscos Críticos
 
-1. **XSS via CSP `unsafe-inline`**: mitigado com CSP nonce por request em `src/proxy.ts`
+1. **XSS via CSP `unsafe-inline`**: pendente; tentativa de nonce sem hidratação validada derrubou o front em produção
 2. **SQL Injection futuro**: Se nova migration usar string concatenation
 3. **Privilege escalation**: Se Supabase Auth tiver falha de validação de domínio
 4. **Backdoor em migrations hotfix**: Se urgência levar a ausência de revisão
@@ -164,7 +164,7 @@ HSTS: max-age=31536000 (em produção)
 
 | Prioridade     | Ação                                                               | Impacto |
 | -------------- | ------------------------------------------------------------------ | ------- |
-| **✅ FEITO** | Remover `unsafe-inline` de CSP, usar nonce                            | Alto    |
+| **🔴 CRÍTICO** | Remover `unsafe-inline` de CSP com smoke real de hidratação        | Alto    |
 | **🔴 CRÍTICO** | Remover dados de teste do código                                   | Alto    |
 | **🔴 CRÍTICO** | Validar que Supabase Auth sign-up está **desativado**              | Crítico |
 | **🔴 CRÍTICO** | Implementar rate limiting em `/api/delivery/*`                     | Médio   |
@@ -575,7 +575,7 @@ specialist_hunter_studio_assignments_person_year_idx
 
 ### 🔴 CRÍTICO — Semana 1 (Produção)
 
-- [x] Remover `unsafe-inline` de CSP, implementar nonce
+- [ ] Remover `unsafe-inline` de CSP com smoke real de hidratação
 - [ ] Remover dados de teste do código (migrations hardcoded)
 - [ ] Validar que Supabase Auth sign-up está **desativado**
 - [ ] Completar BFF para todas operações CRUD (`savePerson`, `saveArea`, `saveSubject`)
@@ -641,7 +641,7 @@ O **BRQ Delivery Coverage Hub** é uma aplicação **bem estruturada e arquitetu
 1. **DevOps**: Sem CI/CD automático
 2. **Testes**: Faltam testes unitários e e2e
 3. **Performance**: Sem paginação, lazy loading
-4. **Segurança**: CSP com nonce aplicada; manter foco em dados de teste, rate limiting e BFF completo
+4. **Segurança**: CSP nonce pendente; manter foco em dados de teste, rate limiting e BFF completo
 5. **Escalabilidade**: Store em Context limita crescimento
 
 ### 🚀 Recomendação de Roadmap

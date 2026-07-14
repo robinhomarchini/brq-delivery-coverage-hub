@@ -18,12 +18,12 @@ jobs:
 
       - name: Check CSP script-src
         run: |
-          if grep -E "script-src.*unsafe-inline" src/proxy.ts next.config.ts; then
+          if grep -R -E "script-src.*unsafe-inline" next.config.ts src 2>/dev/null; then
             echo "CSP script-src must not contain unsafe-inline. Use nonce-based scripts."
             exit 1
           fi
-          if ! grep -q "nonce-" src/proxy.ts; then
-            echo "CSP proxy must set a script nonce."
+          if grep -q "Content-Security-Policy" next.config.ts; then
+            echo "Static CSP requires browser hydration smoke evidence before production."
             exit 1
           fi
 

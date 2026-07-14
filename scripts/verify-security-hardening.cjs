@@ -20,7 +20,6 @@ const appShellPath = path.join(root, "src", "components", "layout", "app-shell.t
 const settingsPagePath = path.join(root, "src", "app", "configuracoes", "page.tsx");
 const providerPath = path.join(root, "src", "lib", "repositories", "provider.ts");
 const nextConfigPath = path.join(root, "next.config.ts");
-const proxyPath = path.join(root, "src", "proxy.ts");
 const rlsMigrationPath = path.join(root, "supabase", "migrations", "20260709102000_harden_rls_audit_for_financial_targets.sql");
 const targetBaselineMigrationPath = path.join(root, "supabase", "migrations", "20260714112000_target_baseline_snapshots.sql");
 const rlsSmokePath = path.join(root, "scripts", "smoke-rls-access.mjs");
@@ -49,7 +48,6 @@ const appShellSource = fs.readFileSync(appShellPath, "utf8");
 const settingsPageSource = fs.readFileSync(settingsPagePath, "utf8");
 const providerSource = fs.readFileSync(providerPath, "utf8");
 const nextConfigSource = fs.readFileSync(nextConfigPath, "utf8");
-const proxySource = fs.readFileSync(proxyPath, "utf8");
 const rlsMigrationSource = fs.readFileSync(rlsMigrationPath, "utf8");
 const targetBaselineMigrationSource = fs.readFileSync(targetBaselineMigrationPath, "utf8");
 const rlsSmokeSource = fs.readFileSync(rlsSmokePath, "utf8");
@@ -114,10 +112,8 @@ assertNotIncludes(settingsPageSource, ".rpc(", "Settings page must not call Supa
 assertIncludes(providerSource, "if (process.env.NODE_ENV === \"production\") return \"unavailable\"", "Production must not fall back to local mock data.");
 assertIncludes(nextConfigSource, "X-Frame-Options", "Next config must set frame protection headers.");
 assertIncludes(nextConfigSource, "X-Content-Type-Options", "Next config must set MIME sniffing protection.");
-assertIncludes(proxySource, "Content-Security-Policy", "Proxy must set CSP per request.");
-assertIncludes(proxySource, "nonce-", "CSP proxy must set a script nonce.");
-assertIncludes(proxySource, "`'nonce-${nonce}'`", "CSP script-src must use a per-request nonce.");
-assertNotIncludes(proxySource, "script-src 'self' 'unsafe-inline'", "CSP script-src must not allow unsafe-inline.");
+assertNotIncludes(nextConfigSource, "script-src 'self' 'unsafe-inline'", "CSP script-src must not allow unsafe-inline.");
+assertNotIncludes(nextConfigSource, "Content-Security-Policy", "Static CSP must not be added without a browser hydration smoke test.");
 assertIncludes(rlsMigrationSource, "drop policy if exists \"Authenticated users manage person customer assignments\"", "RLS hardening must drop broad assignment write policy.");
 assertIncludes(rlsMigrationSource, "drop policy if exists \"Authenticated users manage revenue target allocations\"", "RLS hardening must drop broad target allocation write policy.");
 assertIncludes(rlsMigrationSource, "using (public.is_active_brq_user())", "RLS hardening must restrict reads to active BRQ users.");

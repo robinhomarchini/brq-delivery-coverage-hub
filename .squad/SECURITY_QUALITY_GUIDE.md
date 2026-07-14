@@ -55,7 +55,7 @@ Este documento descreve como agents e desenvolvedores devem usar o framework de 
 
 #### Para Changes de Segurança
 
-- ✅ Valide CSP em `src/proxy.ts` e headers estáticos em `next.config.ts`
+- ✅ Valide headers estáticos em `next.config.ts`; CSP só pode ser alterada com smoke real de navegador/hidratação
 - ✅ Nenhum hardcoded data em migrations
 - ✅ Nenhum secret em `.env.example` ou versionado
 - ✅ BFF para operações sensíveis (sempre via `/api/delivery/*`)
@@ -159,7 +159,7 @@ const defaultHunter = "robinson.marchini"; // UI nunca codifica!
 
 **Causas Comuns**:
 
-1. CSP tem `unsafe-inline` → Remover, usar nonce
+1. CSP tem `unsafe-inline` → Planejar remoção com smoke real de navegador; não publicar nonce sem validar scripts renderizados
 2. Migration tem dados hardcoded → Remover ou usar variáveis
 3. `.env.example` expõe secrets → Remover, adicionar SECURITY WARNING
 4. `npm audit` falhou → Usar `npm audit fix --force` com cuidado
@@ -184,9 +184,9 @@ const defaultHunter = "robinson.marchini"; // UI nunca codifica!
 
 **Solução**:
 
-1. Confirme que `src/proxy.ts` gera nonce por request
-2. Confirme que `script-src` usa `'nonce-${nonce}'`
-3. Mantenha `next.config.ts` apenas com headers estáticos de segurança
+1. Confirme no HTML renderizado se os scripts do Next recebem nonce compatível
+2. Confirme console/rede no navegador, não apenas status HTTP 200
+3. Mantenha `next.config.ts` apenas com headers estáticos de segurança até existir smoke automatizado de hidratação
 
 ## Relacionado
 

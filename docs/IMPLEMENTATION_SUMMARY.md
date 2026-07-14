@@ -172,12 +172,13 @@ Build agora roda **lint → typecheck → test:contracts** automaticamente antes
 # RLS_SMOKE_PROVISION_CONFIRM is also sensitive...
 ```
 
-## Mudanças em CSP e headers
+## Mudanças em headers e lição de CSP
 
-A CSP passou a ser aplicada em `src/proxy.ts`, com nonce por request:
+A tentativa de CSP com nonce via `src/proxy.ts` foi revertida após smoke real
+mostrar que o HTML estático do Next não recebia nonce nos scripts renderizados:
 
-- `script-src` usa `'self'` + `'nonce-...'`;
-- `script-src` não usa `unsafe-inline`;
+- não republicar CSP nonce sem smoke de navegador/hidratação;
+- validar console e carregamento do bundle, não apenas HTTP 200;
 - `style-src` mantém `unsafe-inline` por compatibilidade de estilos;
 - `next.config.ts` mantém headers estáticos como `X-Frame-Options`,
   `Referrer-Policy`, `X-Content-Type-Options`, `Permissions-Policy` e HSTS.
@@ -190,7 +191,7 @@ A CSP passou a ser aplicada em `src/proxy.ts`, com nonce por request:
 2. ✅ Rodar `npm run security:check` localmente
 3. ✅ Rodar `npm run build` para validar pipeline
 4. ⬜ Commit: "chore: security gates e quality framework"
-5. ✅ Implementar proxy de nonce para CSP
+5. ⬜ Implementar CSP nonce somente com smoke automatizado de hidratação
 
 ### Curto Prazo (Esta Semana)
 
@@ -250,7 +251,7 @@ npm run build 2>/dev/null && echo "✅ Build passed" || echo "❌ Build failed"
 
 ### Requer Atenção ⚠️
 
-- **Proxy de nonce**: CSP com nonce fica em `src/proxy.ts` no Next 16
+- **CSP nonce**: pendente até existir smoke real garantindo nonce nos scripts renderizados pelo Next
 - **Tests**: GitHub Actions precisa que CI/CD esteja configurado no repo
 - **Credenciais**: Smoke RLS requer variáveis de ambiente sensíveis (CI seguro apenas)
 

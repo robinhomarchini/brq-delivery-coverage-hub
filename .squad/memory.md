@@ -77,7 +77,7 @@ npm run smoke:rls            # RLS com perfis reais
 
 ### Incident Lessons (2026-07-14 Assessment)
 
-1. **CSP unsafe-inline XSS**: Agora usa nonce em `src/proxy.ts` (produção safe no Next 16)
+1. **CSP unsafe-inline XSS**: Não publicar CSP nonce sem smoke real de navegador; Next 16 estático não adicionou nonce nos scripts renderizados e isso derrubou a hidratação em produção.
 2. **Hardcoded test data**: Bloqueado por `grep` em security:check
 3. **SERVICE_ROLE_KEY leak**: Documentado com SECURITY WARNING, nunca em .env.example
 4. **Missing BFF**: Completar para `savePerson`, `saveArea`, `saveSubject`
