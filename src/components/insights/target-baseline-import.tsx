@@ -1,8 +1,7 @@
 "use client";
 
 import { AlertTriangle, FileSpreadsheet, RefreshCw, UploadCloud } from "lucide-react";
-import { readSheet } from "read-excel-file/browser";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Customer } from "@/data/mockData";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -20,6 +19,7 @@ import {
   type TargetBaselineRow,
 } from "@/lib/target-baseline-import";
 import { buildStudioCurveBaselineSnapshotInput, parseCurveStudioBaselineRows } from "@/lib/studio-curve-baseline-snapshot";
+import { readXlsxSheetRows } from "@/lib/xlsx-reader";
 import { cn, formatCurrency } from "@/lib/utils";
 
 const currentYear = defaultTargetYear;
@@ -51,6 +51,7 @@ export function TargetBaselineImport() {
   const [loading, setLoading] = useState(false);
   const [applying, setApplying] = useState(false);
   const [importProgress, setImportProgress] = useState<ImportProgress | null>(null);
+  const [importElapsedSeconds, setImportElapsedSeconds] = useState(0);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -67,11 +68,21 @@ export function TargetBaselineImport() {
   const missingCustomers = comparisons.filter((comparison) => comparison.valueStatus === "missing_customer").length;
   const invalidTotals = comparisons.filter((comparison) => comparison.valueStatus === "invalid_total").length;
 
+  useEffect(() => {
+    if (!loading) return undefined;
+    const startedAt = Date.now();
+    const timer = window.setInterval(() => {
+      setImportElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [loading]);
+
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
     setLoading(true);
     setImportProgress(null);
+    setImportElapsedSeconds(0);
     setError("");
     setSuccess("");
     setSelectedKeys(new Set());
@@ -81,11 +92,12 @@ export function TargetBaselineImport() {
         throw new Error("Arquivo maior que 5 MB. Use uma planilha menor para homologação.");
       }
       await updateImportProgress(setImportProgress, 1, "Lendo baseline de clientes", "Abrindo a aba Resumo RL 2026 da Curva principal.");
-      const spreadsheetRows = await readTargetBaselineSheet(file);
+      const fileBuffer = await file.arrayBuffer();
+      const spreadsheetRows = readTargetBaselineSheet(fileBuffer);
       await updateImportProgress(setImportProgress, 2, "Interpretando clientes", "Normalizando clientes, Hunter, Farmer e Total RL 2026.");
       const parsedRows = parseTargetBaselineRows(spreadsheetRows);
       await updateImportProgress(setImportProgress, 3, "Lendo abertura de Studios", "Abrindo a aba Sheet1 para extrair BU Financial por Studio/Habilitador.");
-      const curveStudioRows = await readCurveStudioRows(file);
+      const curveStudioRows = readCurveStudioRows(fileBuffer);
       await updateImportProgress(setImportProgress, 4, "Comparando com cadastro", "Calculando diferenças contra clientes, metas e alocações atuais.");
       const parsedComparisons = buildTargetBaselineComparisons(
         parsedRows,
@@ -123,6 +135,7 @@ export function TargetBaselineImport() {
       setError(getImportErrorMessage(error));
     } finally {
       setLoading(false);
+      setImportElapsedSeconds(0);
       window.setTimeout(() => setImportProgress(null), 1200);
       event.target.value = "";
     }
@@ -202,7 +215,7 @@ export function TargetBaselineImport() {
             Arquivo carregado: <span className="font-semibold text-slate-900">{fileName}</span>
           </div>
         )}
-        {importProgress && <ImportProgressPanel progress={importProgress} />}
+        {importProgress && <ImportProgressPanel progress={importProgress} elapsedSeconds={importElapsedSeconds} />}
       </Card>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
@@ -326,22 +339,31 @@ export function TargetBaselineImport() {
   );
 }
 
-function ImportProgressPanel({ progress }: { progress: ImportProgress }) {
+function ImportProgressPanel({ progress, elapsedSeconds }: { progress: ImportProgress; elapsedSeconds: number }) {
   const percentage = Math.round((progress.step / progress.totalSteps) * 100);
+  const waitingMessage = elapsedSeconds >= 15 ? "Ainda processando. Planilhas grandes podem levar alguns minutos nesta etapa." : "";
   return (
     <div className="mt-4 rounded-xl border border-purple-100 bg-purple-50/70 px-4 py-3">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-sm font-bold text-slate-950">{progress.label}</p>
           <p className="text-xs leading-5 text-slate-500">{progress.detail}</p>
+          {waitingMessage && <p className="mt-1 text-xs font-semibold text-brq-purple">{waitingMessage}</p>}
         </div>
-        <p className="text-xs font-bold text-brq-purple">{progress.step}/{progress.totalSteps} · {percentage}%</p>
+        <p className="text-xs font-bold text-brq-purple">{progress.step}/{progress.totalSteps} · {percentage}% · {formatElapsedSeconds(elapsedSeconds)}</p>
       </div>
       <div className="mt-3 h-2 overflow-hidden rounded-full bg-white">
         <div className="h-full rounded-full bg-brq-purple transition-all duration-300" style={{ width: `${percentage}%` }} />
       </div>
     </div>
   );
+}
+
+function formatElapsedSeconds(seconds: number) {
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `${minutes}m ${String(remainingSeconds).padStart(2, "0")}s`;
 }
 
 async function updateImportProgress(
@@ -397,19 +419,19 @@ function getImportErrorMessage(error: unknown) {
   return "Não foi possível importar a planilha. Verifique o formato do arquivo.";
 }
 
-async function readCurveStudioRows(file: File) {
+function readCurveStudioRows(buffer: ArrayBuffer) {
   try {
-    const sheetRows = await readSheet(file, "Sheet1");
+    const sheetRows = readXlsxSheetRows(buffer, "Sheet1");
     return parseCurveStudioBaselineRows(sheetRows);
   } catch {
     return [];
   }
 }
 
-async function readTargetBaselineSheet(file: File) {
+function readTargetBaselineSheet(buffer: ArrayBuffer) {
   try {
-    return await readSheet(file, "Resumo RL 2026");
+    return readXlsxSheetRows(buffer, "Resumo RL 2026");
   } catch {
-    return readSheet(file);
+    return readXlsxSheetRows(buffer);
   }
 }

@@ -159,6 +159,8 @@ if (missingCurveSnapshotTokens.length) {
 const requiredCurveImportProgressTokens = [
   "ImportProgressPanel",
   "updateImportProgress",
+  "readXlsxSheetRows",
+  "importElapsedSeconds",
   "Lendo baseline de clientes",
   "Lendo abertura de Studios",
   "Comparando com cadastro",
@@ -169,6 +171,10 @@ const requiredCurveImportProgressTokens = [
 const missingCurveImportProgressTokens = requiredCurveImportProgressTokens.filter((token) => !targetImporter.includes(token));
 if (missingCurveImportProgressTokens.length) {
   throw new Error(`Curve baseline import must show progress steps: ${missingCurveImportProgressTokens.join(", ")}`);
+}
+
+if (targetImporter.includes("read-excel-file/browser")) {
+  throw new Error("Curve baseline import must use the lightweight XLSX reader instead of read-excel-file/browser.");
 }
 
 console.log("Baseline centralization QA checks passed.");
