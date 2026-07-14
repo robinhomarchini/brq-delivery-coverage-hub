@@ -176,6 +176,21 @@ if (missingCurveImportProgressTokens.length) {
   throw new Error(`Curve baseline import must show progress steps: ${missingCurveImportProgressTokens.join(", ")}`);
 }
 
+const requiredTargetImportUxTokens = [
+  "HunterDetailsCell",
+  "DialogTitle>Detalhe Hunter",
+  "getHunterMessageSummary",
+];
+
+const missingTargetImportUxTokens = requiredTargetImportUxTokens.filter((token) => !targetImporter.includes(token));
+if (missingTargetImportUxTokens.length) {
+  throw new Error(`Target baseline import must keep long Hunter details behind a compact detail action: ${missingTargetImportUxTokens.join(", ")}`);
+}
+
+if (targetImporter.includes("Resp. planilha")) {
+  throw new Error("Target baseline import must not show the obsolete Resp. planilha column for the Curve upload.");
+}
+
 const targetParser = fs.readFileSync(path.join(root, "src", "lib", "target-baseline-import.ts"), "utf8");
 const requiredTargetParserTokens = [
   "normalizeHeader(row.businessUnit) === \"bu financial\"",

@@ -156,6 +156,7 @@ Centralizar importação de baselines em uma nova rota, removendo uploads antigo
 - [x] Criar rotina operacional de limpeza de `studio_baseline_snapshots` com dry-run, retenção por ano/origem e confirmação explícita antes de apagar.
 - [x] Corrigir a Curva de clientes para filtrar `BU Financial` na aba `Resumo RL 2026`, ignorando outras BUs, linhas zeradas e linha Total.
 - [x] Fazer a central de Baselines abrir em `Curva principal` por padrão e preservar a última visão escolhida no navegador.
+- [x] Compactar a comparação da Curva principal: remover `Resp. planilha` e mover divergência Hunter longa para ação `Detalhes`.
 
 ## Previous Completed Work
 
@@ -273,6 +274,7 @@ Centralizar importação de baselines em uma nova rota, removendo uploads antigo
 - Na comparação de Studios, `registeredCustomerStudioTarget` representa a Baseline Curva por Cliente + Studio/Habilitador. O total de Studio do cliente inteiro não deve ser repetido nas linhas individuais de Studio.
 - Snapshots antigos de baseline devem ser limpos por `npm run maintenance:baseline-snapshots`, com `DRY-RUN` padrão e retenção mínima de 1 foto por ano/origem. Não apagar snapshots manualmente fora da rotina auditável.
 - A central de Baselines deve preservar a última visão escolhida no navegador; sem preferência salva, abre em `Curva principal` para favorecer o fluxo oficial da Curva.
+- A comparação da Curva principal deve manter linhas compactas: resumo de Hunter na célula e racional completo em modal de detalhes; não mostrar `Resp. planilha` quando a origem não traz responsável confiável.
 - A revisão de componentização está documentada em `docs/COMPONENTIZATION_REVIEW.md`; próximos alvos seguros são builders puros de `person-target-report.tsx` e `customer-management.tsx`, antes de extrair componentes visuais.
 - A geração da Planilha oficial do Relatório de Metas fica centralizada em `src/lib/reports/person-target-official-export.ts`. `person-target-report.tsx` apenas reexporta `buildOfficialRowsForView` para compatibilidade com o gate `test:reports`.
 - Rollups comuns do Relatório de Metas ficam em `src/lib/reports/person-target-rollups.ts`: Studio Hunter efetivo, renovação de Studio elegível por pessoa, meta própria descontando herança e fallback de Hunter principal. Não duplicar esses cálculos em tela/export.

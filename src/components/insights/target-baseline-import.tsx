@@ -1,11 +1,12 @@
 "use client";
 
-import { AlertTriangle, FileSpreadsheet, RefreshCw, UploadCloud } from "lucide-react";
+import { AlertTriangle, FileSpreadsheet, Info, RefreshCw, UploadCloud } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { Customer } from "@/data/mockData";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { KpiSummaryCard } from "@/components/shared/kpi-summary-card";
 import { ErrorNotice, SuccessNotice } from "@/components/shared/success-notice";
@@ -13,7 +14,6 @@ import { useDeliveryStore } from "@/store/delivery-store";
 import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears } from "@/lib/customer-targets";
 import {
   buildTargetBaselineComparisons,
-  getResponsibleDisplayName,
   parseTargetBaselineRows,
   type TargetBaselineComparison,
   type TargetBaselineRow,
@@ -263,12 +263,11 @@ export function TargetBaselineImport() {
           )}
 
           <div className="overflow-x-auto">
-            <Table className="min-w-[1580px]">
+            <Table className="min-w-[1480px]">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-16">Usar</TableHead>
                   <TableHead>Cliente</TableHead>
-                  <TableHead>Resp. planilha</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Hunter atual</TableHead>
                   <TableHead>Hunter planilha</TableHead>
@@ -303,10 +302,6 @@ export function TargetBaselineImport() {
                           {comparison.matchedCustomerName ? `Base: ${comparison.matchedCustomerName}` : `Linha ${comparison.row.rowNumber}`}
                         </p>
                       </TableCell>
-                      <TableCell>
-                        <p className="font-semibold text-slate-800">{getResponsibleDisplayName(comparison.row.responsibleCode, people)}</p>
-                        <p className="text-xs text-slate-400">{comparison.row.responsibleCode || "sem código"}</p>
-                      </TableCell>
                       <TableCell><StatusBadge comparison={comparison} /></TableCell>
                       <MoneyCell value={comparison.customer?.hunterTarget ?? 0} />
                       <MoneyCell value={comparison.effectiveHunterTarget} highlight={hasDifference(comparison, "hunterTarget")} />
@@ -323,11 +318,7 @@ export function TargetBaselineImport() {
                           </p>
                         )}
                       </TableCell>
-                      <TableCell>
-                        <p className={cn("text-sm", comparison.hunterStatus === "warning" ? "font-semibold text-amber-700" : "text-slate-600")}>
-                          {comparison.hunterMessage}
-                        </p>
-                      </TableCell>
+                      <HunterDetailsCell comparison={comparison} />
                     </TableRow>
                   );
                 })}
@@ -389,6 +380,64 @@ function MoneyCell({ value, highlight = false }: { value: number; highlight?: bo
       <p className={cn("font-semibold", highlight ? "text-brq-purple" : "text-slate-900")}>{formatCurrency(value)}</p>
     </TableCell>
   );
+}
+
+function HunterDetailsCell({ comparison }: { comparison: TargetBaselineComparison }) {
+  const summary = getHunterMessageSummary(comparison);
+  const warning = comparison.hunterStatus === "warning";
+  return (
+    <TableCell className="w-56 align-middle">
+      <div className="flex items-center gap-2">
+        <Badge variant={warning ? "warning" : "secondary"}>{summary}</Badge>
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              className="h-8 w-8 shrink-0 p-0"
+              aria-label={`Ver detalhe Hunter de ${comparison.row.customerName}`}
+              title="Ver detalhe"
+            >
+              <Info className="h-4 w-4" />
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-xl">
+            <DialogHeader>
+              <DialogTitle>Detalhe Hunter</DialogTitle>
+              <DialogDescription>{comparison.row.customerName}</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="grid gap-3 rounded-xl border bg-slate-50 p-4 text-sm sm:grid-cols-2">
+                <MetricLine label="Hunter planilha" value={comparison.effectiveHunterTarget} />
+                <MetricLine label="Hunter sistema" value={comparison.customer?.hunterTarget ?? 0} />
+                <MetricLine label="Total planilha" value={comparison.effectiveRevenue} />
+                <MetricLine label="Total sistema" value={comparison.customer ? getCustomerTarget(comparison.customer) : 0} />
+              </div>
+              <p className={cn("whitespace-pre-wrap text-sm leading-6", warning ? "font-semibold text-amber-700" : "text-slate-700")}>
+                {comparison.hunterMessage}
+              </p>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </TableCell>
+  );
+}
+
+function MetricLine({ label, value }: { label: string; value: number }) {
+  return (
+    <div>
+      <p className="text-xs font-bold uppercase tracking-wide text-slate-400">{label}</p>
+      <p className="mt-1 font-black text-slate-950">{formatCurrency(value)}</p>
+    </div>
+  );
+}
+
+function getHunterMessageSummary(comparison: TargetBaselineComparison) {
+  if (comparison.valueStatus === "missing_customer") return "Cliente ausente";
+  if (comparison.hunterStatus === "warning") return "Ver divergência";
+  if (comparison.hunterStatus === "not_applicable") return "Sem Hunter";
+  return "Consistente";
 }
 
 function StatusBadge({ comparison }: { comparison: TargetBaselineComparison }) {

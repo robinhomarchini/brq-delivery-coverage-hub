@@ -470,6 +470,11 @@
   Studios.
 - A curva de clientes importa somente linhas válidas de `BU Financial` da aba
   `Resumo RL 2026`, excluindo outras BUs, linhas zeradas e a linha `Total`.
+- Na comparação da Curva principal, mensagens longas de divergência Hunter não
+  devem alongar a linha da tabela; a grade mostra resumo curto e um botão de
+  detalhes para abrir o racional completo.
+- A grade da Curva principal não exibe a coluna `Resp. planilha` quando a
+  planilha não trouxer responsável confiável por cliente.
 - A importação da Curva principal não pode cair silenciosamente para a primeira
   aba quando `Resumo RL 2026` não for encontrada; a tela deve exibir erro claro
   de aba obrigatória ausente.
