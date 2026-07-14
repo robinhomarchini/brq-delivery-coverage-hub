@@ -13,6 +13,7 @@ import { ErrorNotice, SuccessNotice } from "@/components/shared/success-notice";
 import { useDeliveryStore } from "@/store/delivery-store";
 import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears } from "@/lib/customer-targets";
 import {
+  buildTargetBaselineSnapshotInput,
   buildTargetBaselineComparisons,
   parseTargetBaselineRows,
   type TargetBaselineComparison,
@@ -31,7 +32,7 @@ type ImportProgress = {
   detail: string;
 };
 
-const importProgressTotalSteps = 6;
+const importProgressTotalSteps = 7;
 
 export function TargetBaselineImport() {
   const {
@@ -40,9 +41,11 @@ export function TargetBaselineImport() {
     customerTargets,
     people,
     studioTargetAllocations,
+    targetBaselineSnapshots,
     targetAllocations,
     saveCustomers,
     saveStudioBaselineSnapshot,
+    saveTargetBaselineSnapshot,
   } = useDeliveryStore();
   const [year, setYear] = useState(currentYear);
   const [fileName, setFileName] = useState("");
@@ -57,9 +60,18 @@ export function TargetBaselineImport() {
 
   const years = useMemo(() => getAvailableTargetYears(customerTargets, currentYear), [customerTargets]);
   const yearCustomers = useMemo(() => applyCustomerTargetsForYear(customers, customerTargets, year), [customerTargets, customers, year]);
+  const latestTargetSnapshot = useMemo(
+    () => targetBaselineSnapshots.find((snapshot) => snapshot.year === year),
+    [targetBaselineSnapshots, year],
+  );
+  const displayRows = useMemo(
+    () => rows.length ? rows : latestTargetSnapshot?.rows ?? [],
+    [latestTargetSnapshot, rows],
+  );
+  const loadedFromSnapshot = rows.length === 0 && Boolean(latestTargetSnapshot);
   const comparisons = useMemo(
-    () => buildTargetBaselineComparisons(rows, yearCustomers, people, targetAllocations, studioTargetAllocations, year),
-    [people, rows, studioTargetAllocations, targetAllocations, year, yearCustomers],
+    () => buildTargetBaselineComparisons(displayRows, yearCustomers, people, targetAllocations, studioTargetAllocations, year),
+    [displayRows, people, studioTargetAllocations, targetAllocations, year, yearCustomers],
   );
   const selectableComparisons = comparisons.filter(canApplyComparison);
   const selectedComparisons = comparisons.filter((comparison) => selectedKeys.has(comparison.key) && canApplyComparison(comparison));
@@ -123,6 +135,8 @@ export function TargetBaselineImport() {
       } else {
         await updateImportProgress(setImportProgress, 6, "Finalizando importação", "Nenhuma linha BU Financial de Studio foi encontrada para salvar.");
       }
+      await updateImportProgress(setImportProgress, 7, "Salvando Curva de clientes", "Persistindo a última importação para reabrir esta visão sem novo upload.");
+      await saveTargetBaselineSnapshot(buildTargetBaselineSnapshotInput(parsedRows, year, file.name));
       setRows(parsedRows);
       setFileName(file.name);
       setSuccess(studioSnapshot
@@ -216,6 +230,12 @@ export function TargetBaselineImport() {
             Arquivo carregado: <span className="font-semibold text-slate-900">{fileName}</span>
           </div>
         )}
+        {loadedFromSnapshot && latestTargetSnapshot && (
+          <div className="mt-4 rounded-xl border bg-slate-50 px-4 py-3 text-sm text-slate-600">
+            Última importação carregada: <span className="font-semibold text-slate-900">{latestTargetSnapshot.fileName}</span>
+            <span> · salva em {formatDateTime(latestTargetSnapshot.createdAt)}</span>
+          </div>
+        )}
         {importProgress && <ImportProgressPanel progress={importProgress} elapsedSeconds={importElapsedSeconds} />}
       </Card>
 
@@ -227,7 +247,7 @@ export function TargetBaselineImport() {
         <KpiSummaryCard label="Selecionados" value={selectedComparisons.length} tone="purple" />
       </section>
 
-      {rows.length > 0 && (
+      {displayRows.length > 0 && (
         <Card className="overflow-hidden shadow-sm">
           <div className="flex flex-col gap-3 border-b bg-white p-5 lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -356,6 +376,10 @@ function formatElapsedSeconds(seconds: number) {
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = seconds % 60;
   return `${minutes}m ${String(remainingSeconds).padStart(2, "0")}s`;
+}
+
+function formatDateTime(value: string) {
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(value));
 }
 
 async function updateImportProgress(

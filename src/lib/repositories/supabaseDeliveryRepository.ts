@@ -15,6 +15,7 @@ import {
 } from "@/data/mockData";
 import { boardTargetBaselineRows as fallbackBoardTargetBaselineRows, type BoardTargetBaselineRow } from "@/data/boardTargetBaseline";
 import { getStudioBaselineSource, type StudioBaselineSnapshot, type StudioBaselineSourceCode } from "@/lib/studio-baseline-import";
+import type { TargetBaselineRow, TargetBaselineSnapshot } from "@/lib/target-baseline-import";
 import type { DeliveryData, DeliveryRepository } from "./types";
 import type { PersonCustomerRemovalInput, PersonCustomerTargetsInput } from "./types";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -169,6 +170,15 @@ type StudioBaselineSnapshotRow = {
   file_name: string;
   snapshot_rows: unknown[];
   totals: Record<string, number>;
+  created_at: string;
+};
+
+type TargetBaselineSnapshotRow = {
+  id: string;
+  baseline_year: number;
+  file_name: string;
+  snapshot_rows: TargetBaselineRow[];
+  totals: TargetBaselineSnapshot["totals"];
   created_at: string;
 };
 
@@ -393,6 +403,21 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
     return fromStudioBaselineSnapshotRow(data as StudioBaselineSnapshotRow);
   }
 
+  async saveTargetBaselineSnapshot(snapshot: Omit<TargetBaselineSnapshot, "id" | "createdAt">) {
+    const { data, error } = await this.client
+      .from("target_baseline_snapshots")
+      .insert({
+        baseline_year: snapshot.year,
+        file_name: snapshot.fileName,
+        snapshot_rows: snapshot.rows,
+        totals: snapshot.totals,
+      })
+      .select("*")
+      .single();
+    if (error) throw error;
+    return fromTargetBaselineSnapshotRow(data as TargetBaselineSnapshotRow);
+  }
+
   async savePersonCustomerTargets(input: PersonCustomerTargetsInput) {
     if (this.usePersonCustomerTargetsBff) {
       return this.savePersonCustomerTargetsWithBff(input);
@@ -414,7 +439,7 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
   }
 
   private async fetchAll(): Promise<DeliveryData> {
-    const [areasResult, peopleResult, personCompensationsResult, customersResult, customerTargetsResult, subjectsResult, assignmentsResult, targetAllocationsResult, studioTargetAllocationsResult, specialistHunterStudioAssignmentsResult, territoriesResult, boardTargetBaselinesResult, studioBaselineSnapshotsResult] = await Promise.all([
+    const [areasResult, peopleResult, personCompensationsResult, customersResult, customerTargetsResult, subjectsResult, assignmentsResult, targetAllocationsResult, studioTargetAllocationsResult, specialistHunterStudioAssignmentsResult, territoriesResult, boardTargetBaselinesResult, studioBaselineSnapshotsResult, targetBaselineSnapshotsResult] = await Promise.all([
       this.client.from("areas").select("*").order("name"),
       this.client.from("people").select("*").order("hierarchy_level").order("name"),
       this.client.from("person_compensations").select("*").order("person_id"),
@@ -428,6 +453,7 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
       this.client.from("territories").select("id, area_id"),
       this.client.from("board_target_baselines").select("*").eq("approved", true).order("baseline_year", { ascending: false }).order("customer_name"),
       this.client.from("studio_baseline_snapshots").select("*").order("created_at", { ascending: false }).limit(20),
+      this.client.from("target_baseline_snapshots").select("*").order("created_at", { ascending: false }).limit(20),
     ]);
 
     const error = areasResult.error ?? peopleResult.error ?? customersResult.error ?? subjectsResult.error;
@@ -471,6 +497,9 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
       studioBaselineSnapshots: studioBaselineSnapshotsResult.error
         ? []
         : (studioBaselineSnapshotsResult.data as StudioBaselineSnapshotRow[]).map(fromStudioBaselineSnapshotRow),
+      targetBaselineSnapshots: targetBaselineSnapshotsResult.error
+        ? []
+        : (targetBaselineSnapshotsResult.data as TargetBaselineSnapshotRow[]).map(fromTargetBaselineSnapshotRow),
     };
   }
 
@@ -1358,6 +1387,17 @@ function fromStudioBaselineSnapshotRow(row: StudioBaselineSnapshotRow): StudioBa
     year: row.baseline_year,
     sourceCode: source.code as StudioBaselineSourceCode,
     sourceName: row.source_name ?? source.name,
+    fileName: row.file_name,
+    rows: row.snapshot_rows,
+    totals: row.totals,
+    createdAt: row.created_at,
+  };
+}
+
+function fromTargetBaselineSnapshotRow(row: TargetBaselineSnapshotRow): TargetBaselineSnapshot {
+  return {
+    id: row.id,
+    year: row.baseline_year,
     fileName: row.file_name,
     rows: row.snapshot_rows,
     totals: row.totals,

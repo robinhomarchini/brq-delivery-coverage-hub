@@ -19,6 +19,7 @@ export async function runDeliveryRepositoryContractTests({
     assert(firstRead.customerTargets.length > 0, "Expected customerTargets in read model.");
     assert(Array.isArray(firstRead.targetAllocations), "Expected targetAllocations array.");
     assert(Array.isArray(firstRead.studioTargetAllocations), "Expected studioTargetAllocations array.");
+    assert(Array.isArray(firstRead.targetBaselineSnapshots), "Expected targetBaselineSnapshots array.");
 
     const originalName = firstRead.people[0]?.name;
     firstRead.people[0] = { ...firstRead.people[0]!, name: "Mutated outside repository" };

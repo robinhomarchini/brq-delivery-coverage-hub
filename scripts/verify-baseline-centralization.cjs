@@ -180,6 +180,9 @@ const requiredTargetImportUxTokens = [
   "HunterDetailsCell",
   "DialogTitle>Detalhe Hunter",
   "getHunterMessageSummary",
+  "latestTargetSnapshot",
+  "Última importação carregada",
+  "saveTargetBaselineSnapshot",
 ];
 
 const missingTargetImportUxTokens = requiredTargetImportUxTokens.filter((token) => !targetImporter.includes(token));

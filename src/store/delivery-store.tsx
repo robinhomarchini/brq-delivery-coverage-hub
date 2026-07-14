@@ -5,6 +5,7 @@ import { areas as initialAreas, customers as initialCustomers, customerTargets a
 import type { Area, Customer, CustomerTarget, Person, PersonCompensation, SpecialistHunterStudioAssignment, StudioTargetAllocation, Subject, TargetAllocation } from "@/data/mockData";
 import { boardTargetBaselineRows as initialBoardTargetBaselines, type BoardTargetBaselineRow } from "@/data/boardTargetBaseline";
 import type { StudioBaselineSnapshot } from "@/lib/studio-baseline-import";
+import type { TargetBaselineSnapshot } from "@/lib/target-baseline-import";
 import { createDeliveryRepositorySelection } from "@/lib/repositories";
 import type { AreaUsage, DeliveryData, PersonCustomerRemovalInput, PersonCustomerTargetsInput, SpecialistHunterStudioAssignmentsInput } from "@/lib/repositories";
 import { buildAreaUsages } from "@/lib/area-usage";
@@ -23,6 +24,7 @@ interface DeliveryStoreValue {
   specialistHunterStudioAssignments: SpecialistHunterStudioAssignment[];
   boardTargetBaselines: BoardTargetBaselineRow[];
   studioBaselineSnapshots: StudioBaselineSnapshot[];
+  targetBaselineSnapshots: TargetBaselineSnapshot[];
   loading: boolean;
   error: string;
   clearError: () => void;
@@ -43,6 +45,7 @@ interface DeliveryStoreValue {
   deleteStudioTargetAllocation: (id: string) => Promise<void>;
   saveSpecialistHunterStudioAssignments: (input: SpecialistHunterStudioAssignmentsInput) => Promise<void>;
   saveStudioBaselineSnapshot: (snapshot: Omit<StudioBaselineSnapshot, "id" | "createdAt">) => Promise<StudioBaselineSnapshot>;
+  saveTargetBaselineSnapshot: (snapshot: Omit<TargetBaselineSnapshot, "id" | "createdAt">) => Promise<TargetBaselineSnapshot>;
   savePersonCustomerTargets: (input: PersonCustomerTargetsInput) => Promise<void>;
   removePersonCustomerTargets: (input: PersonCustomerRemovalInput) => Promise<void>;
 }
@@ -64,6 +67,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
   const [specialistHunterStudioAssignments, setSpecialistHunterStudioAssignments] = useState<SpecialistHunterStudioAssignment[]>(useEmptyInitialData ? [] : initialSpecialistHunterStudioAssignments);
   const [boardTargetBaselines, setBoardTargetBaselines] = useState<BoardTargetBaselineRow[]>(useEmptyInitialData ? [] : initialBoardTargetBaselines);
   const [studioBaselineSnapshots, setStudioBaselineSnapshots] = useState<StudioBaselineSnapshot[]>([]);
+  const [targetBaselineSnapshots, setTargetBaselineSnapshots] = useState<TargetBaselineSnapshot[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const repository = repositorySelection.repository;
@@ -80,6 +84,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
     setSpecialistHunterStudioAssignments(data.specialistHunterStudioAssignments);
     setBoardTargetBaselines(data.boardTargetBaselines);
     setStudioBaselineSnapshots(data.studioBaselineSnapshots);
+    setTargetBaselineSnapshots(data.targetBaselineSnapshots);
     setError("");
   }, []);
 
@@ -110,6 +115,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
     specialistHunterStudioAssignments,
     boardTargetBaselines,
     studioBaselineSnapshots,
+    targetBaselineSnapshots,
     loading,
     error,
     clearError: () => setError(""),
@@ -332,6 +338,18 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         throw new Error(message);
       }
     },
+    saveTargetBaselineSnapshot: async (snapshot) => {
+      try {
+        const saved = await repository.saveTargetBaselineSnapshot(snapshot);
+        setTargetBaselineSnapshots((current) => [saved, ...current.filter((item) => item.id !== saved.id)]);
+        setError("");
+        return saved;
+      } catch (error) {
+        const message = `Não foi possível salvar a foto do baseline de clientes. ${getErrorMessage(error)}`;
+        setError(message);
+        throw new Error(message);
+      }
+    },
     savePersonCustomerTargets: async (input) => {
       try {
         const data = await repository.savePersonCustomerTargets(input);
@@ -352,7 +370,7 @@ export function DeliveryStoreProvider({ children }: { children: React.ReactNode 
         throw new Error(message);
       }
     },
-  }), [applyDeliveryData, areaUsages, areas, boardTargetBaselines, customerTargets, customers, error, loading, people, personCompensations, repository, specialistHunterStudioAssignments, studioBaselineSnapshots, studioTargetAllocations, subjects, targetAllocations]);
+  }), [applyDeliveryData, areaUsages, areas, boardTargetBaselines, customerTargets, customers, error, loading, people, personCompensations, repository, specialistHunterStudioAssignments, studioBaselineSnapshots, studioTargetAllocations, subjects, targetAllocations, targetBaselineSnapshots]);
 
   return <DeliveryStoreContext.Provider value={value}>{children}</DeliveryStoreContext.Provider>;
 }

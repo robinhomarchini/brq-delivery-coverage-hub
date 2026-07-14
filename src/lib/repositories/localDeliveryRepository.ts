@@ -3,6 +3,7 @@ import { boardTargetBaselineRows } from "@/data/boardTargetBaseline";
 import type { Area, Customer, Person, PersonCompensation, StudioTargetAllocation, Subject, TargetAllocation } from "@/data/mockData";
 import type { DeliveryData, DeliveryRepository, PersonCustomerRemovalInput, PersonCustomerTargetsInput, SpecialistHunterStudioAssignmentsInput } from "./types";
 import type { StudioBaselineSnapshot } from "@/lib/studio-baseline-import";
+import type { TargetBaselineSnapshot } from "@/lib/target-baseline-import";
 import { validateArea, validateCustomer, validatePerson, validatePersonCompensation, validateStudioTargetAllocation, validateSubject, validateTargetAllocation } from "@/lib/validation";
 import { buildAreaUsages } from "@/lib/area-usage";
 import {
@@ -28,6 +29,7 @@ export class LocalDeliveryRepository implements DeliveryRepository {
     specialistHunterStudioAssignments: structuredClone(specialistHunterStudioAssignments),
     boardTargetBaselines: structuredClone(boardTargetBaselineRows),
     studioBaselineSnapshots: [],
+    targetBaselineSnapshots: [],
   };
   private assignments: CoverageAssignment[] = buildAssignmentsFromCoverage(this.data.people, this.data.customers);
 
@@ -258,6 +260,16 @@ export class LocalDeliveryRepository implements DeliveryRepository {
       createdAt: new Date().toISOString(),
     };
     this.data.studioBaselineSnapshots = [saved, ...this.data.studioBaselineSnapshots];
+    return structuredClone(saved);
+  }
+
+  async saveTargetBaselineSnapshot(snapshot: Omit<TargetBaselineSnapshot, "id" | "createdAt">) {
+    const saved = {
+      ...snapshot,
+      id: `target-baseline-snapshot-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+    };
+    this.data.targetBaselineSnapshots = [saved, ...this.data.targetBaselineSnapshots];
     return structuredClone(saved);
   }
 

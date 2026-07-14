@@ -97,6 +97,9 @@ const unavailableProductionRepository: DeliveryRepository = {
   async saveStudioBaselineSnapshot() {
     throw new Error(productionConfigurationError);
   },
+  async saveTargetBaselineSnapshot() {
+    throw new Error(productionConfigurationError);
+  },
   async savePersonCustomerTargets() {
     throw new Error(productionConfigurationError);
   },

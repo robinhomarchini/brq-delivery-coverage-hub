@@ -15,6 +15,21 @@ export interface TargetBaselineRow {
   responsibleCode: string;
 }
 
+export interface TargetBaselineSnapshot {
+  id: string;
+  year: number;
+  fileName: string;
+  rows: TargetBaselineRow[];
+  totals: {
+    rows: number;
+    hunterTarget: number;
+    farmerRenewalTarget: number;
+    studioTarget: number;
+    totalTarget: number;
+  };
+  createdAt: string;
+}
+
 export interface TargetBaselineComparison {
   key: string;
   row: TargetBaselineRow;
@@ -126,6 +141,31 @@ export function parseTargetBaselineRows(rows: SpreadsheetCell[][]): TargetBaseli
       && normalizeHeader(row.businessUnit) === "bu financial"
       && row.totalTarget > zeroMoneyTolerance
     );
+}
+
+export function buildTargetBaselineSnapshotInput(
+  rows: TargetBaselineRow[],
+  year: number,
+  fileName: string,
+): Omit<TargetBaselineSnapshot, "id" | "createdAt"> {
+  return {
+    year,
+    fileName: fileName || `curva-clientes-${year}.xlsx`,
+    rows,
+    totals: rows.reduce((totals, row) => ({
+      rows: totals.rows + 1,
+      hunterTarget: roundCurrency(totals.hunterTarget + row.hunterTarget),
+      farmerRenewalTarget: roundCurrency(totals.farmerRenewalTarget + row.farmerRenewalTarget),
+      studioTarget: roundCurrency(totals.studioTarget + row.studioTarget),
+      totalTarget: roundCurrency(totals.totalTarget + row.totalTarget),
+    }), {
+      rows: 0,
+      hunterTarget: 0,
+      farmerRenewalTarget: 0,
+      studioTarget: 0,
+      totalTarget: 0,
+    }),
+  };
 }
 
 function findTargetHeaderRowIndex(rows: SpreadsheetCell[][]) {

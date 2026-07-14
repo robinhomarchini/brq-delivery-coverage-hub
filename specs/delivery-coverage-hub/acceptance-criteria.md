@@ -511,6 +511,9 @@
 - A central de Baselines mantém a última visão escolhida pelo usuário entre
   `Curva principal` e `Áreas / Studios`, e abre em `Curva principal` quando não
   houver preferência salva.
+- A visão `Curva principal` carrega automaticamente a última importação de
+  clientes salva para o ano selecionado, identificando arquivo e data, sem
+  exigir reupload para rever a comparação.
 - Ao abrir Baseline de Studios no Comparativo, a última foto salva em
   `studio_baseline_snapshots` para a origem e ano selecionados é carregada
   automaticamente e identificada como foto salva.

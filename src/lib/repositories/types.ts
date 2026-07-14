@@ -1,6 +1,7 @@
 import type { Area, Customer, CustomerTarget, Person, PersonCompensation, SpecialistHunterStudioAssignment, StudioTargetAllocation, Subject, TargetAllocation } from "@/data/mockData";
 import type { BoardTargetBaselineRow } from "@/data/boardTargetBaseline";
 import type { StudioBaselineSnapshot } from "@/lib/studio-baseline-import";
+import type { TargetBaselineSnapshot } from "@/lib/target-baseline-import";
 
 export interface AreaUsage {
   areaId: string;
@@ -45,6 +46,7 @@ export interface DeliveryData {
   specialistHunterStudioAssignments: SpecialistHunterStudioAssignment[];
   boardTargetBaselines: BoardTargetBaselineRow[];
   studioBaselineSnapshots: StudioBaselineSnapshot[];
+  targetBaselineSnapshots: TargetBaselineSnapshot[];
 }
 
 export interface DeliveryRepository {
@@ -66,6 +68,7 @@ export interface DeliveryRepository {
   deleteStudioTargetAllocation(id: string): Promise<void>;
   saveSpecialistHunterStudioAssignments(input: SpecialistHunterStudioAssignmentsInput): Promise<DeliveryData>;
   saveStudioBaselineSnapshot(snapshot: Omit<StudioBaselineSnapshot, "id" | "createdAt">): Promise<StudioBaselineSnapshot>;
+  saveTargetBaselineSnapshot(snapshot: Omit<TargetBaselineSnapshot, "id" | "createdAt">): Promise<TargetBaselineSnapshot>;
   savePersonCustomerTargets(input: PersonCustomerTargetsInput): Promise<DeliveryData>;
   removePersonCustomerTargets(input: PersonCustomerRemovalInput): Promise<DeliveryData>;
 }

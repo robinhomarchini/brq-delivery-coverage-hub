@@ -20,6 +20,7 @@ const appShellPath = path.join(root, "src", "components", "layout", "app-shell.t
 const settingsPagePath = path.join(root, "src", "app", "configuracoes", "page.tsx");
 const providerPath = path.join(root, "src", "lib", "repositories", "provider.ts");
 const rlsMigrationPath = path.join(root, "supabase", "migrations", "20260709102000_harden_rls_audit_for_financial_targets.sql");
+const targetBaselineMigrationPath = path.join(root, "supabase", "migrations", "20260714112000_target_baseline_snapshots.sql");
 const rlsSmokePath = path.join(root, "scripts", "smoke-rls-access.mjs");
 const rlsProvisionPath = path.join(root, "scripts", "provision-rls-smoke-users.mjs");
 const baselineCleanupPath = path.join(root, "scripts", "cleanup-baseline-snapshots.mjs");
@@ -46,6 +47,7 @@ const appShellSource = fs.readFileSync(appShellPath, "utf8");
 const settingsPageSource = fs.readFileSync(settingsPagePath, "utf8");
 const providerSource = fs.readFileSync(providerPath, "utf8");
 const rlsMigrationSource = fs.readFileSync(rlsMigrationPath, "utf8");
+const targetBaselineMigrationSource = fs.readFileSync(targetBaselineMigrationPath, "utf8");
 const rlsSmokeSource = fs.readFileSync(rlsSmokePath, "utf8");
 const rlsProvisionSource = fs.readFileSync(rlsProvisionPath, "utf8");
 const baselineCleanupSource = fs.readFileSync(baselineCleanupPath, "utf8");
@@ -115,6 +117,10 @@ assertIncludes(rlsMigrationSource, "person_compensations_audit", "RLS hardening 
 assertIncludes(rlsMigrationSource, "studio_target_allocations_audit", "RLS hardening must add audit trigger for studio target allocations.");
 assertIncludes(rlsMigrationSource, "specialist_hunter_studio_assignments_audit", "RLS hardening must add audit trigger for specialist hunter assignments.");
 assertIncludes(rlsMigrationSource, "studio_baseline_snapshots_audit", "RLS hardening must add audit trigger for studio baseline snapshots.");
+assertIncludes(targetBaselineMigrationSource, "target_baseline_snapshots", "Target baseline snapshots migration must create the customer Curve snapshot table.");
+assertIncludes(targetBaselineMigrationSource, "using (public.is_active_brq_user())", "Target baseline snapshots must be readable only by active BRQ users.");
+assertIncludes(targetBaselineMigrationSource, "with check (public.can_edit_delivery_data())", "Target baseline snapshots must be written only by editors/admins.");
+assertIncludes(targetBaselineMigrationSource, "target_baseline_snapshots_audit", "Target baseline snapshots must have audit coverage.");
 assertIncludes(rlsSmokeSource, "SUPABASE_RLS_VIEWER_EMAIL", "RLS smoke must support a viewer test profile.");
 assertIncludes(rlsSmokeSource, "SUPABASE_RLS_EDITOR_EMAIL", "RLS smoke must support an editor test profile.");
 assertIncludes(rlsSmokeSource, "SUPABASE_RLS_ADMIN_EMAIL", "RLS smoke must support an admin test profile.");
