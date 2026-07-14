@@ -14,6 +14,8 @@ export type StudioBaselineReportRow = {
   totalAmount: number;
   customerHunterTarget: number;
   customerMaintenanceTarget: number;
+  customerStudioHunterTarget: number;
+  customerStudioMaintenanceTarget: number;
   customerStudioTarget: number;
   customerTotalTarget: number;
   difference: number;
@@ -54,6 +56,8 @@ export function buildStudioBaselineReportRows(
       totalAmount: row.baselineTotal,
       customerHunterTarget: row.registeredCustomerHunterTarget,
       customerMaintenanceTarget: row.registeredCustomerMaintenanceTarget,
+      customerStudioHunterTarget: row.registeredCustomerStudioHunterTarget,
+      customerStudioMaintenanceTarget: row.registeredCustomerStudioMaintenanceTarget,
       customerStudioTarget: row.registeredCustomerStudioTarget,
       customerTotalTarget: row.registeredCustomerTotalTarget,
       difference: 0,
@@ -70,6 +74,8 @@ export function buildStudioBaselineReportRows(
       totalAmount: row.allocatedTotal,
       customerHunterTarget: row.registeredCustomerHunterTarget,
       customerMaintenanceTarget: row.registeredCustomerMaintenanceTarget,
+      customerStudioHunterTarget: row.registeredCustomerStudioHunterTarget,
+      customerStudioMaintenanceTarget: row.registeredCustomerStudioMaintenanceTarget,
       customerStudioTarget: row.registeredCustomerStudioTarget,
       customerTotalTarget: row.registeredCustomerTotalTarget,
       difference: row.allocationDelta,
@@ -81,11 +87,13 @@ export function buildStudioBaselineReportRows(
       ...base,
       key: `${row.key}:curve`,
       view: "Baseline Curva",
-      hunterAmount: 0,
-      maintenanceAmount: 0,
+      hunterAmount: row.registeredCustomerStudioHunterTarget,
+      maintenanceAmount: row.registeredCustomerStudioMaintenanceTarget,
       totalAmount: row.registeredCustomerStudioTarget,
       customerHunterTarget: row.registeredCustomerHunterTarget,
       customerMaintenanceTarget: row.registeredCustomerMaintenanceTarget,
+      customerStudioHunterTarget: row.registeredCustomerStudioHunterTarget,
+      customerStudioMaintenanceTarget: row.registeredCustomerStudioMaintenanceTarget,
       customerStudioTarget: row.registeredCustomerStudioTarget,
       customerTotalTarget: row.registeredCustomerTotalTarget,
       difference: roundCurrency(row.allocatedTotal - row.registeredCustomerStudioTarget),
@@ -142,7 +150,12 @@ function restoreStudioBaselineGroup(group: {
   const allocatedHunter = allocated?.hunterAmount ?? 0;
   const allocatedMaintenance = allocated?.maintenanceAmount ?? 0;
   const allocatedTotal = allocated?.totalAmount ?? 0;
+  const curveHunter = curve?.hunterAmount ?? reference.customerStudioHunterTarget ?? 0;
+  const curveMaintenance = curve?.maintenanceAmount ?? reference.customerStudioMaintenanceTarget ?? 0;
   const registeredCustomerStudioTarget = curve?.totalAmount ?? reference.customerStudioTarget ?? 0;
+  const curveSplitMissing = registeredCustomerStudioTarget > 0.01 && Math.abs(curveHunter + curveMaintenance) <= 0.01;
+  const registeredCustomerStudioHunterTarget = curveSplitMissing ? baselineHunter : curveHunter;
+  const registeredCustomerStudioMaintenanceTarget = curveSplitMissing ? baselineMaintenance : curveMaintenance;
   const sourceNote = reference.sourceNote ?? "";
 
   return {
@@ -153,6 +166,8 @@ function restoreStudioBaselineGroup(group: {
     registeredStudioName: sourceNote.includes("Studio não cadastrado") ? "" : reference.studioName,
     registeredCustomerHunterTarget: reference.customerHunterTarget ?? 0,
     registeredCustomerMaintenanceTarget: reference.customerMaintenanceTarget ?? 0,
+    registeredCustomerStudioHunterTarget,
+    registeredCustomerStudioMaintenanceTarget,
     registeredCustomerStudioTarget,
     registeredCustomerTotalTarget: reference.customerTotalTarget ?? 0,
     baselineHunter,

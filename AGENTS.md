@@ -59,6 +59,7 @@ For final handoff after implementation or review, use this structure:
 - Use `$ux-quality-reviewer` after UI changes to inspect concrete screens/components and flag visual, scroll, responsive, navigation, state, modal, validation and accessibility issues.
 - Use `$reuse-componentization-reviewer` after implementation to find real duplication in UI, business logic, formatting, filters, totals, exports and repository calls without over-engineering.
 - Use `$database-performance-reviewer` for Supabase/repository/report/import changes to review query patterns, RLS performance, indexes, RPCs, pagination, transactions and migration safety.
+- For comparison tables with stacked/multi-source rows, use shared stable-height cells such as `StackedComparisonCell`; do not hand-roll multi-line table cells that can wrap labels and desynchronize values across columns.
 - Prefer a single normalized source of truth. Relationship fields shown in UI should be derived from the canonical model whenever possible.
 - Do not hardcode operational people, clients, managers, hunters, farmers, areas, studios, or owners in UI components.
 - Do not duplicate business rules only in UI. Repository, API, RPC, RLS and/or

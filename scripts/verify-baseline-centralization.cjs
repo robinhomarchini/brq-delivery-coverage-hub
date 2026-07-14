@@ -14,6 +14,7 @@ const studioReport = fs.readFileSync(path.join(root, "src", "lib", "studio-basel
 const studioCurveSnapshot = fs.readFileSync(path.join(root, "src", "lib", "studio-curve-baseline-snapshot.ts"), "utf8");
 const xlsxReader = fs.readFileSync(path.join(root, "src", "lib", "xlsx-reader.ts"), "utf8");
 const appShell = fs.readFileSync(path.join(root, "src", "components", "layout", "app-shell.tsx"), "utf8");
+const stackedComparisonCell = fs.readFileSync(path.join(root, "src", "components", "shared", "stacked-comparison-cell.tsx"), "utf8");
 
 const requiredCenterTokens = [
   "BaselineImportCenter",
@@ -26,21 +27,19 @@ const requiredCenterTokens = [
   "sourceCode: source.code",
   "sourceName: source.name",
   "Salvar foto da baseline",
-  'first="Baseline Studio"',
-  'second="Cadastrado"',
-  'third="Baseline Curva"',
+  "StackedComparisonCell",
+  'value: "Baseline Studio"',
+  'value: "Cadastrado"',
+  'value: "Baseline Curva"',
   "Última foto salva carregada",
   "restoreStudioBaselineComparisonRows",
   "buildStudioBaselineReportRows",
-  "ThreeLineMoneyCell",
-  "ThreeLineTextCell",
   "Dif. Hunter",
   "Cadastro do cliente",
   "Studio na curva",
   "Cadastrado no sistema",
   "customerStudioTarget",
   "getDivergenceLabel",
-  "getDeltaTextClassName",
   "isFinancialBusinessUnit",
   "BU considerada",
   "manualStudioBaselineSources",
@@ -60,6 +59,23 @@ const requiredCenterTokens = [
 const missingCenterTokens = requiredCenterTokens.filter((token) => !baselineCenter.includes(token));
 if (missingCenterTokens.length) {
   throw new Error(`Baseline center is missing expected behavior: ${missingCenterTokens.join(", ")}`);
+}
+
+const requiredStackedComparisonCellTokens = [
+  "StackedComparisonCell",
+  "h-10",
+  "whitespace-nowrap",
+  "formatCurrency",
+  "getDeltaTextClassName",
+];
+
+const missingStackedComparisonCellTokens = requiredStackedComparisonCellTokens.filter((token) => !stackedComparisonCell.includes(token));
+if (missingStackedComparisonCellTokens.length) {
+  throw new Error(`Stacked comparison cell must enforce reusable aligned rows: ${missingStackedComparisonCellTokens.join(", ")}`);
+}
+
+if (baselineCenter.includes("ThreeLineMoneyCell") || baselineCenter.includes("ThreeLineTextCell")) {
+  throw new Error("Baseline center must use the shared StackedComparisonCell instead of local stacked table helpers.");
 }
 
 if (!baselinesPage.includes("BaselineImportCenter") || !appShell.includes('href: "/baselines"')) {
@@ -106,6 +122,8 @@ const requiredStudioReportTokens = [
   "Baseline Studio",
   "Cadastrado",
   "Baseline Curva",
+  "customerStudioHunterTarget",
+  "customerStudioMaintenanceTarget",
   "customerStudioTarget",
 ];
 
@@ -234,10 +252,13 @@ if (missingXlsxReaderTokens.length) {
 }
 
 const requiredCurveGrainTokens = [
+  "registeredCustomerStudioHunterTarget: roundCurrency(row.baselineHunter)",
+  "registeredCustomerStudioMaintenanceTarget: roundCurrency(row.baselineMaintenance)",
   "registeredCustomerStudioTarget: roundCurrency(row.baselineTotal)",
   "applyCurveBaselineToRows",
   "latestCurveSnapshotRows",
   "getCustomerStudioKey",
+  "getCurveSplitAmount",
 ];
 
 const missingCurveGrainTokens = requiredCurveGrainTokens.filter((token) => !studioCurveSnapshot.includes(token) && !baselineCenter.includes(token));

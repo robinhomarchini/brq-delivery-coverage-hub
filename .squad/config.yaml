@@ -82,6 +82,7 @@ frontend:
       - visual_hierarchy
       - design_system_consistency
       - overflow_and_clipping
+      - stacked_comparison_rows_use_shared_stable_height_cells
 
 backend:
   stack:
@@ -230,6 +231,7 @@ specialist_review_lenses:
     - visual_alignment
     - spacing_consistency
     - header_card_table_alignment
+    - stacked_table_rows_have_stable_height_and_shared_components
     - scroll_and_responsive_behavior
     - navigation_and_filter_usability
     - empty_loading_error_states

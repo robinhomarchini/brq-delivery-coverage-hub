@@ -481,6 +481,9 @@
 - A linha `Baseline Curva` da comparação de Studios usa o valor da própria
   Curva no grão Cliente + Studio/Habilitador, nunca o total de Studio do cliente
   inteiro repetido para cada Studio.
+- A linha `Baseline Curva` da comparação de Studios separa Hunter e Manutenção
+  usando `Tipo Opp` da coluna O da aba `Sheet1`: Novo/Ampliação entra em
+  Hunter, e demais tipos entram em Manutenção/Renovação.
 - A importação da Curva principal exibe progresso por etapa enquanto processa o
   arquivo, incluindo leitura do baseline, leitura de Studios, comparação,
   geração da foto e salvamento.
@@ -499,6 +502,9 @@
 - Cada Cliente + Studio/Origem aparece em três linhas, uma `Baseline Studio`,
   uma `Cadastrado` e uma `Baseline Curva`, em vez de repetir todas as métricas em
   colunas separadas.
+- Tabelas comparativas com sublinhas empilhadas usam componente compartilhado de
+  célula com altura fixa por sublinha, largura mínima para rótulos e valores
+  alinhados entre colunas; rótulos quebrados não podem desalinha valores.
 - A mesma prévia mostra os totais cadastrados no Cliente para Hunter,
   Manutenção/Renovação, Studio Curva e Total, permitindo comparação visual
   automática.

@@ -35,6 +35,8 @@ export interface StudioBaselineComparisonRow {
   registeredStudioName: string;
   registeredCustomerHunterTarget: number;
   registeredCustomerMaintenanceTarget: number;
+  registeredCustomerStudioHunterTarget: number;
+  registeredCustomerStudioMaintenanceTarget: number;
   registeredCustomerStudioTarget: number;
   registeredCustomerTotalTarget: number;
   baselineHunter: number;
@@ -270,6 +272,8 @@ export function buildStudioBaselineComparisons(
       registeredStudioName: area?.name ?? "",
       registeredCustomerHunterTarget,
       registeredCustomerMaintenanceTarget,
+      registeredCustomerStudioHunterTarget: 0,
+      registeredCustomerStudioMaintenanceTarget: 0,
       registeredCustomerStudioTarget,
       registeredCustomerTotalTarget,
       baselineHunter: row.hunterAmount,

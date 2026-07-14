@@ -6,6 +6,7 @@ import { TargetBaselineImport } from "@/components/insights/target-baseline-impo
 import { ErrorNotice, SuccessNotice } from "@/components/shared/success-notice";
 import { KpiSummaryCard } from "@/components/shared/kpi-summary-card";
 import { ReportExportActions, type ReportColumn } from "@/components/shared/report-export-actions";
+import { StackedComparisonCell } from "@/components/shared/stacked-comparison-cell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -339,13 +340,13 @@ export function BaselineImportCenter() {
             </div>
           </div>
           <div className="overflow-x-auto">
-            <Table className="min-w-[1220px]">
+            <Table className="min-w-[1320px]">
               <TableHeader>
                 <TableRow>
                   {importedRows.length > 0 && <TableHead className="w-28">Financial</TableHead>}
                   <TableHead>Cliente</TableHead>
                   <TableHead>Studio/Origem</TableHead>
-                  <TableHead>Visão</TableHead>
+                  <TableHead className="w-44">Visão</TableHead>
                   <TableHead className="text-right">Hunter</TableHead>
                   <TableHead className="text-right">Manutenção</TableHead>
                   <TableHead className="text-right">Total</TableHead>
@@ -385,12 +386,54 @@ export function BaselineImportCenter() {
                       <p className="font-semibold text-slate-800">{row.studioName}</p>
                       <p className="text-xs text-slate-500">{row.registeredStudioName || "Studio não encontrado"}</p>
                     </TableCell>
-                    <ThreeLineTextCell first="Baseline Studio" second="Cadastrado" third="Baseline Curva" />
-                    <ThreeLineMoneyCell first={row.baselineHunter} second={row.allocatedHunter} third={undefined} />
-                    <ThreeLineMoneyCell first={row.baselineMaintenance} second={row.allocatedMaintenance} third={undefined} />
-                    <ThreeLineMoneyCell first={row.baselineTotal} second={row.allocatedTotal} third={row.registeredCustomerStudioTarget} bold />
-                    <ThreeLineMoneyCell first={undefined} second={row.hunterDelta} third={undefined} tone />
-                    <ThreeLineMoneyCell first={undefined} second={row.maintenanceDelta} third={undefined} tone />
+                    <StackedComparisonCell
+                      className="w-44"
+                      lines={[
+                        { value: "Baseline Studio" },
+                        { value: "Cadastrado", tone: "default" },
+                        { value: "Baseline Curva", tone: "purple" },
+                      ]}
+                    />
+                    <StackedComparisonCell
+                      align="right"
+                      lines={[
+                        { value: row.baselineHunter, currency: true },
+                        { value: row.allocatedHunter, currency: true, tone: "default" },
+                        { value: getCurveSplitAmount(row.registeredCustomerStudioTarget, row.registeredCustomerStudioHunterTarget), currency: true, tone: "purple" },
+                      ]}
+                    />
+                    <StackedComparisonCell
+                      align="right"
+                      lines={[
+                        { value: row.baselineMaintenance, currency: true },
+                        { value: row.allocatedMaintenance, currency: true, tone: "default" },
+                        { value: getCurveSplitAmount(row.registeredCustomerStudioTarget, row.registeredCustomerStudioMaintenanceTarget), currency: true, tone: "purple" },
+                      ]}
+                    />
+                    <StackedComparisonCell
+                      align="right"
+                      lines={[
+                        { value: row.baselineTotal, currency: true, bold: true },
+                        { value: row.allocatedTotal, currency: true, tone: "default", bold: true },
+                        { value: row.registeredCustomerStudioTarget, currency: true, tone: "purple", bold: true },
+                      ]}
+                    />
+                    <StackedComparisonCell
+                      align="right"
+                      lines={[
+                        { value: undefined, currency: true },
+                        { value: row.hunterDelta, currency: true, tone: "delta" },
+                        { value: undefined, currency: true, tone: "purple" },
+                      ]}
+                    />
+                    <StackedComparisonCell
+                      align="right"
+                      lines={[
+                        { value: undefined, currency: true },
+                        { value: row.maintenanceDelta, currency: true, tone: "delta" },
+                        { value: undefined, currency: true, tone: "purple" },
+                      ]}
+                    />
                     <TableCell>
                       <p className={cn("text-sm font-semibold", getDivergenceClassName(row))}>{getDivergenceLabel(row)}</p>
                       {Math.abs(row.allocationDelta) > 0.01 && (
@@ -452,55 +495,6 @@ function ModeButton({
   );
 }
 
-function ThreeLineTextCell({ first, second, third }: { first: string; second: string; third: string }) {
-  return (
-    <TableCell>
-      <div className="grid gap-2">
-        <p className="min-h-7 font-bold leading-7 text-slate-900">{first}</p>
-        <p className="min-h-7 rounded-md bg-slate-50 px-2 font-bold leading-7 text-slate-900">{second}</p>
-        <p className="min-h-7 rounded-md bg-purple-50 px-2 font-bold leading-7 text-brq-purple">{third}</p>
-      </div>
-    </TableCell>
-  );
-}
-
-function ThreeLineMoneyCell({
-  first,
-  second,
-  third,
-  bold = false,
-  tone = false,
-}: {
-  first?: number;
-  second: number;
-  third?: number;
-  bold?: boolean;
-  tone?: boolean;
-}) {
-  return (
-    <TableCell className="text-right tabular-nums">
-      <div className="grid gap-2">
-        <p className={cn("min-h-7 leading-7", bold ? "font-black text-slate-950" : "font-semibold text-slate-800")}>
-          {first === undefined ? <span className="text-slate-300">-</span> : formatCurrency(first)}
-        </p>
-        <p className={cn(
-          "min-h-7 rounded-md bg-slate-50 px-2 leading-7",
-          bold ? "font-black text-slate-950" : "font-semibold text-slate-800",
-          tone && getDeltaTextClassName(second),
-        )}>
-          {formatCurrency(second)}
-        </p>
-        <p className={cn(
-          "min-h-7 rounded-md bg-purple-50 px-2 leading-7",
-          bold ? "font-black text-brq-purple" : "font-semibold text-brq-purple",
-        )}>
-          {third === undefined ? <span className="text-purple-200">-</span> : formatCurrency(third)}
-        </p>
-      </div>
-    </TableCell>
-  );
-}
-
 function CustomerTargetStack({ row }: { row: StudioBaselineComparisonRow }) {
   return (
     <div className="space-y-1 text-xs text-slate-500">
@@ -531,17 +525,28 @@ function sortStudioBaselineRows(rows: StudioBaselineComparisonRow[]) {
 function applyCurveBaselineToRows(rows: StudioBaselineComparisonRow[], curveRows: StudioBaselineComparisonRow[]) {
   if (!curveRows.length) return rows;
   const curveBaselineByCustomerStudio = new Map(
-    curveRows.map((row) => [getCustomerStudioKey(row.customerName, row.studioName), row.registeredCustomerStudioTarget || row.baselineTotal]),
+    curveRows.map((row) => [getCustomerStudioKey(row.customerName, row.studioName), {
+      hunter: row.registeredCustomerStudioHunterTarget || row.baselineHunter,
+      maintenance: row.registeredCustomerStudioMaintenanceTarget || row.baselineMaintenance,
+      total: row.registeredCustomerStudioTarget || row.baselineTotal,
+    }]),
   );
 
   return rows.map((row) => {
     const curveStudioTarget = curveBaselineByCustomerStudio.get(getCustomerStudioKey(row.customerName, row.studioName));
-    if (curveStudioTarget === undefined) return row;
+    if (!curveStudioTarget) return row;
     return {
       ...row,
-      registeredCustomerStudioTarget: curveStudioTarget,
+      registeredCustomerStudioHunterTarget: curveStudioTarget.hunter,
+      registeredCustomerStudioMaintenanceTarget: curveStudioTarget.maintenance,
+      registeredCustomerStudioTarget: curveStudioTarget.total,
     };
   });
+}
+
+function getCurveSplitAmount(curveTotal: number, splitAmount: number) {
+  if (Math.abs(curveTotal) <= 0.01) return undefined;
+  return splitAmount;
 }
 
 function getCustomerStudioKey(customerName: string, studioName: string) {
@@ -592,12 +597,6 @@ function getDeltaTone(value: number) {
   if (Math.abs(value) <= 0.01) return "sky";
   if (value > 0.01) return "ok";
   return "danger";
-}
-
-function getDeltaTextClassName(value: number) {
-  if (value > 0.01) return "text-emerald-700";
-  if (value < -0.01) return "text-red-700";
-  return "text-sky-700";
 }
 
 function formatDateTime(value: string) {
