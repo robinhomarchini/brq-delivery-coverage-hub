@@ -35,6 +35,7 @@ import {
   getCustomerAllocationComposition,
   getCustomerAllocationWarning,
   getCustomerCoverageStatus,
+  getCustomerDerivedStudioTargets,
   getCustomerStatusIconClassName,
   getCustomerStudioComposition,
   getCustomerTargetBreakdown,
@@ -115,8 +116,6 @@ export function CustomerManagement() {
   const [formHunterId, setFormHunterId] = useState(getPrimaryHunterIdForCustomer(initialCustomer?.id ?? "", people));
   const [formHunterTarget, setFormHunterTarget] = useState(getInputValue(initialCustomer?.hunterTarget ?? getFinancialCustomerMetric(initialCustomer?.name ?? "", "hunterRevenue")));
   const [formFarmerRenewalTarget, setFormFarmerRenewalTarget] = useState(getInputValue(initialCustomer?.farmerRenewalTarget ?? getFinancialCustomerMetric(initialCustomer?.name ?? "", "deliveryFarmerRevenue")));
-  const [formStudioHunterTarget, setFormStudioHunterTarget] = useState(getInputValue(initialCustomer?.studioHunterTarget ?? 0));
-  const [formStudioTarget, setFormStudioTarget] = useState(getInputValue(initialCustomer?.studioTarget ?? 0));
   const [successMessage, setSuccessMessage] = useState("");
   const [formError, setFormError] = useState("");
   const [sortState, setSortState] = useState<SortState<CustomerSortKey>>({ key: "customer", direction: "asc" });
@@ -152,8 +151,12 @@ export function CustomerManagement() {
   );
   const formHunterAmount = parseAmount(formHunterTarget);
   const formFarmerRenewalAmount = parseAmount(formFarmerRenewalTarget);
-  const formStudioHunterAmount = parseAmount(formStudioHunterTarget);
-  const formStudioAmount = parseAmount(formStudioTarget);
+  const formDerivedStudioTargets = useMemo(
+    () => getCustomerDerivedStudioTargets(linkedEditing?.id ?? "", studioTargetAllocations, year),
+    [linkedEditing?.id, studioTargetAllocations, year],
+  );
+  const formStudioHunterAmount = formDerivedStudioTargets.studioHunterTarget;
+  const formStudioAmount = formDerivedStudioTargets.studioTarget;
   const formRevenue = getCustomerTotalTargetFromParts(formHunterAmount, formFarmerRenewalAmount);
 
   const targetTotals = filtered.reduce((totals, customer) => {
@@ -297,8 +300,6 @@ export function CustomerManagement() {
     setFormHunterId(getPrimaryHunterIdForCustomer(item?.id ?? "", people));
     setFormHunterTarget(getInputValue(item?.hunterTarget ?? getFinancialCustomerMetric(item?.name ?? "", "hunterRevenue")));
     setFormFarmerRenewalTarget(getInputValue(item?.farmerRenewalTarget ?? getFinancialCustomerMetric(item?.name ?? "", "deliveryFarmerRevenue")));
-    setFormStudioHunterTarget(getInputValue(item?.studioHunterTarget ?? 0));
-    setFormStudioTarget(getInputValue(item?.studioTarget ?? 0));
     setFormError("");
     setManualOpen(true);
     setDismissInitialOpen(false);
@@ -312,8 +313,6 @@ export function CustomerManagement() {
     if (!linkedEditing) {
       setFormHunterTarget(getInputValue(getFinancialCustomerMetric(name, "hunterRevenue")));
       setFormFarmerRenewalTarget(getInputValue(getFinancialCustomerMetric(name, "deliveryFarmerRevenue")));
-      setFormStudioHunterTarget("0");
-      setFormStudioTarget("0");
     }
   }
 
@@ -623,38 +622,20 @@ export function CustomerManagement() {
               <span className="mt-1 block text-xs text-slate-500">{formatCurrency(formFarmerRenewalAmount)}</span>
             </Field>
             <Field label={`Área/Studio Hunter ${year} (R$)`}>
-              <div className="flex items-center rounded-xl border border-slate-200 bg-white px-3 focus-within:border-purple-400 focus-within:ring-2 focus-within:ring-purple-100">
-                <span className="mr-2 text-sm font-semibold text-slate-400">R$</span>
-                <Input
-                  name="studioHunterTarget"
-                  type="text"
-                  inputMode="decimal"
-                  autoComplete="off"
-                  value={formStudioHunterTarget}
-                  onChange={(event) => setFormStudioHunterTarget(event.target.value)}
-                  onFocus={(event) => event.currentTarget.select()}
-                  placeholder="0"
-                  className="h-10 border-0 px-0 text-right font-semibold tabular-nums focus:ring-0"
-                />
-              </div>
-              <span className="mt-1 block text-xs text-slate-500">{formatCurrency(formStudioHunterAmount)} dentro da Meta Hunter; não soma novamente no total.</span>
+              <DerivedStudioTargetCard
+                value={formStudioHunterAmount}
+                customerId={linkedEditing?.id}
+                year={year}
+                description="Calculado automaticamente pelas alocações de Studio Hunter. Fica dentro da Meta Hunter e não soma novamente no total."
+              />
             </Field>
             <Field label={`Área/Studio Manutenção ${year} (R$)`}>
-              <div className="flex items-center rounded-xl border border-slate-200 bg-white px-3 focus-within:border-purple-400 focus-within:ring-2 focus-within:ring-purple-100">
-                <span className="mr-2 text-sm font-semibold text-slate-400">R$</span>
-                <Input
-                  name="studioTarget"
-                  type="text"
-                  inputMode="decimal"
-                  autoComplete="off"
-                  value={formStudioTarget}
-                  onChange={(event) => setFormStudioTarget(event.target.value)}
-                  onFocus={(event) => event.currentTarget.select()}
-                  placeholder="0"
-                  className="h-10 border-0 px-0 text-right font-semibold tabular-nums focus:ring-0"
-                />
-              </div>
-              <span className="mt-1 block text-xs text-slate-500">{formatCurrency(formStudioAmount)}</span>
+              <DerivedStudioTargetCard
+                value={formStudioAmount}
+                customerId={linkedEditing?.id}
+                year={year}
+                description="Calculado automaticamente pelas alocações de Studio Manutenção/Renovação. Fica dentro de Renovação + Ampliação e não soma novamente no total."
+              />
             </Field>
             <div className="rounded-2xl border border-slate-200 bg-white p-4">
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Meta total</p>
@@ -685,6 +666,41 @@ export function CustomerManagement() {
 
 function Field({ label, className, children }: { label: string; className?: string; children: React.ReactNode }) {
   return <label className={className}><span className="mb-1.5 block text-sm font-semibold text-slate-700">{label}</span>{children}</label>;
+}
+
+function DerivedStudioTargetCard({
+  value,
+  customerId,
+  year,
+  description,
+}: {
+  value: number;
+  customerId?: string;
+  year: number;
+  description: string;
+}) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">Derivado de Metas por Área/Studio</p>
+          <p className="mt-1 text-xl font-black tabular-nums text-slate-950">{formatCurrency(value)}</p>
+        </div>
+        <Badge variant="secondary">Somente leitura</Badge>
+      </div>
+      <p className="mt-2 text-xs leading-5 text-slate-500">{description}</p>
+      {customerId ? (
+        <Link
+          href={`/metas-studios?customerId=${encodeURIComponent(customerId)}&year=${year}`}
+          className="mt-2 inline-flex text-xs font-bold text-brq-purple hover:underline"
+        >
+          Ajustar em Metas por Área/Studio
+        </Link>
+      ) : (
+        <p className="mt-2 text-xs text-slate-400">Salve o cliente antes de cadastrar alocações por Studio.</p>
+      )}
+    </div>
+  );
 }
 
 function TargetBreakdownView({ breakdown, compact = false }: { breakdown: CustomerTargetBreakdown; compact?: boolean }) {

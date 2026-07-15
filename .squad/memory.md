@@ -370,6 +370,7 @@ Centralizar importação de baselines em uma nova rota, removendo uploads antigo
 - A view model de cobertura/conciliação da tela Clientes fica centralizada em `src/lib/customers/customer-coverage-view-model.ts`. `customer-management.tsx` não deve reintroduzir cálculos inline de status, composição por pessoa, composição por área/studio ou ordenação de cobertura; `npm run test:performance` bloqueia essa regressão.
 - Na central de Baselines, a Curva principal compara e aplica somente Meta Hunter, Renovação/Ampliação e Meta Total do cliente. Áreas/Studios é subquebra contida e tem batimento exclusivo na visão detalhada de Baseline de Studios; a grade principal não deve marcar cliente como divergente nem sobrescrever `studioTarget` por diferença de Studio.
 - Grades operacionais e de batimento devem usar `SortableTableHead` nos cabeçalhos ordenáveis. Tabelas novas ou alteradas não devem voltar para cabeçalhos estáticos quando exibem listas comparáveis/filtráveis.
+- Na tela Clientes, Studio Hunter e Studio Manutenção/Renovação exibidos no formulário são derivados de `studio_target_allocations` e somente leitura; ajustes devem ocorrer em Metas por Área/Studio. Diferenças residuais que formatam como R$ 0 não devem gerar alerta visual de distribuição.
 
 ## Next Pending Step
 

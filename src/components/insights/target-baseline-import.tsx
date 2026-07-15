@@ -469,7 +469,7 @@ function MetricLine({ label, value }: { label: string; value: number }) {
 
 function getHunterMessageSummary(comparison: TargetBaselineComparison) {
   if (comparison.valueStatus === "missing_customer") return "Cliente ausente";
-  if (comparison.hunterStatus === "warning") return "Ver divergência";
+  if (comparison.hunterStatus === "warning") return "Ver alerta";
   if (comparison.hunterStatus === "not_applicable") return "Sem Hunter";
   return "Consistente";
 }
@@ -478,7 +478,6 @@ function StatusBadge({ comparison }: { comparison: TargetBaselineComparison }) {
   if (comparison.valueStatus === "missing_customer") return <Badge variant="destructive">Cliente ausente</Badge>;
   if (comparison.valueStatus === "invalid_total") return <Badge variant="destructive">Total inválido</Badge>;
   if (comparison.valueStatus === "different") return <Badge variant="warning">Divergente</Badge>;
-  if (comparison.hunterStatus === "warning") return <Badge variant="warning">Hunter atenção</Badge>;
   return <Badge variant="success">OK</Badge>;
 }
 
@@ -527,7 +526,6 @@ function getStatusSortLabel(comparison: TargetBaselineComparison) {
   if (comparison.valueStatus === "missing_customer") return "4-cliente-ausente";
   if (comparison.valueStatus === "invalid_total") return "3-total-invalido";
   if (comparison.valueStatus === "different") return "2-divergente";
-  if (comparison.hunterStatus === "warning") return "1-hunter-atencao";
   return "0-ok";
 }
 

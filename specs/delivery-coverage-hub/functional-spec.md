@@ -70,6 +70,13 @@ sem apuração automática nesta versão.
 Meta Hunter, Meta Renovação + Ampliação e Meta Áreas / Studios aceitam `0` como
 valor válido. Campo em branco nesses campos deve ser interpretado como R$ 0 e
 não pode bloquear o salvamento do cliente.
+No formulário de Clientes, Meta Áreas / Studios não é editável diretamente.
+Studio Hunter e Studio Manutenção/Renovação devem aparecer como valores
+derivados e somente leitura, calculados pelas alocações em Metas por
+Área/Studio no Cliente + Ano. A ação de ajuste deve levar para
+`/metas-studios` com cliente e ano em contexto. Ao salvar o Cliente, esses
+valores podem ser enviados apenas como cache compatível do ano, preservando
+`studio_target_allocations` como fonte canônica.
 Managers responsáveis representam governança Delivery da conta. O Hunter
 responsável representa vínculo cadastral/comercial. Áreas / Studios classificam
 pessoas e podem apoiar a execução, mas não substituem o manager responsável do
@@ -103,6 +110,9 @@ meta Áreas / Studios, com os valores alocados por pessoa, derivados de
 Linhas de saldo "Em aberto" ou "Acima da meta" só devem aparecer quando houver
 valor material visível em reais; diferenças residuais de centavos/arredondamento
 que aparecem como R$ 0 não devem gerar linhas no grid.
+Avisos de distribuição abaixo/acima da meta no modal de Cliente devem seguir a
+mesma regra visual: se a diferença arredondada em reais for R$ 0, o aviso não
+deve ser exibido.
 Essas linhas devem considerar o saldo líquido total do cliente. Se Hunter estiver
 abaixo da quebra sugerida e outra parcela estiver acima no mesmo valor -- por
 exemplo Renovação + Ampliação ou Áreas / Studios -- e a soma das pessoas bater

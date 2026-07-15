@@ -70,6 +70,10 @@ assertIncludes(customerTargetTotalSource, "hunterTarget + farmerRenewalTarget", 
 assertIncludes(customerCoverageViewModelSource, "export function getCustomerCoverageStatus", "Customer coverage status must stay outside the UI component.");
 assertIncludes(customerCoverageViewModelSource, "export function getCustomerAllocationComposition", "Customer allocation composition must stay outside the UI component.");
 assertIncludes(customerCoverageViewModelSource, "export function getCustomerStudioComposition", "Customer studio composition must stay outside the UI component.");
+assertIncludes(customerCoverageViewModelSource, "export function getCustomerDerivedStudioTargets", "Customer Studio targets must be derived from Studio allocations in the shared view model.");
+assertIncludes(customerManagementSource, "DerivedStudioTargetCard", "Customer form must show Studio targets as derived read-only cards.");
+assertNotIncludes(customerManagementSource, "name=\"studioHunterTarget\"", "Customer form must not expose an editable Studio Hunter input.");
+assertNotIncludes(customerManagementSource, "name=\"studioTarget\"", "Customer form must not expose an editable Studio maintenance input.");
 assertNotIncludes(customerManagementSource, "function getCustomerCoverageStatus(", "Customer management must not reintroduce coverage calculations inline.");
 assertNotIncludes(customerManagementSource, "function getCustomerAllocationComposition(", "Customer management must not reintroduce allocation composition inline.");
 assertNotIncludes(customerManagementSource, "function sortCustomerRows(", "Customer management must not sort rows with inline derived calculations.");

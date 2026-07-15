@@ -14,6 +14,12 @@ export interface CustomerTargetBreakdown {
   total: number;
 }
 
+export interface CustomerDerivedStudioTargets {
+  studioHunterTarget: number;
+  studioTarget: number;
+  total: number;
+}
+
 export interface CustomerAllocationWarningData {
   customerId: string;
   year: number;
@@ -107,6 +113,25 @@ export function getCustomerTargetBreakdown(customer: Customer): CustomerTargetBr
   return { hunter, farmerRenewal, studioHunter, studio, total: getCustomerTotalTarget({ hunterTarget: hunter, farmerRenewalTarget: farmerRenewal }) };
 }
 
+export function getCustomerDerivedStudioTargets(
+  customerId: string,
+  allocations: StudioTargetAllocation[],
+  year: number,
+): CustomerDerivedStudioTargets {
+  const customerAllocations = allocations.filter((allocation) =>
+    allocation.customerId === customerId
+    && allocation.year === year
+  );
+  const studioHunterTarget = roundCurrency(customerAllocations.reduce((total, allocation) => total + allocation.hunterAmount, 0));
+  const studioTarget = roundCurrency(customerAllocations.reduce((total, allocation) => total + allocation.maintenanceAmount, 0));
+
+  return {
+    studioHunterTarget,
+    studioTarget,
+    total: roundCurrency(studioHunterTarget + studioTarget),
+  };
+}
+
 export function getCustomerCoverageStatus(
   customer: Customer,
   people: Person[],
@@ -176,7 +201,7 @@ export function getCustomerCoverageStatus(
     };
   }
 
-  if (Math.abs(difference) > 0.01) {
+  if (hasVisibleCurrencyAmount(difference)) {
     return {
       status: "mismatch",
       title: [
@@ -258,7 +283,7 @@ export function getCustomerAllocationWarning(
   const allocated = roundCurrency(hunterAllocation.containedHunter + allocatedFarmerRenewal);
   const gap = roundCurrency(target - allocated);
 
-  if (gap <= 0.01) return null;
+  if (!hasVisibleCurrencyAmount(gap)) return null;
 
   const involvedIds = new Set([
     ...customer.managerResponsibleIds,
