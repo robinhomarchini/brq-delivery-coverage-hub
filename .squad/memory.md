@@ -368,6 +368,8 @@ Centralizar importação de baselines em uma nova rota, removendo uploads antigo
 - A geração da Planilha oficial do Relatório de Metas fica centralizada em `src/lib/reports/person-target-official-export.ts`. `person-target-report.tsx` apenas reexporta `buildOfficialRowsForView` para compatibilidade com o gate `test:reports`.
 - Rollups comuns do Relatório de Metas ficam em `src/lib/reports/person-target-rollups.ts`: Studio Hunter efetivo, renovação de Studio elegível por pessoa, meta própria descontando herança e fallback de Hunter principal. Não duplicar esses cálculos em tela/export.
 - A view model de cobertura/conciliação da tela Clientes fica centralizada em `src/lib/customers/customer-coverage-view-model.ts`. `customer-management.tsx` não deve reintroduzir cálculos inline de status, composição por pessoa, composição por área/studio ou ordenação de cobertura; `npm run test:performance` bloqueia essa regressão.
+- Na central de Baselines, a Curva principal compara e aplica somente Meta Hunter, Renovação/Ampliação e Meta Total do cliente. Áreas/Studios é subquebra contida e tem batimento exclusivo na visão detalhada de Baseline de Studios; a grade principal não deve marcar cliente como divergente nem sobrescrever `studioTarget` por diferença de Studio.
+- Grades operacionais e de batimento devem usar `SortableTableHead` nos cabeçalhos ordenáveis. Tabelas novas ou alteradas não devem voltar para cabeçalhos estáticos quando exibem listas comparáveis/filtráveis.
 
 ## Next Pending Step
 

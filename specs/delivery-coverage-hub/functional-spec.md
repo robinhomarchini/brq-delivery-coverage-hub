@@ -61,9 +61,10 @@ estratégica, Meta Hunter, Meta Renovação + Ampliação, Meta Áreas / Studios
 Meta Total calculada. A listagem e o formulário exibem a composição financeira
 em Meta Hunter, Meta Renovação + Ampliação, Áreas / Studios e Meta Total, sempre
 formatada em reais. A tela de Clientes é a base da meta do cliente: Meta Total é
-calculada por Meta Hunter + Meta Renovação + Ampliação + Áreas / Studios. A
-carga Financial BU pode sugerir a quebra inicial, mas após edição os campos do
-cadastro do cliente são a fonte de verdade para as demais telas.
+calculada por Meta Hunter + Meta Renovação + Ampliação. Áreas / Studios é uma
+subquebra contida para conciliação detalhada e não soma novamente no total do
+cliente. A carga Financial BU pode sugerir a quebra inicial, mas após edição os
+campos do cadastro do cliente são a fonte de verdade para as demais telas.
 Margem deve ser tratada como margem-alvo informativa, com padrão de 35,8%,
 sem apuração automática nesta versão.
 Meta Hunter, Meta Renovação + Ampliação e Meta Áreas / Studios aceitam `0` como
@@ -602,8 +603,10 @@ Manutenção/Renovação ou Novo/Hunter, valor e a origem selecionada.
 
 A rota Baselines permite importar uma planilha `.xlsx` de baseline de metas com
 as colunas Cliente, BU, Target RL Hunter, Target RL Farmer e Total RL 2026,
-aceitando uma coluna opcional de `resp` e uma coluna opcional de Áreas /
-Studios. A importação não sobrescreve a base automaticamente. Primeiro o sistema
+aceitando uma coluna opcional de `resp`. O batimento de Studios da Curva
+principal é extraído da aba `Sheet1` e fica somente na visão detalhada de
+Baseline de Studios, sem entrar na grade principal de clientes. A importação não
+sobrescreve a base automaticamente. Primeiro o sistema
 compara cliente a cliente contra `customer_target_years` do ano selecionado e
 valida se o responsável Hunter da planilha está consistente com as pessoas e
 metas Hunter cadastradas. As divergências aparecem em uma grade com checkbox por
@@ -620,13 +623,12 @@ mostrar a composição das pessoas, valores e origem que formam o total do siste
 sem atribuir a diferença a uma única pessoa.
 A importação deve respeitar as colunas financeiras da planilha: `Target RL
 Hunter` compara com Meta Hunter, `Target RL Farmer` compara com Renovação +
-Ampliação e a coluna opcional de Áreas / Studios compara com Meta Áreas /
-Studios. Quando essa coluna não existir, o saldo entre Total, Hunter e
-Renovação + Ampliação é tratado como Áreas / Studios. O campo `resp` identifica
-o responsável informado na planilha para análise, mas não reclassifica
-automaticamente valores entre os componentes. Se a coluna Total vier com texto
-não numérico em uma linha, o sistema deve usar Hunter + Renovação + Ampliação
-como total efetivo daquela linha.
+Ampliação e `Total RL 2026` compara com Meta Total do cliente. Áreas / Studios
+não é comparado nem aplicado nesta grade porque já tem batimento próprio por
+Cliente + Studio. O campo `resp` identifica o responsável informado na planilha
+para análise, mas não reclassifica automaticamente valores entre os componentes.
+Se a coluna Total vier com texto não numérico em uma linha, o sistema deve usar
+Hunter + Renovação + Ampliação como total efetivo daquela linha.
 Na Curva principal oficial, a aba `Resumo RL 2026` possui mais de um quadro; o
 baseline de clientes deve usar somente o segundo quadro Financial, procurando o
 cabeçalho a partir da linha 125. Quadros anteriores da mesma aba são ignorados

@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { KpiSummaryCard } from "@/components/shared/kpi-summary-card";
+import { SortableTableHead, type SortDirection, type SortState } from "@/components/shared/sortable-table-head";
 import { ErrorNotice, SuccessNotice } from "@/components/shared/success-notice";
 import { useDeliveryStore } from "@/store/delivery-store";
 import { getCustomerTotalTarget } from "@/lib/customer-target-total";
@@ -34,6 +35,16 @@ type ImportProgress = {
 };
 
 const importProgressTotalSteps = 7;
+type TargetBaselineSortKey =
+  | "customer"
+  | "status"
+  | "hunterCurrent"
+  | "hunterImported"
+  | "renewalCurrent"
+  | "renewalImported"
+  | "totalCurrent"
+  | "totalImported"
+  | "hunterCheck";
 
 export function TargetBaselineImport() {
   const {
@@ -56,6 +67,7 @@ export function TargetBaselineImport() {
   const [applying, setApplying] = useState(false);
   const [importProgress, setImportProgress] = useState<ImportProgress | null>(null);
   const [importElapsedSeconds, setImportElapsedSeconds] = useState(0);
+  const [sortState, setSortState] = useState<SortState<TargetBaselineSortKey>>({ key: "customer", direction: "asc" });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -74,6 +86,7 @@ export function TargetBaselineImport() {
     () => buildTargetBaselineComparisons(displayRows, yearCustomers, people, targetAllocations, studioTargetAllocations, year),
     [displayRows, people, studioTargetAllocations, targetAllocations, year, yearCustomers],
   );
+  const sortedComparisons = useMemo(() => sortTargetBaselineComparisons(comparisons, sortState), [comparisons, sortState]);
   const selectableComparisons = comparisons.filter(canApplyComparison);
   const selectedComparisons = comparisons.filter((comparison) => selectedKeys.has(comparison.key) && canApplyComparison(comparison));
   const divergentCount = comparisons.filter((comparison) => comparison.valueStatus === "different").length;
@@ -206,7 +219,7 @@ export function TargetBaselineImport() {
               Faça upload da planilha com Cliente, Target RL Hunter, Target RL Farmer e Total RL 2026.
               Apenas linhas com BU Financial entram no baseline de clientes.
               A coluna resp é opcional.
-              A coluna de Áreas / Studios é opcional; se não existir, o saldo entre total, Hunter e Renovação será usado.
+              O batimento de Studios é gerado em foto própria e fica na visão detalhada de Baseline de Studios.
               A tela compara contra o Supabase e só atualiza os clientes marcados por você.
             </p>
           </div>
@@ -276,7 +289,7 @@ export function TargetBaselineImport() {
               <div className="flex items-start gap-2">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
                 <span>
-                  Há {invalidTotals} linha(s) com total da planilha diferente da soma Hunter + Renovação + Áreas / Studios e {missingCustomers} cliente(s) não encontrado(s).
+                  Há {invalidTotals} linha(s) com total da planilha diferente da soma Hunter + Renovação e {missingCustomers} cliente(s) não encontrado(s).
                   Revise esses itens antes de aplicar qualquer atualização.
                 </span>
               </div>
@@ -284,25 +297,23 @@ export function TargetBaselineImport() {
           )}
 
           <div className="overflow-x-auto">
-            <Table className="min-w-[1480px]">
+            <Table className="min-w-[1240px]">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-16">Usar</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Hunter atual</TableHead>
-                  <TableHead>Hunter planilha</TableHead>
-                  <TableHead>Renov. atual</TableHead>
-                  <TableHead>Renov. planilha</TableHead>
-                  <TableHead>Áreas/Studios atual</TableHead>
-                  <TableHead>Áreas/Studios planilha</TableHead>
-                  <TableHead>Total atual</TableHead>
-                  <TableHead>Total planilha</TableHead>
-                  <TableHead>Hunter cadastrado</TableHead>
+                  <SortableTableHead label="Cliente" sortKey="customer" sortState={sortState} onSort={setSortState} />
+                  <SortableTableHead label="Status" sortKey="status" sortState={sortState} onSort={setSortState} />
+                  <SortableTableHead label="Hunter atual" sortKey="hunterCurrent" sortState={sortState} onSort={setSortState} />
+                  <SortableTableHead label="Hunter planilha" sortKey="hunterImported" sortState={sortState} onSort={setSortState} />
+                  <SortableTableHead label="Renov. atual" sortKey="renewalCurrent" sortState={sortState} onSort={setSortState} />
+                  <SortableTableHead label="Renov. planilha" sortKey="renewalImported" sortState={sortState} onSort={setSortState} />
+                  <SortableTableHead label="Total atual" sortKey="totalCurrent" sortState={sortState} onSort={setSortState} />
+                  <SortableTableHead label="Total planilha" sortKey="totalImported" sortState={sortState} onSort={setSortState} />
+                  <SortableTableHead label="Hunter cadastrado" sortKey="hunterCheck" sortState={sortState} onSort={setSortState} />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {comparisons.map((comparison) => {
+                {sortedComparisons.map((comparison) => {
                   const canApply = canApplyComparison(comparison);
                   const checked = selectedKeys.has(comparison.key) && canApply;
                   return (
@@ -328,8 +339,6 @@ export function TargetBaselineImport() {
                       <MoneyCell value={comparison.effectiveHunterTarget} highlight={hasDifference(comparison, "hunterTarget")} />
                       <MoneyCell value={comparison.customer?.farmerRenewalTarget ?? 0} />
                       <MoneyCell value={comparison.effectiveFarmerRenewalTarget} highlight={hasDifference(comparison, "farmerRenewalTarget")} />
-                      <MoneyCell value={comparison.customer?.studioTarget ?? 0} />
-                      <MoneyCell value={comparison.effectiveStudioTarget} highlight={hasDifference(comparison, "studioTarget")} />
                       <MoneyCell value={comparison.customer ? getCustomerTarget(comparison.customer) : 0} />
                       <TableCell>
                         <p className={cn("font-semibold", hasDifference(comparison, "revenue") && "text-brq-purple")}>{formatCurrency(comparison.effectiveRevenue)}</p>
@@ -477,8 +486,49 @@ function canApplyComparison(comparison: TargetBaselineComparison) {
   return Boolean(comparison.customer && comparison.updateCandidate && comparison.differences.length && comparison.valueStatus !== "invalid_total");
 }
 
-function hasDifference(comparison: TargetBaselineComparison, field: "hunterTarget" | "farmerRenewalTarget" | "studioTarget" | "revenue") {
+function hasDifference(comparison: TargetBaselineComparison, field: "hunterTarget" | "farmerRenewalTarget" | "revenue") {
   return comparison.differences.some((difference) => difference.field === field);
+}
+
+function sortTargetBaselineComparisons(
+  comparisons: TargetBaselineComparison[],
+  sortState: SortState<TargetBaselineSortKey>,
+) {
+  if (!sortState) return comparisons;
+  return sortRows(comparisons, sortState.direction, (first, second) => {
+    if (sortState.key === "customer") return compareText(first.row.customerName, second.row.customerName);
+    if (sortState.key === "status") return compareText(getStatusSortLabel(first), getStatusSortLabel(second));
+    if (sortState.key === "hunterCurrent") return compareNumber(first.customer?.hunterTarget ?? 0, second.customer?.hunterTarget ?? 0);
+    if (sortState.key === "hunterImported") return compareNumber(first.effectiveHunterTarget, second.effectiveHunterTarget);
+    if (sortState.key === "renewalCurrent") return compareNumber(first.customer?.farmerRenewalTarget ?? 0, second.customer?.farmerRenewalTarget ?? 0);
+    if (sortState.key === "renewalImported") return compareNumber(first.effectiveFarmerRenewalTarget, second.effectiveFarmerRenewalTarget);
+    if (sortState.key === "totalCurrent") return compareNumber(first.customer ? getCustomerTarget(first.customer) : 0, second.customer ? getCustomerTarget(second.customer) : 0);
+    if (sortState.key === "totalImported") return compareNumber(first.effectiveRevenue, second.effectiveRevenue);
+    return compareText(getHunterMessageSummary(first), getHunterMessageSummary(second));
+  });
+}
+
+function sortRows<T>(rows: T[], direction: SortDirection, compare: (first: T, second: T) => number) {
+  return rows.slice().sort((first, second) => {
+    const result = compare(first, second);
+    return direction === "asc" ? result : -result;
+  });
+}
+
+function compareNumber(first: number, second: number) {
+  return first - second;
+}
+
+function compareText(first: string, second: string) {
+  return first.localeCompare(second, "pt-BR", { sensitivity: "base", numeric: true });
+}
+
+function getStatusSortLabel(comparison: TargetBaselineComparison) {
+  if (comparison.valueStatus === "missing_customer") return "4-cliente-ausente";
+  if (comparison.valueStatus === "invalid_total") return "3-total-invalido";
+  if (comparison.valueStatus === "different") return "2-divergente";
+  if (comparison.hunterStatus === "warning") return "1-hunter-atencao";
+  return "0-ok";
 }
 
 function hasVisibleCurrencyDifference(value: number) {

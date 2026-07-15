@@ -1,4 +1,5 @@
-import { parseTargetBaselineRows, type SpreadsheetCell } from "../src/lib/target-baseline-import";
+import type { Customer } from "../src/data/mockData";
+import { buildTargetBaselineComparisons, parseTargetBaselineRows, type SpreadsheetCell } from "../src/lib/target-baseline-import";
 
 function assert(condition: boolean, message: string) {
   if (!condition) throw new Error(message);
@@ -52,5 +53,43 @@ const parsedCompactReaderRows = parseTargetBaselineRows(compactReaderRows);
 
 assert(parsedCompactReaderRows.length === 1, "O parser deve escolher o último cabeçalho válido quando o leitor XLSX não preservar linhas vazias.");
 assert(parsedCompactReaderRows[0]?.hunterTarget === 100_000, "O parser deve usar o segundo quadro Financial, não o primeiro quadro duplicado.");
+
+const aleloCustomer: Customer = {
+  id: "customer-alelo",
+  name: "ALELO",
+  industry: "Financial Services",
+  directorResponsibleId: "director-ca",
+  managerResponsibleIds: [],
+  hunterTarget: 11_033_497,
+  farmerRenewalTarget: 3_177_599,
+  studioHunterTarget: 6_600_149,
+  studioTarget: 2_431_414,
+  revenue: 14_211_096,
+  margin: 35.8,
+  strategicAccount: false,
+  lifecycleStatus: "active",
+};
+
+const [aleloComparison] = buildTargetBaselineComparisons(
+  [{
+    rowNumber: 126,
+    customerName: "ALELO",
+    businessUnit: "BU Financial",
+    hunterTarget: 11_033_497,
+    farmerRenewalTarget: 3_177_599,
+    studioTarget: 0,
+    totalTarget: 14_211_096,
+    responsibleCode: "",
+  }],
+  [aleloCustomer],
+  [],
+  [],
+  [],
+  2026,
+);
+
+assert(aleloComparison?.valueStatus === "ok", "A Curva principal não deve marcar divergência por Studio quando Hunter, Renovação e Total do cliente batem.");
+assert(aleloComparison?.updateCandidate?.studioTarget === aleloCustomer.studioTarget, "Aplicar a Curva principal deve preservar a meta de Studio do cliente.");
+assert(aleloComparison?.effectiveRevenue === 14_211_096, "O total da Curva principal deve ser o total oficial do cliente, sem somar Studio novamente.");
 
 console.log("Target baseline import QA checks passed.");

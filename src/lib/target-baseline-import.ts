@@ -49,7 +49,7 @@ export interface TargetBaselineComparison {
 }
 
 export interface TargetBaselineDifference {
-  field: "hunterTarget" | "farmerRenewalTarget" | "studioTarget" | "revenue";
+  field: "hunterTarget" | "farmerRenewalTarget" | "revenue";
   label: string;
   currentValue: number;
   importedValue: number;
@@ -201,8 +201,10 @@ export function buildTargetBaselineComparisons(
     const importedHunter = roundCurrency(row.hunterTarget);
     const importedFarmerRenewal = roundCurrency(row.farmerRenewalTarget);
     const importedStudio = roundCurrency(row.studioTarget);
-    const importedRevenue = roundCurrency(importedHunter + importedFarmerRenewal + importedStudio);
-    const sheetTotalDifference = roundCurrency(row.totalTarget - importedRevenue);
+    const importedRevenue = roundCurrency(row.totalTarget > zeroMoneyTolerance
+      ? row.totalTarget
+      : importedHunter + importedFarmerRenewal);
+    const sheetTotalDifference = roundCurrency(row.totalTarget - (importedHunter + importedFarmerRenewal));
 
     if (!customer) {
       return {
@@ -220,8 +222,8 @@ export function buildTargetBaselineComparisons(
       };
     }
 
-    const differences = buildDifferences(customer, importedHunter, importedFarmerRenewal, importedStudio, importedRevenue);
-    const importedTotalIsValid = isSameDisplayedCurrency(row.totalTarget, importedRevenue);
+    const differences = buildDifferences(customer, importedHunter, importedFarmerRenewal, importedRevenue);
+    const importedTotalIsValid = isSameDisplayedCurrency(row.totalTarget, importedHunter + importedFarmerRenewal);
     const hunterCheck = validateHunterConsistency(row, customer, people, targetAllocations, studioTargetAllocations, year);
 
     return {
@@ -237,7 +239,6 @@ export function buildTargetBaselineComparisons(
         ...customer,
         hunterTarget: importedHunter,
         farmerRenewalTarget: importedFarmerRenewal,
-        studioTarget: importedStudio,
         revenue: importedRevenue,
       },
       valueStatus: !importedTotalIsValid ? "invalid_total" : differences.length ? "different" : "ok",
@@ -264,7 +265,7 @@ export function normalizeName(value: string) {
     .toUpperCase();
 }
 
-function buildDifferences(customer: Customer, hunterTarget: number, farmerRenewalTarget: number, studioTarget: number, revenue: number) {
+function buildDifferences(customer: Customer, hunterTarget: number, farmerRenewalTarget: number, revenue: number) {
   const currentRevenue = getCustomerTarget(customer);
   const candidates: TargetBaselineDifference[] = [
     {
@@ -280,13 +281,6 @@ function buildDifferences(customer: Customer, hunterTarget: number, farmerRenewa
       currentValue: customer.farmerRenewalTarget,
       importedValue: farmerRenewalTarget,
       delta: farmerRenewalTarget - customer.farmerRenewalTarget,
-    },
-    {
-      field: "studioTarget",
-      label: "Áreas / Studios",
-      currentValue: customer.studioTarget,
-      importedValue: studioTarget,
-      delta: studioTarget - customer.studioTarget,
     },
     {
       field: "revenue",
