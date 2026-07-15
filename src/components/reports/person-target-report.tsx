@@ -822,7 +822,7 @@ export function PersonTargetReport() {
           <div className="border-b border-slate-200 px-5 py-4">
             <p className="text-sm font-bold text-slate-900">Visão completa por pessoa e cliente</p>
             <p className="text-xs text-slate-500">
-              Mostra todo cliente com relacionamento da pessoa, separando meta própria, Studio Hunter herdado e Studio Manutenção/Delivery herdada.
+              Mostra todo cliente com relacionamento da pessoa. Studio Hunter e Studio Manutenção aparecem como composição contida na meta atual, sem somar novamente.
             </p>
           </div>
           <div className="overflow-x-auto">
@@ -835,7 +835,7 @@ export function PersonTargetReport() {
                   <SortableTableHead label="Relacionamento" sortKey="relationship" sortState={peopleClientSort} onSort={setPeopleClientSort} />
                   <SortableTableHead label="Hunter atual" sortKey="hunter" sortState={peopleClientSort} onSort={setPeopleClientSort} />
                   <SortableTableHead label="Renov. + Ampl. atual" sortKey="renewal" sortState={peopleClientSort} onSort={setPeopleClientSort} />
-                  <SortableTableHead label="Total" sortKey="total" sortState={peopleClientSort} onSort={setPeopleClientSort} />
+                  <SortableTableHead label="Total atual" sortKey="total" sortState={peopleClientSort} onSort={setPeopleClientSort} />
                   <TableHead>Studios que compõem</TableHead>
                   <TableHead className="text-right">Ação</TableHead>
                 </TableRow>
@@ -1473,7 +1473,7 @@ export function PersonTargetReport() {
 }
 
 function getViewDescription(view: ReportView) {
-  if (view === "peopleClients") return "Pessoa como centro: todos os clientes relacionados, meta própria, Studio Hunter e Studio Manutenção/Delivery.";
+  if (view === "peopleClients") return "Pessoa como centro: clientes relacionados e composição da meta atual; Studios ficam contidos nos valores de Hunter/Renovação.";
   if (view === "clients") return "Cliente como centro: Hunters, Delivery/Farmers e Hunter Especializado quando houver.";
   if (view === "areas") return "Metas agrupadas por Área/Studio, com clientes apenas como detalhe.";
   if (view === "hunters") return "Metas consolidadas por Hunter, sem repetir uma linha por cliente.";
@@ -1486,7 +1486,7 @@ function getViewDescription(view: ReportView) {
 function MoneyBreakdown({ total, lines }: { total: number; lines: Array<[string, number]> }) {
   return (
     <div className="text-right">
-      <p className="font-bold tabular-nums text-slate-950">{formatCurrency(total)}</p>
+      <p className="font-bold tabular-nums text-slate-950" title="Valor atual, já incluindo a parcela de Studio contida.">{formatCurrency(total)}</p>
       <div className="mt-1 space-y-0.5 text-xs text-slate-500">
         {lines.map(([label, value]) => (
           <p key={label}>{label}: <span className="font-semibold text-slate-700">{formatCurrency(value)}</span></p>

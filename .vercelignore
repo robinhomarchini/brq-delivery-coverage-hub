@@ -1,0 +1,5 @@
+.next
+.vercel/output
+.npm-cache
+coverage
+node_modules
