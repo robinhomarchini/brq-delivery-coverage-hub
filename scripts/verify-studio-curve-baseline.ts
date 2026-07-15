@@ -1,5 +1,5 @@
 import type { Area, Customer, StudioTargetAllocation } from "../src/data/mockData";
-import { buildStudioBaselineComparisons, type StudioBaselineRow } from "../src/lib/studio-baseline-import";
+import { buildStudioBaselineComparisons, refreshStudioBaselineComparisonsFromCurrentData, type StudioBaselineComparisonRow, type StudioBaselineRow } from "../src/lib/studio-baseline-import";
 import { parseCurveStudioBaselineRows } from "../src/lib/studio-curve-baseline-snapshot";
 
 const curveSheetColumns = {
@@ -96,6 +96,24 @@ assert(awsAliasComparison.status === "ok", "Alianças AWS baseline must match AW
 assert(awsAliasComparison.registeredStudioName === "AWS-Alianças", "AWS alias comparison must preserve the registered Studio name.");
 assert(awsAliasComparison.allocatedHunter === 400000, "AWS alias comparison must use the registered allocation.");
 
+const refreshedSnapshotComparison = refreshStudioBaselineComparisonsFromCurrentData(
+  [makeRestoredComparisonRow({
+    customerName: "Alelo",
+    studioName: "Alianças AWS",
+    baselineHunter: 400000,
+    baselineTotal: 400000,
+    status: "missing_studio",
+  })],
+  [makeCustomer({ id: "customer-alelo", name: "Alelo" })],
+  [makeArea({ id: "area-aws", name: "AWS-Alianças" })],
+  [makeStudioAllocation({ customerId: "customer-alelo", areaId: "area-aws", hunterAmount: 400000 })],
+  2026,
+)[0];
+
+assert(refreshedSnapshotComparison, "Restored snapshot comparison must be refreshed.");
+assert(refreshedSnapshotComparison.status === "ok", "Restored missing Studio snapshot must be refreshed against current registered Studios.");
+assert(refreshedSnapshotComparison.registeredStudioName === "AWS-Alianças", "Refreshed snapshot comparison must preserve the current registered Studio name.");
+
 console.log("Studio Curve baseline QA checks passed.");
 
 function makeCurveRow({
@@ -182,5 +200,38 @@ function makeStudioAllocation(input: { customerId: string; areaId: string; hunte
     year: 2026,
     hunterAmount: input.hunterAmount ?? 0,
     maintenanceAmount: input.maintenanceAmount ?? 0,
+  };
+}
+
+function makeRestoredComparisonRow(input: {
+  customerName: string;
+  studioName: string;
+  baselineHunter?: number;
+  baselineMaintenance?: number;
+  baselineTotal?: number;
+  status?: StudioBaselineComparisonRow["status"];
+}): StudioBaselineComparisonRow {
+  return {
+    key: `${input.customerName}:${input.studioName}`,
+    customerName: input.customerName,
+    registeredCustomerName: "",
+    studioName: input.studioName,
+    registeredStudioName: "",
+    registeredCustomerHunterTarget: 0,
+    registeredCustomerMaintenanceTarget: 0,
+    registeredCustomerStudioHunterTarget: 0,
+    registeredCustomerStudioMaintenanceTarget: 0,
+    registeredCustomerStudioTarget: 0,
+    registeredCustomerTotalTarget: 0,
+    baselineHunter: input.baselineHunter ?? 0,
+    baselineMaintenance: input.baselineMaintenance ?? 0,
+    baselineTotal: input.baselineTotal ?? 0,
+    allocatedHunter: 0,
+    allocatedMaintenance: 0,
+    allocatedTotal: 0,
+    hunterDelta: 0,
+    maintenanceDelta: 0,
+    allocationDelta: 0,
+    status: input.status ?? "allocation_gap",
   };
 }

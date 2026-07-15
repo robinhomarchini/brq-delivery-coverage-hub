@@ -17,10 +17,12 @@ import { useDeliveryStore } from "@/store/delivery-store";
 import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears } from "@/lib/customer-targets";
 import {
   buildStudioBaselineComparisons,
+  getStudioComparisonKey,
   getStudioBaselineSource,
   isFinancialBusinessUnit,
   normalizeStudioCurrencyDelta,
   readStudioBaselineWorkbook,
+  refreshStudioBaselineComparisonsFromCurrentData,
   studioBaselineSources,
   type StudioBaselineComparisonRow,
   type StudioBaselineSourceCode,
@@ -31,7 +33,7 @@ import {
   restoreStudioBaselineComparisonRows,
   type StudioBaselineReportRow,
 } from "@/lib/studio-baseline-report";
-import { cn, formatCurrency, normalizeBusinessName, roundCurrency } from "@/lib/utils";
+import { cn, formatCurrency, roundCurrency } from "@/lib/utils";
 
 const maxFileSizeInBytes = 5 * 1024 * 1024;
 type BaselineImportMode = "main_curve" | "studio_sources";
@@ -70,13 +72,15 @@ export function BaselineImportCenter() {
   const latestCurveSnapshotRows = useMemo(() => {
     if (sourceCode === "studio_general") return [];
     const curveSnapshot = studioBaselineSnapshots.find((snapshot) => snapshot.year === year && snapshot.sourceCode === "studio_general");
-    return curveSnapshot ? restoreStudioBaselineComparisonRows(curveSnapshot.rows) : [];
-  }, [sourceCode, studioBaselineSnapshots, year]);
+    return curveSnapshot
+      ? refreshStudioBaselineComparisonsFromCurrentData(restoreStudioBaselineComparisonRows(curveSnapshot.rows), yearCustomers, areas, studioTargetAllocations, year)
+      : [];
+  }, [areas, sourceCode, studioBaselineSnapshots, studioTargetAllocations, year, yearCustomers]);
   const latestSnapshotRows = useMemo(
     () => latestSnapshot && latestSnapshot.id !== dismissedSnapshotId
-      ? restoreStudioBaselineComparisonRows(latestSnapshot.rows)
+      ? refreshStudioBaselineComparisonsFromCurrentData(restoreStudioBaselineComparisonRows(latestSnapshot.rows), yearCustomers, areas, studioTargetAllocations, year)
       : [],
-    [dismissedSnapshotId, latestSnapshot],
+    [areas, dismissedSnapshotId, latestSnapshot, studioTargetAllocations, year, yearCustomers],
   );
   const loadedFromSnapshot = importedRows.length === 0 && latestSnapshotRows.length > 0;
   const displayRows = useMemo(
@@ -634,7 +638,7 @@ function getCurveSplitAmount(curveTotal: number, splitAmount: number) {
 }
 
 function getCustomerStudioKey(customerName: string, studioName: string) {
-  return `${normalizeBusinessName(customerName)}:${normalizeBusinessName(studioName)}`;
+  return getStudioComparisonKey(customerName, studioName);
 }
 
 function compareBusinessLabel(first: string, second: string) {

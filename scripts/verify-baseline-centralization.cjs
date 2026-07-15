@@ -36,6 +36,7 @@ const requiredCenterTokens = [
   'value: "Baseline Curva"',
   "Última foto salva carregada",
   "restoreStudioBaselineComparisonRows",
+  "refreshStudioBaselineComparisonsFromCurrentData",
   "buildStudioBaselineReportRows",
   "Dif. Hunter",
   "Cadastro do cliente",
@@ -98,6 +99,10 @@ const forbiddenComparisonTokens = [
   "Importar planilha",
   "Importar baseline de studios",
 ];
+
+if (!comparison.includes("refreshStudioBaselineComparisonsFromCurrentData")) {
+  throw new Error("Baseline comparison must refresh restored Studio snapshots against current cadastro data.");
+}
 
 const leakedComparisonTokens = forbiddenComparisonTokens.filter((token) => comparison.includes(token));
 if (leakedComparisonTokens.length) {
@@ -272,6 +277,7 @@ const requiredCurveGrainTokens = [
   "applyCurveBaselineToRows",
   "latestCurveSnapshotRows",
   "getCustomerStudioKey",
+  "getStudioComparisonKey",
   "getCurveSplitAmount",
 ];
 

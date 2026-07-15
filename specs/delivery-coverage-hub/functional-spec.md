@@ -768,6 +768,11 @@ Ao restaurar fotos salvas de Baseline de Studios, a linha `Baseline Curva` deve
 manter consistência aritmética: se Hunter + Manutenção/Renovação divergir do
 Total salvo por snapshot antigo, a tela deve recompor o Total pela soma das
 parcelas para evitar status divergente falso.
+O snapshot salvo preserva a origem baseline, mas o bloco `Cadastrado`, o status
+e os nomes cadastrados de Cliente/Studio devem ser recalculados contra o cadastro
+operacional atual ao abrir a tela. Assim, correções posteriores em Studios,
+aliases ou alocações passam a refletir no batimento sem exigir reimportar a
+planilha histórica.
 Após importar e calcular o batimento na central de Baselines, a tela deve permitir "Salvar foto do
 resultado". Essa foto é um snapshot imutável do resultado calculado naquele
 momento, com ano, nome do arquivo, totais e linhas exibidas/exportáveis. Salvar

@@ -25,6 +25,7 @@ import {
   type BaselineComparisonMode,
 } from "@/lib/board-target-baseline";
 import {
+  refreshStudioBaselineComparisonsFromCurrentData,
   studioBaselineSources,
   type StudioBaselineComparisonRow,
   type StudioBaselineSourceCode,
@@ -40,7 +41,7 @@ type ComparisonRow = ReturnType<typeof buildBoardTargetComparisonRows>[number];
 type BaselineWorkspace = "board" | "studios";
 
 export function BaselineComparison() {
-  const { customers, customerTargets, boardTargetBaselines, studioBaselineSnapshots, saveCustomers } = useDeliveryStore();
+  const { areas, customers, customerTargets, boardTargetBaselines, studioBaselineSnapshots, studioTargetAllocations, saveCustomers } = useDeliveryStore();
   const [workspace, setWorkspace] = useState<BaselineWorkspace>("board");
   const [year, setYear] = useState(defaultTargetYear);
   const [search, setSearch] = useState("");
@@ -112,9 +113,9 @@ export function BaselineComparison() {
   );
   const latestStudioSnapshotRows = useMemo(
     () => latestStudioSnapshot && dismissedStudioSnapshotId !== latestStudioSnapshot.id
-      ? restoreStudioBaselineComparisonRows(latestStudioSnapshot.rows)
+      ? refreshStudioBaselineComparisonsFromCurrentData(restoreStudioBaselineComparisonRows(latestStudioSnapshot.rows), yearCustomers, areas, studioTargetAllocations, year)
       : [],
-    [dismissedStudioSnapshotId, latestStudioSnapshot],
+    [areas, dismissedStudioSnapshotId, latestStudioSnapshot, studioTargetAllocations, year, yearCustomers],
   );
   const isStudioSnapshotLoaded = latestStudioSnapshotRows.length > 0;
   const studioComparisonRows = latestStudioSnapshotRows;

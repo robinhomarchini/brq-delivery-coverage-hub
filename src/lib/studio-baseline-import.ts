@@ -291,6 +291,60 @@ export function buildStudioBaselineComparisons(
   });
 }
 
+export function refreshStudioBaselineComparisonsFromCurrentData(
+  rows: StudioBaselineComparisonRow[],
+  customers: Customer[],
+  areas: Area[],
+  studioAllocations: StudioTargetAllocation[],
+  year: number,
+) {
+  const refreshedByKey = new Map(
+    buildStudioBaselineComparisons(
+      rows.map((row, index) => ({
+        rowNumber: index + 1,
+        salesUnit: "Snapshot",
+        tower: "Snapshot",
+        businessUnit: row.sourceBusinessUnit,
+        customerName: row.customerName,
+        studioName: row.studioName,
+        opportunityType: "Snapshot restaurado",
+        hunterAmount: row.baselineHunter,
+        maintenanceAmount: row.baselineMaintenance,
+        totalAmount: row.baselineTotal,
+      })),
+      customers,
+      areas,
+      studioAllocations,
+      year,
+    ).map((row) => [getStudioComparisonKey(row.customerName, row.studioName), row]),
+  );
+
+  return rows.map((row) => {
+    const refreshed = refreshedByKey.get(getStudioComparisonKey(row.customerName, row.studioName));
+    if (!refreshed) return row;
+
+    return {
+      ...row,
+      registeredCustomerName: refreshed.registeredCustomerName,
+      registeredStudioName: refreshed.registeredStudioName,
+      registeredCustomerHunterTarget: refreshed.registeredCustomerHunterTarget,
+      registeredCustomerMaintenanceTarget: refreshed.registeredCustomerMaintenanceTarget,
+      registeredCustomerTotalTarget: refreshed.registeredCustomerTotalTarget,
+      allocatedHunter: refreshed.allocatedHunter,
+      allocatedMaintenance: refreshed.allocatedMaintenance,
+      allocatedTotal: refreshed.allocatedTotal,
+      hunterDelta: refreshed.hunterDelta,
+      maintenanceDelta: refreshed.maintenanceDelta,
+      allocationDelta: refreshed.allocationDelta,
+      status: refreshed.status,
+    } satisfies StudioBaselineComparisonRow;
+  });
+}
+
+export function getStudioComparisonKey(customerName: string, studioName: string) {
+  return `${normalizeBusinessName(customerName)}:${getStudioMatchKey(studioName)}`;
+}
+
 function buildStudioAreaNameIndex(areas: Area[]) {
   const index = new Map<string, Area>();
   areas.forEach((area) => {
