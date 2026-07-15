@@ -25,5 +25,6 @@ tsconfig.tsbuildinfo
 
 
 .vercel
+.vercel-cli/
 supabase/.temp/
 .npm-cache/
