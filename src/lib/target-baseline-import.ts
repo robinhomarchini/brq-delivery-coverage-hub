@@ -336,13 +336,13 @@ function validateHunterConsistency(
       const nonHunterImportedTotal = roundCurrency(importedFarmerRenewal + importedStudio);
       if (nonHunterImportedTotal > zeroMoneyTolerance) {
         return {
-          status: "warning" as const,
-          message: `Planilha classifica ${formatCurrency(nonHunterImportedTotal)} fora de Hunter, mas o sistema está com Hunter alocado para ${allocationMessage}. Corrija Metas por Pessoa ou aplique a planilha como baseline.`,
+          status: "ok" as const,
+          message: `Informativo: a planilha classifica ${formatCurrency(nonHunterImportedTotal)} fora de Hunter, e o sistema tem Hunter alocado para ${allocationMessage}. Esta informação não gera divergência na Curva principal.`,
         };
       }
       return {
-        status: "warning" as const,
-        message: `Planilha sem meta Hunter, mas o sistema está com Hunter alocado para ${allocationMessage}.`,
+        status: "ok" as const,
+        message: `Informativo: planilha sem meta Hunter, mas o sistema tem Hunter alocado para ${allocationMessage}. Esta informação não gera divergência na Curva principal.`,
       };
     }
     return { status: "not_applicable" as const, message: "Sem meta Hunter na planilha." };
@@ -350,17 +350,17 @@ function validateHunterConsistency(
 
   if (!hunterAllocations.length) {
     return {
-      status: "warning" as const,
+      status: "ok" as const,
       message: row.responsibleCode
-        ? `Planilha informa ${formatCurrency(importedHunter)} de Hunter para ${row.responsibleCode}, mas não há meta Hunter alocada no sistema para este cliente/ano.`
-        : `Planilha informa ${formatCurrency(importedHunter)} de Hunter, mas não há meta Hunter alocada no sistema para este cliente/ano.`,
+        ? `Informativo: planilha informa ${formatCurrency(importedHunter)} de Hunter para ${row.responsibleCode}, mas não há meta Hunter alocada no sistema para este cliente/ano. Esta informação não gera divergência na Curva principal.`
+        : `Informativo: planilha informa ${formatCurrency(importedHunter)} de Hunter, mas não há meta Hunter alocada no sistema para este cliente/ano. Esta informação não gera divergência na Curva principal.`,
     };
   }
 
   if (!isSameDisplayedCurrency(allocatedHunterTotal, importedHunter)) {
     return {
-      status: "warning" as const,
-      message: `Valor Hunter divergente: planilha ${formatCurrency(importedHunter)} vs. sistema ${formatCurrency(allocatedHunterTotal)}. Composição no sistema: ${allocationBreakdown}. Studio Hunter é tratado como contido por pessoa, sem duplicar Meta Hunter direta.`,
+      status: "ok" as const,
+      message: `Informativo: Hunter da planilha ${formatCurrency(importedHunter)} vs. composição cadastrada ${formatCurrency(allocatedHunterTotal)}. Composição no sistema: ${allocationBreakdown}. Esta informação não gera divergência na Curva principal.`,
     };
   }
 
@@ -376,8 +376,8 @@ function validateHunterConsistency(
   const hasResponsibleAllocation = hunterAllocations.some((item) => item.person?.id === responsiblePerson.id);
   if (!hasResponsibleAllocation) {
     return {
-      status: "warning" as const,
-      message: `Valor Hunter consistente no total, mas a planilha indica ${responsiblePerson.name} e o sistema tem composição em: ${allocationBreakdown}.`,
+      status: "ok" as const,
+      message: `Informativo: valor Hunter consistente no total; a planilha indica ${responsiblePerson.name} e o sistema tem composição em: ${allocationBreakdown}. Esta informação não gera divergência na Curva principal.`,
     };
   }
 

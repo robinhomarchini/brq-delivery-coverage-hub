@@ -628,9 +628,11 @@ incluindo múltiplos Hunters e pessoas de outros perfis que tenham meta Hunter
 declarada, mais as alocações de Studio Hunter atribuídas ao Hunter no mesmo
 cliente/ano. Studio Manutenção continua fora do total Hunter; quando não for PX
 e tiver Farmer/Delivery elegível associado, compõe Renovação + Ampliação da
-pessoa. Quando houver divergência, a mensagem deve
-mostrar a composição das pessoas, valores e origem que formam o total do sistema,
-sem atribuir a diferença a uma única pessoa.
+pessoa. A composição/responsável Hunter da planilha é informativa e não deve
+gerar divergência, alerta ou bloqueio quando Hunter, Renovação e Total do
+cliente estiverem batidos. A mensagem de detalhe pode mostrar a composição das
+pessoas, valores e origem que formam o total do sistema, sem atribuir a
+diferença a uma única pessoa.
 A importação deve respeitar as colunas financeiras da planilha: `Target RL
 Hunter` compara com Meta Hunter, `Target RL Farmer` compara com Renovação +
 Ampliação e `Total RL 2026` compara com Meta Total do cliente. Áreas / Studios
