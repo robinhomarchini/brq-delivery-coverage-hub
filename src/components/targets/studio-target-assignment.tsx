@@ -19,7 +19,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useDeliveryStore } from "@/store/delivery-store";
 import { formatCurrencyInput, formatCurrencyInputValue, parseCurrencyInput } from "@/lib/currency-input";
 import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears } from "@/lib/customer-targets";
-import { isFarmerDeliveryTargetRole, isHunterRole } from "@/lib/roles";
+import { isFarmerDeliveryTargetRole, isHunterRole, isHunterSelectionRole } from "@/lib/roles";
 import { getStudioMaintenancePersonId } from "@/lib/studio-renewal-rollup";
 import { useCloseOnNavigation } from "@/lib/use-close-on-navigation";
 import { formatCurrency, makeId } from "@/lib/utils";
@@ -339,7 +339,7 @@ export function StudioTargetAssignment() {
         <Field label="Hunter">
           <Select value={hunterPersonId} onChange={(event) => setHunterPersonId(event.target.value)}>
             <option value="">Todos os hunters</option>
-            {hunterOptions.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}
+            {hunterOptions.map((person) => <option key={person.id} value={person.id}>{formatHunterOptionLabel(person)}</option>)}
           </Select>
         </Field>
         <div className="flex items-end">
@@ -878,11 +878,11 @@ function getHunterOptions(
 
   return people
     .filter((person) =>
-      (person.active && isHunterRole(person.roleType))
+      (person.active && isHunterSelectionRole(person.roleType))
       || hunterIdsFromCustomerTargets.has(person.id)
       || hunterIdsFromStudioTargets.has(person.id)
       || extraIds.has(person.id)
-      || Boolean(customerId && person.clientIds.includes(customerId) && isHunterRole(person.roleType))
+      || Boolean(customerId && person.clientIds.includes(customerId) && isHunterSelectionRole(person.roleType))
     )
     .sort((first, second) => first.name.localeCompare(second.name, "pt-BR"));
 }
@@ -963,6 +963,10 @@ function getEffectiveStudioHunterPersonId(
 function personName(people: Person[], personId?: string, emptyLabel = "Hunter não informado") {
   if (!personId) return emptyLabel;
   return people.find((person) => person.id === personId)?.name ?? personId;
+}
+
+function formatHunterOptionLabel(person: Pick<Person, "name" | "roleType">) {
+  return person.roleType === "Hunter Especializado" ? `${person.name} · Hunter Especializado` : person.name;
 }
 
 function getInputValue(value: number) {

@@ -62,6 +62,10 @@ export function isSpecialistHunterRole(role: RoleType) {
   return role === "Hunter Especializado";
 }
 
+export function isHunterSelectionRole(role: RoleType) {
+  return isHunterRole(role) || isSpecialistHunterRole(role);
+}
+
 export function getHierarchyLevelForRole(role: RoleType): 1 | 2 | 3 {
   if (role === "Executive") return 1;
   if (role === "Director" || role === "Staff") return 2;
