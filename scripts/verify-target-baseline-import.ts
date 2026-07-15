@@ -142,4 +142,32 @@ const [itauComparison] = buildTargetBaselineComparisons(
 assert(itauComparison?.valueStatus === "ok", "Diferença informativa de Hunter cadastrado não deve afetar o status financeiro da Curva principal.");
 assert(itauComparison?.hunterStatus === "ok", "Hunter da planilha é informativo e não deve gerar alerta quando os valores da Curva batem.");
 
+const zurichCustomer: Customer = {
+  ...aleloCustomer,
+  id: "customer-zurich",
+  name: "ZURICH",
+  hunterTarget: 850_000,
+  farmerRenewalTarget: 4_472_914,
+  revenue: 999,
+};
+const [zurichComparison] = buildTargetBaselineComparisons(
+  [{
+    rowNumber: 131,
+    customerName: "ZURICH",
+    businessUnit: "BU Financial",
+    hunterTarget: 850_000,
+    farmerRenewalTarget: 4_472_914,
+    studioTarget: 0,
+    totalTarget: 5_322_914,
+    responsibleCode: "hunter informativo",
+  }],
+  [zurichCustomer],
+  [],
+  [],
+  [],
+  2026,
+);
+
+assert(zurichComparison?.valueStatus === "ok", "ZURICH não deve ficar divergente quando Hunter e Renovação batem; Total é derivado e Hunter/responsável é informativo.");
+
 console.log("Target baseline import QA checks passed.");

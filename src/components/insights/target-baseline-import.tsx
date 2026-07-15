@@ -90,7 +90,6 @@ export function TargetBaselineImport() {
   const selectableComparisons = comparisons.filter(canApplyComparison);
   const selectedComparisons = comparisons.filter((comparison) => selectedKeys.has(comparison.key) && canApplyComparison(comparison));
   const divergentCount = comparisons.filter((comparison) => comparison.valueStatus === "different").length;
-  const hunterWarnings = comparisons.filter((comparison) => comparison.hunterStatus === "warning").length;
   const missingCustomers = comparisons.filter((comparison) => comparison.valueStatus === "missing_customer").length;
   const invalidTotals = comparisons.filter((comparison) => comparison.valueStatus === "invalid_total").length;
 
@@ -256,7 +255,7 @@ export function TargetBaselineImport() {
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <KpiSummaryCard label="Ano de referência" value={year} />
         <KpiSummaryCard label="Clientes divergentes" value={divergentCount} tone={divergentCount ? "warning" : "neutral"} />
-        <KpiSummaryCard label="Alertas de Hunter" value={hunterWarnings} tone={hunterWarnings ? "warning" : "neutral"} />
+        <KpiSummaryCard label="Informativos Hunter" value={comparisons.filter(hasHunterInformation).length} tone="neutral" />
         <KpiSummaryCard label="Clientes não encontrados" value={missingCustomers} tone={missingCustomers ? "danger" : "neutral"} />
         <KpiSummaryCard label="Selecionados" value={selectedComparisons.length} tone="purple" />
       </section>
@@ -341,7 +340,7 @@ export function TargetBaselineImport() {
                       <MoneyCell value={comparison.effectiveFarmerRenewalTarget} highlight={hasDifference(comparison, "farmerRenewalTarget")} />
                       <MoneyCell value={comparison.customer ? getCustomerTarget(comparison.customer) : 0} />
                       <TableCell>
-                        <p className={cn("font-semibold", hasDifference(comparison, "revenue") && "text-brq-purple")}>{formatCurrency(comparison.effectiveRevenue)}</p>
+                        <p className="font-semibold text-slate-900">{formatCurrency(comparison.effectiveRevenue)}</p>
                         {hasVisibleCurrencyDifference(comparison.sheetTotalDifference) && (
                           <p className="mt-1 text-xs text-red-600">
                             Soma difere {formatCurrency(comparison.sheetTotalDifference)}
@@ -485,8 +484,12 @@ function canApplyComparison(comparison: TargetBaselineComparison) {
   return Boolean(comparison.customer && comparison.updateCandidate && comparison.differences.length && comparison.valueStatus !== "invalid_total");
 }
 
-function hasDifference(comparison: TargetBaselineComparison, field: "hunterTarget" | "farmerRenewalTarget" | "revenue") {
+function hasDifference(comparison: TargetBaselineComparison, field: "hunterTarget" | "farmerRenewalTarget") {
   return comparison.differences.some((difference) => difference.field === field);
+}
+
+function hasHunterInformation(comparison: TargetBaselineComparison) {
+  return comparison.hunterMessage.startsWith("Informativo:");
 }
 
 function sortTargetBaselineComparisons(

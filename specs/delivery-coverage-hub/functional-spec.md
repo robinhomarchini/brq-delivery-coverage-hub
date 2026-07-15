@@ -635,12 +635,14 @@ pessoas, valores e origem que formam o total do sistema, sem atribuir a
 diferença a uma única pessoa.
 A importação deve respeitar as colunas financeiras da planilha: `Target RL
 Hunter` compara com Meta Hunter, `Target RL Farmer` compara com Renovação +
-Ampliação e `Total RL 2026` compara com Meta Total do cliente. Áreas / Studios
-não é comparado nem aplicado nesta grade porque já tem batimento próprio por
-Cliente + Studio. O campo `resp` identifica o responsável informado na planilha
-para análise, mas não reclassifica automaticamente valores entre os componentes.
-Se a coluna Total vier com texto não numérico em uma linha, o sistema deve usar
-Hunter + Renovação + Ampliação como total efetivo daquela linha.
+Ampliação. `Total RL 2026` é exibido e validado contra Hunter + Renovação, mas
+não cria divergência separada porque a Meta Total do cliente é derivada desses
+dois componentes. Áreas / Studios não é comparado nem aplicado nesta grade
+porque já tem batimento próprio por Cliente + Studio. O campo `resp` identifica
+o responsável informado na planilha para análise, mas não reclassifica
+automaticamente valores entre os componentes. Se a coluna Total vier com texto
+não numérico em uma linha, o sistema deve usar Hunter + Renovação + Ampliação
+como total efetivo daquela linha.
 Na Curva principal oficial, a aba `Resumo RL 2026` possui mais de um quadro; o
 baseline de clientes deve usar somente o segundo quadro Financial, procurando o
 cabeçalho a partir da linha 125. Quadros anteriores da mesma aba são ignorados

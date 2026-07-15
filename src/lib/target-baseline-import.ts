@@ -1,7 +1,6 @@
 import type { Customer, Person, StudioTargetAllocation, TargetAllocation } from "@/data/mockData";
 import { isHunterRole } from "@/lib/roles";
 import { getContainedHunterAllocation } from "@/lib/customer-hunter-reconciliation";
-import { getCustomerTotalTarget } from "@/lib/customer-target-total";
 
 export type SpreadsheetCell = unknown;
 
@@ -49,7 +48,7 @@ export interface TargetBaselineComparison {
 }
 
 export interface TargetBaselineDifference {
-  field: "hunterTarget" | "farmerRenewalTarget" | "revenue";
+  field: "hunterTarget" | "farmerRenewalTarget";
   label: string;
   currentValue: number;
   importedValue: number;
@@ -222,7 +221,7 @@ export function buildTargetBaselineComparisons(
       };
     }
 
-    const differences = buildDifferences(customer, importedHunter, importedFarmerRenewal, importedRevenue);
+    const differences = buildDifferences(customer, importedHunter, importedFarmerRenewal);
     const importedTotalIsValid = isSameDisplayedCurrency(row.totalTarget, importedHunter + importedFarmerRenewal);
     const hunterCheck = validateHunterConsistency(row, customer, people, targetAllocations, studioTargetAllocations, year);
 
@@ -265,8 +264,7 @@ export function normalizeName(value: string) {
     .toUpperCase();
 }
 
-function buildDifferences(customer: Customer, hunterTarget: number, farmerRenewalTarget: number, revenue: number) {
-  const currentRevenue = getCustomerTarget(customer);
+function buildDifferences(customer: Customer, hunterTarget: number, farmerRenewalTarget: number) {
   const candidates: TargetBaselineDifference[] = [
     {
       field: "hunterTarget",
@@ -281,13 +279,6 @@ function buildDifferences(customer: Customer, hunterTarget: number, farmerRenewa
       currentValue: customer.farmerRenewalTarget,
       importedValue: farmerRenewalTarget,
       delta: farmerRenewalTarget - customer.farmerRenewalTarget,
-    },
-    {
-      field: "revenue",
-      label: "Meta Total",
-      currentValue: currentRevenue,
-      importedValue: revenue,
-      delta: revenue - currentRevenue,
     },
   ];
   return candidates.filter((difference) => !isSameDisplayedCurrency(difference.currentValue, difference.importedValue));
@@ -454,10 +445,6 @@ function formatHunterAllocationBreakdown(items: HunterContribution[]) {
 
 function formatCurrency(value: number) {
   return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
-}
-
-function getCustomerTarget(customer: Customer) {
-  return getCustomerTotalTarget(customer);
 }
 
 function roundCurrency(value: number) {
