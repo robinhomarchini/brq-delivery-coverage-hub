@@ -764,6 +764,10 @@ O batimento de Studios deve comparar nomes equivalentes de alianças por chave
 canônica, não por texto exato. Exemplos como `Alianças AWS`, `AWS-Alianças` e
 variações de separador devem apontar para o mesmo Studio cadastrado, preservando
 o nome cadastrado na exibição.
+Ao restaurar fotos salvas de Baseline de Studios, a linha `Baseline Curva` deve
+manter consistência aritmética: se Hunter + Manutenção/Renovação divergir do
+Total salvo por snapshot antigo, a tela deve recompor o Total pela soma das
+parcelas para evitar status divergente falso.
 Após importar e calcular o batimento na central de Baselines, a tela deve permitir "Salvar foto do
 resultado". Essa foto é um snapshot imutável do resultado calculado naquele
 momento, com ano, nome do arquivo, totais e linhas exibidas/exportáveis. Salvar

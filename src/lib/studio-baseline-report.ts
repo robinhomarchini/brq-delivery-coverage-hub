@@ -152,7 +152,11 @@ function restoreStudioBaselineGroup(group: {
   const allocatedTotal = allocated?.totalAmount ?? 0;
   const curveHunter = curve?.hunterAmount ?? reference.customerStudioHunterTarget ?? 0;
   const curveMaintenance = curve?.maintenanceAmount ?? reference.customerStudioMaintenanceTarget ?? 0;
-  const registeredCustomerStudioTarget = curve?.totalAmount ?? reference.customerStudioTarget ?? 0;
+  const rawRegisteredCustomerStudioTarget = curve?.totalAmount ?? reference.customerStudioTarget ?? 0;
+  const curveSplitTotal = roundCurrency(curveHunter + curveMaintenance);
+  const registeredCustomerStudioTarget = curveSplitTotal > 0.01 && Math.abs(rawRegisteredCustomerStudioTarget - curveSplitTotal) > 0.01
+    ? curveSplitTotal
+    : rawRegisteredCustomerStudioTarget;
   const curveSplitMissing = registeredCustomerStudioTarget > 0.01 && Math.abs(curveHunter + curveMaintenance) <= 0.01;
   const registeredCustomerStudioHunterTarget = curveSplitMissing ? baselineHunter : curveHunter;
   const registeredCustomerStudioMaintenanceTarget = curveSplitMissing ? baselineMaintenance : curveMaintenance;
