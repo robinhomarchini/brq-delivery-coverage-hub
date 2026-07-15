@@ -3,3 +3,16 @@
 .npm-cache
 coverage
 node_modules
+docs
+specs
+.codex
+.ai
+.squad
+.agents
+.github
+.vscode
+outputs
+output
+/supabase
+*.tsbuildinfo
+*.log
