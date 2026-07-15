@@ -164,6 +164,39 @@ export async function runDeliveryRepositoryContractTests({
     assert(savedFarmer?.clientIds.includes(customer.id), "Farmer responsible person should include the customer assignment.");
   });
 
+  await runContractTest(providerName, "savePersonCustomerTargets keeps customer total target excluding contained Studio", async () => {
+    const repository = await createRepository();
+    const { customer, hunter } = await seedHunter(repository);
+
+    await repository.saveCustomer({
+      ...customer,
+      hunterTarget: 100,
+      farmerRenewalTarget: 50,
+      studioHunterTarget: 30,
+      studioTarget: 40,
+      revenue: 150,
+    }, 2026);
+
+    const saved = await repository.savePersonCustomerTargets({
+      customerId: customer.id,
+      personId: hunter.id,
+      year: 2026,
+      hunterAmount: 120,
+      hunterOwnAmount: 120,
+      farmerRenewalAmount: 70,
+      studioAmount: 0,
+      increaseCustomerTarget: true,
+      notes: "Contract test contained Studio customer total.",
+    });
+
+    const savedCustomer = saved.customers.find((item) => item.id === customer.id);
+    const savedCustomerTarget = saved.customerTargets.find((item) => item.customerId === customer.id && item.year === 2026);
+    assert(savedCustomer, "Expected customer after saving person targets.");
+    assert(savedCustomerTarget, "Expected customer target year after saving person targets.");
+    assertEqual(savedCustomer.revenue, 190, "Customer revenue/total target must be Hunter plus Renewal only.");
+    assertEqual(savedCustomerTarget.revenue, 190, "Customer target-year revenue must be Hunter plus Renewal only.");
+  });
+
   await runContractTest(providerName, "saveStudioTargetAllocation keeps Studio Hunter contained in current Hunter total", async () => {
     const repository = await createRepository();
     const { area, customer, hunter } = await seedHunter(repository);

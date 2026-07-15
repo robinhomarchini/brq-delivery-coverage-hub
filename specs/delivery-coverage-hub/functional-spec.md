@@ -65,6 +65,9 @@ calculada por Meta Hunter + Meta Renovação + Ampliação. Áreas / Studios é 
 subquebra contida para conciliação detalhada e não soma novamente no total do
 cliente. A carga Financial BU pode sugerir a quebra inicial, mas após edição os
 campos do cadastro do cliente são a fonte de verdade para as demais telas.
+Mesmo quando o campo legado `revenue` existir no banco ou no mock local, telas,
+exports e adapters devem derivar a Meta Total por Hunter + Renovação + Ampliação
+para evitar que Studio Hunter ou Studio Manutenção sejam somados duas vezes.
 Margem deve ser tratada como margem-alvo informativa, com padrão de 35,8%,
 sem apuração automática nesta versão.
 Meta Hunter, Meta Renovação + Ampliação e Meta Áreas / Studios aceitam `0` como

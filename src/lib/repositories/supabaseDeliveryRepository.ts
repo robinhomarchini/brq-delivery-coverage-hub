@@ -259,6 +259,7 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
   }
 
   async saveCustomer(customer: Customer, targetYear = 2026) {
+    customer = { ...customer, revenue: getCustomerTarget(customer) };
     if (this.useCustomerBff) {
       return this.saveCustomerWithBff(customer, targetYear);
     }
@@ -279,7 +280,10 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
   }
 
   async saveCustomers(customers: Customer[], targetYear = 2026) {
-    const validated = customers.map(validateCustomer);
+    const validated = customers.map((customer) => {
+      const validCustomer = validateCustomer(customer);
+      return { ...validCustomer, revenue: getCustomerTarget(validCustomer) };
+    });
     if (validated.some((customer) => customer.directorResponsibleId === OTHER_DIRECTOR_ID)) {
       await this.ensureOtherDirectorBucket();
     }
@@ -683,7 +687,7 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
       p_farmer_renewal_target: customer.farmerRenewalTarget,
       p_studio_hunter_target: customer.studioHunterTarget,
       p_studio_target: customer.studioTarget,
-      p_revenue: customer.revenue,
+      p_revenue: getCustomerTarget(customer),
       p_margin: customer.margin,
       p_strategic_account: customer.strategicAccount,
     });
@@ -697,7 +701,7 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
       p_industry: customer.industry,
       p_director_responsible_id: customer.directorResponsibleId,
       p_manager_responsible_ids: customer.managerResponsibleIds,
-      p_revenue: customer.revenue,
+      p_revenue: getCustomerTarget(customer),
       p_margin: customer.margin,
       p_strategic_account: customer.strategicAccount,
     });
@@ -838,6 +842,10 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
     const nextHunterTarget = Math.max(customer.hunterTarget, nextHunterTotal);
     const nextFarmerRenewalTarget = Math.max(customer.farmerRenewalTarget, nextFarmerRenewalTotal);
     const nextStudioTarget = customer.studioTarget;
+    const nextCustomerRevenue = getCustomerTotalTarget({
+      hunterTarget: nextHunterTarget,
+      farmerRenewalTarget: nextFarmerRenewalTarget,
+    });
     const targetIncreaseRequired = nextHunterTotal > customer.hunterTarget + 0.01
       || nextFarmerRenewalTotal > customer.farmerRenewalTarget + 0.01;
 
@@ -849,7 +857,7 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
           farmerRenewalTarget: nextFarmerRenewalTarget,
           studioHunterTarget: customer.studioHunterTarget,
           studioTarget: nextStudioTarget,
-          revenue: nextHunterTarget + nextFarmerRenewalTarget + nextStudioTarget,
+          revenue: nextCustomerRevenue,
         }, input.year);
       }
     }
@@ -1152,6 +1160,7 @@ function fromPersonCompensationRow(row: PersonCompensationRow): PersonCompensati
 }
 
 function toCustomerRow(customer: Customer): CustomerRow {
+  const revenue = getCustomerTarget(customer);
   return {
     id: customer.id,
     name: customer.name,
@@ -1164,7 +1173,7 @@ function toCustomerRow(customer: Customer): CustomerRow {
       farmer_renewal_target: customer.farmerRenewalTarget,
       studio_hunter_target: customer.studioHunterTarget,
       studio_target: customer.studioTarget,
-    revenue: customer.revenue,
+    revenue,
     margin: customer.margin,
     strategic_account: customer.strategicAccount,
   };

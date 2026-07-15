@@ -104,6 +104,7 @@ export class LocalDeliveryRepository implements DeliveryRepository {
 
   async saveCustomer(customer: Customer, targetYear = 2026) {
     customer = validateCustomer(customer);
+    customer = { ...customer, revenue: getCustomerTarget(customer) };
     ensureUniqueCustomerName(this.data.customers, customer);
     const managerIds = new Set(this.data.people
       .filter((person) => isCustomerFarmerResponsibleProfile(person.roleType, person.isManager))
@@ -130,8 +131,9 @@ export class LocalDeliveryRepository implements DeliveryRepository {
 
   async saveCustomers(customers: Customer[], targetYear = 2026) {
     for (const customer of customers.map(validateCustomer)) {
-      this.data.customers = upsert(this.data.customers, customer);
-      this.upsertCustomerTarget(customer, targetYear);
+      const normalizedCustomer = { ...customer, revenue: getCustomerTarget(customer) };
+      this.data.customers = upsert(this.data.customers, normalizedCustomer);
+      this.upsertCustomerTarget(normalizedCustomer, targetYear);
     }
     return this.getAll();
   }
@@ -303,6 +305,10 @@ export class LocalDeliveryRepository implements DeliveryRepository {
     const nextHunterTarget = Math.max(customer.hunterTarget, nextHunterTotal);
     const nextFarmerRenewalTarget = Math.max(customer.farmerRenewalTarget, nextFarmerRenewalTotal);
     const nextStudioTarget = customer.studioTarget;
+    const nextCustomerRevenue = getCustomerTotalTarget({
+      hunterTarget: nextHunterTarget,
+      farmerRenewalTarget: nextFarmerRenewalTarget,
+    });
     const targetIncreaseRequired = nextHunterTotal > customer.hunterTarget + 0.01
       || nextFarmerRenewalTotal > customer.farmerRenewalTarget + 0.01;
 
@@ -316,7 +322,7 @@ export class LocalDeliveryRepository implements DeliveryRepository {
               farmerRenewalTarget: nextFarmerRenewalTarget,
               studioHunterTarget: customer.studioHunterTarget,
               studioTarget: nextStudioTarget,
-              revenue: nextHunterTarget + nextFarmerRenewalTarget + nextStudioTarget,
+              revenue: nextCustomerRevenue,
             }
             : item
         );
@@ -328,7 +334,7 @@ export class LocalDeliveryRepository implements DeliveryRepository {
               farmerRenewalTarget: nextFarmerRenewalTarget,
               studioHunterTarget: customer.studioHunterTarget,
               studioTarget: nextStudioTarget,
-              revenue: nextHunterTarget + nextFarmerRenewalTarget + nextStudioTarget,
+              revenue: nextCustomerRevenue,
             }
             : item)
           : [...this.data.customerTargets, {
@@ -338,7 +344,7 @@ export class LocalDeliveryRepository implements DeliveryRepository {
             farmerRenewalTarget: nextFarmerRenewalTarget,
             studioHunterTarget: customer.studioHunterTarget,
             studioTarget: nextStudioTarget,
-            revenue: nextHunterTarget + nextFarmerRenewalTarget + nextStudioTarget,
+            revenue: nextCustomerRevenue,
           }];
       }
     }

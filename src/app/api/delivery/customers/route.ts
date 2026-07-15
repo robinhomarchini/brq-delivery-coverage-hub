@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { SupabaseDeliveryRepository } from "@/lib/repositories/supabaseDeliveryRepository";
+import { getCustomerTotalTarget } from "@/lib/customer-target-total";
 import { getSafeCommandErrorMessage } from "@/server/api/command-errors";
 import { createDeliveryCommandClient, DeliveryCommandAccessError } from "@/server/auth/delivery-command-access";
 
@@ -43,7 +44,11 @@ export async function POST(request: Request) {
       useCustomerBff: false,
       usePersonCustomerTargetsBff: false,
     });
-    const data = await repository.saveCustomer(parsed.data.customer, parsed.data.targetYear);
+    const customer = {
+      ...parsed.data.customer,
+      revenue: getCustomerTotalTarget(parsed.data.customer),
+    };
+    const data = await repository.saveCustomer(customer, parsed.data.targetYear);
 
     return NextResponse.json(data);
   } catch (error) {

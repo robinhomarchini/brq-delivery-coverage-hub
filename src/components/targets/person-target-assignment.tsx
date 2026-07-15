@@ -18,7 +18,7 @@ import { getCustomerTotalTarget } from "@/lib/customer-target-total";
 import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears } from "@/lib/customer-targets";
 import { formatCurrency, toFileSlug } from "@/lib/utils";
 import { isHunterRole, isSpecialistHunterRole, isTargetAssignableRole } from "@/lib/roles";
-import { getEligibleStudioRenewalAmountForPerson, getStudioMaintenancePersonId, getTargetOwnAmount } from "@/lib/studio-renewal-rollup";
+import { getEligibleStudioRenewalAmountForPerson, getStudioMaintenancePersonId } from "@/lib/studio-renewal-rollup";
 
 const currentYear = defaultTargetYear;
 
@@ -155,7 +155,7 @@ export function PersonTargetAssignment() {
     setDrafts((current) => ({
       ...current,
       [customerId]: {
-        hunter: current[customerId]?.hunter ?? getInputValue(rows.find((row) => row.customerId === customerId)?.hunterOwnAmount ?? 0),
+        hunter: current[customerId]?.hunter ?? getInputValue(rows.find((row) => row.customerId === customerId)?.hunterAmount ?? 0),
         farmerRenewal: current[customerId]?.farmerRenewal ?? getInputValue(rows.find((row) => row.customerId === customerId)?.farmerRenewalAmount ?? 0),
         [field]: value,
       },
@@ -200,9 +200,9 @@ export function PersonTargetAssignment() {
       return;
     }
 
-    const nextHunterOwnAmount = parseAmount(drafts[row.customerId]?.hunter ?? row.hunterInput);
+    const nextHunterAmount = parseAmount(drafts[row.customerId]?.hunter ?? row.hunterInput);
     const nextFarmerRenewalAmount = parseAmount(drafts[row.customerId]?.farmerRenewal ?? row.farmerRenewalInput);
-    await persistCustomerTargets(row, nextHunterOwnAmount, nextFarmerRenewalAmount, 0);
+    await persistCustomerTargets(row, nextHunterAmount, nextFarmerRenewalAmount, 0);
   }
 
   async function removeCustomerFromPerson(row: PersonTargetRow) {
@@ -268,8 +268,8 @@ export function PersonTargetAssignment() {
 
     await persistCustomerTargets(
       row,
-      field === "hunter" ? Math.max(availableAmount - row.studioHunterAmount, 0) : row.hunterOwnAmount,
-      field === "farmerRenewal" ? Math.max(availableAmount - row.studioRenewalAmount, 0) : row.farmerRenewalOwnAmount,
+      field === "hunter" ? availableAmount : row.hunterAmount,
+      field === "farmerRenewal" ? availableAmount : row.farmerRenewalAmount,
       0,
       `Meta ${label} de ${selectedPerson.name} em ${row.customerName} alocada com sucesso.`,
     );
@@ -277,8 +277,8 @@ export function PersonTargetAssignment() {
 
   async function persistCustomerTargets(
     row: PersonTargetRow,
-    nextHunterOwnAmount: number,
-    nextFarmerRenewalAmount: number,
+    nextHunterAmount: number,
+    nextFarmerRenewalTotalAmount: number,
     nextStudioAmount: number,
     successText?: string,
   ) {
@@ -291,8 +291,10 @@ export function PersonTargetAssignment() {
       return;
     }
 
-    const nextHunterAmount = roundCurrency(nextHunterOwnAmount + row.studioHunterAmount);
-    const nextFarmerRenewalTotalAmount = roundCurrency(nextFarmerRenewalAmount + row.studioRenewalAmount);
+    nextHunterAmount = roundCurrency(nextHunterAmount);
+    nextFarmerRenewalTotalAmount = roundCurrency(nextFarmerRenewalTotalAmount);
+    const nextHunterOwnAmount = roundCurrency(Math.max(nextHunterAmount - row.studioHunterAmount, 0));
+    const nextFarmerRenewalOwnAmount = roundCurrency(Math.max(nextFarmerRenewalTotalAmount - row.studioRenewalAmount, 0));
     const currentOtherPeopleTotal = sumOtherPeopleAllocations(targetAllocations, row.customerId, effectivePersonId, year);
     const nextCustomerTotal = currentOtherPeopleTotal + nextHunterAmount + nextFarmerRenewalTotalAmount + nextStudioAmount;
     const overAmount = nextCustomerTotal - row.customerTarget;
@@ -321,7 +323,7 @@ export function PersonTargetAssignment() {
         year,
         hunterAmount: nextHunterAmount,
         hunterOwnAmount: nextHunterOwnAmount,
-        farmerRenewalAmount: nextFarmerRenewalAmount,
+        farmerRenewalAmount: nextFarmerRenewalOwnAmount,
         studioAmount: nextStudioAmount,
         increaseCustomerTarget,
         notes: "Meta associada pela tela Metas por Pessoa.",
@@ -773,9 +775,9 @@ function buildRow(
   const studioHunterAmount = isSpecialistHunter
     ? Math.min(rawStudioHunterAmount, targetBreakdown.hunter)
     : rawStudioHunterAmount;
-  const savedHunterOwnAmount = roundCurrency(Math.max((hunterAllocation?.amount ?? 0) - studioHunterAmount, 0));
-  const hunterOwnAmount = isSpecialistHunter ? 0 : parseAmount(draft?.hunter ?? getInputValue(savedHunterOwnAmount));
-  const hunterAmount = isSpecialistHunter ? studioHunterAmount : roundCurrency(hunterOwnAmount + studioHunterAmount);
+  const savedHunterAmount = roundCurrency(hunterAllocation?.amount ?? studioHunterAmount);
+  const hunterAmount = isSpecialistHunter ? studioHunterAmount : parseAmount(draft?.hunter ?? getInputValue(savedHunterAmount));
+  const hunterOwnAmount = isSpecialistHunter ? 0 : roundCurrency(Math.max(hunterAmount - studioHunterAmount, 0));
   const studioRenewalAmount = isSpecialistHunter ? 0 : getEligibleStudioRenewalAmountForPerson({
     allocations: studioAllocations,
     areas,
@@ -784,9 +786,9 @@ function buildRow(
     personId,
     year,
   });
-  const savedFarmerRenewalOwnAmount = getTargetOwnAmount(farmerRenewalAllocation, studioRenewalAmount);
-  const farmerRenewalOwnAmount = isSpecialistHunter ? 0 : parseAmount(draft?.farmerRenewal ?? getInputValue(savedFarmerRenewalOwnAmount));
-  const farmerRenewalAmount = isSpecialistHunter ? 0 : roundCurrency(farmerRenewalOwnAmount + studioRenewalAmount);
+  const savedFarmerRenewalAmount = roundCurrency(farmerRenewalAllocation?.amount ?? studioRenewalAmount);
+  const farmerRenewalAmount = isSpecialistHunter ? 0 : parseAmount(draft?.farmerRenewal ?? getInputValue(savedFarmerRenewalAmount));
+  const farmerRenewalOwnAmount = isSpecialistHunter ? 0 : roundCurrency(Math.max(farmerRenewalAmount - studioRenewalAmount, 0));
   const otherPeopleHunterTotal = isSpecialistHunter ? 0 : sumOtherPeopleAllocations(allocations, customer.id, personId, year, "hunter");
   const otherPeopleFarmerRenewalTotal = isSpecialistHunter ? 0 : sumOtherPeopleAllocations(allocations, customer.id, personId, year, "farmer_renewal");
   const otherPeopleTotal = otherPeopleHunterTotal + otherPeopleFarmerRenewalTotal;
@@ -819,8 +821,8 @@ function buildRow(
     farmerRenewalOwnAmount,
     studioRenewalAmount,
     farmerRenewalAmount,
-    hunterInput: getInputValue(savedHunterOwnAmount),
-    farmerRenewalInput: getInputValue(savedFarmerRenewalOwnAmount),
+    hunterInput: getInputValue(savedHunterAmount),
+    farmerRenewalInput: getInputValue(savedFarmerRenewalAmount),
     personTotal: hunterAmount + farmerRenewalAmount,
     clientStatus: getClientStatus(targetBreakdown, { hunter: clientHunterTotal, farmerRenewal: clientFarmerRenewalTotal }),
     source,

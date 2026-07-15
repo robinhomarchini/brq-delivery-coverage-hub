@@ -881,7 +881,7 @@ function buildCustomerAllocationSummary(
       hunter: roundCurrency(hunter),
       farmerRenewal: roundCurrency(farmerRenewal),
       studioMaintenance: roundCurrency(studioMaintenance),
-      total: roundCurrency(hunter + farmerRenewal + studioMaintenance),
+      total: roundCurrency(hunter + farmerRenewal),
     });
   }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import type { Area, Customer, CustomerTarget, Person, StudioTargetAllocation, Subject, TargetAllocation } from "@/data/mockData";
-import { getCustomerTotalTargetFromParts } from "@/lib/customer-target-total";
+import { getCustomerTotalTarget, getCustomerTotalTargetFromParts } from "@/lib/customer-target-total";
 
 export async function exportElementAsPng(elementId: string, filename: string) {
   const element = document.getElementById(elementId);
@@ -65,13 +65,13 @@ export function exportDeliveryDataAsCsv(
     ...people.map((person) => [person.name, person.email ?? "", person.jobTitle, person.roleType, person.active ? "Sim" : "Não"]),
     [],
     ["CLIENTES"],
-    ["Nome", "Indústria", "Diretor", "Managers", "Receita", "Margem alvo", "Estratégica"],
+    ["Nome", "Indústria", "Diretor", "Managers", "Meta Total", "Margem alvo", "Estratégica"],
     ...customers.map((customer) => [
       customer.name,
       customer.industry,
       customer.directorResponsibleId,
       customer.managerResponsibleIds.join(", "),
-      customer.revenue,
+      getCustomerTotalTarget(customer),
       customer.margin,
       customer.strategicAccount ? "Sim" : "Não",
     ]),
@@ -171,7 +171,7 @@ export function exportAdminBaseWorkbook({
           customer.farmerRenewalTarget,
           customer.studioHunterTarget,
           customer.studioTarget,
-          customer.revenue,
+          getCustomerTotalTarget(customer),
           customer.margin,
           customer.strategicAccount ? "Sim" : "Não",
           customer.lifecycleStatus,
