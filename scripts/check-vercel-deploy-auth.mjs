@@ -52,6 +52,14 @@ if (!hasToken && !hasAuthFile) {
   ].join("\n"));
 }
 
+if (hasToken && /[.-]/.test(process.env.VERCEL_TOKEN.trim())) {
+  problems.push([
+    "VERCEL_TOKEN is present but does not look like a Vercel CLI/account token.",
+    "The Vercel CLI rejects token values containing '-' or '.', which usually means an OIDC/JWT token was saved instead.",
+    "Create a Vercel Account Token at https://vercel.com/account/tokens and replace VERCEL_TOKEN in .env.local.",
+  ].join(" "));
+}
+
 if (hasAuthFile) {
   try {
     const auth = JSON.parse(fs.readFileSync(authFile, "utf8"));
