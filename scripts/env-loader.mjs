@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-export function loadLocalEnv(files = [".env.local", ".env"]) {
+export function loadLocalEnv(files = [".env.production.local", ".env.local", ".env"]) {
   for (const file of files) {
     const absolutePath = path.join(process.cwd(), file);
     if (!fs.existsSync(absolutePath)) continue;
