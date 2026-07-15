@@ -22,6 +22,7 @@ import { DualListSelector } from "@/components/shared/dual-list-selector";
 import { useDeliveryStore } from "@/store/delivery-store";
 import { useAccess } from "@/lib/access-context";
 import { isHunterConsultAccess, normalizeAccessEmail } from "@/lib/access-control";
+import { getCustomerTotalTargetFromParts } from "@/lib/customer-target-total";
 import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears } from "@/lib/customer-targets";
 import { getFinancialCustomerMetric } from "@/lib/financial-customers";
 import { formatPercentPtBr, targetMarginPercent } from "@/lib/financial-targets";
@@ -153,7 +154,7 @@ export function CustomerManagement() {
   const formFarmerRenewalAmount = parseAmount(formFarmerRenewalTarget);
   const formStudioHunterAmount = parseAmount(formStudioHunterTarget);
   const formStudioAmount = parseAmount(formStudioTarget);
-  const formRevenue = roundCurrency(formHunterAmount + formFarmerRenewalAmount + formStudioAmount);
+  const formRevenue = getCustomerTotalTargetFromParts(formHunterAmount, formFarmerRenewalAmount);
 
   const targetTotals = filtered.reduce((totals, customer) => {
     const breakdown = getCustomerTargetBreakdown(customer);
@@ -658,7 +659,7 @@ export function CustomerManagement() {
             <div className="rounded-2xl border border-slate-200 bg-white p-4">
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Meta total</p>
               <p className="mt-2 text-2xl font-black text-slate-950">{formatCurrency(formRevenue)}</p>
-              <p className="mt-1 text-xs text-slate-500">Calculada por Hunter + Renovação + Ampliação + Área/Studio Manutenção para {year}. Área/Studio Hunter é subquebra da meta Hunter.</p>
+              <p className="mt-1 text-xs text-slate-500">Calculada por Hunter + Renovação + Ampliação para {year}. As aberturas de Área/Studio estão contidas nesses componentes e não somam novamente no total.</p>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 md:col-span-2">
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Composição da meta</p>
@@ -700,7 +701,12 @@ function TargetBreakdownView({ breakdown, compact = false }: { breakdown: Custom
         helpText="Studio Hunter é uma abertura da meta Hunter do cliente. Ele está contido em Hunter e não soma novamente no Total."
       />
       <MoneyLine label="Renov. + Ampl." value={breakdown.farmerRenewal} />
-      <MoneyLine label="Studio Manut." value={breakdown.studio} />
+      <MoneyLine
+        label="Studio Manut."
+        value={breakdown.studio}
+        included
+        helpText="Studio Manutenção/Renovação é uma abertura da meta Renovação + Ampliação do cliente. Ele está contido em Renov. + Ampl. e não soma novamente no Total."
+      />
       <MoneyLine label="Total" value={breakdown.total} strong />
     </div>
   );

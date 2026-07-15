@@ -1,6 +1,7 @@
 import type { Customer, Person, StudioTargetAllocation, TargetAllocation } from "@/data/mockData";
 import { isHunterRole } from "@/lib/roles";
 import { getContainedHunterAllocation } from "@/lib/customer-hunter-reconciliation";
+import { getCustomerTotalTarget } from "@/lib/customer-target-total";
 
 export type SpreadsheetCell = unknown;
 
@@ -462,7 +463,7 @@ function formatCurrency(value: number) {
 }
 
 function getCustomerTarget(customer: Customer) {
-  return roundCurrency(customer.hunterTarget + customer.farmerRenewalTarget + customer.studioTarget);
+  return getCustomerTotalTarget(customer);
 }
 
 function roundCurrency(value: number) {

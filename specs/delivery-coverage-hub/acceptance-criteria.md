@@ -172,6 +172,9 @@
   componente de Áreas / Studios.
 - Na tela Clientes, Studio Hunter não soma novamente no total do cliente; ele
   apenas compõe a conferência do componente Hunter.
+- Na tela Clientes, Studio Manutenção/Renovação não soma novamente no total do
+  cliente; ele é abertura contida em Renovação + Ampliação. A Meta Total exibida,
+  exportada e persistida para o ano deve ser Hunter + Renovação/Ampliação.
 - Na tela Clientes, quando Meta Hunter direta e Studio Hunter detalhado existirem
   para o mesmo cliente/ano, a reconciliação usa o maior dos dois como cobertura
   Hunter e não soma os valores, evitando falso status "Acima".
@@ -458,16 +461,16 @@
 - Baselines separa Curva principal das origens PX, Alianças, Mobile, Analytics
   e GENAI, permitindo que cada origem evolua com layout próprio.
 - Ao importar a Curva principal, o baseline geral de Studios é extraído da aba
-  `Sheet1`, usando `Grupo Cliente` na coluna C, `Studio/Habilitador` na coluna
-  L, `Tipo Opp` na coluna O para separar Novo/Ampliação de
+  `Sheet1`, usando `Grupo Cliente` na coluna D, a coluna C como identificador
+  auxiliar de parceiro/fornecedor para regras de alianças, `Studio/Habilitador` na coluna L, `Tipo Opp` na coluna O para separar Novo/Ampliação de
   Manutenção/Renovação, `Total RL 2026` na coluna AH e filtrando `CC CROSS` na
   coluna BR igual a `BU Financial`; buckets `Squad` e `Times` não entram no
-  baseline de Studios; `RESELL` entra somente quando o cliente da coluna C ou a
-  coluna J identificarem aliança reconhecida, como Google LLC, Microsoft,
+  baseline de Studios; `RESELL` entra somente quando a coluna C, o cliente da
+  coluna D ou a coluna J identificarem aliança reconhecida, como Google LLC, Microsoft,
   Amazon Web ou Datadog/Data Dog; `Cloud` é remapeado para
-  `Managed Services` quando o cliente da coluna C for Managed Services ou a
-  coluna J indicar Managed Services, e para Alianças Google/Microsoft/AWS quando
-  o cliente da coluna C ou o Revenue Stream da coluna J indicar Google LLC,
+  `Managed Services` quando a coluna C, o cliente da coluna D ou a coluna J
+  indicar Managed Services, e para Alianças Google/Microsoft/AWS quando
+  a coluna C, o cliente da coluna D ou o Revenue Stream da coluna J indicar Google LLC,
   Microsoft ou Amazon Web; Datadog/Data Dog vira `Datadog-Alianças`; `Arquitetura`
   vira PX somente quando a coluna A/SU for Weme.
 - Na importação da Curva principal, a curva de clientes vem da aba

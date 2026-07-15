@@ -66,9 +66,10 @@ experiência do usuário até nova definição de modelo.
   Delivery.
 - Metas de Áreas / Studios são separadas em Studio Hunter e Studio
   Manutenção/Renovação. Studio Hunter fica contido na meta Hunter do cliente e
-  não soma novamente no total; Studio Manutenção/Renovação compõe o total do
-  cliente como complemento. Valores de Áreas / Studios cadastrados antes dessa
-  separação são tratados como Studio Hunter.
+  não soma novamente no total; Studio Manutenção/Renovação fica contido na meta
+  Renovação + Ampliação do cliente e também não soma novamente no total. Valores
+  de Áreas / Studios cadastrados antes dessa separação são tratados como Studio
+  Hunter.
 - Metas editáveis diretas da pessoa devem ser separadas em Hunter e Renovação +
   Ampliação, vinculadas a uma pessoa, cliente e ano, sem duplicidade para
   Cliente + Pessoa + Tipo + Ano. A quebra Studio Hunter não deve ser gravada

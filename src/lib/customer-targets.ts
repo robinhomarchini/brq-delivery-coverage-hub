@@ -1,4 +1,5 @@
 import type { Customer, CustomerTarget } from "@/data/mockData";
+import { getCustomerTotalTargetFromParts } from "@/lib/customer-target-total";
 
 export const defaultTargetYear = 2026;
 
@@ -29,7 +30,7 @@ export function applyCustomerTargetsForYear(customers: Customer[], customerTarge
       farmerRenewalTarget: target.farmerRenewalTarget,
       studioHunterTarget: target.studioHunterTarget,
       studioTarget: target.studioTarget,
-      revenue: target.revenue,
+      revenue: getCustomerTotalTargetFromParts(target.hunterTarget, target.farmerRenewalTarget),
     };
   });
 }

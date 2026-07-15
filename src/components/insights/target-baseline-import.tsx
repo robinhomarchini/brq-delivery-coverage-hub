@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { KpiSummaryCard } from "@/components/shared/kpi-summary-card";
 import { ErrorNotice, SuccessNotice } from "@/components/shared/success-notice";
 import { useDeliveryStore } from "@/store/delivery-store";
+import { getCustomerTotalTarget } from "@/lib/customer-target-total";
 import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears } from "@/lib/customer-targets";
 import {
   buildTargetBaselineSnapshotInput,
@@ -485,7 +486,7 @@ function hasVisibleCurrencyDifference(value: number) {
 }
 
 function getCustomerTarget(customer: Customer) {
-  return customer.hunterTarget + customer.farmerRenewalTarget + customer.studioTarget;
+  return getCustomerTotalTarget(customer);
 }
 
 function getImportErrorMessage(error: unknown) {

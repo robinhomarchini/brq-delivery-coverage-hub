@@ -704,7 +704,8 @@ nova importação.
 Ao importar a Curva principal na central de Baselines, a aplicação também deve
 criar/atualizar automaticamente a foto `Baseline geral de Studios` para o mesmo
 ano, usando a aba `Sheet1` da própria Curva. A extração detalhada de Studio deve
-usar `Grupo Cliente` na coluna C como cliente, `Studio/Habilitador` na coluna L
+usar `Grupo Cliente` na coluna D como cliente, a coluna C como identificador
+auxiliar de parceiro/fornecedor para regras de alianças, `Studio/Habilitador` na coluna L
 como Studio, `Tipo Opp (Renovação/Novo-ampliação)` na coluna O para separar
 Novo/Ampliação como Studio Hunter e demais tipos como Manutenção/Renovação,
 `Total RL 2026` na coluna AH como valor e `CC CROSS` na coluna BR como filtro;
@@ -712,14 +713,15 @@ somente linhas com `BU Financial` entram na foto. Os buckets `Squad` e `Times`
 da coluna L não entram nessa foto de baseline de Studios, pois representam o
 bloco operacional principal da Curva e não o recorte de Studios/Habilitadores a
 ser comparado contra as alocações detalhadas. Quando a coluna L vier como
-`RESELL`, a linha entra somente se o cliente da coluna C ou o Revenue Stream da
+`RESELL`, a linha entra somente se a coluna C, o cliente da coluna D ou o Revenue Stream da
 coluna J identificarem uma aliança reconhecida: `Google LLC`, `Microsoft`,
 `Amazon Web` ou `Datadog`/`Data Dog`. Quando a coluna L vier como
 `Arquitetura`, somente linhas com coluna A/SU igual a `Weme`
 viram `PX`; as demais ficam fora. Quando a coluna L vier como `Cloud`/`CLOUD`,
-linhas cujo cliente da coluna C seja `Managed Services` viram `Managed Services`;
+linhas cujo identificador da coluna C, cliente da coluna D ou Revenue Stream
+indique `Managed Services` viram `Managed Services`;
 a coluna J `Managed Services / FinOps` ou `Managed Services` fica como fallback
-para a mesma classificação; linhas cujo cliente da coluna C ou Revenue Stream
+para a mesma classificação; linhas cuja coluna C, cliente da coluna D ou Revenue Stream
 da coluna J indiquem `Google LLC`, `Microsoft`, `Amazon Web` ou `Datadog`/`Data Dog` viram,
 respectivamente, `Alianças Google`, `Alianças Microsoft`, `Alianças AWS` e
 `Datadog-Alianças`. A aba `Resumo RL 2026`

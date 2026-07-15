@@ -1,6 +1,7 @@
 import type { Area, Customer, Person, StudioTargetAllocation, TargetAllocation } from "@/data/mockData";
 import type { SortDirection, SortState } from "@/components/shared/sortable-table-head";
 import { getContainedHunterAllocation } from "@/lib/customer-hunter-reconciliation";
+import { getCustomerTotalTarget } from "@/lib/customer-target-total";
 import { displayDirectorName } from "@/lib/director-governance";
 import { isCustomerFarmerResponsibleProfile, isHunterRole, isTargetAssignableRole } from "@/lib/roles";
 import { getStudioMaintenancePersonId, isStudioRenewalEligibleForFarmer } from "@/lib/studio-renewal-rollup";
@@ -104,7 +105,7 @@ export function getCustomerTargetBreakdown(customer: Customer): CustomerTargetBr
   const farmerRenewal = roundCurrency(customer.farmerRenewalTarget);
   const studioHunter = roundCurrency(customer.studioHunterTarget);
   const studio = roundCurrency(customer.studioTarget);
-  return { hunter, farmerRenewal, studioHunter, studio, total: roundCurrency(hunter + farmerRenewal + studio) };
+  return { hunter, farmerRenewal, studioHunter, studio, total: getCustomerTotalTarget({ hunterTarget: hunter, farmerRenewalTarget: farmerRenewal }) };
 }
 
 export function getCustomerCoverageStatus(
@@ -240,7 +241,7 @@ export function getCustomerAllocationWarning(
   studioAllocations: StudioTargetAllocation[],
   year: number,
 ): CustomerAllocationWarningData | null {
-  const target = roundCurrency(customer.hunterTarget + customer.farmerRenewalTarget);
+  const target = getCustomerTotalTarget(customer);
   const customerAllocations = allocations.filter((allocation) =>
     allocation.customerId === customer.id
     && allocation.year === year
@@ -548,7 +549,7 @@ function buildCustomerReconciliationTitle({
     "Meta do cliente:",
     `Hunter: ${formatCurrency(breakdown.hunter)}`,
     `Renov. + Ampl.: ${formatCurrency(breakdown.farmerRenewal)}`,
-    `Studio Manut.: ${formatCurrency(breakdown.studio)}`,
+    `Studio Manut.: ${formatCurrency(breakdown.studio)} (contido em Renov. + Ampl.)`,
     `Total esperado: ${formatCurrency(breakdown.total)}`,
     "",
     "Alocado:",
@@ -575,6 +576,7 @@ function buildCustomerReconciliationTitle({
     ...formatTitleRows(studioMaintenanceAreas),
     "",
     `Studio Hunter: ${formatCurrency(breakdown.studioHunter)} fica contido em Hunter e não soma novamente no Total.`,
+    `Studio Manut.: ${formatCurrency(breakdown.studio)} fica contido em Renovação + Ampliação e não soma novamente no Total.`,
   ].join("\n");
 }
 

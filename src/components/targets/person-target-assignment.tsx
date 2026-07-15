@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useDeliveryStore } from "@/store/delivery-store";
+import { getCustomerTotalTarget } from "@/lib/customer-target-total";
 import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears } from "@/lib/customer-targets";
 import { formatCurrency, toFileSlug } from "@/lib/utils";
 import { isHunterRole, isSpecialistHunterRole, isTargetAssignableRole } from "@/lib/roles";
@@ -978,7 +979,7 @@ function getClientStatus(
 }
 
 function getCustomerTarget(customer: Customer) {
-  return roundCurrency(customer.hunterTarget + customer.farmerRenewalTarget);
+  return getCustomerTotalTarget(customer);
 }
 
 function getCustomerTargetBreakdown(customer: Customer, allocations: TargetAllocation[], year: number, specialistHunter = false) {

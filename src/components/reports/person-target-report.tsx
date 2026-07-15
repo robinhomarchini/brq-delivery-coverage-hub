@@ -17,6 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useDeliveryStore } from "@/store/delivery-store";
 import { useAccess } from "@/lib/access-context";
 import { isHunterConsultAccess, normalizeAccessEmail } from "@/lib/access-control";
+import { getCustomerTotalTarget } from "@/lib/customer-target-total";
 import { formatCurrency, toFileSlug } from "@/lib/utils";
 import { isCustomerFarmerResponsibleProfile, isHunterRole, isSpecialistHunterRole, isTargetAssignableRole } from "@/lib/roles";
 import { getStudioMaintenancePersonId, getTargetOwnAmount, isStudioRenewalEligibleForFarmer } from "@/lib/studio-renewal-rollup";
@@ -1900,7 +1901,7 @@ function buildClientCoverageRows({
       }).filter((person) => person.amount > 0.01 || customer.managerResponsibleIds.includes(person.personId));
 
       const specialistHunters = specialistRowsByCustomer.get(customer.id) ?? [];
-      const customerTargetTotal = customer.revenue || customer.hunterTarget + customer.farmerRenewalTarget + customer.studioTarget;
+      const customerTargetTotal = getCustomerTotalTarget(customer);
       const totalLinkedTarget = hunters.reduce((total, person) => total + person.amount, 0)
         + deliveryManagers.reduce((total, person) => total + person.amount, 0);
       const participantIds = new Set([

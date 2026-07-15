@@ -1,6 +1,7 @@
 "use client";
 
 import type { Area, Customer, CustomerTarget, Person, StudioTargetAllocation, Subject, TargetAllocation } from "@/data/mockData";
+import { getCustomerTotalTargetFromParts } from "@/lib/customer-target-total";
 
 export async function exportElementAsPng(elementId: string, filename: string) {
   const element = document.getElementById(elementId);
@@ -213,7 +214,7 @@ export function exportAdminBaseWorkbook({
             target.farmerRenewalTarget,
             target.studioHunterTarget,
             target.studioTarget,
-            target.revenue,
+            getCustomerTotalTargetFromParts(target.hunterTarget, target.farmerRenewalTarget),
           ]),
       ],
     },

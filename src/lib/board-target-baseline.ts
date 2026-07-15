@@ -4,6 +4,7 @@ import {
   boardTargetBaselineSource,
   type BoardTargetBaselineRow,
 } from "@/data/boardTargetBaseline";
+import { getCustomerTotalTarget } from "@/lib/customer-target-total";
 import { normalizeBusinessName } from "@/lib/utils";
 
 export type BaselineComparisonMode = "client" | "hunter" | "combined";
@@ -130,7 +131,7 @@ function getComparisonStatus(hasBaseline: boolean, hasCustomer: boolean, totalDe
 }
 
 function getRegisteredCustomerTarget(customer: Customer) {
-  return roundCurrency(customer.hunterTarget + customer.farmerRenewalTarget + customer.studioTarget);
+  return getCustomerTotalTarget(customer);
 }
 
 function roundCurrency(value: number) {

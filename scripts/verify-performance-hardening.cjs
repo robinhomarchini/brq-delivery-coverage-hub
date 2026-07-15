@@ -8,10 +8,16 @@ const targetManagementPath = path.join(root, "src", "components", "targets", "ta
 const personTargetAssignmentPath = path.join(root, "src", "components", "targets", "person-target-assignment.tsx");
 const customerManagementPath = path.join(root, "src", "components", "customers", "customer-management.tsx");
 const customerCoverageViewModelPath = path.join(root, "src", "lib", "customers", "customer-coverage-view-model.ts");
+const customerTargetTotalPath = path.join(root, "src", "lib", "customer-target-total.ts");
 const personTargetReportPath = path.join(root, "src", "components", "reports", "person-target-report.tsx");
 const customerPortfolioPath = path.join(root, "src", "components", "portfolio", "customer-portfolio-management.tsx");
 const deliveryStorePath = path.join(root, "src", "store", "delivery-store.tsx");
+const boardTargetBaselinePath = path.join(root, "src", "lib", "board-target-baseline.ts");
+const targetBaselineImportPath = path.join(root, "src", "lib", "target-baseline-import.ts");
 const studioBaselineImportPath = path.join(root, "src", "lib", "studio-baseline-import.ts");
+const exportPath = path.join(root, "src", "lib", "export.ts");
+const localRepositoryPath = path.join(root, "src", "lib", "repositories", "localDeliveryRepository.ts");
+const supabaseRepositoryPath = path.join(root, "src", "lib", "repositories", "supabaseDeliveryRepository.ts");
 const performanceMigrationPath = path.join(root, "supabase", "migrations", "20260709113000_performance_indexes_for_target_reports.sql");
 const packagePath = path.join(root, "package.json");
 
@@ -19,10 +25,16 @@ const targetManagementSource = fs.readFileSync(targetManagementPath, "utf8");
 const personTargetAssignmentSource = fs.readFileSync(personTargetAssignmentPath, "utf8");
 const customerManagementSource = fs.readFileSync(customerManagementPath, "utf8");
 const customerCoverageViewModelSource = fs.readFileSync(customerCoverageViewModelPath, "utf8");
+const customerTargetTotalSource = fs.readFileSync(customerTargetTotalPath, "utf8");
 const personTargetReportSource = fs.readFileSync(personTargetReportPath, "utf8");
 const customerPortfolioSource = fs.readFileSync(customerPortfolioPath, "utf8");
 const deliveryStoreSource = fs.readFileSync(deliveryStorePath, "utf8");
+const boardTargetBaselineSource = fs.readFileSync(boardTargetBaselinePath, "utf8");
+const targetBaselineImportSource = fs.readFileSync(targetBaselineImportPath, "utf8");
 const studioBaselineImportSource = fs.readFileSync(studioBaselineImportPath, "utf8");
+const exportSource = fs.readFileSync(exportPath, "utf8");
+const localRepositorySource = fs.readFileSync(localRepositoryPath, "utf8");
+const supabaseRepositorySource = fs.readFileSync(supabaseRepositoryPath, "utf8");
 const performanceMigrationSource = fs.readFileSync(performanceMigrationPath, "utf8");
 const packageSource = fs.readFileSync(packagePath, "utf8");
 
@@ -35,6 +47,26 @@ assertIncludes(personTargetAssignmentSource, "effectiveSelectedCustomerId", "Per
 assertIncludes(personTargetAssignmentSource, "visibleCustomers.filter((customer) => customer.id === effectiveSelectedCustomerId)", "Person target assignment focused customer selector must filter the grid.");
 assertIncludes(personTargetAssignmentSource, "Todos os clientes da pessoa", "Person target assignment must let users clear the focused customer filter.");
 assertIncludes(customerManagementSource, "@/lib/customers/customer-coverage-view-model", "Customer management must consume the extracted coverage view model.");
+assertIncludes(customerTargetTotalSource, "getCustomerTotalTarget", "Customer total target calculation must stay centralized.");
+assertIncludes(customerTargetTotalSource, "hunterTarget + farmerRenewalTarget", "Customer total target must be Hunter plus Renewal/Expansion only.");
+[
+  customerManagementSource,
+  customerCoverageViewModelSource,
+  personTargetReportSource,
+  targetManagementSource,
+  personTargetAssignmentSource,
+  boardTargetBaselineSource,
+  targetBaselineImportSource,
+  deliveryStoreSource,
+  studioBaselineImportSource,
+  exportSource,
+  localRepositorySource,
+  supabaseRepositorySource,
+].forEach((source) => {
+  assertNotIncludes(source, "hunterTarget + customer.farmerRenewalTarget + customer.studioTarget", "Customer total target must not add Studio maintenance directly.");
+  assertNotIncludes(source, "customer.hunterTarget + customer.farmerRenewalTarget + customer.studioTarget", "Customer total target must not add Studio maintenance directly.");
+  assertNotIncludes(source, "hunterTarget + farmerRenewalTarget + studioTarget", "Customer total target must not add Studio maintenance directly.");
+});
 assertIncludes(customerCoverageViewModelSource, "export function getCustomerCoverageStatus", "Customer coverage status must stay outside the UI component.");
 assertIncludes(customerCoverageViewModelSource, "export function getCustomerAllocationComposition", "Customer allocation composition must stay outside the UI component.");
 assertIncludes(customerCoverageViewModelSource, "export function getCustomerStudioComposition", "Customer studio composition must stay outside the UI component.");

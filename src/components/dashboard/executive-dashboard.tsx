@@ -33,6 +33,7 @@ import { cn, formatCompactCurrency, formatCurrency } from "@/lib/utils";
 import { translateRole } from "@/lib/roles";
 import { applyCustomerTargetsForYear, defaultTargetYear } from "@/lib/customer-targets";
 import { getBoardTargetBaselineTotals, getRegisteredTargetTotals } from "@/lib/board-target-baseline";
+import { getCustomerTotalTarget } from "@/lib/customer-target-total";
 
 const COLORS = ["#15171B", "#7F2EC9", "#EE7C38", "#2563EB", "#F97316", "#A3A3A3"];
 
@@ -280,7 +281,7 @@ function FinancialKpi({
 }
 
 function getCustomerTarget(customer: { hunterTarget: number; farmerRenewalTarget: number; studioTarget: number }) {
-  return customer.hunterTarget + customer.farmerRenewalTarget + customer.studioTarget;
+  return getCustomerTotalTarget(customer);
 }
 
 function compactCurrency(value: number) {

@@ -26,7 +26,8 @@ type StudioCurveSnapshotInput = {
 
 const curveSheetColumns = {
   salesUnit: 0, // A - SU
-  customerName: 2, // C - Grupo Cliente
+  allianceLabel: 2, // C - Parceiro/fornecedor usado para classificar alianças
+  customerName: 3, // D - Grupo Cliente
   revenueStream: 9, // J - Revenue Stream
   studioName: 11, // L - Studio/Habilitador
   opportunityType: 14, // O - Tipo Opp (Renovação/Novo-ampliação)
@@ -81,9 +82,10 @@ export function parseCurveStudioBaselineRows(rows: unknown[][]): StudioBaselineR
     if (normalizeBusinessName(businessUnit) !== "bu financial") return;
 
     const customerName = String(row[curveSheetColumns.customerName] ?? "").trim();
+    const allianceLabel = String(row[curveSheetColumns.allianceLabel] ?? "").trim();
     const revenueStream = String(row[curveSheetColumns.revenueStream] ?? "").trim();
     const rawStudioName = String(row[curveSheetColumns.studioName] ?? "").trim();
-    const studioName = getEligibleCurveStudioName(rawStudioName, revenueStream, customerName, salesUnit);
+    const studioName = getEligibleCurveStudioName(rawStudioName, revenueStream, customerName, allianceLabel, salesUnit);
     const opportunityType = String(row[curveSheetColumns.opportunityType] ?? "").trim();
     const amount = parseMoney(row[curveSheetColumns.totalAmount]);
     if (!customerName || !studioName || amount <= 0) return;
@@ -118,7 +120,7 @@ export function parseCurveStudioBaselineRows(rows: unknown[][]): StudioBaselineR
   );
 }
 
-function getEligibleCurveStudioName(studioName: string, revenueStream: string, customerName: string, salesUnit: string) {
+function getEligibleCurveStudioName(studioName: string, revenueStream: string, customerName: string, allianceLabel: string, salesUnit: string) {
   const normalizedStudio = normalizeBusinessName(studioName);
   if (!normalizedStudio || normalizedStudio === "squad" || normalizedStudio === "times") {
     return "";
@@ -129,18 +131,18 @@ function getEligibleCurveStudioName(studioName: string, revenueStream: string, c
   }
 
   if (normalizedStudio === "cloud" || normalizedStudio === "resell") {
-    const allianceStudioName = getAllianceStudioName(customerName, revenueStream);
+    const allianceStudioName = getAllianceStudioName(customerName, allianceLabel, revenueStream);
     if (allianceStudioName) return allianceStudioName;
     if (normalizedStudio === "resell") return "";
-    if (isManagedServicesCustomer(customerName)) return "Managed Services";
-    return isManagedServicesRevenueStream(revenueStream) ? "Managed Services" : "";
+    if (isManagedServicesLabel(customerName) || isManagedServicesLabel(allianceLabel)) return "Managed Services";
+    return isManagedServicesLabel(revenueStream) ? "Managed Services" : "";
   }
 
   return studioName;
 }
 
-function getAllianceStudioName(customerName: string, revenueStream: string) {
-  const normalizedLabels = [customerName, revenueStream].map((value) => normalizeBusinessName(value));
+function getAllianceStudioName(customerName: string, allianceLabel: string, revenueStream: string) {
+  const normalizedLabels = [customerName, allianceLabel, revenueStream].map((value) => normalizeBusinessName(value));
   if (normalizedLabels.some((label) => label === "google llc" || label.includes("google llc"))) return "Alianças Google";
   if (normalizedLabels.some((label) => label === "microsoft" || label.includes("microsoft"))) return "Alianças Microsoft";
   if (normalizedLabels.some((label) => label === "amazon web" || label.includes("amazon web"))) return "Alianças AWS";
@@ -148,11 +150,7 @@ function getAllianceStudioName(customerName: string, revenueStream: string) {
   return "";
 }
 
-function isManagedServicesCustomer(customerName: string) {
-  return normalizeBusinessName(customerName) === "managed services";
-}
-
-function isManagedServicesRevenueStream(value: string) {
+function isManagedServicesLabel(value: string) {
   const normalized = normalizeBusinessName(value);
   return normalized === "managed services / finops" || normalized === "managed services";
 }

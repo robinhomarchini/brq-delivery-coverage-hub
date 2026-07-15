@@ -20,6 +20,7 @@ import type { DeliveryData, DeliveryRepository } from "./types";
 import type { PersonCustomerRemovalInput, PersonCustomerTargetsInput } from "./types";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { buildAreaUsages } from "@/lib/area-usage";
+import { getCustomerTotalTarget, getCustomerTotalTargetFromParts } from "@/lib/customer-target-total";
 import { getFinancialCustomerMetric } from "@/lib/financial-customers";
 import { normalizeLifecycleStatus } from "@/lib/lifecycle";
 import { validateArea, validateCustomer, validatePerson, validatePersonCompensation, validateStudioTargetAllocation, validateSubject, validateTargetAllocation } from "@/lib/validation";
@@ -1189,7 +1190,7 @@ function fromCustomerRow(row: CustomerRow): Customer {
     farmerRenewalTarget,
     studioHunterTarget,
     studioTarget,
-    revenue: roundCurrency(hunterTarget + farmerRenewalTarget + studioTarget),
+    revenue: getCustomerTotalTargetFromParts(hunterTarget, farmerRenewalTarget),
     margin: Number(row.margin),
     strategicAccount: row.strategic_account,
     lifecycleStatus: "active",
@@ -1208,7 +1209,7 @@ function fromCustomerTargetRow(row: CustomerTargetRow): CustomerTarget {
     farmerRenewalTarget,
     studioHunterTarget,
     studioTarget,
-    revenue: Number(row.revenue) || roundCurrency(hunterTarget + farmerRenewalTarget + studioTarget),
+    revenue: getCustomerTotalTargetFromParts(hunterTarget, farmerRenewalTarget),
   };
 }
 
@@ -1238,7 +1239,7 @@ function applyCustomerTargetsForYear(customers: Customer[], targets: CustomerTar
       farmerRenewalTarget: target.farmerRenewalTarget,
       studioHunterTarget: target.studioHunterTarget,
       studioTarget: target.studioTarget,
-      revenue: target.revenue,
+      revenue: getCustomerTotalTargetFromParts(target.hunterTarget, target.farmerRenewalTarget),
     };
   });
 }
@@ -1254,7 +1255,7 @@ function getCustomerTargetDefaults(name: string, revenue: number) {
 }
 
 function getCustomerTarget(customer: Customer) {
-  return roundCurrency(customer.hunterTarget + customer.farmerRenewalTarget + customer.studioTarget);
+  return getCustomerTotalTarget(customer);
 }
 
 function roundCurrency(value: number) {

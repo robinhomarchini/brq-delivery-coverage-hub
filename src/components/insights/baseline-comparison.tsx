@@ -15,6 +15,7 @@ import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErrorNotice, SuccessNotice } from "@/components/shared/success-notice";
 import { useDeliveryStore } from "@/store/delivery-store";
+import { getCustomerTotalTargetFromParts } from "@/lib/customer-target-total";
 import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears } from "@/lib/customer-targets";
 import {
   buildBoardTargetComparisonRows,
@@ -854,7 +855,7 @@ function buildCustomerFromBaseline(customer: Customer, row: ComparisonRow): Cust
     hunterTarget: row.baselineHunterTarget,
     farmerRenewalTarget: row.baselineFarmerRenewalTarget,
     studioTarget,
-    revenue: row.baselineHunterTarget + row.baselineFarmerRenewalTarget + studioTarget,
+    revenue: getCustomerTotalTargetFromParts(row.baselineHunterTarget, row.baselineFarmerRenewalTarget),
   };
 }
 

@@ -1,5 +1,6 @@
 import { strFromU8, unzipSync } from "fflate";
 import type { Area, Customer, StudioTargetAllocation } from "@/data/mockData";
+import { getCustomerTotalTarget } from "@/lib/customer-target-total";
 import { normalizeBusinessName, roundCurrency } from "@/lib/utils";
 
 export interface StudioBaselineRow {
@@ -261,7 +262,7 @@ export function buildStudioBaselineComparisons(
     const registeredCustomerHunterTarget = customer ? roundCurrency(customer.hunterTarget) : 0;
     const registeredCustomerMaintenanceTarget = customer ? roundCurrency(customer.farmerRenewalTarget) : 0;
     const registeredCustomerStudioTarget = customer ? roundCurrency(customer.studioTarget) : 0;
-    const registeredCustomerTotalTarget = customer ? roundCurrency(customer.hunterTarget + customer.farmerRenewalTarget + customer.studioTarget) : 0;
+    const registeredCustomerTotalTarget = customer ? getCustomerTotalTarget(customer) : 0;
 
     return {
       key: `${row.customerName}:${row.studioName}`,

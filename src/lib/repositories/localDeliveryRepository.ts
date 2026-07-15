@@ -4,6 +4,7 @@ import type { Area, Customer, Person, PersonCompensation, StudioTargetAllocation
 import type { DeliveryData, DeliveryRepository, PersonCustomerRemovalInput, PersonCustomerTargetsInput, SpecialistHunterStudioAssignmentsInput } from "./types";
 import type { StudioBaselineSnapshot } from "@/lib/studio-baseline-import";
 import type { TargetBaselineSnapshot } from "@/lib/target-baseline-import";
+import { getCustomerTotalTarget } from "@/lib/customer-target-total";
 import { validateArea, validateCustomer, validatePerson, validatePersonCompensation, validateStudioTargetAllocation, validateSubject, validateTargetAllocation } from "@/lib/validation";
 import { buildAreaUsages } from "@/lib/area-usage";
 import {
@@ -517,7 +518,7 @@ function ensureUniqueTargetAllocation(items: TargetAllocation[], allocation: Tar
 }
 
 function getCustomerTarget(customer: Customer) {
-  return customer.hunterTarget + customer.farmerRenewalTarget + customer.studioTarget;
+  return getCustomerTotalTarget(customer);
 }
 
 function ensureUniqueCustomerName(customers: Customer[], customer: Customer) {
