@@ -30,8 +30,20 @@ operacionais de cliente.
 - `npm run lint`
 - `npm run typecheck`
 - `npm run build`
+- `npm run deploy:check`
 - Migrations aplicadas no Supabase correto.
 - Smoke test de login BRQ.
 - Smoke test de salvar Pessoa, Cliente e Metas.
 - Verificação de exportações.
 - Plano de rollback da Vercel identificado.
+
+## Deploy Vercel pelo Codex/Windows
+
+Antes de publicar manualmente, rode `npm run deploy:check`. Ele valida que o
+projeto está linkado em `.vercel/project.json` e que existe autenticação do
+Vercel CLI via `VERCEL_TOKEN` ou `%USERPROFILE%\.vercel\auth.json`.
+
+O comando padrão de produção é `npm run deploy:prod`. Se `deploy:check` falhar,
+não tente variações do `vercel deploy`: primeiro regularize o login com
+`npx --cache .npm-cache --yes vercel login` ou configure `VERCEL_TOKEN` no
+ambiente seguro.

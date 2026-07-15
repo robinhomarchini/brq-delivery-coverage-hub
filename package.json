@@ -21,6 +21,8 @@
     "smoke:rls:provision": "node scripts/provision-rls-smoke-users.mjs",
     "security:check": "node scripts/security-check.mjs",
     "security:pentest-lite": "node scripts/pentest-lite.mjs",
+    "deploy:check": "node scripts/check-vercel-deploy-auth.mjs",
+    "deploy:prod": "npm run deploy:check && npx --cache .npm-cache --yes vercel deploy --prod --yes --force --archive tgz --no-wait",
     "audit:background": "powershell -ExecutionPolicy Bypass -File scripts/audit-background.ps1",
     "maintenance:baseline-snapshots": "node scripts/cleanup-baseline-snapshots.mjs",
     "db:migrations:check": "node scripts/check-supabase-migration-history.mjs",

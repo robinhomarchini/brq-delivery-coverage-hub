@@ -457,6 +457,7 @@ Próximo passo: mover a view model de Clientes do Relatório de Metas (`buildCli
 - Para telas e relatorios, a regra de composicao contida e unica: Meta propria exibida = Meta atual - Studio contido. `own_amount` e cache/editavel de persistencia e nao deve prevalecer em relatorio, exportacao ou status executivo quando divergir do valor atual menos Studio.
 - Ao salvar alocacao de Studio, a sincronizacao derivada deve preservar a regra contida: se a Meta atual existente cobre o Studio, recalcular `own_amount = amount - Studio`; se o Studio for maior que a Meta atual, elevar o total apenas ao valor do Studio. Nunca somar Studio sobre `own_amount` stale como se fosse incremento automatico.
 - Em 2026-07-15, push para GitHub falhou com 403 `You must verify your email address`; enquanto isso nao for resolvido, deploy por integracao Git/Vercel nao vai publicar novos commits. Deploy direto via Vercel CLI com `--archive tgz` conseguiu upload pequeno, mas alguns deployments ficaram `UNKNOWN` sem logs/build; inspecionar alias antes de considerar producao atualizada.
+- Para deploy Vercel manual no Windows, sempre rodar `npm run deploy:check` antes de `npm run deploy:prod`. Se nao houver `VERCEL_TOKEN` nem `%USERPROFILE%\.vercel\auth.json`, parar e regularizar login; nao repetir variacoes de `vercel deploy` sem credencial porque o CLI entra em device-login ou falha com erros confusos.
 
 ## Stable Facts About the Project
 
