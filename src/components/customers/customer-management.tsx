@@ -814,10 +814,10 @@ function CustomerAllocationCompositionView({ composition }: { composition: Custo
           </p>
           {(hasVisibleCurrencyAmount(composition.targetFarmerRenewal) || hasVisibleCurrencyAmount(composition.eligibleStudioMaintenance) || hasVisibleCurrencyAmount(composition.studioMaintenanceOutsidePeople)) && (
             <p className="mt-1 text-xs text-slate-400">
-              Renovação do cliente {formatCurrency(composition.targetFarmerRenewal)}
-              {" "}− Studio Manutenção fora de pessoa {formatCurrency(composition.studioMaintenanceOutsidePeople)}
-              {" "}+ Studio Manutenção elegível {formatCurrency(composition.eligibleStudioMaintenance)}
-              {" "}＝ saldo por pessoa {formatCurrency(composition.farmerRenewalTargetForPeople)}
+              Renovação + Ampliação do cliente {formatCurrency(composition.targetFarmerRenewal)}.
+              {" "}Studio Manutenção com responsável {formatCurrency(composition.eligibleStudioMaintenance)}
+              {" "}e sem responsável {formatCurrency(composition.studioMaintenanceOutsidePeople)}
+              {" "}são aberturas contidas, não somam novamente na meta por pessoa.
             </p>
           )}
         </div>

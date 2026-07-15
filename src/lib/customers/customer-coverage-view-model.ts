@@ -4,7 +4,6 @@ import { getContainedHunterAllocation } from "@/lib/customer-hunter-reconciliati
 import { getCustomerTotalTarget } from "@/lib/customer-target-total";
 import { displayDirectorName } from "@/lib/director-governance";
 import { isCustomerFarmerResponsibleProfile, isHunterRole, isTargetAssignableRole } from "@/lib/roles";
-import { getStudioMaintenancePersonId, isStudioRenewalEligibleForFarmer } from "@/lib/studio-renewal-rollup";
 import { formatCurrency, roundCurrency } from "@/lib/utils";
 
 export interface CustomerTargetBreakdown {
@@ -300,7 +299,6 @@ export function getCustomerAllocationComposition(
   targetBreakdown: CustomerTargetBreakdown,
 ): CustomerAllocationCompositionData {
   const peopleById = new Map(people.map((person) => [person.id, person]));
-  const areaNamesById = new Map(areas.map((area) => [area.id, area.name]));
   const rowsByPerson = new Map<string, CustomerAllocationPersonRow>();
   const studioHunterByPerson = new Map<string, number>();
 
@@ -372,11 +370,11 @@ export function getCustomerAllocationComposition(
     .sort((first, second) => second.total - first.total || first.personName.localeCompare(second.personName));
   const allocatedHunter = roundCurrency(rows.reduce((total, row) => total + row.hunter, 0));
   const allocatedFarmerRenewal = roundCurrency(rows.reduce((total, row) => total + row.farmerRenewal, 0));
-  const eligibleStudioMaintenance = getCustomerStudioMaintenanceCoverage(customer.id, studioAllocations, year, areaNamesById, peopleById, true);
-  const studioMaintenanceOutsidePeople = getCustomerStudioMaintenanceCoverage(customer.id, studioAllocations, year, areaNamesById, peopleById, false);
+  const eligibleStudioMaintenance = getCustomerStudioMaintenanceCoverage(customer.id, studioAllocations, year, peopleById, true);
+  const studioMaintenanceOutsidePeople = getCustomerStudioMaintenanceCoverage(customer.id, studioAllocations, year, peopleById, false);
   const allocatedTotal = roundCurrency(allocatedHunter + allocatedFarmerRenewal);
   const hunterGap = roundCurrency(targetBreakdown.hunter - allocatedHunter);
-  const farmerRenewalTargetForPeople = roundCurrency(Math.max(0, targetBreakdown.farmerRenewal - studioMaintenanceOutsidePeople) + eligibleStudioMaintenance);
+  const farmerRenewalTargetForPeople = targetBreakdown.farmerRenewal;
   const farmerRenewalGap = roundCurrency(farmerRenewalTargetForPeople - allocatedFarmerRenewal);
   const personTargetTotal = roundCurrency(targetBreakdown.hunter + farmerRenewalTargetForPeople);
   const totalGap = roundCurrency(personTargetTotal - allocatedTotal);
@@ -622,7 +620,6 @@ function getCustomerStudioMaintenanceCoverage(
   customerId: string,
   studioAllocations: StudioTargetAllocation[],
   year: number,
-  areaNamesById: Map<string, string>,
   peopleById: Map<string, Person>,
   expectedEligible: boolean,
 ) {
@@ -630,12 +627,9 @@ function getCustomerStudioMaintenanceCoverage(
     .filter((allocation) => {
       if (allocation.customerId !== customerId || allocation.year !== year) return false;
       if (!allocation.maintenanceAmount) return false;
-      const maintenancePersonId = getStudioMaintenancePersonId(allocation);
-      const person = maintenancePersonId ? peopleById.get(maintenancePersonId) : undefined;
-      const eligible = isStudioRenewalEligibleForFarmer(areaNamesById.get(allocation.areaId) ?? allocation.areaId, person, {
-        explicitMaintenancePerson: Boolean(allocation.maintenancePersonId),
-      });
-      return eligible === expectedEligible;
+      const maintenancePersonId = allocation.maintenancePersonId;
+      const hasMaintenanceResponsible = Boolean(maintenancePersonId && peopleById.get(maintenancePersonId));
+      return hasMaintenanceResponsible === expectedEligible;
     })
     .reduce((total, allocation) => total + allocation.maintenanceAmount, 0));
 }
