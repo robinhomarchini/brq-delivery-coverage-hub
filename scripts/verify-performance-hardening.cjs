@@ -50,6 +50,8 @@ assertIncludes(personTargetAssignmentSource, "visibleCustomers.filter((customer)
 assertIncludes(personTargetAssignmentSource, "Todos os clientes da pessoa", "Person target assignment must let users clear the focused customer filter.");
 assertIncludes(personTargetAssignmentSource, "Studio Hunter herdado", "Person target assignment must distinguish inherited Studio Hunter from maintenance.");
 assertIncludes(personTargetAssignmentSource, "Studio Manut. herdada", "Person target assignment must expose inherited Studio maintenance in Renewal/Expansion.");
+assertIncludes(personTargetAssignmentSource, "PersonSummaryMetric", "Person target assignment must use a full-value summary metric instead of truncated KPI cards.");
+assertNotIncludes(personTargetAssignmentSource, "KpiSummaryCard", "Person target assignment totals must not use KPI cards that truncate full currency values.");
 assertIncludes(customerManagementSource, "@/lib/customers/customer-coverage-view-model", "Customer management must consume the extracted coverage view model.");
 assertIncludes(customerTargetTotalSource, "getCustomerTotalTarget", "Customer total target calculation must stay centralized.");
 assertIncludes(customerTargetTotalSource, "hunterTarget + farmerRenewalTarget", "Customer total target must be Hunter plus Renewal/Expansion only.");

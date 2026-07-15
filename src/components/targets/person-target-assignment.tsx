@@ -1,13 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Plus, Save, Target, Trash2, UserRound } from "lucide-react";
+import { Plus, Save, Trash2, UserRound } from "lucide-react";
 import { useMemo, useState, type InputHTMLAttributes } from "react";
 import type { Customer, RoleType, StudioTargetAllocation, TargetAllocation, TargetAllocationType } from "@/data/mockData";
 import { PageHeader } from "@/components/shared/page-header";
 import { ReportExportActions, type ReportColumn } from "@/components/shared/report-export-actions";
 import { ErrorNotice, SuccessNotice } from "@/components/shared/success-notice";
-import { KpiSummaryCard } from "@/components/shared/kpi-summary-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -421,11 +420,11 @@ export function PersonTargetAssignment() {
                   : "Meta Hunter atual = meta própria + meta herdada de Studios"}
               </p>
             </div>
-            <div className="grid gap-3 md:grid-cols-4">
-              <KpiSummaryCard label="Base esperada das contas" currencyValue={expectedBaseTotal} icon={Target} tone="neutral" />
-              <KpiSummaryCard label={selectedPersonIsSpecialistHunter ? "Meta derivada dos Studios" : "Meta Hunter atual"} currencyValue={totals.hunter} icon={Target} tone="purple" />
-              <KpiSummaryCard label="Renovação + Ampliação" currencyValue={selectedPersonIsSpecialistHunter ? 0 : totals.farmerRenewal} icon={Target} tone="blue" />
-              <KpiSummaryCard label="Total da pessoa" currencyValue={totals.hunter + totals.farmerRenewal} icon={Target} tone="dark" />
+            <div className="grid gap-2 md:grid-cols-2 2xl:grid-cols-4">
+              <PersonSummaryMetric label="Base esperada das contas" value={expectedBaseTotal} />
+              <PersonSummaryMetric label={selectedPersonIsSpecialistHunter ? "Meta derivada dos Studios" : "Meta Hunter atual"} value={totals.hunter} tone="purple" />
+              <PersonSummaryMetric label="Renovação + Ampliação" value={selectedPersonIsSpecialistHunter ? 0 : totals.farmerRenewal} tone="blue" />
+              <PersonSummaryMetric label="Total da pessoa" value={totals.hunter + totals.farmerRenewal} tone="dark" />
             </div>
           </div>
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
@@ -632,6 +631,33 @@ function getSourceLabel(source: RowSource) {
   if (source === "assigned") return "Cliente associado";
   if (source === "existing_target") return "Meta existente";
   return "Incluído agora";
+}
+
+function PersonSummaryMetric({
+  label,
+  value,
+  tone = "neutral",
+}: {
+  label: string;
+  value: number;
+  tone?: "neutral" | "purple" | "blue" | "dark";
+}) {
+  const toneClassName = {
+    neutral: "border-slate-200 bg-white text-slate-950",
+    purple: "border-purple-100 bg-purple-50/40 text-brq-purple",
+    blue: "border-sky-100 bg-sky-50/50 text-sky-800",
+    dark: "border-slate-200 bg-slate-950 text-white",
+  }[tone];
+  const labelClassName = tone === "dark" ? "text-white/65" : "text-slate-500";
+
+  return (
+    <div className={`min-w-0 rounded-lg border px-3 py-2 ${toneClassName}`}>
+      <p className={`text-[11px] font-semibold uppercase leading-4 tracking-normal ${labelClassName}`}>{label}</p>
+      <p className="mt-1 whitespace-nowrap text-lg font-black leading-tight tracking-normal tabular-nums sm:text-xl" title={formatCurrency(value)}>
+        {formatCurrency(value)}
+      </p>
+    </div>
+  );
 }
 
 function TargetBreakdown({
