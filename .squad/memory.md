@@ -406,6 +406,7 @@ Próximo passo: mover a view model de Clientes do Relatório de Metas (`buildCli
 - `npx --cache .npm-cache --yes supabase <command> --linked`: caminho aprovado para Supabase CLI neste repo.
 - `npx --cache .npm-cache --yes supabase db push --linked`: aplica migrations pendentes no Supabase remoto depois de `migration list`.
 - `npx vercel deploy --prod`: deploy de producao Vercel.
+- `npx --cache .npm-cache --yes vercel deploy --prod --yes --force --archive tgz`: caminho preferido para deploy direto no Windows quando o upload normal do Vercel CLI fica preso; usar cache local e pacote `tgz` para evitar cache global/artefatos/symlinks.
 - `npm install fflate`: declara o leitor ZIP usado pelo parser de `.xlsx` de Studios.
 
 ## Ports, Paths, Environment Variables and Project Conventions
@@ -450,6 +451,8 @@ Próximo passo: mover a view model de Clientes do Relatório de Metas (`buildCli
 - A administracao de acesso deve passar por `AccessRepository` em `src/lib/repositories/accessRepository.ts`; telas nao devem criar cliente Supabase nem chamar RPCs de acesso diretamente.
 - `saveCustomer` passa por `/api/delivery/customers`; a rota valida bearer token, app access e papel editor/admin, e executa o provider atual com o contexto RLS do usuario.
 - `savePersonCustomerTargets` passa por `/api/delivery/person-customer-targets`; a rota valida bearer token, app access e papel editor/admin, e executa o provider atual com o contexto RLS do usuario.
+- No Relatorio de Metas, a visao `Pessoas x Clientes` deve ser montada por pessoa selecionada em combo; nao usar busca livre como principal. Os totais Hunter/Renovacao sao valores atuais e os Studios aparecem como composicao contida, nao como soma adicional. Exibir "propria sem Studio" + "Studio contido" apenas como decomposicao do valor atual.
+- Em 2026-07-15, push para GitHub falhou com 403 `You must verify your email address`; enquanto isso nao for resolvido, deploy por integracao Git/Vercel nao vai publicar novos commits. Deploy direto via Vercel CLI com `--archive tgz` conseguiu upload pequeno, mas alguns deployments ficaram `UNKNOWN` sem logs/build; inspecionar alias antes de considerar producao atualizada.
 
 ## Stable Facts About the Project
 
