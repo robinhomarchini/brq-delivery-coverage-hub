@@ -120,7 +120,7 @@ export function parseCurveStudioBaselineRows(rows: unknown[][]): StudioBaselineR
 
 function getEligibleCurveStudioName(studioName: string, revenueStream: string, customerName: string, salesUnit: string) {
   const normalizedStudio = normalizeBusinessName(studioName);
-  if (!normalizedStudio || normalizedStudio === "squad" || normalizedStudio === "times" || normalizedStudio === "resell") {
+  if (!normalizedStudio || normalizedStudio === "squad" || normalizedStudio === "times") {
     return "";
   }
 
@@ -128,9 +128,10 @@ function getEligibleCurveStudioName(studioName: string, revenueStream: string, c
     return normalizeBusinessName(salesUnit) === "weme" ? "PX" : "";
   }
 
-  if (normalizedStudio === "cloud") {
-    const allianceStudioName = getCloudAllianceStudioName(customerName, revenueStream);
+  if (normalizedStudio === "cloud" || normalizedStudio === "resell") {
+    const allianceStudioName = getAllianceStudioName(customerName, revenueStream);
     if (allianceStudioName) return allianceStudioName;
+    if (normalizedStudio === "resell") return "";
     if (isManagedServicesCustomer(customerName)) return "Managed Services";
     return isManagedServicesRevenueStream(revenueStream) ? "Managed Services" : "";
   }
@@ -138,11 +139,12 @@ function getEligibleCurveStudioName(studioName: string, revenueStream: string, c
   return studioName;
 }
 
-function getCloudAllianceStudioName(customerName: string, revenueStream: string) {
+function getAllianceStudioName(customerName: string, revenueStream: string) {
   const normalizedLabels = [customerName, revenueStream].map((value) => normalizeBusinessName(value));
   if (normalizedLabels.some((label) => label === "google llc" || label.includes("google llc"))) return "Alianças Google";
   if (normalizedLabels.some((label) => label === "microsoft" || label.includes("microsoft"))) return "Alianças Microsoft";
   if (normalizedLabels.some((label) => label === "amazon web" || label.includes("amazon web"))) return "Alianças AWS";
+  if (normalizedLabels.some((label) => label.includes("datadog") || label.includes("data dog"))) return "Datadog-Alianças";
   return "";
 }
 

@@ -462,11 +462,13 @@
   L, `Tipo Opp` na coluna O para separar Novo/Ampliação de
   Manutenção/Renovação, `Total RL 2026` na coluna AH e filtrando `CC CROSS` na
   coluna BR igual a `BU Financial`; buckets `Squad` e `Times` não entram no
-  baseline de Studios; `RESELL` não entra; `Cloud` é remapeado para
+  baseline de Studios; `RESELL` entra somente quando o cliente da coluna C ou a
+  coluna J identificarem aliança reconhecida, como Google LLC, Microsoft,
+  Amazon Web ou Datadog/Data Dog; `Cloud` é remapeado para
   `Managed Services` quando o cliente da coluna C for Managed Services ou a
   coluna J indicar Managed Services, e para Alianças Google/Microsoft/AWS quando
   o cliente da coluna C ou o Revenue Stream da coluna J indicar Google LLC,
-  Microsoft ou Amazon Web; `Arquitetura`
+  Microsoft ou Amazon Web; Datadog/Data Dog vira `Datadog-Alianças`; `Arquitetura`
   vira PX somente quando a coluna A/SU for Weme.
 - Na importação da Curva principal, a curva de clientes vem da aba
   `Resumo RL 2026`; a aba `Sheet1` é usada para derivar a baseline geral de

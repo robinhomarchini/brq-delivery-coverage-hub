@@ -711,14 +711,18 @@ Novo/Ampliação como Studio Hunter e demais tipos como Manutenção/Renovação
 somente linhas com `BU Financial` entram na foto. Os buckets `Squad` e `Times`
 da coluna L não entram nessa foto de baseline de Studios, pois representam o
 bloco operacional principal da Curva e não o recorte de Studios/Habilitadores a
-ser comparado contra as alocações detalhadas. `RESELL` não entra. Quando a
-coluna L vier como `Arquitetura`, somente linhas com coluna A/SU igual a `Weme`
+ser comparado contra as alocações detalhadas. Quando a coluna L vier como
+`RESELL`, a linha entra somente se o cliente da coluna C ou o Revenue Stream da
+coluna J identificarem uma aliança reconhecida: `Google LLC`, `Microsoft`,
+`Amazon Web` ou `Datadog`/`Data Dog`. Quando a coluna L vier como
+`Arquitetura`, somente linhas com coluna A/SU igual a `Weme`
 viram `PX`; as demais ficam fora. Quando a coluna L vier como `Cloud`/`CLOUD`,
 linhas cujo cliente da coluna C seja `Managed Services` viram `Managed Services`;
 a coluna J `Managed Services / FinOps` ou `Managed Services` fica como fallback
 para a mesma classificação; linhas cujo cliente da coluna C ou Revenue Stream
-da coluna J indiquem `Google LLC`, `Microsoft` ou `Amazon Web` viram,
-respectivamente, `Alianças Google`, `Alianças Microsoft` e `Alianças AWS`. A aba `Resumo RL 2026`
+da coluna J indiquem `Google LLC`, `Microsoft`, `Amazon Web` ou `Datadog`/`Data Dog` viram,
+respectivamente, `Alianças Google`, `Alianças Microsoft`, `Alianças AWS` e
+`Datadog-Alianças`. A aba `Resumo RL 2026`
 continua sendo a origem da curva/baseline de clientes; a aba `Sheet1` é usada
 somente para derivar a baseline geral de Studios. Essa foto geral é comparativa e
 não altera metas de clientes, metas de pessoas nem alocações de Studios; ela
