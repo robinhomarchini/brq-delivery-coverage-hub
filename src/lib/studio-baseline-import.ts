@@ -243,13 +243,13 @@ export function buildStudioBaselineComparisons(
   year: number,
 ): StudioBaselineComparisonRow[] {
   const customersByName = new Map(customers.map((customer) => [normalizeBusinessName(customer.name), customer]));
-  const areasByName = new Map(areas.map((area) => [normalizeBusinessName(area.name), area]));
+  const areasByName = buildStudioAreaNameIndex(areas);
   const allocationsByCustomerArea = buildStudioAllocationIndex(studioAllocations, year);
 
   return baselineRows.map((row) => {
     const customerKey = normalizeBusinessName(row.customerName);
     const customer = customersByName.get(customerKey);
-    const area = areasByName.get(normalizeBusinessName(row.studioName));
+    const area = areasByName.get(getStudioMatchKey(row.studioName));
     const allocated = customer && area
       ? allocationsByCustomerArea.get(getStudioAllocationIndexKey(customer.id, area.id))
       : undefined;
@@ -289,6 +289,33 @@ export function buildStudioBaselineComparisons(
       status: getStudioComparisonStatus(Boolean(customer), Boolean(area), allocationDelta),
     };
   });
+}
+
+function buildStudioAreaNameIndex(areas: Area[]) {
+  const index = new Map<string, Area>();
+  areas.forEach((area) => {
+    const key = getStudioMatchKey(area.name);
+    if (key && !index.has(key)) {
+      index.set(key, area);
+    }
+  });
+  return index;
+}
+
+function getStudioMatchKey(name: string) {
+  const normalized = normalizeBusinessName(name)
+    .replace(/[./_]+/g, " ")
+    .replace(/\s*-\s*/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!normalized) return "";
+
+  const tokens = new Set(normalized.split(" "));
+  if (tokens.has("google")) return "aliancas google";
+  if (tokens.has("microsoft")) return "aliancas microsoft";
+  if (tokens.has("aws") || normalized.includes("amazon web")) return "aliancas aws";
+  if (tokens.has("datadog") || normalized.includes("data dog")) return "datadog aliancas";
+  return normalized;
 }
 
 function buildStudioAllocationIndex(studioAllocations: StudioTargetAllocation[], year: number) {

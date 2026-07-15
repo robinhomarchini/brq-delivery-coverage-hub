@@ -112,6 +112,9 @@ const requiredParserTokens = [
   "isWideGroupRow",
   "Renovação/Manut",
   "Novos Projetos/Hunter",
+  "buildStudioAreaNameIndex",
+  "getStudioMatchKey",
+  "aliancas aws",
 ];
 
 const missingParserTokens = requiredParserTokens.filter((token) => !parser.includes(token));

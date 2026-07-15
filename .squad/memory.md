@@ -360,6 +360,7 @@ Centralizar importação de baselines em uma nova rota, removendo uploads antigo
 - O leitor leve de XLSX deve resolver abas nomeadas pelo workbook/relationship interno e falhar com mensagem clara quando `Resumo RL 2026` estiver ausente; nunca usar `Sheet1` como fallback para a Curva de clientes.
 - A Curva de clientes da central de Baselines deve importar somente linhas `BU Financial` com total maior que zero na aba `Resumo RL 2026`; outras BUs e a linha Total não entram na comparação nem nos updates.
 - Na comparação de Studios, `registeredCustomerStudioTarget` representa a Baseline Curva por Cliente + Studio/Habilitador. O total de Studio do cliente inteiro não deve ser repetido nas linhas individuais de Studio.
+- Na comparação de Studios, nomes equivalentes de alianças devem bater por chave canônica, não por string exata. Ex.: `Alianças AWS`, `AWS-Alianças` e variações de separador representam o mesmo Studio cadastrado, mantendo o nome cadastrado na exibição.
 - Snapshots antigos de baseline devem ser limpos por `npm run maintenance:baseline-snapshots`, com `DRY-RUN` padrão e retenção mínima de 1 foto por ano/origem. Não apagar snapshots manualmente fora da rotina auditável.
 - A central de Baselines deve preservar a última visão escolhida no navegador; sem preferência salva, abre em `Curva principal` para favorecer o fluxo oficial da Curva.
 - A comparação da Curva principal deve manter linhas compactas: resumo de Hunter na célula e racional completo em modal de detalhes; não mostrar `Resp. planilha` quando a origem não traz responsável confiável.

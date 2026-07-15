@@ -1,3 +1,5 @@
+import type { Area, Customer, StudioTargetAllocation } from "../src/data/mockData";
+import { buildStudioBaselineComparisons, type StudioBaselineRow } from "../src/lib/studio-baseline-import";
 import { parseCurveStudioBaselineRows } from "../src/lib/studio-curve-baseline-snapshot";
 
 const curveSheetColumns = {
@@ -81,6 +83,19 @@ assert(datadogResellAlliance.maintenanceAmount === 150000, "Datadog RESELL amoun
 assert(!unknownResell, "Unrecognized RESELL rows must stay out of the Studio Curve baseline.");
 assert(parsed.length === 4, "Only Financial and recognized Studio Curve rows must enter the baseline.");
 
+const awsAliasComparison = buildStudioBaselineComparisons(
+  [makeStudioBaselineRow({ customerName: "Alelo", studioName: "Alianças AWS", hunterAmount: 400000 })],
+  [makeCustomer({ id: "customer-alelo", name: "Alelo" })],
+  [makeArea({ id: "area-aws", name: "AWS-Alianças" })],
+  [makeStudioAllocation({ customerId: "customer-alelo", areaId: "area-aws", hunterAmount: 400000 })],
+  2026,
+)[0];
+
+assert(awsAliasComparison, "AWS alias comparison must return one row.");
+assert(awsAliasComparison.status === "ok", "Alianças AWS baseline must match AWS-Alianças registered Studio.");
+assert(awsAliasComparison.registeredStudioName === "AWS-Alianças", "AWS alias comparison must preserve the registered Studio name.");
+assert(awsAliasComparison.allocatedHunter === 400000, "AWS alias comparison must use the registered allocation.");
+
 console.log("Studio Curve baseline QA checks passed.");
 
 function makeCurveRow({
@@ -114,4 +129,58 @@ function makeCurveRow({
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
+}
+
+function makeStudioBaselineRow(input: { customerName: string; studioName: string; hunterAmount?: number; maintenanceAmount?: number }): StudioBaselineRow {
+  const hunterAmount = input.hunterAmount ?? 0;
+  const maintenanceAmount = input.maintenanceAmount ?? 0;
+  return {
+    rowNumber: 1,
+    salesUnit: "Curva principal",
+    tower: "Sheet1",
+    businessUnit: "BU Financial",
+    customerName: input.customerName,
+    studioName: input.studioName,
+    opportunityType: "Novo Projeto / Hunter",
+    hunterAmount,
+    maintenanceAmount,
+    totalAmount: hunterAmount + maintenanceAmount,
+  };
+}
+
+function makeCustomer(input: { id: string; name: string }): Customer {
+  return {
+    id: input.id,
+    name: input.name,
+    industry: "Financial Services",
+    directorResponsibleId: "director",
+    managerResponsibleIds: [],
+    hunterTarget: 0,
+    farmerRenewalTarget: 0,
+    studioHunterTarget: 0,
+    studioTarget: 0,
+    revenue: 0,
+    margin: 0,
+    strategicAccount: false,
+    lifecycleStatus: "active",
+  };
+}
+
+function makeArea(input: { id: string; name: string }): Area {
+  return {
+    id: input.id,
+    name: input.name,
+    description: input.name,
+  };
+}
+
+function makeStudioAllocation(input: { customerId: string; areaId: string; hunterAmount?: number; maintenanceAmount?: number }): StudioTargetAllocation {
+  return {
+    id: `studio-${input.customerId}-${input.areaId}`,
+    customerId: input.customerId,
+    areaId: input.areaId,
+    year: 2026,
+    hunterAmount: input.hunterAmount ?? 0,
+    maintenanceAmount: input.maintenanceAmount ?? 0,
+  };
 }
