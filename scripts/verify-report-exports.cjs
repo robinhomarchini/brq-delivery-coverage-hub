@@ -296,6 +296,87 @@ if (generatedExplicitMaintenanceRows.some((row) => row.executive === "Salesforce
   throw new Error("Generated official rows duplicated explicitly assigned Studio maintenance in the final Studio maintenance block.");
 }
 
+const generatedCurrentMinusStudioRows = buildOfficialRowsForView({
+  view: "people",
+  peopleRows: [{
+    personId: "stale-own-qa",
+    personName: "Stale Own QA",
+    email: "stale.own.qa@brq.com",
+    roleType: "Hunter",
+    directorId: undefined,
+    customerCount: 1,
+    customerNames: ["Cliente Stale QA"],
+    hunter: 300,
+    farmerRenewal: 140,
+    total: 440,
+    customerBreakdown: [],
+  }],
+  hunterRows: [],
+  hunterDetailRows: [],
+  directorDetailRows: [],
+  areaRows: [],
+  areaDetailRows: [],
+  hunterClientRows: [],
+  selectedHunterNames: [],
+  selectedAreaNames: [],
+  people: [{
+    id: "stale-own-qa",
+    name: "Stale Own QA",
+    roleType: "Hunter",
+    active: true,
+    clientIds: ["customer-stale-qa"],
+  }],
+  allocations: [
+    {
+      id: "target-stale-hunter-qa",
+      customerId: "customer-stale-qa",
+      personId: "stale-own-qa",
+      type: "hunter",
+      year: 2026,
+      amount: 300,
+      ownAmount: 250,
+    },
+    {
+      id: "target-stale-renewal-qa",
+      customerId: "customer-stale-qa",
+      personId: "stale-own-qa",
+      type: "farmer_renewal",
+      year: 2026,
+      amount: 140,
+      ownAmount: 90,
+    },
+  ],
+  studioAllocations: [
+    {
+      id: "studio-stale-hunter-qa",
+      customerId: "customer-stale-qa",
+      areaId: "studio-stale-hunter",
+      hunterPersonId: "stale-own-qa",
+      year: 2026,
+      hunterAmount: 100,
+      maintenanceAmount: 0,
+    },
+    {
+      id: "studio-stale-maintenance-qa",
+      customerId: "customer-stale-qa",
+      areaId: "studio-stale-maintenance",
+      maintenancePersonId: "stale-own-qa",
+      year: 2026,
+      hunterAmount: 0,
+      maintenanceAmount: 40,
+    },
+  ],
+  customerNames: new Map([["customer-stale-qa", "Cliente Stale QA"]]),
+  areaNames: new Map([
+    ["studio-stale-hunter", "Studio Hunter Stale QA"],
+    ["studio-stale-maintenance", "Studio Manutenção Stale QA"],
+  ]),
+  year: 2026,
+});
+if (!generatedCurrentMinusStudioRows.some((row) => row.executive === "Stale Own QA" && row.customerName === "Cliente Stale QA" && row.billingCustomer === "" && row.hunter === 200 && row.farmerRenewal === 100)) {
+  throw new Error("Generated official rows must compute own target as current amount minus contained Studio, ignoring stale own_amount caches.");
+}
+
 const generatedOwnAndInheritedFarmerRows = buildOfficialRowsForView({
   view: "people",
   peopleRows: [{

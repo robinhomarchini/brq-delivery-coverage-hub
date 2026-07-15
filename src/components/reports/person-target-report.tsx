@@ -20,7 +20,7 @@ import { isHunterConsultAccess, normalizeAccessEmail } from "@/lib/access-contro
 import { getCustomerTotalTarget } from "@/lib/customer-target-total";
 import { formatCurrency, toFileSlug } from "@/lib/utils";
 import { isCustomerFarmerResponsibleProfile, isHunterRole, isSpecialistHunterRole, isTargetAssignableRole } from "@/lib/roles";
-import { getStudioMaintenancePersonId, getTargetOwnAmount, isStudioRenewalEligibleForFarmer } from "@/lib/studio-renewal-rollup";
+import { getStudioMaintenancePersonId, isStudioRenewalEligibleForFarmer } from "@/lib/studio-renewal-rollup";
 import type { RoleType } from "@/data/mockData";
 import { isOtherDirectorId } from "@/lib/director-governance";
 import {
@@ -32,8 +32,10 @@ import {
 import {
   buildStudioHunterTotalsByHunterCustomer,
   buildStudioRenewalTotalsByPersonCustomer,
+  getContainedOwnAmount,
   getEffectiveStudioHunterPersonId,
   getHunterOwnAmount,
+  getTargetCurrentAmountFromAllocations,
   getTargetOwnAmountFromAllocations,
 } from "@/lib/reports/person-target-rollups";
 
@@ -1661,10 +1663,10 @@ function buildPeopleClientRows({
         const renewalAllocations = customerAllocations.filter((allocation) => allocation.type === "farmer_renewal");
         const studioHunter = studioByHunterCustomer.get(`${person.id}:${customerId}`) ?? 0;
         const studioMaintenance = studioRenewalByPersonCustomer.get(`${person.id}:${customerId}`) ?? 0;
-        const hunterCurrent = getContainedCurrentAmount(hunterAllocations, studioHunter);
-        const renewalCurrent = getContainedCurrentAmount(renewalAllocations, studioMaintenance);
-        const ownHunter = Math.max(hunterCurrent - studioHunter, 0);
-        const ownRenewal = Math.max(renewalCurrent - studioMaintenance, 0);
+        const hunterCurrent = getTargetCurrentAmountFromAllocations(hunterAllocations, studioHunter);
+        const renewalCurrent = getTargetCurrentAmountFromAllocations(renewalAllocations, studioMaintenance);
+        const ownHunter = getContainedOwnAmount(hunterCurrent, studioHunter);
+        const ownRenewal = getContainedOwnAmount(renewalCurrent, studioMaintenance);
         const studioItems = buildPeopleClientStudioItems({
           personId: person.id,
           people,
@@ -1776,15 +1778,6 @@ function buildPeopleClientRelationshipLabels({
   return Array.from(labels);
 }
 
-function getContainedCurrentAmount(
-  allocations: Array<{ amount: number; ownAmount?: number }>,
-  containedAmount: number,
-) {
-  const currentAmount = allocations.reduce((total, allocation) => total + allocation.amount, 0);
-  if (currentAmount > 0.01) return Math.max(currentAmount, containedAmount);
-  return containedAmount;
-}
-
 function buildDirectorDetailRows({
   people,
   allocations,
@@ -1829,7 +1822,7 @@ function buildDirectorDetailRows({
         : studioRenewalByPersonCustomer.get(`${allocation.personId}:${allocation.customerId}`) ?? 0;
       const ownAmount = allocation.type === "hunter"
         ? getHunterOwnAmount(allocation, inheritedAmount)
-        : getTargetOwnAmount(allocation, inheritedAmount);
+        : getContainedOwnAmount(allocation.amount, inheritedAmount);
       if (ownAmount <= 0.01) return;
 
       rows.push({

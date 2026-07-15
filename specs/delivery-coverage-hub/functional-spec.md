@@ -945,7 +945,10 @@ Regras do cadastro de Metas:
   Na Planilha oficial Financial, em todas as visões exportáveis, metas próprias
   devem ficar em linhas separadas de metas herdadas de Studio. A linha herdada
   deve trazer o nome do Studio em `Cliente Faturamento`, tanto para Studio
-  Hunter quanto para Studio Manutenção/Renovação.
+  Hunter quanto para Studio Manutenção/Renovação. Em telas e relatórios, quando
+  houver decomposição de Meta própria e Studio contido, a Meta própria deve ser
+  calculada por `Meta atual - Studio contido`; caches técnicos como `own_amount`
+  não podem prevalecer sobre essa fórmula de apresentação.
 - Na tela de Clientes, a distribuição por pessoa e a lista de Hunters alocados
   devem considerar Studio Hunter atribuído a pessoas. A cobertura Hunter por
   pessoa usa `max(Meta Hunter direta, soma de Studio Hunter da pessoa)` para

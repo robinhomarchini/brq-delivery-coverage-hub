@@ -5,7 +5,6 @@ import {
   buildStudioHunterTotalsByHunterCustomer,
   buildStudioRenewalTotalsByPersonCustomer,
   getEffectiveStudioHunterPersonId,
-  getHunterOwnAmount,
   getTargetOwnAmountFromAllocations,
 } from "@/lib/reports/person-target-rollups";
 
@@ -364,12 +363,11 @@ function buildOfficialPeopleRowsFromSources({
     customerIds.forEach((customerId) => {
       customerIdsInScope.add(customerId);
       const customerName = customerNames.get(customerId) ?? customerId;
-      const directHunterOwn = personAllocations
-        .filter((allocation) => allocation.customerId === customerId && allocation.type === "hunter")
-        .reduce((total, allocation) => {
-          const studioHunterForCustomer = studioByHunterCustomer.get(`${personRow.personId}:${customerId}`) ?? 0;
-          return total + getHunterOwnAmount(allocation, studioHunterForCustomer);
-        }, 0);
+      const studioHunterForCustomer = studioByHunterCustomer.get(`${personRow.personId}:${customerId}`) ?? 0;
+      const directHunterOwn = getTargetOwnAmountFromAllocations(
+        personAllocations.filter((allocation) => allocation.customerId === customerId && allocation.type === "hunter"),
+        studioHunterForCustomer,
+      );
       const studioRenewalForCustomer = studioRenewalByPersonCustomer.get(`${personRow.personId}:${customerId}`) ?? 0;
       const farmerRenewalOwn = getTargetOwnAmountFromAllocations(
         personAllocations.filter((allocation) => allocation.customerId === customerId && allocation.type === "farmer_renewal"),

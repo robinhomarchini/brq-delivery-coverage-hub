@@ -1,6 +1,6 @@
 import type { RoleType } from "@/data/mockData";
 import { isHunterRole } from "@/lib/roles";
-import { getStudioMaintenancePersonId, getTargetOwnAmount, isStudioRenewalEligibleForFarmer } from "@/lib/studio-renewal-rollup";
+import { getStudioMaintenancePersonId, isStudioRenewalEligibleForFarmer } from "@/lib/studio-renewal-rollup";
 
 export function buildStudioHunterTotalsByHunterCustomer(
   studioAllocations: Array<{ customerId: string; hunterPersonId?: string; year: number; hunterAmount: number }>,
@@ -47,19 +47,30 @@ export function getTargetOwnAmountFromAllocations(
   allocations: Array<{ amount: number; ownAmount?: number }>,
   derivedAmount: number,
 ) {
-  if (!allocations.length) return 0;
-  const amount = allocations.reduce((total, allocation) => total + allocation.amount, 0);
-  const ownAmount = allocations.some((allocation) => allocation.ownAmount !== undefined)
-    ? allocations.reduce((total, allocation) => total + (allocation.ownAmount ?? 0), 0)
-    : undefined;
-  return getTargetOwnAmount({ amount, ownAmount }, derivedAmount);
+  return getContainedOwnAmount(getTargetCurrentAmountFromAllocations(allocations, derivedAmount), derivedAmount);
 }
 
 export function getHunterOwnAmount(
   allocation: { amount: number; ownAmount?: number },
   studioHunterAmount: number,
 ) {
-  return Math.max(allocation.ownAmount ?? allocation.amount - studioHunterAmount, 0);
+  return getContainedOwnAmount(allocation.amount, studioHunterAmount);
+}
+
+export function getTargetCurrentAmountFromAllocations(
+  allocations: Array<{ amount: number; ownAmount?: number }>,
+  containedAmount: number,
+) {
+  const currentAmount = allocations.reduce((total, allocation) => total + allocation.amount, 0);
+  if (currentAmount > 0.01) return Math.max(roundCurrency(currentAmount), roundCurrency(containedAmount));
+  return roundCurrency(containedAmount);
+}
+
+export function getContainedOwnAmount(
+  currentAmount: number,
+  containedAmount: number,
+) {
+  return Math.max(roundCurrency(currentAmount - containedAmount), 0);
 }
 
 export function getEffectiveStudioHunterPersonId(
@@ -90,4 +101,8 @@ function getDefaultHunterPersonIdForCustomer(
     && isHunterRole(person.roleType)
     && person.clientIds.includes(customerId)
   )?.id;
+}
+
+function roundCurrency(value: number) {
+  return Math.round(value * 100) / 100;
 }

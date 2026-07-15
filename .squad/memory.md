@@ -454,6 +454,7 @@ Próximo passo: mover a view model de Clientes do Relatório de Metas (`buildCli
 - `saveCustomer` passa por `/api/delivery/customers`; a rota valida bearer token, app access e papel editor/admin, e executa o provider atual com o contexto RLS do usuario.
 - `savePersonCustomerTargets` passa por `/api/delivery/person-customer-targets`; a rota valida bearer token, app access e papel editor/admin, e executa o provider atual com o contexto RLS do usuario.
 - No Relatorio de Metas, a visao `Pessoas x Clientes` deve ser montada por pessoa selecionada em combo; nao usar busca livre como principal. Os totais Hunter/Renovacao sao valores atuais e os Studios aparecem como composicao contida, nao como soma adicional. Exibir "propria sem Studio" + "Studio contido" apenas como decomposicao do valor atual.
+- Para telas e relatorios, a regra de composicao contida e unica: Meta propria exibida = Meta atual - Studio contido. `own_amount` e cache/editavel de persistencia e nao deve prevalecer em relatorio, exportacao ou status executivo quando divergir do valor atual menos Studio.
 - Em 2026-07-15, push para GitHub falhou com 403 `You must verify your email address`; enquanto isso nao for resolvido, deploy por integracao Git/Vercel nao vai publicar novos commits. Deploy direto via Vercel CLI com `--archive tgz` conseguiu upload pequeno, mas alguns deployments ficaram `UNKNOWN` sem logs/build; inspecionar alias antes de considerar producao atualizada.
 
 ## Stable Facts About the Project

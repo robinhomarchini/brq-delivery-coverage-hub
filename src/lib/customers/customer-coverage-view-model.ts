@@ -165,11 +165,11 @@ export function getCustomerCoverageStatus(
     .reduce((total, allocation) => total + allocation.amount, 0));
   const allocatedStudioMaintenance = roundCurrency(customerStudioAllocations
     .reduce((total, allocation) => total + allocation.maintenanceAmount, 0));
-  const allocated = roundCurrency(allocatedHunter + allocatedFarmerRenewal + allocatedStudioMaintenance);
+  const allocated = getContainedCustomerAllocatedTotal(allocatedHunter, allocatedFarmerRenewal);
   const hunterGap = roundCurrency(allocatedHunter - breakdown.hunter);
   const farmerRenewalGap = roundCurrency(allocatedFarmerRenewal - breakdown.farmerRenewal);
   const studioMaintenanceGap = roundCurrency(allocatedStudioMaintenance - breakdown.studio);
-  const difference = roundCurrency(hunterGap + farmerRenewalGap + studioMaintenanceGap);
+  const difference = roundCurrency(hunterGap + farmerRenewalGap);
   const compositionTitle = buildCustomerReconciliationTitle({
     year,
     breakdown,
@@ -201,7 +201,7 @@ export function getCustomerCoverageStatus(
     };
   }
 
-  if (hasVisibleCurrencyAmount(difference)) {
+  if (difference < -0.01 && hasVisibleCurrencyAmount(difference)) {
     return {
       status: "mismatch",
       title: [
@@ -280,7 +280,7 @@ export function getCustomerAllocationWarning(
   const allocatedFarmerRenewal = customerAllocations
     .filter((allocation) => allocation.type === "farmer_renewal")
     .reduce((sum, allocation) => sum + allocation.amount, 0);
-  const allocated = roundCurrency(hunterAllocation.containedHunter + allocatedFarmerRenewal);
+  const allocated = getContainedCustomerAllocatedTotal(hunterAllocation.containedHunter, allocatedFarmerRenewal);
   const gap = roundCurrency(target - allocated);
 
   if (!hasVisibleCurrencyAmount(gap)) return null;
@@ -397,16 +397,16 @@ export function getCustomerAllocationComposition(
   const allocatedFarmerRenewal = roundCurrency(rows.reduce((total, row) => total + row.farmerRenewal, 0));
   const eligibleStudioMaintenance = getCustomerStudioMaintenanceCoverage(customer.id, studioAllocations, year, peopleById, true);
   const studioMaintenanceOutsidePeople = getCustomerStudioMaintenanceCoverage(customer.id, studioAllocations, year, peopleById, false);
-  const allocatedTotal = roundCurrency(allocatedHunter + allocatedFarmerRenewal);
+  const allocatedTotal = getContainedCustomerAllocatedTotal(allocatedHunter, allocatedFarmerRenewal);
   const hunterGap = roundCurrency(targetBreakdown.hunter - allocatedHunter);
   const farmerRenewalTargetForPeople = targetBreakdown.farmerRenewal;
   const farmerRenewalGap = roundCurrency(farmerRenewalTargetForPeople - allocatedFarmerRenewal);
   const personTargetTotal = roundCurrency(targetBreakdown.hunter + farmerRenewalTargetForPeople);
   const totalGap = roundCurrency(personTargetTotal - allocatedTotal);
   const openTotal = Math.max(0, totalGap);
-  const overTotal = Math.max(0, roundCurrency(-totalGap));
+  const overTotal = 0;
   const openSplit = splitFinancialGap(openTotal, Math.max(0, hunterGap), Math.max(0, farmerRenewalGap), 0);
-  const overSplit = splitFinancialGap(overTotal, Math.max(0, -hunterGap), Math.max(0, -farmerRenewalGap), 0);
+  const overSplit = { hunter: 0, farmerRenewal: 0, studio: 0 };
 
   return {
     customerId: customer.id,
@@ -559,15 +559,11 @@ function buildCustomerReconciliationTitle({
   studioHunterAreas: string[];
   studioMaintenanceAreas: string[];
 }) {
-  const direction = Math.abs(difference) <= 0.01
-    ? "reconciliado"
-    : difference > 0
-      ? "acima da meta"
-      : "abaixo da meta";
+  const isCovered = difference >= -0.01;
   return [
-    Math.abs(difference) <= 0.01
-      ? `Diferença de metas em ${year}: ${formatCurrency(0)} reconciliado.`
-      : `Diferença de metas em ${year}: ${formatCurrency(Math.abs(difference))} ${direction}.`,
+    isCovered
+      ? `Diferença de metas em ${year}: ${formatCurrency(0)} reconciliado. A alocação cobre a meta cadastrada.`
+      : `Diferença de metas em ${year}: ${formatCurrency(Math.abs(difference))} abaixo da meta.`,
     "",
     "Meta do cliente:",
     `Hunter: ${formatCurrency(breakdown.hunter)}`,
@@ -826,8 +822,11 @@ function getCustomerCoverageAllocatedTotal(
 ) {
   const breakdown = getCustomerTargetBreakdown(customer);
   const peopleComposition = getCustomerAllocationComposition(customer, people, allocations, studioAllocations, areas, year, breakdown);
-  const studioComposition = getCustomerStudioComposition(customer.id, customer.studioTarget, customer.studioHunterTarget, [], people, studioAllocations, year);
-  return peopleComposition.allocatedTotal + studioComposition.allocatedTotal;
+  return peopleComposition.allocatedTotal;
+}
+
+function getContainedCustomerAllocatedTotal(allocatedHunter: number, allocatedFarmerRenewal: number) {
+  return roundCurrency(allocatedHunter + allocatedFarmerRenewal);
 }
 
 function hasStudioAllocationValue(allocation: StudioTargetAllocation) {
