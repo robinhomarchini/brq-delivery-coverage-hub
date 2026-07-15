@@ -545,7 +545,7 @@ export function PersonTargetAssignment() {
                       disabled={selectedPersonIsSpecialistHunter}
                     />
                     <div className="mt-2 space-y-0.5 text-xs text-slate-500">
-                      <p>{selectedPersonIsSpecialistHunter ? "Total Studios" : "Studio herdado"}: <span className="font-semibold text-sky-700">{formatCurrency(row.studioHunterAmount)}</span></p>
+                      <p>{selectedPersonIsSpecialistHunter ? "Total Studios" : "Studio Hunter herdado"}: <span className="font-semibold text-sky-700">{formatCurrency(row.studioHunterAmount)}</span></p>
                       <p>Total atual: <span className="font-bold text-slate-900">{formatCurrency(row.hunterAmount)}</span></p>
                     </div>
                   </TableCell>
@@ -557,7 +557,7 @@ export function PersonTargetAssignment() {
                       disabled={selectedPersonIsSpecialistHunter}
                     />
                     <div className="mt-2 space-y-0.5 text-xs text-slate-500">
-                      <p>Studio elegível: <span className="font-semibold text-sky-700">{formatCurrency(row.studioRenewalAmount)}</span></p>
+                      <p>Studio Manut. herdada: <span className="font-semibold text-sky-700">{formatCurrency(row.studioRenewalAmount)}</span></p>
                       <p>Total atual: <span className="font-bold text-slate-900">{formatCurrency(row.farmerRenewalAmount)}</span></p>
                     </div>
                   </TableCell>

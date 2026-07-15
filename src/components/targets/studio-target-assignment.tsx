@@ -532,7 +532,7 @@ export function StudioTargetAssignment() {
                   <option key={person.id} value={person.id}>{person.name}</option>
                 ))}
               </Select>
-              <span className="mt-1 block text-xs text-slate-400">Usado para incorporar Manutenção/Renovação na meta do Farmer/Delivery elegível. Studios PX continuam fora da incorporação.</span>
+              <span className="mt-1 block text-xs text-slate-400">Usado para incorporar Manutenção/Renovação na meta do Farmer/Delivery responsável.</span>
             </Field>
             <Field label="Ano">
               <Input name="year" type="number" min="2020" max="2100" step="1" value={formYear} onChange={(event) => {

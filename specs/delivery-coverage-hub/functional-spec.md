@@ -100,8 +100,8 @@ considerar Studio Hunter como parte do componente Hunter alocado. Assim, a
 comparação Hunter usa Meta Hunter direta das pessoas + Studio Hunter atribuído
 em `studio_target_allocations`. Studio Manutenção/Renovação passa a compor a
 meta Renovação + Ampliação de Farmers/Delivery quando a linha tiver pessoa
-associada com perfil elegível e o Studio não for PX; PX e linhas sem responsável
-elegível continuam no componente de Áreas / Studios. Studio Hunter permanece
+associada com perfil elegível. Linhas sem responsável elegível continuam no
+componente de Áreas / Studios. Studio Hunter permanece
 contido em Hunter e não soma novamente no Total do cliente.
 A listagem principal de Clientes também deve exibir, por cliente e ano corrente,
 quais pessoas compõem a meta Hunter, a meta Renovação + Ampliação/Farmer e a
@@ -582,8 +582,8 @@ apenas para o Hunter informado naquela alocação, evitando misturar clientes co
 mais de um Hunter.
 Na grade de alocações por Área/Studio, Studio Hunter e Studio Manutenção devem
 aparecer visualmente segregados por tipo. Studio Hunter deve indicar que soma no
-total do Hunter; Studio Manutenção deve indicar que, exceto PX, soma na meta
-Renovação + Ampliação do Farmer/Delivery associado, sem somar no Hunter.
+total do Hunter; Studio Manutenção deve indicar que soma na meta Renovação +
+Ampliação do Farmer/Delivery associado, sem somar no Hunter.
 Na conciliação de Metas por Área/Studio, se o detalhamento alocado por Studio já
 superar a meta-base antiga do cliente, a tela deve considerar o detalhamento
 como alvo efetivo exibido para evitar status "Acima" falso após edição da
@@ -626,9 +626,9 @@ planilha. A conferência financeira deve comparar `Target RL Hunter` com a soma
 de todas as metas do tipo Hunter alocadas no sistema para o Cliente + Ano,
 incluindo múltiplos Hunters e pessoas de outros perfis que tenham meta Hunter
 declarada, mais as alocações de Studio Hunter atribuídas ao Hunter no mesmo
-cliente/ano. Studio Manutenção continua fora do total Hunter; quando não for PX
-e tiver Farmer/Delivery elegível associado, compõe Renovação + Ampliação da
-pessoa. A composição/responsável Hunter da planilha é informativa e não deve
+cliente/ano. Studio Manutenção continua fora do total Hunter; quando tiver
+Farmer/Delivery elegível associado, compõe Renovação + Ampliação da pessoa. A
+composição/responsável Hunter da planilha é informativa e não deve
 gerar divergência, alerta ou bloqueio quando Hunter, Renovação e Total do
 cliente estiverem batidos. A mensagem de detalhe pode mostrar a composição das
 pessoas, valores e origem que formam o total do sistema, sem atribuir a
@@ -910,7 +910,7 @@ Regras do cadastro de Metas:
   responsável prevalece para o rollup da pessoa mesmo que o papel cadastral
   ainda esteja desatualizado; no fallback legado por `hunterPersonId`, a pessoa
   só incorpora a renovação se tiver papel Farmer/Delivery elegível. Studio PX
-  continua excluído da incorporação em pessoa.
+  segue a mesma regra de incorporação dos demais Studios.
   Na Planilha oficial Financial, em todas as visões exportáveis, metas próprias
   devem ficar em linhas separadas de metas herdadas de Studio. A linha herdada
   deve trazer o nome do Studio em `Cliente Faturamento`, tanto para Studio

@@ -1,19 +1,11 @@
 import type { Area, Person, RoleType, StudioTargetAllocation } from "@/data/mockData";
 import { isFarmerDeliveryTargetRole } from "@/lib/roles";
-import { normalizeBusinessName } from "@/lib/utils";
-
-const pxStudioNormalizedNames = new Set(["px"]);
-
-export function isPxStudioName(name: string) {
-  return pxStudioNormalizedNames.has(normalizeBusinessName(name));
-}
 
 export function isStudioRenewalEligibleForFarmer(
-  areaName: string,
+  _areaName: string,
   person?: Pick<Person, "active" | "roleType"> | { active?: boolean; roleType: RoleType },
   options: { explicitMaintenancePerson?: boolean } = {},
 ) {
-  if (isPxStudioName(areaName)) return false;
   if (!Boolean(person?.active ?? true)) return false;
   if (options.explicitMaintenancePerson) return Boolean(person);
   return Boolean(person?.roleType && isFarmerDeliveryTargetRole(person.roleType));

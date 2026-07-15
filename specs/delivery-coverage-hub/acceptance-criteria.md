@@ -234,8 +234,8 @@
   própria do Hunter e Studio Manutenção não soma no Hunter.
 - Studio Manutenção/Renovação com responsável Farmer/Delivery elegível compõe a
   meta Renovação + Ampliação atual da pessoa, preservando a meta própria em
-  `ownAmount`; Studio PX e linhas sem responsável elegível permanecem somente no
-  componente de Áreas / Studios.
+  `ownAmount`; linhas sem responsável elegível permanecem somente no componente
+  de Áreas / Studios.
 - O Relatório de Metas possui visão por Diretoria Delivery com seletor de
   pessoa consolidadora derivado do cadastro de Pessoas: perfis Diretor ou
   pessoas ativas com subordinados em `people.directorId`, sem hardcode de CA,
@@ -246,9 +246,9 @@
 - A visão por Diretoria Delivery usa a chave Pessoa -> Cliente -> Quebras, sem
   repetir o nome da pessoa nas linhas de detalhe.
 - Na visão por Diretoria Delivery, perfis Manager, Farmer e Delivery somam
-  Renovação + Ampliação direta mais Studio Manutenção/Renovação elegível, exceto
-  PX; Studio Hunter só soma para pessoas com perfil Hunter/Hunter + Farmer
-  quando a pessoa é o Hunter do studio.
+  Renovação + Ampliação direta mais Studio Manutenção/Renovação elegível; Studio
+  Hunter só soma para pessoas com perfil Hunter/Hunter + Farmer quando a pessoa
+  é o Hunter do studio.
 - A visão por Diretoria Delivery mostra subtotais por pessoa, subtotais por
   cliente e total geral da diretoria.
 - A visão por Diretoria Delivery pode ser exportada e pré-visualizada antes do

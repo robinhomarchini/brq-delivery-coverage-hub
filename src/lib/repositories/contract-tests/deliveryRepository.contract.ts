@@ -141,7 +141,7 @@ export async function runDeliveryRepositoryContractTests({
     assertEqual(savedStudioRows.length, 1, "Studio allocation grain should be unique by customer, area, hunter and year.");
   });
 
-  await runContractTest(providerName, "saveStudioTargetAllocation rolls eligible Studio renewal into Farmer/Delivery except PX", async () => {
+  await runContractTest(providerName, "saveStudioTargetAllocation rolls Studio renewal into declared Farmer/Delivery responsibility", async () => {
     const repository = await createRepository();
     const data = await repository.getAll();
     const customer = data.customers[0];
@@ -215,7 +215,7 @@ export async function runDeliveryRepositoryContractTests({
     nextData = await repository.getAll();
     renewalAllocation = findTargetAllocation(nextData, customer.id, farmer.id, "farmer_renewal");
     assertEqual(renewalAllocation.ownAmount, 30, "PX Studio save must preserve editable own Farmer/Delivery amount.");
-    assertEqual(renewalAllocation.amount, 50, "PX Studio renewal must not roll into Farmer/Delivery target.");
+    assertEqual(renewalAllocation.amount, 90, "PX Studio renewal should roll into the declared Farmer/Delivery target.");
   });
 }
 

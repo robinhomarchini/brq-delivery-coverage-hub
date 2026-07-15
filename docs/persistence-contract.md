@@ -150,7 +150,7 @@ Required invariants:
   present.
 - Farmer/Renewal `amount` is current Renewal/Amplification total: own Renewal
   plus eligible Studio Maintenance/Renewal for the same customer, person and
-  year. Studio PX is excluded from this rollup.
+  year.
 - Studio Hunter is not double-counted as a second Hunter target.
 - New studio facts belong in `studioTargetAllocations`, not direct `studio`
   target allocations.
@@ -174,8 +174,7 @@ Required invariants:
 - Studio Hunter composes Hunter analysis without double counting.
 - Studio Maintenance/Renewal does not become Hunter target.
 - Studio Maintenance/Renewal composes Farmer/Delivery Renewal targets when the
-  associated person has an eligible Farmer/Delivery role and the Studio is not
-  PX.
+  associated person has an eligible Farmer/Delivery role.
 - Saving/deleting Studio Hunter or eligible Studio Maintenance/Renewal refreshes
   affected person current totals.
 
