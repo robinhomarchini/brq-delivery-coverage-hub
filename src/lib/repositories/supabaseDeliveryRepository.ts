@@ -854,30 +854,16 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
       }
     }
 
+    if (isHunterRole(personRole) || specialistAsCustomerHunter) {
+      await this.upsertPersonCustomerAssignment(input.personId, input.customerId);
+    }
+
     await this.persistTypeTargetWithFallback(input, "hunter", nextHunterAmount, allocations, nextHunterOwnAmount);
     await this.persistTypeTargetWithFallback(input, "farmer_renewal", nextFarmerRenewalAmount, allocations, nextFarmerRenewalOwnAmount);
     await this.persistTypeTargetWithFallback(input, "studio", nextStudioAmount, allocations);
 
-    if (isHunterRole(personRole) || specialistAsCustomerHunter) {
-      const { error: assignmentError } = await this.client
-        .from("person_customer_assignments")
-        .upsert({
-          person_id: input.personId,
-          customer_id: input.customerId,
-          source: "rpc_target_save",
-        });
-      if (assignmentError) throw assignmentError;
-    }
-
     if (isCustomerManagerProfile(personRole, true) && nextFarmerRenewalAmount > 0) {
-      const { error: assignmentError } = await this.client
-        .from("person_customer_assignments")
-        .upsert({
-          person_id: input.personId,
-          customer_id: input.customerId,
-          source: "rpc_target_save",
-        });
-      if (assignmentError) throw assignmentError;
+      await this.upsertPersonCustomerAssignment(input.personId, input.customerId);
     }
 
     if (!isHunterRole(personRole) && !specialistAsCustomerHunter && nextFarmerRenewalAmount <= 0) {
@@ -889,6 +875,17 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
         .eq("source", "rpc_target_save");
       if (assignmentDeleteError) throw assignmentDeleteError;
     }
+  }
+
+  private async upsertPersonCustomerAssignment(personId: string, customerId: string) {
+    const { error } = await this.client
+      .from("person_customer_assignments")
+      .upsert({
+        person_id: personId,
+        customer_id: customerId,
+        source: "rpc_target_save",
+      });
+    if (error) throw error;
   }
 
   private async persistTypeTargetWithFallback(
