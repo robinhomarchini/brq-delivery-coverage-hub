@@ -16,3 +16,4 @@ output
 /supabase
 *.tsbuildinfo
 *.log
+!src/components/coverage
