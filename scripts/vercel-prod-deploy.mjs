@@ -2,6 +2,9 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { loadLocalEnv } from "./env-loader.mjs";
+
+loadLocalEnv();
 
 const root = process.cwd();
 const localAppData = path.join(root, ".vercel-cli", "localappdata");

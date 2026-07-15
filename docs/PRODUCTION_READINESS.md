@@ -50,6 +50,8 @@ falhas intermitentes como `The value of "err" is out of range`.
 O comando padrão de produção é `npm run deploy:prod`. Se `deploy:check` falhar,
 não tente variações do `vercel deploy`: primeiro regularize o login com
 `npx --cache .npm-cache --yes vercel login` ou configure `VERCEL_TOKEN` no
-ambiente seguro. Para deploy manual local, use Node 22 LTS; Node 24 só deve ser
-usado para a aplicação/build. O deploy manual do projeto já força Node 22 pelo
-script.
+ambiente seguro. Se antivírus bloquear `%USERPROFILE%\.vercel\auth.json`, use
+`VERCEL_TOKEN` em `.env.local`; `deploy:check` e `deploy:prod` carregam esse
+arquivo local ignorado pelo Git. Para deploy manual local, use Node 22 LTS;
+Node 24 só deve ser usado para a aplicação/build. O deploy manual do projeto já
+força Node 22 pelo script.

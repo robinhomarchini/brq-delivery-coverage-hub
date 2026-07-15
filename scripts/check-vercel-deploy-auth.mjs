@@ -2,6 +2,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { loadLocalEnv } from "./env-loader.mjs";
+
+loadLocalEnv();
 
 const root = process.cwd();
 const projectFile = path.join(root, ".vercel", "project.json");
@@ -41,10 +44,11 @@ if (!hasToken && !hasAuthFile) {
   problems.push([
     "Vercel CLI is not authenticated for this Windows user.",
     "Expected one of:",
-    "- VERCEL_TOKEN set in the environment; or",
+    "- VERCEL_TOKEN set in the environment or .env.local; or",
     "- local login at %USERPROFILE%\\.vercel\\auth.json.",
     "",
-    "Run `npx --cache .npm-cache --yes --package node@22 --package vercel@56.2.0 vercel login` once, then retry deploy.",
+    "Preferred when auth.json is blocked: add VERCEL_TOKEN to .env.local, then retry deploy.",
+    "Alternative: run `npx --cache .npm-cache --yes --package node@22 --package vercel@56.2.0 vercel login` once.",
   ].join("\n"));
 }
 
