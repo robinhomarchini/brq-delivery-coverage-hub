@@ -209,6 +209,54 @@ export async function runDeliveryRepositoryContractTests({
     assertEqual(savedStudioRows.length, 1, "Studio allocation grain should be unique by customer, area, hunter and year.");
   });
 
+  await runContractTest(providerName, "saveStudioTargetAllocation allows Specialist Hunter as Studio Hunter", async () => {
+    const repository = await createRepository();
+    const data = await repository.getAll();
+    const customer = data.customers[0];
+    const area = data.areas[0];
+
+    assert(customer, "Contract test requires at least one customer fixture.");
+    assert(area, "Contract test requires at least one area fixture.");
+
+    const specialistHunter: Person = {
+      id: `contract-studio-specialist-${customer.id}`,
+      name: "Contract Studio Specialist Hunter",
+      email: `contract-studio-specialist-${customer.id}@brq.com`,
+      jobTitle: "Hunter Especializado",
+      directorId: undefined,
+      managerId: undefined,
+      roleType: "Hunter Especializado",
+      areaId: area.id,
+      clientIds: [],
+      photoUrl: undefined,
+      notes: undefined,
+      active: true,
+      lifecycleStatus: "active",
+      closedAt: undefined,
+      closedReason: undefined,
+      isManager: false,
+      hierarchyLevel: 3,
+    };
+
+    await repository.savePerson(specialistHunter);
+
+    const savedStudioAllocation = await repository.saveStudioTargetAllocation({
+      id: `contract-studio-specialist-${customer.id}-${specialistHunter.id}`,
+      customerId: customer.id,
+      areaId: area.id,
+      hunterPersonId: specialistHunter.id,
+      year: 2026,
+      hunterAmount: 50,
+      maintenanceAmount: 0,
+      notes: "Contract test Specialist Hunter Studio allocation.",
+    });
+
+    assertEqual(savedStudioAllocation.hunterAmount, 50, "Specialist Hunter Studio amount should be saved.");
+    const saved = await repository.getAll();
+    const hunterAllocation = findTargetAllocation(saved, customer.id, specialistHunter.id, "hunter");
+    assertEqual(hunterAllocation.amount, 50, "Specialist Hunter should receive the derived Hunter target when associated as Studio Hunter.");
+  });
+
   await runContractTest(providerName, "saveStudioTargetAllocation rolls Studio renewal into declared Farmer/Delivery responsibility", async () => {
     const repository = await createRepository();
     const data = await repository.getAll();

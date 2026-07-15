@@ -16,6 +16,7 @@
     "test:currency-input": "tsx scripts/verify-currency-input.ts",
     "test:security": "node scripts/verify-security-hardening.cjs",
     "smoke:critical": "node scripts/smoke-critical.mjs",
+    "smoke:csp": "node scripts/smoke-csp-local.mjs",
     "smoke:rls": "node scripts/smoke-rls-access.mjs",
     "smoke:rls:provision": "node scripts/provision-rls-smoke-users.mjs",
     "security:check": "node scripts/security-check.mjs",

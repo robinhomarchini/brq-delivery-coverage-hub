@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import "./globals.css";
 import { AppShell } from "@/components/layout/app-shell";
 import { DeliveryStoreProvider } from "@/store/delivery-store";
@@ -14,7 +15,9 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  await connection();
+
   return (
     <html lang="pt-BR">
       <body>

@@ -516,6 +516,11 @@ Especializado, o cadastro de Cliente deve tratá-la como Hunter comum somente
 nesse fluxo, permitindo vínculo pessoa-cliente e meta Hunter direta daquele
 cliente. Essa exceção não libera lançamento direto para Hunter Especializado em
 Metas por Pessoa nem altera a visão gerencial dedicada.
+Na tela Metas por Área/Studio, Hunter Especializado também pode ser selecionado
+como Hunter associado do Studio. Nesse cenário, ele funciona como Studio Hunter:
+o valor Hunter do Studio é persistido na alocação de Studio e a meta Hunter
+derivada da pessoa/cliente/ano é permitida pelo backend/banco apenas quando
+existe a alocação de Studio correspondente.
 Para cadastrar a meta gerencial, a rota Metas Hunter Especializado deve usar uma
 tela dedicada. Quando o usuário escolhe um Hunter Especializado em Metas por
 Pessoa, a aplicação deve orientar a abertura dessa rota porque esse perfil não

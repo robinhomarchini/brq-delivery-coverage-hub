@@ -294,6 +294,10 @@
   escolhida como Hunter responsável. Nesse cenário específico, ela funciona como
   Hunter comum para criar vínculo pessoa-cliente e meta Hunter direta daquele
   cliente, sem liberar lançamento direto em Metas por Pessoa.
+- Em Metas por Área/Studio, uma pessoa Hunter Especializado pode ser escolhida
+  como Hunter associado. Ao salvar, o valor Hunter do Studio é persistido e a
+  meta Hunter derivada da pessoa/cliente/ano é permitida somente quando existir
+  a alocação de Studio correspondente.
 - A exportação/prévia da visão Hunters usa o consolidado quando nenhum Hunter
   está selecionado e o detalhe explodido quando há um ou mais Hunters
   selecionados.
