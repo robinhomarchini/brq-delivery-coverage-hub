@@ -58,6 +58,7 @@ export function PersonTargetReport() {
   const [view, setView] = useState<ReportView>("people");
   const [selectedDirectorId, setSelectedDirectorId] = useState("");
   const [selectedHunterClientId, setSelectedHunterClientId] = useState("");
+  const [selectedPeopleClientPersonId, setSelectedPeopleClientPersonId] = useState("");
   const [selectedHunterIds, setSelectedHunterIds] = useState<Set<string>>(new Set());
   const [selectedAreaIds, setSelectedAreaIds] = useState<Set<string>>(new Set());
   const [peopleSort, setPeopleSort] = useState<SortState<PeopleSortKey>>({ key: "total", direction: "desc" });
@@ -117,6 +118,18 @@ export function PersonTargetReport() {
     }),
     [areaNames, assignablePeople, customers, selectedYear, studioTargetAllocations, targetAllocations],
   );
+  const peopleClientPersonOptions = useMemo(
+    () => Array.from(new Map(peopleClientRows.map((row) => [row.personId, {
+      personId: row.personId,
+      personName: row.personName,
+      roleType: row.roleType,
+    }])).values()).sort((first, second) => first.personName.localeCompare(second.personName, "pt-BR")),
+    [peopleClientRows],
+  );
+  const selectedPeopleClientPersonName = useMemo(
+    () => peopleClientPersonOptions.find((person) => person.personId === selectedPeopleClientPersonId)?.personName ?? "",
+    [peopleClientPersonOptions, selectedPeopleClientPersonId],
+  );
   const areaRows = useMemo(
     () => buildAreaStudioRows(areas, customers, studioTargetAllocations, selectedYear),
     [areas, customers, selectedYear, studioTargetAllocations],
@@ -147,10 +160,12 @@ export function PersonTargetReport() {
   const filteredPeopleClientRows = useMemo(() => {
     const query = search.toLowerCase();
     return sortPeopleClientRows(peopleClientRows.filter((row) =>
+      (!selectedPeopleClientPersonId || row.personId === selectedPeopleClientPersonId)
+      &&
       (!query || `${row.personName} ${row.roleType} ${row.customerName} ${row.relationshipText} ${row.studioBreakdown}`.toLowerCase().includes(query))
       && (!roleType || row.roleType === roleType)
     ), peopleClientSort);
-  }, [peopleClientRows, peopleClientSort, roleType, search]);
+  }, [peopleClientRows, peopleClientSort, roleType, search, selectedPeopleClientPersonId]);
   const filteredAreaRows = useMemo(() => {
     const query = search.toLowerCase();
     return sortAreaRows(areaRows.filter((row) =>
@@ -331,7 +346,7 @@ export function PersonTargetReport() {
   const activeRows = effectiveView === "people"
     ? filteredPeopleRows
     : effectiveView === "peopleClients"
-      ? filteredPeopleClientRows
+      ? selectedPeopleClientPersonId ? filteredPeopleClientRows : []
       : effectiveView === "clients"
         ? filteredClientCoverageRows
         : effectiveView === "areas"
@@ -344,8 +359,8 @@ export function PersonTargetReport() {
               ? filteredSpecialistHunterRows
               : filteredDirectorDetailRows;
   const totals = useMemo(
-    () => getViewTotals(effectiveView, filteredPeopleRows, filteredAreaRows, hunterSummaryRows, filteredDirectorDetailRows, filteredHunterDetailRows, hasDetailHunters, hasSelectedAreas ? filteredAreaDetailRows : undefined, filteredSpecialistHunterRows, filteredHunterClientRows, filteredClientCoverageRows, filteredPeopleClientRows),
-    [effectiveView, filteredAreaDetailRows, filteredAreaRows, filteredClientCoverageRows, filteredPeopleClientRows, hunterSummaryRows, filteredDirectorDetailRows, filteredHunterDetailRows, filteredHunterClientRows, filteredPeopleRows, filteredSpecialistHunterRows, hasDetailHunters, hasSelectedAreas],
+    () => getViewTotals(effectiveView, filteredPeopleRows, filteredAreaRows, hunterSummaryRows, filteredDirectorDetailRows, filteredHunterDetailRows, hasDetailHunters, hasSelectedAreas ? filteredAreaDetailRows : undefined, filteredSpecialistHunterRows, filteredHunterClientRows, filteredClientCoverageRows, selectedPeopleClientPersonId ? filteredPeopleClientRows : []),
+    [effectiveView, filteredAreaDetailRows, filteredAreaRows, filteredClientCoverageRows, filteredPeopleClientRows, hunterSummaryRows, filteredDirectorDetailRows, filteredHunterDetailRows, filteredHunterClientRows, filteredPeopleRows, filteredSpecialistHunterRows, hasDetailHunters, hasSelectedAreas, selectedPeopleClientPersonId],
   );
   const areaDetailTotal = useMemo(
     () => sumAmount(filteredAreaDetailRows),
@@ -371,9 +386,11 @@ export function PersonTargetReport() {
 
   function changeView(nextView: ReportView) {
     setView(nextView);
+    setSearch("");
     setRoleType("");
     setSelectedDirectorId("");
     setSelectedHunterClientId("");
+    setSelectedPeopleClientPersonId("");
     setSelectedHunterIds(new Set());
     setSelectedAreaIds(new Set());
     setSelectedPersonIds(new Set());
@@ -458,8 +475,8 @@ export function PersonTargetReport() {
             )}
             {effectiveView === "peopleClients" && (
               <ReportExportActions
-                title={`Relatório Pessoas x Clientes · ${year}`}
-                filename={`relatorio-pessoas-clientes-${year}`}
+                title={`Relatório Pessoas x Clientes · ${selectedPeopleClientPersonName || "Pessoa"} · ${year}`}
+                filename={`relatorio-pessoas-clientes-${year}${selectedPeopleClientPersonName ? `-${toFileSlug(selectedPeopleClientPersonName)}` : ""}`}
                 rows={filteredPeopleClientRows}
                 columns={peopleClientReportColumns}
               />
@@ -547,61 +564,87 @@ export function PersonTargetReport() {
       </section>
 
       {!hunterConsultOnly && <Card className="mb-5 p-3 shadow-sm">
-        <div className="grid gap-3 lg:grid-cols-[1fr_auto] lg:items-center">
-          <div className="flex flex-wrap gap-2">
-            {[
-              { key: "people", label: "Pessoas" },
-              { key: "peopleClients", label: "Pessoas x Clientes" },
-              { key: "clients", label: "Clientes" },
-              { key: "areas", label: "Áreas / Studios" },
-              { key: "hunters", label: "Hunters" },
-              { key: "hunterClients", label: "Hunter x Clientes" },
-              { key: "specialistHunters", label: "Hunters Especializados" },
-              { key: "directors", label: "Diretoria Delivery" },
-            ].map((item) => (
-              <button
-                key={item.key}
-                type="button"
-                className={`rounded-2xl px-4 py-2 text-sm font-bold transition ${
-                  view === item.key
-                    ? "bg-brq-purple text-white shadow-sm"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
-                onClick={() => changeView(item.key as ReportView)}
-              >
-                {item.label}
-              </button>
-            ))}
+        <div className="space-y-3">
+          <div className="-mx-1 overflow-x-auto px-1">
+            <div className="inline-flex min-w-max gap-2">
+              {[
+                { key: "people", label: "Pessoas" },
+                { key: "peopleClients", label: "Pessoas x Clientes" },
+                { key: "clients", label: "Clientes" },
+                { key: "areas", label: "Áreas / Studios" },
+                { key: "hunters", label: "Hunters" },
+                { key: "hunterClients", label: "Hunter x Clientes" },
+                { key: "specialistHunters", label: "Hunters Especializados" },
+                { key: "directors", label: "Diretoria Delivery" },
+              ].map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  className={`shrink-0 rounded-xl px-4 py-2 text-sm font-bold transition ${
+                    view === item.key
+                      ? "bg-brq-purple text-white shadow-sm"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                  onClick={() => changeView(item.key as ReportView)}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
           </div>
           <p className="text-sm text-slate-500">{getViewDescription(effectiveView)}</p>
         </div>
       </Card>}
 
-      <FilterBar search={search} onSearchChange={setSearch}>
-        <Select value={year} onChange={(event) => setYear(event.target.value)}>
-          {years.map((item) => <option key={item} value={item}>{item}</option>)}
-        </Select>
-        {effectiveView !== "areas" && effectiveView !== "specialistHunters" && effectiveView !== "clients" && !hunterConsultOnly && (
-          effectiveView === "directors" ? (
-            <Select value={selectedDirectorId} onChange={(event) => setSelectedDirectorId(event.target.value)}>
-              <option value="">Escolha a diretoria</option>
-              {directorOptions.map((director) => <option key={director.id} value={director.id}>{director.name}</option>)}
-            </Select>
-          ) : effectiveView === "hunterClients" ? (
-            <Select value={selectedHunterClientId} onChange={(event) => setSelectedHunterClientId(event.target.value)}>
-              <option value="">Escolha o Hunter</option>
-              {[...hunterRows]
-                .sort((first, second) => first.hunterName.localeCompare(second.hunterName, "pt-BR"))
-                .map((hunter) => <option key={hunter.hunterId} value={hunter.hunterId}>{hunter.hunterName}</option>)}
-            </Select>
-          ) : (
-            <Select value={roleType} onChange={(event) => setRoleType(event.target.value)}>
-              <option value="">Todos os perfis</option>
-              {roleTypes.map((item) => <option key={item} value={item}>{item}</option>)}
-            </Select>
-          )
-        )}
-      </FilterBar>
+      {effectiveView === "peopleClients" ? (
+        <Card className="mb-5 p-4 shadow-sm">
+          <div className="grid gap-4 lg:grid-cols-[minmax(320px,1fr)_160px] lg:items-end">
+            <label>
+              <span className="mb-1.5 block text-sm font-semibold text-slate-700">Pessoa</span>
+              <Select value={selectedPeopleClientPersonId} onChange={(event) => setSelectedPeopleClientPersonId(event.target.value)}>
+                <option value="">Escolha uma pessoa para montar a visão</option>
+                {peopleClientPersonOptions.map((person) => (
+                  <option key={person.personId} value={person.personId}>
+                    {person.personName} · {person.roleType}
+                  </option>
+                ))}
+              </Select>
+            </label>
+            <label>
+              <span className="mb-1.5 block text-sm font-semibold text-slate-700">Ano</span>
+              <Select value={year} onChange={(event) => setYear(event.target.value)}>
+                {years.map((item) => <option key={item} value={item}>{item}</option>)}
+              </Select>
+            </label>
+          </div>
+        </Card>
+      ) : (
+        <FilterBar search={search} onSearchChange={setSearch}>
+          <Select value={year} onChange={(event) => setYear(event.target.value)}>
+            {years.map((item) => <option key={item} value={item}>{item}</option>)}
+          </Select>
+          {effectiveView !== "areas" && effectiveView !== "specialistHunters" && effectiveView !== "clients" && !hunterConsultOnly && (
+            effectiveView === "directors" ? (
+              <Select value={selectedDirectorId} onChange={(event) => setSelectedDirectorId(event.target.value)}>
+                <option value="">Escolha a diretoria</option>
+                {directorOptions.map((director) => <option key={director.id} value={director.id}>{director.name}</option>)}
+              </Select>
+            ) : effectiveView === "hunterClients" ? (
+              <Select value={selectedHunterClientId} onChange={(event) => setSelectedHunterClientId(event.target.value)}>
+                <option value="">Escolha o Hunter</option>
+                {[...hunterRows]
+                  .sort((first, second) => first.hunterName.localeCompare(second.hunterName, "pt-BR"))
+                  .map((hunter) => <option key={hunter.hunterId} value={hunter.hunterId}>{hunter.hunterName}</option>)}
+              </Select>
+            ) : (
+              <Select value={roleType} onChange={(event) => setRoleType(event.target.value)}>
+                <option value="">Todos os perfis</option>
+                {roleTypes.map((item) => <option key={item} value={item}>{item}</option>)}
+              </Select>
+            )
+          )}
+        </FilterBar>
+      )}
 
       {hunterConsultOnly && !scopedHunterPerson && (
         <Card className="mb-5 p-4 shadow-sm">
@@ -790,15 +833,15 @@ export function PersonTargetReport() {
                   <SortableTableHead label="Perfil" sortKey="role" sortState={peopleClientSort} onSort={setPeopleClientSort} />
                   <SortableTableHead label="Cliente" sortKey="customer" sortState={peopleClientSort} onSort={setPeopleClientSort} />
                   <SortableTableHead label="Relacionamento" sortKey="relationship" sortState={peopleClientSort} onSort={setPeopleClientSort} />
-                  <SortableTableHead label="Hunter" sortKey="hunter" sortState={peopleClientSort} onSort={setPeopleClientSort} />
-                  <SortableTableHead label="Renov. + Ampl." sortKey="renewal" sortState={peopleClientSort} onSort={setPeopleClientSort} />
+                  <SortableTableHead label="Hunter atual" sortKey="hunter" sortState={peopleClientSort} onSort={setPeopleClientSort} />
+                  <SortableTableHead label="Renov. + Ampl. atual" sortKey="renewal" sortState={peopleClientSort} onSort={setPeopleClientSort} />
                   <SortableTableHead label="Total" sortKey="total" sortState={peopleClientSort} onSort={setPeopleClientSort} />
                   <TableHead>Studios que compõem</TableHead>
                   <TableHead className="text-right">Ação</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredPeopleClientRows.map((row) => (
+                {selectedPeopleClientPersonId && filteredPeopleClientRows.map((row) => (
                   <TableRow key={row.id}>
                     <TableCell>
                       <p className="font-bold text-slate-950">{row.personName}</p>
@@ -819,8 +862,8 @@ export function PersonTargetReport() {
                       <MoneyBreakdown
                         total={row.hunterTotal}
                         lines={[
-                          ["Própria", row.ownHunter],
-                          ["Studio Hunter", row.studioHunter],
+                          ["Própria sem Studio", row.ownHunter],
+                          ["Studio contido", row.studioHunter],
                         ]}
                       />
                     </TableCell>
@@ -828,8 +871,8 @@ export function PersonTargetReport() {
                       <MoneyBreakdown
                         total={row.renewalTotal}
                         lines={[
-                          ["Própria", row.ownRenewal],
-                          ["Studio Manut.", row.studioMaintenance],
+                          ["Própria sem Studio", row.ownRenewal],
+                          ["Studio contido", row.studioMaintenance],
                         ]}
                       />
                     </TableCell>
@@ -855,7 +898,7 @@ export function PersonTargetReport() {
                     </TableCell>
                   </TableRow>
                 ))}
-                {filteredPeopleClientRows.length > 0 && (
+                {selectedPeopleClientPersonId && filteredPeopleClientRows.length > 0 && (
                   <TableRow className="bg-slate-900 text-white hover:bg-slate-900">
                     <TableCell colSpan={4} className="font-bold">Total da visão filtrada</TableCell>
                     <TableCell className="text-right font-bold tabular-nums">{formatCurrency(sumPeopleClientHunter(filteredPeopleClientRows))}</TableCell>
@@ -867,7 +910,8 @@ export function PersonTargetReport() {
               </TableBody>
             </Table>
           </div>
-          {!filteredPeopleClientRows.length && <EmptyState message="Nenhum relacionamento pessoa x cliente foi encontrado para os filtros atuais." />}
+          {!selectedPeopleClientPersonId && <EmptyState message="Escolha uma pessoa para montar a visão completa de clientes, metas próprias e Studios contidos." />}
+          {selectedPeopleClientPersonId && !filteredPeopleClientRows.length && <EmptyState message="Nenhum relacionamento pessoa x cliente foi encontrado para os filtros atuais." />}
         </Card>
       )}
 
@@ -1617,8 +1661,10 @@ function buildPeopleClientRows({
         const renewalAllocations = customerAllocations.filter((allocation) => allocation.type === "farmer_renewal");
         const studioHunter = studioByHunterCustomer.get(`${person.id}:${customerId}`) ?? 0;
         const studioMaintenance = studioRenewalByPersonCustomer.get(`${person.id}:${customerId}`) ?? 0;
-        const ownHunter = getTargetOwnAmountFromAllocations(hunterAllocations, studioHunter);
-        const ownRenewal = getTargetOwnAmountFromAllocations(renewalAllocations, studioMaintenance);
+        const hunterCurrent = getContainedCurrentAmount(hunterAllocations, studioHunter);
+        const renewalCurrent = getContainedCurrentAmount(renewalAllocations, studioMaintenance);
+        const ownHunter = Math.max(hunterCurrent - studioHunter, 0);
+        const ownRenewal = Math.max(renewalCurrent - studioMaintenance, 0);
         const studioItems = buildPeopleClientStudioItems({
           personId: person.id,
           people,
@@ -1634,8 +1680,8 @@ function buildPeopleClientRows({
           directAllocations: customerAllocations,
           studioItems,
         });
-        const hunterTotal = ownHunter + studioHunter;
-        const renewalTotal = ownRenewal + studioMaintenance;
+        const hunterTotal = hunterCurrent;
+        const renewalTotal = renewalCurrent;
 
         return {
           id: `${person.id}:${customerId}`,
@@ -1728,6 +1774,15 @@ function buildPeopleClientRelationshipLabels({
   if (studioItems.some((item) => item.kind === "Studio Hunter")) labels.add("Studio Hunter");
   if (studioItems.some((item) => item.kind === "Studio Manutenção")) labels.add("Studio Manutenção");
   return Array.from(labels);
+}
+
+function getContainedCurrentAmount(
+  allocations: Array<{ amount: number; ownAmount?: number }>,
+  containedAmount: number,
+) {
+  const currentAmount = allocations.reduce((total, allocation) => total + allocation.amount, 0);
+  if (currentAmount > 0.01) return Math.max(currentAmount, containedAmount);
+  return containedAmount;
 }
 
 function buildDirectorDetailRows({
@@ -2813,12 +2868,12 @@ const peopleClientReportColumns: ReportColumn<PeopleClientRow>[] = [
   { key: "customerName", label: "Cliente", value: (row) => row.customerName },
   { key: "customerTargetTotal", label: "Meta total do cliente", value: (row) => row.customerTargetTotal, format: "currency", align: "right" },
   { key: "relationshipText", label: "Relacionamentos", value: (row) => row.relationshipText },
-  { key: "ownHunter", label: "Hunter própria", value: (row) => row.ownHunter, format: "currency", align: "right" },
-  { key: "studioHunter", label: "Studio Hunter herdado", value: (row) => row.studioHunter, format: "currency", align: "right" },
-  { key: "hunterTotal", label: "Hunter total", value: (row) => row.hunterTotal, format: "currency", align: "right" },
-  { key: "ownRenewal", label: "Renovação própria", value: (row) => row.ownRenewal, format: "currency", align: "right" },
-  { key: "studioMaintenance", label: "Studio Manutenção herdado", value: (row) => row.studioMaintenance, format: "currency", align: "right" },
-  { key: "renewalTotal", label: "Renovação total", value: (row) => row.renewalTotal, format: "currency", align: "right" },
+  { key: "ownHunter", label: "Hunter própria sem Studio", value: (row) => row.ownHunter, format: "currency", align: "right" },
+  { key: "studioHunter", label: "Studio Hunter contido", value: (row) => row.studioHunter, format: "currency", align: "right" },
+  { key: "hunterTotal", label: "Hunter atual", value: (row) => row.hunterTotal, format: "currency", align: "right" },
+  { key: "ownRenewal", label: "Renovação própria sem Studio", value: (row) => row.ownRenewal, format: "currency", align: "right" },
+  { key: "studioMaintenance", label: "Studio Manutenção contido", value: (row) => row.studioMaintenance, format: "currency", align: "right" },
+  { key: "renewalTotal", label: "Renovação atual", value: (row) => row.renewalTotal, format: "currency", align: "right" },
   { key: "total", label: "Total pessoa x cliente", value: (row) => row.total, format: "currency", align: "right" },
   { key: "studioBreakdown", label: "Studios que compõem", value: (row) => row.studioBreakdown },
 ];
