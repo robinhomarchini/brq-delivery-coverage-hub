@@ -25,8 +25,10 @@ import {
   type BaselineComparisonMode,
 } from "@/lib/board-target-baseline";
 import {
+  applyCurveBaselineToStudioComparisons,
   refreshStudioBaselineComparisonsFromCurrentData,
   studioBaselineSources,
+  type StudioBaselineSnapshot,
   type StudioBaselineComparisonRow,
   type StudioBaselineSourceCode,
 } from "@/lib/studio-baseline-import";
@@ -39,6 +41,9 @@ import { cn, formatCurrency, normalizeBusinessName } from "@/lib/utils";
 
 type ComparisonRow = ReturnType<typeof buildBoardTargetComparisonRows>[number];
 type BaselineWorkspace = "board" | "studios";
+const sourceSpecificStudioBaselineSourceCodes = studioBaselineSources
+  .filter((source) => source.code !== "studio_general")
+  .map((source) => source.code);
 
 export function BaselineComparison() {
   const { areas, customers, customerTargets, boardTargetBaselines, studioBaselineSnapshots, studioTargetAllocations, saveCustomers } = useDeliveryStore();
@@ -111,15 +116,63 @@ export function BaselineComparison() {
     () => studioBaselineSnapshots.find((snapshot) => snapshot.year === year && snapshot.sourceCode === studioSourceCode),
     [studioBaselineSnapshots, studioSourceCode, year],
   );
-  const latestStudioSnapshotRows = useMemo(
-    () => latestStudioSnapshot && dismissedStudioSnapshotId !== latestStudioSnapshot.id
-      ? refreshStudioBaselineComparisonsFromCurrentData(restoreStudioBaselineComparisonRows(latestStudioSnapshot.rows), yearCustomers, areas, studioTargetAllocations, year)
+  const latestCurveStudioSnapshot = useMemo(
+    () => studioBaselineSnapshots.find((snapshot) => snapshot.year === year && snapshot.sourceCode === "studio_general"),
+    [studioBaselineSnapshots, year],
+  );
+  const latestSourceSpecificStudioSnapshots = useMemo(
+    () => sourceSpecificStudioBaselineSourceCodes
+      .map((sourceCode) => studioBaselineSnapshots.find((snapshot) => snapshot.year === year && snapshot.sourceCode === sourceCode))
+      .filter((snapshot): snapshot is StudioBaselineSnapshot => Boolean(snapshot)),
+    [studioBaselineSnapshots, year],
+  );
+  const latestCurveStudioSnapshotRows = useMemo(
+    () => latestCurveStudioSnapshot
+      ? refreshStudioBaselineComparisonsFromCurrentData(restoreStudioBaselineComparisonRows(latestCurveStudioSnapshot.rows), yearCustomers, areas, studioTargetAllocations, year)
       : [],
-    [areas, dismissedStudioSnapshotId, latestStudioSnapshot, studioTargetAllocations, year, yearCustomers],
+    [areas, latestCurveStudioSnapshot, studioTargetAllocations, year, yearCustomers],
+  );
+  const latestStudioSnapshotRows = useMemo(() => {
+    if (studioSourceCode === "studio_general") {
+      const sourceSpecificRows = latestSourceSpecificStudioSnapshots.flatMap((snapshot) => (
+        dismissedStudioSnapshotId === snapshot.id
+          ? []
+          : refreshStudioBaselineComparisonsFromCurrentData(restoreStudioBaselineComparisonRows(snapshot.rows), yearCustomers, areas, studioTargetAllocations, year)
+      ));
+      const fallbackCurveRows = latestStudioSnapshot && dismissedStudioSnapshotId !== latestStudioSnapshot.id
+        ? refreshStudioBaselineComparisonsFromCurrentData(restoreStudioBaselineComparisonRows(latestStudioSnapshot.rows), yearCustomers, areas, studioTargetAllocations, year)
+        : [];
+      return applyCurveBaselineToStudioComparisons(
+        sourceSpecificRows.length ? sourceSpecificRows : fallbackCurveRows,
+        latestCurveStudioSnapshotRows,
+      );
+    }
+
+    return latestStudioSnapshot && dismissedStudioSnapshotId !== latestStudioSnapshot.id
+      ? applyCurveBaselineToStudioComparisons(
+        refreshStudioBaselineComparisonsFromCurrentData(restoreStudioBaselineComparisonRows(latestStudioSnapshot.rows), yearCustomers, areas, studioTargetAllocations, year),
+        latestCurveStudioSnapshotRows,
+      )
+      : [];
+  },
+    [areas, dismissedStudioSnapshotId, latestCurveStudioSnapshotRows, latestSourceSpecificStudioSnapshots, latestStudioSnapshot, studioSourceCode, studioTargetAllocations, year, yearCustomers],
   );
   const isStudioSnapshotLoaded = latestStudioSnapshotRows.length > 0;
   const studioComparisonRows = latestStudioSnapshotRows;
-  const activeStudioBaselineFileName = isStudioSnapshotLoaded ? latestStudioSnapshot?.fileName ?? "" : "";
+  const activeStudioBaselineFileName = isStudioSnapshotLoaded
+    ? studioSourceCode === "studio_general" && latestSourceSpecificStudioSnapshots.length
+      ? "Consolidado das últimas fotos por Studio"
+      : latestStudioSnapshot?.fileName ?? ""
+    : "";
+  const activeStudioSnapshotCreatedAt = useMemo(() => {
+    if (!isStudioSnapshotLoaded) return "";
+    if (studioSourceCode === "studio_general" && latestSourceSpecificStudioSnapshots.length) {
+      return latestSourceSpecificStudioSnapshots
+        .map((snapshot) => snapshot.createdAt)
+        .sort((first, second) => new Date(second).getTime() - new Date(first).getTime())[0] ?? "";
+    }
+    return latestStudioSnapshot?.createdAt ?? "";
+  }, [isStudioSnapshotLoaded, latestSourceSpecificStudioSnapshots, latestStudioSnapshot, studioSourceCode]);
   const studioOptions = useMemo(
     () => Array.from(new Set(studioComparisonRows.map((row) => row.studioName).filter(Boolean))).sort((first, second) => first.localeCompare(second, "pt-BR")),
     [studioComparisonRows],
@@ -250,7 +303,7 @@ export function BaselineComparison() {
           reportColumns={studioReportColumns}
           fileName={activeStudioBaselineFileName}
           loadedFromSnapshot={isStudioSnapshotLoaded}
-          snapshotCreatedAt={isStudioSnapshotLoaded ? latestStudioSnapshot?.createdAt ?? "" : ""}
+          snapshotCreatedAt={activeStudioSnapshotCreatedAt}
           sourceCode={studioSourceCode}
           status={studioStatus}
           studioFilter={studioFilter}

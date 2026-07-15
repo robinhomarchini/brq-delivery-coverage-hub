@@ -43,6 +43,7 @@ const hunterStudioContainedLabel = "Meta herdada de Studios";
 const hunterBaseWithoutStudioLabel = "Meta própria";
 
 type PeopleSortKey = "person" | "role" | "clients" | "hunter" | "renewal" | "total" | "status";
+type PeopleClientSortKey = "person" | "role" | "customer" | "relationship" | "hunter" | "renewal" | "total";
 type AreaSortKey = "area" | "clients" | "hunter" | "maintenance" | "total";
 type HunterSortKey = "hunter" | "role" | "ownHunter" | "studioHunter" | "totalHunter" | "studios";
 
@@ -60,6 +61,7 @@ export function PersonTargetReport() {
   const [selectedHunterIds, setSelectedHunterIds] = useState<Set<string>>(new Set());
   const [selectedAreaIds, setSelectedAreaIds] = useState<Set<string>>(new Set());
   const [peopleSort, setPeopleSort] = useState<SortState<PeopleSortKey>>({ key: "total", direction: "desc" });
+  const [peopleClientSort, setPeopleClientSort] = useState<SortState<PeopleClientSortKey>>({ key: "person", direction: "asc" });
   const [areaSort, setAreaSort] = useState<SortState<AreaSortKey>>({ key: "total", direction: "desc" });
   const [hunterSort, setHunterSort] = useState<SortState<HunterSortKey>>({ key: "totalHunter", direction: "desc" });
   const [showClientCoverageValues, setShowClientCoverageValues] = useState(true);
@@ -104,6 +106,17 @@ export function PersonTargetReport() {
     () => buildPeopleRows(assignablePeople, targetAllocations, studioTargetAllocations, customerNames, areaNames, selectedYear),
     [areaNames, assignablePeople, customerNames, selectedYear, studioTargetAllocations, targetAllocations],
   );
+  const peopleClientRows = useMemo(
+    () => buildPeopleClientRows({
+      people: assignablePeople,
+      customers,
+      allocations: targetAllocations,
+      studioAllocations: studioTargetAllocations,
+      areaNames,
+      year: selectedYear,
+    }),
+    [areaNames, assignablePeople, customers, selectedYear, studioTargetAllocations, targetAllocations],
+  );
   const areaRows = useMemo(
     () => buildAreaStudioRows(areas, customers, studioTargetAllocations, selectedYear),
     [areas, customers, selectedYear, studioTargetAllocations],
@@ -131,6 +144,13 @@ export function PersonTargetReport() {
       && (!roleType || row.roleType === roleType)
     ), peopleSort);
   }, [peopleRows, peopleSort, roleType, search]);
+  const filteredPeopleClientRows = useMemo(() => {
+    const query = search.toLowerCase();
+    return sortPeopleClientRows(peopleClientRows.filter((row) =>
+      (!query || `${row.personName} ${row.roleType} ${row.customerName} ${row.relationshipText} ${row.studioBreakdown}`.toLowerCase().includes(query))
+      && (!roleType || row.roleType === roleType)
+    ), peopleClientSort);
+  }, [peopleClientRows, peopleClientSort, roleType, search]);
   const filteredAreaRows = useMemo(() => {
     const query = search.toLowerCase();
     return sortAreaRows(areaRows.filter((row) =>
@@ -310,9 +330,11 @@ export function PersonTargetReport() {
   const allVisibleHuntersSelected = filteredHunterRows.length > 0 && filteredHunterRows.every((row) => selectedHunterIds.has(row.hunterId));
   const activeRows = effectiveView === "people"
     ? filteredPeopleRows
-    : effectiveView === "clients"
-      ? filteredClientCoverageRows
-      : effectiveView === "areas"
+    : effectiveView === "peopleClients"
+      ? filteredPeopleClientRows
+      : effectiveView === "clients"
+        ? filteredClientCoverageRows
+        : effectiveView === "areas"
         ? hasSelectedAreas ? filteredAreaDetailRows : filteredAreaRows
         : effectiveView === "hunters"
           ? hasDetailHunters ? filteredHunterDetailRows : hunterSummaryRows
@@ -322,8 +344,8 @@ export function PersonTargetReport() {
               ? filteredSpecialistHunterRows
               : filteredDirectorDetailRows;
   const totals = useMemo(
-    () => getViewTotals(effectiveView, filteredPeopleRows, filteredAreaRows, hunterSummaryRows, filteredDirectorDetailRows, filteredHunterDetailRows, hasDetailHunters, hasSelectedAreas ? filteredAreaDetailRows : undefined, filteredSpecialistHunterRows, filteredHunterClientRows, filteredClientCoverageRows),
-    [effectiveView, filteredAreaDetailRows, filteredAreaRows, filteredClientCoverageRows, hunterSummaryRows, filteredDirectorDetailRows, filteredHunterDetailRows, filteredHunterClientRows, filteredPeopleRows, filteredSpecialistHunterRows, hasDetailHunters, hasSelectedAreas],
+    () => getViewTotals(effectiveView, filteredPeopleRows, filteredAreaRows, hunterSummaryRows, filteredDirectorDetailRows, filteredHunterDetailRows, hasDetailHunters, hasSelectedAreas ? filteredAreaDetailRows : undefined, filteredSpecialistHunterRows, filteredHunterClientRows, filteredClientCoverageRows, filteredPeopleClientRows),
+    [effectiveView, filteredAreaDetailRows, filteredAreaRows, filteredClientCoverageRows, filteredPeopleClientRows, hunterSummaryRows, filteredDirectorDetailRows, filteredHunterDetailRows, filteredHunterClientRows, filteredPeopleRows, filteredSpecialistHunterRows, hasDetailHunters, hasSelectedAreas],
   );
   const areaDetailTotal = useMemo(
     () => sumAmount(filteredAreaDetailRows),
@@ -434,6 +456,14 @@ export function PersonTargetReport() {
                 customExports={officialCustomExports}
               />
             )}
+            {effectiveView === "peopleClients" && (
+              <ReportExportActions
+                title={`Relatório Pessoas x Clientes · ${year}`}
+                filename={`relatorio-pessoas-clientes-${year}`}
+                rows={filteredPeopleClientRows}
+                columns={peopleClientReportColumns}
+              />
+            )}
             {effectiveView === "areas" && hasSelectedAreas && (
               <ReportExportActions
                 title={`Relatório detalhado por Área/Studio · ${singleSelectedAreaName || `${selectedAreaIds.size} selecionados`} · ${year}`}
@@ -521,6 +551,7 @@ export function PersonTargetReport() {
           <div className="flex flex-wrap gap-2">
             {[
               { key: "people", label: "Pessoas" },
+              { key: "peopleClients", label: "Pessoas x Clientes" },
               { key: "clients", label: "Clientes" },
               { key: "areas", label: "Áreas / Studios" },
               { key: "hunters", label: "Hunters" },
@@ -740,6 +771,103 @@ export function PersonTargetReport() {
             </Table>
           </div>
           {!activeRows.length && <EmptyState />}
+        </Card>
+      )}
+
+      {effectiveView === "peopleClients" && (
+        <Card className="overflow-hidden shadow-sm">
+          <div className="border-b border-slate-200 px-5 py-4">
+            <p className="text-sm font-bold text-slate-900">Visão completa por pessoa e cliente</p>
+            <p className="text-xs text-slate-500">
+              Mostra todo cliente com relacionamento da pessoa, separando meta própria, Studio Hunter herdado e Studio Manutenção/Delivery herdada.
+            </p>
+          </div>
+          <div className="overflow-x-auto">
+            <Table className="min-w-[1480px]">
+              <TableHeader>
+                <TableRow>
+                  <SortableTableHead label="Pessoa" sortKey="person" sortState={peopleClientSort} onSort={setPeopleClientSort} />
+                  <SortableTableHead label="Perfil" sortKey="role" sortState={peopleClientSort} onSort={setPeopleClientSort} />
+                  <SortableTableHead label="Cliente" sortKey="customer" sortState={peopleClientSort} onSort={setPeopleClientSort} />
+                  <SortableTableHead label="Relacionamento" sortKey="relationship" sortState={peopleClientSort} onSort={setPeopleClientSort} />
+                  <SortableTableHead label="Hunter" sortKey="hunter" sortState={peopleClientSort} onSort={setPeopleClientSort} />
+                  <SortableTableHead label="Renov. + Ampl." sortKey="renewal" sortState={peopleClientSort} onSort={setPeopleClientSort} />
+                  <SortableTableHead label="Total" sortKey="total" sortState={peopleClientSort} onSort={setPeopleClientSort} />
+                  <TableHead>Studios que compõem</TableHead>
+                  <TableHead className="text-right">Ação</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredPeopleClientRows.map((row) => (
+                  <TableRow key={row.id}>
+                    <TableCell>
+                      <p className="font-bold text-slate-950">{row.personName}</p>
+                      <p className="text-xs text-slate-400">{row.email || "E-mail não informado"}</p>
+                    </TableCell>
+                    <TableCell><Badge variant="secondary">{row.roleType}</Badge></TableCell>
+                    <TableCell>
+                      <p className="font-semibold text-slate-900">{row.customerName}</p>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex max-w-xs flex-wrap gap-1.5">
+                        {row.relationships.map((relationship) => (
+                          <Badge key={relationship} variant="secondary">{relationship}</Badge>
+                        ))}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <MoneyBreakdown
+                        total={row.hunterTotal}
+                        lines={[
+                          ["Própria", row.ownHunter],
+                          ["Studio Hunter", row.studioHunter],
+                        ]}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <MoneyBreakdown
+                        total={row.renewalTotal}
+                        lines={[
+                          ["Própria", row.ownRenewal],
+                          ["Studio Manut.", row.studioMaintenance],
+                        ]}
+                      />
+                    </TableCell>
+                    <TableCell className="text-right font-black tabular-nums text-slate-950">{formatCurrency(row.total)}</TableCell>
+                    <TableCell>
+                      <div className="flex max-w-sm flex-wrap gap-1.5">
+                        {row.studioItems.length === 0 && <span className="text-sm text-slate-400">Sem composição Studio</span>}
+                        {row.studioItems.map((studio) => (
+                          <Badge key={`${row.id}-${studio.areaName}-${studio.kind}`} className={studio.kind === "Studio Hunter" ? "bg-sky-100 text-sky-800 hover:bg-sky-100" : "bg-purple-100 text-purple-800 hover:bg-purple-100"}>
+                            {studio.areaName} · {studio.kind === "Studio Hunter" ? "Hunter" : "Manut."} {formatCurrency(studio.amount)}
+                          </Badge>
+                        ))}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {canEdit && (
+                        <Button asChild variant="outline" size="sm">
+                          <Link href={`/metas-pessoas?personId=${encodeURIComponent(row.personId)}&customerId=${encodeURIComponent(row.customerId)}&year=${encodeURIComponent(year)}`}>
+                            Ajustar <ArrowUpRight className="h-3.5 w-3.5" />
+                          </Link>
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {filteredPeopleClientRows.length > 0 && (
+                  <TableRow className="bg-slate-900 text-white hover:bg-slate-900">
+                    <TableCell colSpan={4} className="font-bold">Total da visão filtrada</TableCell>
+                    <TableCell className="text-right font-bold tabular-nums">{formatCurrency(sumPeopleClientHunter(filteredPeopleClientRows))}</TableCell>
+                    <TableCell className="text-right font-bold tabular-nums">{formatCurrency(sumPeopleClientRenewal(filteredPeopleClientRows))}</TableCell>
+                    <TableCell className="text-right font-bold tabular-nums">{formatCurrency(sumPeopleClientTotal(filteredPeopleClientRows))}</TableCell>
+                    <TableCell colSpan={2} />
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+          {!filteredPeopleClientRows.length && <EmptyState message="Nenhum relacionamento pessoa x cliente foi encontrado para os filtros atuais." />}
         </Card>
       )}
 
@@ -1301,6 +1429,7 @@ export function PersonTargetReport() {
 }
 
 function getViewDescription(view: ReportView) {
+  if (view === "peopleClients") return "Pessoa como centro: todos os clientes relacionados, meta própria, Studio Hunter e Studio Manutenção/Delivery.";
   if (view === "clients") return "Cliente como centro: Hunters, Delivery/Farmers e Hunter Especializado quando houver.";
   if (view === "areas") return "Metas agrupadas por Área/Studio, com clientes apenas como detalhe.";
   if (view === "hunters") return "Metas consolidadas por Hunter, sem repetir uma linha por cliente.";
@@ -1308,6 +1437,19 @@ function getViewDescription(view: ReportView) {
   if (view === "specialistHunters") return "Leitura gerencial cross derivada de Studios, sem meta própria e sem impacto nos totais oficiais.";
   if (view === "directors") return "Abra pessoa, cliente e quebras de studio da diretoria selecionada.";
   return "Metas operacionais por pessoa, com acesso rápido para ajuste.";
+}
+
+function MoneyBreakdown({ total, lines }: { total: number; lines: Array<[string, number]> }) {
+  return (
+    <div className="text-right">
+      <p className="font-bold tabular-nums text-slate-950">{formatCurrency(total)}</p>
+      <div className="mt-1 space-y-0.5 text-xs text-slate-500">
+        {lines.map(([label, value]) => (
+          <p key={label}>{label}: <span className="font-semibold text-slate-700">{formatCurrency(value)}</span></p>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function PersonBadgeList({
@@ -1425,6 +1567,167 @@ function buildPeopleRows(
       customerBreakdown,
     };
   });
+}
+
+function buildPeopleClientRows({
+  people,
+  customers,
+  allocations,
+  studioAllocations,
+  areaNames,
+  year,
+}: {
+  people: Array<{ id: string; name: string; email?: string; roleType: RoleType; active: boolean; clientIds: string[]; isManager?: boolean }>;
+  customers: Array<{ id: string; name: string; managerResponsibleIds: string[]; hunterTarget: number; farmerRenewalTarget: number; studioTarget: number; revenue: number }>;
+  allocations: Array<{ id: string; customerId: string; personId: string; type: string; year: number; amount: number; ownAmount?: number }>;
+  studioAllocations: Array<{ id: string; customerId: string; areaId: string; hunterPersonId?: string; maintenancePersonId?: string; year: number; hunterAmount: number; maintenanceAmount: number }>;
+  areaNames: Map<string, string>;
+  year: number;
+}): PeopleClientRow[] {
+  const studioByHunterCustomer = buildStudioHunterTotalsByHunterCustomer(studioAllocations, year, people, allocations);
+  const studioRenewalByPersonCustomer = buildStudioRenewalTotalsByPersonCustomer(studioAllocations, year, people, areaNames);
+
+  return people.flatMap((person) => {
+    const directAllocations = allocations.filter((allocation) =>
+      allocation.personId === person.id
+      && allocation.year === year
+      && allocation.type !== "studio"
+    );
+    const customerIds = new Set<string>(person.clientIds);
+
+    customers.forEach((customer) => {
+      if (customer.managerResponsibleIds.includes(person.id)) customerIds.add(customer.id);
+    });
+    directAllocations.forEach((allocation) => customerIds.add(allocation.customerId));
+    studioAllocations
+      .filter((allocation) => allocation.year === year)
+      .forEach((allocation) => {
+        const effectiveHunterId = getEffectiveStudioHunterPersonId(allocation, people, allocations);
+        const maintenancePersonId = getStudioMaintenancePersonId(allocation);
+        if (effectiveHunterId === person.id || maintenancePersonId === person.id) customerIds.add(allocation.customerId);
+      });
+
+    return Array.from(customerIds)
+      .map<PeopleClientRow | null>((customerId) => {
+        const customer = customers.find((item) => item.id === customerId);
+        if (!customer) return null;
+
+        const customerAllocations = directAllocations.filter((allocation) => allocation.customerId === customerId);
+        const hunterAllocations = customerAllocations.filter((allocation) => allocation.type === "hunter");
+        const renewalAllocations = customerAllocations.filter((allocation) => allocation.type === "farmer_renewal");
+        const studioHunter = studioByHunterCustomer.get(`${person.id}:${customerId}`) ?? 0;
+        const studioMaintenance = studioRenewalByPersonCustomer.get(`${person.id}:${customerId}`) ?? 0;
+        const ownHunter = getTargetOwnAmountFromAllocations(hunterAllocations, studioHunter);
+        const ownRenewal = getTargetOwnAmountFromAllocations(renewalAllocations, studioMaintenance);
+        const studioItems = buildPeopleClientStudioItems({
+          personId: person.id,
+          people,
+          allocations,
+          studioAllocations,
+          areaNames,
+          customerId,
+          year,
+        });
+        const relationships = buildPeopleClientRelationshipLabels({
+          person,
+          customer,
+          directAllocations: customerAllocations,
+          studioItems,
+        });
+        const hunterTotal = ownHunter + studioHunter;
+        const renewalTotal = ownRenewal + studioMaintenance;
+
+        return {
+          id: `${person.id}:${customerId}`,
+          personId: person.id,
+          personName: person.name,
+          email: person.email,
+          roleType: person.roleType,
+          customerId,
+          customerName: customer.name,
+          customerTargetTotal: getCustomerTotalTarget(customer),
+          relationships,
+          relationshipText: relationships.join(", "),
+          ownHunter,
+          studioHunter,
+          hunterTotal,
+          ownRenewal,
+          studioMaintenance,
+          renewalTotal,
+          total: hunterTotal + renewalTotal,
+          studioItems,
+          studioBreakdown: studioItems.map((item) => `${item.areaName} ${item.kind}: ${formatCurrency(item.amount)}`).join(" | "),
+        };
+      })
+      .filter((row): row is PeopleClientRow => Boolean(row));
+  }).sort((first, second) =>
+    first.personName.localeCompare(second.personName, "pt-BR")
+    || first.customerName.localeCompare(second.customerName, "pt-BR")
+  );
+}
+
+function buildPeopleClientStudioItems({
+  personId,
+  people,
+  allocations,
+  studioAllocations,
+  areaNames,
+  customerId,
+  year,
+}: {
+  personId: string;
+  people: Array<{ id: string; roleType: RoleType; active: boolean; clientIds: string[] }>;
+  allocations: Array<{ customerId: string; personId: string; type: string; year: number }>;
+  studioAllocations: Array<{ id: string; customerId: string; areaId: string; hunterPersonId?: string; maintenancePersonId?: string; year: number; hunterAmount: number; maintenanceAmount: number }>;
+  areaNames: Map<string, string>;
+  customerId: string;
+  year: number;
+}): PeopleClientStudioItem[] {
+  const targetPerson = people.find((person) => person.id === personId);
+  return studioAllocations
+    .filter((allocation) => allocation.customerId === customerId && allocation.year === year)
+    .flatMap((allocation) => {
+      const areaName = areaNames.get(allocation.areaId) ?? allocation.areaId;
+      const items: PeopleClientStudioItem[] = [];
+      const effectiveHunterId = getEffectiveStudioHunterPersonId(allocation, people, allocations);
+      if (effectiveHunterId === personId && allocation.hunterAmount > 0.01) {
+        items.push({ areaName, kind: "Studio Hunter", amount: allocation.hunterAmount });
+      }
+      const maintenancePersonId = getStudioMaintenancePersonId(allocation);
+      if (
+        maintenancePersonId === personId
+        && allocation.maintenanceAmount > 0.01
+        && isStudioRenewalEligibleForFarmer(areaName, targetPerson, { explicitMaintenancePerson: allocation.maintenancePersonId === personId })
+      ) {
+        items.push({ areaName, kind: "Studio Manutenção", amount: allocation.maintenanceAmount });
+      }
+      return items;
+    })
+    .sort((first, second) =>
+      first.areaName.localeCompare(second.areaName, "pt-BR")
+      || first.kind.localeCompare(second.kind, "pt-BR")
+    );
+}
+
+function buildPeopleClientRelationshipLabels({
+  person,
+  customer,
+  directAllocations,
+  studioItems,
+}: {
+  person: { id: string; clientIds: string[] };
+  customer: { id: string; managerResponsibleIds: string[] };
+  directAllocations: Array<{ type: string; amount: number }>;
+  studioItems: PeopleClientStudioItem[];
+}) {
+  const labels = new Set<string>();
+  if (person.clientIds.includes(customer.id)) labels.add("Cliente associado");
+  if (customer.managerResponsibleIds.includes(person.id)) labels.add("Delivery/Farmer do cliente");
+  if (directAllocations.some((allocation) => allocation.type === "hunter")) labels.add("Meta Hunter própria");
+  if (directAllocations.some((allocation) => allocation.type === "farmer_renewal")) labels.add("Meta Renovação própria");
+  if (studioItems.some((item) => item.kind === "Studio Hunter")) labels.add("Studio Hunter");
+  if (studioItems.some((item) => item.kind === "Studio Manutenção")) labels.add("Studio Manutenção");
+  return Array.from(labels);
 }
 
 function buildDirectorDetailRows({
@@ -2293,7 +2596,18 @@ function getViewTotals(
   specialistHunterRows: SpecialistHunterRow[] = [],
   hunterClientRows: HunterClientRow[] = [],
   clientCoverageRows: ClientCoverageRow[] = [],
+  peopleClientRows: PeopleClientRow[] = [],
 ) {
+  if (view === "peopleClients") {
+    const personIds = new Set(peopleClientRows.map((row) => row.personId));
+    return {
+      ...emptyTotals("Pessoas com relacionamento", "Hunter", "Renovação + Ampliação", "Total pessoa x cliente"),
+      count: personIds.size,
+      first: sumPeopleClientHunter(peopleClientRows),
+      second: sumPeopleClientRenewal(peopleClientRows),
+      total: sumPeopleClientTotal(peopleClientRows),
+    };
+  }
   if (view === "clients") {
     const hunterPeople = new Set(clientCoverageRows.flatMap((row) => row.hunters.map((person) => person.personId)));
     const deliveryPeople = new Set(clientCoverageRows.flatMap((row) => row.deliveryManagers.map((person) => person.personId)));
@@ -2469,6 +2783,18 @@ function sumAmount(rows: Array<{ amount: number }>) {
   return rows.reduce((total, row) => total + row.amount, 0);
 }
 
+function sumPeopleClientHunter(rows: PeopleClientRow[]) {
+  return rows.reduce((total, row) => total + row.hunterTotal, 0);
+}
+
+function sumPeopleClientRenewal(rows: PeopleClientRow[]) {
+  return rows.reduce((total, row) => total + row.renewalTotal, 0);
+}
+
+function sumPeopleClientTotal(rows: PeopleClientRow[]) {
+  return rows.reduce((total, row) => total + row.total, 0);
+}
+
 const peopleReportColumns: ReportColumn<PeopleRow>[] = [
   { key: "personName", label: "Pessoa", value: (row) => row.personName },
   { key: "email", label: "E-mail", value: (row) => row.email ?? "" },
@@ -2478,6 +2804,23 @@ const peopleReportColumns: ReportColumn<PeopleRow>[] = [
   { key: "hunter", label: "Meta Hunter", value: (row) => row.hunter, format: "currency", align: "right" },
   { key: "farmerRenewal", label: "Renovação + Ampliação", value: (row) => row.farmerRenewal, format: "currency", align: "right" },
   { key: "total", label: "Meta Total", value: (row) => row.total, format: "currency", align: "right" },
+];
+
+const peopleClientReportColumns: ReportColumn<PeopleClientRow>[] = [
+  { key: "personName", label: "Pessoa", value: (row) => row.personName },
+  { key: "email", label: "E-mail", value: (row) => row.email ?? "" },
+  { key: "roleType", label: "Perfil", value: (row) => row.roleType },
+  { key: "customerName", label: "Cliente", value: (row) => row.customerName },
+  { key: "customerTargetTotal", label: "Meta total do cliente", value: (row) => row.customerTargetTotal, format: "currency", align: "right" },
+  { key: "relationshipText", label: "Relacionamentos", value: (row) => row.relationshipText },
+  { key: "ownHunter", label: "Hunter própria", value: (row) => row.ownHunter, format: "currency", align: "right" },
+  { key: "studioHunter", label: "Studio Hunter herdado", value: (row) => row.studioHunter, format: "currency", align: "right" },
+  { key: "hunterTotal", label: "Hunter total", value: (row) => row.hunterTotal, format: "currency", align: "right" },
+  { key: "ownRenewal", label: "Renovação própria", value: (row) => row.ownRenewal, format: "currency", align: "right" },
+  { key: "studioMaintenance", label: "Studio Manutenção herdado", value: (row) => row.studioMaintenance, format: "currency", align: "right" },
+  { key: "renewalTotal", label: "Renovação total", value: (row) => row.renewalTotal, format: "currency", align: "right" },
+  { key: "total", label: "Total pessoa x cliente", value: (row) => row.total, format: "currency", align: "right" },
+  { key: "studioBreakdown", label: "Studios que compõem", value: (row) => row.studioBreakdown },
 ];
 
 const areaReportColumns: ReportColumn<AreaStudioRow>[] = [
@@ -2604,6 +2947,19 @@ function sortPeopleRows(rows: PeopleRow[], sortState: SortState<PeopleSortKey>) 
   });
 }
 
+function sortPeopleClientRows(rows: PeopleClientRow[], sortState: SortState<PeopleClientSortKey>) {
+  if (!sortState) return rows;
+  return sortRows(rows, sortState.direction, (first, second) => {
+    if (sortState.key === "person") return compareText(first.personName, second.personName);
+    if (sortState.key === "role") return compareText(first.roleType, second.roleType);
+    if (sortState.key === "customer") return compareText(first.customerName, second.customerName);
+    if (sortState.key === "relationship") return compareText(first.relationshipText, second.relationshipText);
+    if (sortState.key === "hunter") return compareNumber(first.hunterTotal, second.hunterTotal);
+    if (sortState.key === "renewal") return compareNumber(first.renewalTotal, second.renewalTotal);
+    return compareNumber(first.total, second.total);
+  });
+}
+
 function sortAreaRows(rows: AreaStudioRow[], sortState: SortState<AreaSortKey>) {
   if (!sortState) return rows;
   return sortRows(rows, sortState.direction, (first, second) => {
@@ -2643,6 +2999,32 @@ function compareNumber(first: number, second: number) {
 }
 
 type PeopleRow = ReturnType<typeof buildPeopleRows>[number];
+type PeopleClientStudioItem = {
+  areaName: string;
+  kind: "Studio Hunter" | "Studio Manutenção";
+  amount: number;
+};
+type PeopleClientRow = {
+  id: string;
+  personId: string;
+  personName: string;
+  email?: string;
+  roleType: RoleType;
+  customerId: string;
+  customerName: string;
+  customerTargetTotal: number;
+  relationships: string[];
+  relationshipText: string;
+  ownHunter: number;
+  studioHunter: number;
+  hunterTotal: number;
+  ownRenewal: number;
+  studioMaintenance: number;
+  renewalTotal: number;
+  total: number;
+  studioItems: PeopleClientStudioItem[];
+  studioBreakdown: string;
+};
 type AreaStudioRow = {
   areaId: string;
   areaName: string;

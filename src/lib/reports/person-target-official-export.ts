@@ -9,7 +9,7 @@ import {
   getTargetOwnAmountFromAllocations,
 } from "@/lib/reports/person-target-rollups";
 
-export type ReportView = "people" | "clients" | "areas" | "hunters" | "hunterClients" | "specialistHunters" | "directors";
+export type ReportView = "people" | "peopleClients" | "clients" | "areas" | "hunters" | "hunterClients" | "specialistHunters" | "directors";
 
 export type OfficialTargetRow = {
   businessUnitArea: string;

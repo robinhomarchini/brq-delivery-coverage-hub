@@ -341,6 +341,31 @@ export function refreshStudioBaselineComparisonsFromCurrentData(
   });
 }
 
+export function applyCurveBaselineToStudioComparisons(
+  rows: StudioBaselineComparisonRow[],
+  curveRows: StudioBaselineComparisonRow[],
+) {
+  if (!curveRows.length) return rows;
+  const curveBaselineByCustomerStudio = new Map(
+    curveRows.map((row) => [getStudioComparisonKey(row.customerName, row.studioName), {
+      hunter: row.registeredCustomerStudioHunterTarget || row.baselineHunter,
+      maintenance: row.registeredCustomerStudioMaintenanceTarget || row.baselineMaintenance,
+      total: row.registeredCustomerStudioTarget || row.baselineTotal,
+    }]),
+  );
+
+  return rows.map((row) => {
+    const curveStudioTarget = curveBaselineByCustomerStudio.get(getStudioComparisonKey(row.customerName, row.studioName));
+    if (!curveStudioTarget) return row;
+    return {
+      ...row,
+      registeredCustomerStudioHunterTarget: curveStudioTarget.hunter,
+      registeredCustomerStudioMaintenanceTarget: curveStudioTarget.maintenance,
+      registeredCustomerStudioTarget: curveStudioTarget.total,
+    } satisfies StudioBaselineComparisonRow;
+  });
+}
+
 export function getStudioComparisonKey(customerName: string, studioName: string) {
   return `${normalizeBusinessName(customerName)}:${getStudioMatchKey(studioName)}`;
 }

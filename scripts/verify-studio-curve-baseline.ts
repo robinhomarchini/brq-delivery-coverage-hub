@@ -1,5 +1,5 @@
 import type { Area, Customer, StudioTargetAllocation } from "../src/data/mockData";
-import { buildStudioBaselineComparisons, refreshStudioBaselineComparisonsFromCurrentData, type StudioBaselineComparisonRow, type StudioBaselineRow } from "../src/lib/studio-baseline-import";
+import { applyCurveBaselineToStudioComparisons, buildStudioBaselineComparisons, refreshStudioBaselineComparisonsFromCurrentData, type StudioBaselineComparisonRow, type StudioBaselineRow } from "../src/lib/studio-baseline-import";
 import { parseCurveStudioBaselineRows } from "../src/lib/studio-curve-baseline-snapshot";
 
 const curveSheetColumns = {
@@ -113,6 +113,28 @@ const refreshedSnapshotComparison = refreshStudioBaselineComparisonsFromCurrentD
 assert(refreshedSnapshotComparison, "Restored snapshot comparison must be refreshed.");
 assert(refreshedSnapshotComparison.status === "ok", "Restored missing Studio snapshot must be refreshed against current registered Studios.");
 assert(refreshedSnapshotComparison.registeredStudioName === "AWS-Alianças", "Refreshed snapshot comparison must preserve the current registered Studio name.");
+
+const studioSpecificPxBaseline = makeRestoredComparisonRow({
+  customerName: "Alelo",
+  studioName: "PX",
+  baselineHunter: 2547693,
+  baselineMaintenance: 2431414,
+  baselineTotal: 4979107,
+  status: "ok",
+});
+const curvePxBaseline = makeRestoredComparisonRow({
+  customerName: "Alelo",
+  studioName: "PX",
+  baselineHunter: 3545076,
+  baselineMaintenance: 5244031,
+  baselineTotal: 8789107,
+  status: "allocation_gap",
+});
+const studioComparisonWithCurve = applyCurveBaselineToStudioComparisons([studioSpecificPxBaseline], [curvePxBaseline])[0];
+
+assert(studioComparisonWithCurve, "Studio-specific comparison must stay available after Curve overlay.");
+assert(studioComparisonWithCurve.baselineTotal === 4979107, "General Studio view must preserve the source-specific Studio baseline.");
+assert(studioComparisonWithCurve.registeredCustomerStudioTarget === 8789107, "Curve baseline must remain isolated in the Baseline Curva line.");
 
 console.log("Studio Curve baseline QA checks passed.");
 

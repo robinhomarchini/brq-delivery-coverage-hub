@@ -17,6 +17,7 @@ import { useDeliveryStore } from "@/store/delivery-store";
 import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears } from "@/lib/customer-targets";
 import {
   buildStudioBaselineComparisons,
+  applyCurveBaselineToStudioComparisons,
   getStudioComparisonKey,
   getStudioBaselineSource,
   isFinancialBusinessUnit,
@@ -84,11 +85,11 @@ export function BaselineImportCenter() {
   );
   const loadedFromSnapshot = importedRows.length === 0 && latestSnapshotRows.length > 0;
   const displayRows = useMemo(
-    () => sortStudioBaselineRows(dedupeStudioBaselineRows(applyCurveBaselineToRows(importedRows.length ? importedRows : latestSnapshotRows, latestCurveSnapshotRows)), sortState),
+    () => sortStudioBaselineRows(dedupeStudioBaselineRows(applyCurveBaselineToStudioComparisons(importedRows.length ? importedRows : latestSnapshotRows, latestCurveSnapshotRows)), sortState),
     [importedRows, latestCurveSnapshotRows, latestSnapshotRows, sortState],
   );
   const selectedImportedRows = useMemo(
-    () => sortStudioBaselineRows(dedupeStudioBaselineRows(applyCurveBaselineToRows(importedRows.filter((row) => financialKeys.has(row.key)), latestCurveSnapshotRows)), sortState),
+    () => sortStudioBaselineRows(dedupeStudioBaselineRows(applyCurveBaselineToStudioComparisons(importedRows.filter((row) => financialKeys.has(row.key)), latestCurveSnapshotRows)), sortState),
     [financialKeys, importedRows, latestCurveSnapshotRows, sortState],
   );
   const rows = importedRows.length ? selectedImportedRows : displayRows;
@@ -525,7 +526,7 @@ function StudioStatusBadge({ status }: { status: StudioBaselineComparisonRow["st
 function dedupeStudioBaselineRows(rows: StudioBaselineComparisonRow[]) {
   const rowsByCustomerStudio = new Map<string, StudioBaselineComparisonRow>();
   rows.forEach((row) => {
-    const key = getCustomerStudioKey(row.customerName, row.studioName);
+    const key = getStudioComparisonKey(row.customerName, row.studioName);
     const current = rowsByCustomerStudio.get(key);
     rowsByCustomerStudio.set(key, current ? mergeStudioBaselineRows(current, row) : { ...row, key });
   });
@@ -610,35 +611,9 @@ function compareNumber(first: number, second: number) {
   return first - second;
 }
 
-function applyCurveBaselineToRows(rows: StudioBaselineComparisonRow[], curveRows: StudioBaselineComparisonRow[]) {
-  if (!curveRows.length) return rows;
-  const curveBaselineByCustomerStudio = new Map(
-    curveRows.map((row) => [getCustomerStudioKey(row.customerName, row.studioName), {
-      hunter: row.registeredCustomerStudioHunterTarget || row.baselineHunter,
-      maintenance: row.registeredCustomerStudioMaintenanceTarget || row.baselineMaintenance,
-      total: row.registeredCustomerStudioTarget || row.baselineTotal,
-    }]),
-  );
-
-  return rows.map((row) => {
-    const curveStudioTarget = curveBaselineByCustomerStudio.get(getCustomerStudioKey(row.customerName, row.studioName));
-    if (!curveStudioTarget) return row;
-    return {
-      ...row,
-      registeredCustomerStudioHunterTarget: curveStudioTarget.hunter,
-      registeredCustomerStudioMaintenanceTarget: curveStudioTarget.maintenance,
-      registeredCustomerStudioTarget: curveStudioTarget.total,
-    };
-  });
-}
-
 function getCurveSplitAmount(curveTotal: number, splitAmount: number) {
   if (Math.abs(curveTotal) <= 0.01) return undefined;
   return splitAmount;
-}
-
-function getCustomerStudioKey(customerName: string, studioName: string) {
-  return getStudioComparisonKey(customerName, studioName);
 }
 
 function compareBusinessLabel(first: string, second: string) {

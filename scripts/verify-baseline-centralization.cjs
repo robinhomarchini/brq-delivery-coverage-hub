@@ -274,9 +274,8 @@ const requiredCurveGrainTokens = [
   "registeredCustomerStudioHunterTarget: roundCurrency(row.baselineHunter)",
   "registeredCustomerStudioMaintenanceTarget: roundCurrency(row.baselineMaintenance)",
   "registeredCustomerStudioTarget: roundCurrency(row.baselineTotal)",
-  "applyCurveBaselineToRows",
+  "applyCurveBaselineToStudioComparisons",
   "latestCurveSnapshotRows",
-  "getCustomerStudioKey",
   "getStudioComparisonKey",
   "getCurveSplitAmount",
 ];

@@ -426,7 +426,13 @@ A rota Relatório de Metas apresenta visão por pessoa, diretoria de Delivery,
 área/studio e Hunter. Na visão por pessoa e ano, exibe Meta Hunter, Meta
 Renovação + Ampliação, Áreas / Studios, Meta Total, quantidade de clientes e
 lista resumida de clientes. Cada pessoa do relatório deve navegar para Metas por
-Pessoa com a pessoa e o ano pré-selecionados. A visão por Cliente consolida, no
+Pessoa com a pessoa e o ano pré-selecionados. A visão Pessoas x Clientes abre o
+grão Pessoa + Cliente e deve listar todos os clientes com relacionamento da
+pessoa no ano: vínculo cadastral pessoa-cliente, responsável Delivery/Farmer do
+cliente, meta própria lançada, Studio Hunter herdado ou Studio Manutenção
+herdado. Essa visão separa Meta Hunter própria, Studio Hunter, Renovação +
+Ampliação própria e Studio Manutenção/Delivery, mostrando os Studios que
+compõem cada cliente sem criar nova fonte de verdade. A visão por Cliente consolida, no
 grão Cliente + Ano, os Hunters envolvidos, Delivery Managers/Farmers
 responsáveis e Hunters Especializados quando houver seleção gerencial de
 Studios. Essa visão é derivada de vínculos pessoa-cliente, metas diretas,
@@ -744,9 +750,11 @@ respectivamente, `Alianças Google`, `Alianças Microsoft`, `Alianças AWS` e
 continua sendo a origem da curva/baseline de clientes; a aba `Sheet1` é usada
 somente para derivar a baseline geral de Studios. Essa foto geral é comparativa e
 não altera metas de clientes, metas de pessoas nem alocações de Studios; ela
-serve para que o Comparativo Baseline carregue a última Curva como origem
-canônica geral de Studios, em vez de depender de uma importação manual antiga de
-planilha de Studios. A planilha `Visão Agrupada` pode ser usada como conferência
+serve como a origem da linha `Baseline Curva` no batimento de Studios. No
+Comparativo Baseline, a opção `Baseline geral de Studios` deve consolidar as
+últimas fotos específicas salvas por Studio/Área, como PX e Alianças, quando
+existirem; a Curva não deve sobrescrever a linha `Baseline Studio` dessas
+origens específicas para a mesma chave Cliente + Studio. A planilha `Visão Agrupada` pode ser usada como conferência
 de teste de mesa do resultado, mas não deve virar função sistêmica nem ser
 necessária como origem quando a Curva trouxer essas colunas.
 Durante a importação da Curva principal, a tela deve exibir progresso por etapa
