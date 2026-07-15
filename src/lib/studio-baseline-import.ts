@@ -256,9 +256,9 @@ export function buildStudioBaselineComparisons(
     const allocatedHunter = allocated?.hunterAmount ?? 0;
     const allocatedMaintenance = allocated?.maintenanceAmount ?? 0;
     const allocatedTotal = roundCurrency(allocatedHunter + allocatedMaintenance);
-    const hunterDelta = roundCurrency(allocatedHunter - row.hunterAmount);
-    const maintenanceDelta = roundCurrency(allocatedMaintenance - row.maintenanceAmount);
-    const allocationDelta = roundCurrency(allocatedTotal - row.totalAmount);
+    const hunterDelta = normalizeStudioCurrencyDelta(allocatedHunter - row.hunterAmount);
+    const maintenanceDelta = normalizeStudioCurrencyDelta(allocatedMaintenance - row.maintenanceAmount);
+    const allocationDelta = normalizeStudioCurrencyDelta(allocatedTotal - row.totalAmount);
     const registeredCustomerHunterTarget = customer ? roundCurrency(customer.hunterTarget) : 0;
     const registeredCustomerMaintenanceTarget = customer ? roundCurrency(customer.farmerRenewalTarget) : 0;
     const registeredCustomerStudioTarget = customer ? roundCurrency(customer.studioTarget) : 0;
@@ -386,6 +386,11 @@ function getStudioComparisonStatus(
 ): StudioBaselineComparisonRow["status"] {
   if (!hasCustomer) return "missing_customer";
   if (!hasStudio) return "missing_studio";
-  if (Math.abs(allocationDelta) > 0.01) return "allocation_gap";
+  if (Math.abs(normalizeStudioCurrencyDelta(allocationDelta)) > 0.01) return "allocation_gap";
   return "ok";
+}
+
+export function normalizeStudioCurrencyDelta(value: number) {
+  const rounded = roundCurrency(value);
+  return Math.round(Math.abs(rounded)) === 0 ? 0 : rounded;
 }

@@ -19,6 +19,7 @@ import {
   buildStudioBaselineComparisons,
   getStudioBaselineSource,
   isFinancialBusinessUnit,
+  normalizeStudioCurrencyDelta,
   readStudioBaselineWorkbook,
   studioBaselineSources,
   type StudioBaselineComparisonRow,
@@ -555,16 +556,17 @@ function mergeStudioBaselineRows(first: StudioBaselineComparisonRow, second: Stu
     allocatedHunter,
     allocatedMaintenance,
     allocatedTotal,
-    hunterDelta: roundCurrency(allocatedHunter - baselineHunter),
-    maintenanceDelta: roundCurrency(allocatedMaintenance - baselineMaintenance),
-    allocationDelta: roundCurrency(allocatedTotal - baselineTotal),
-    status: mergeStudioStatus(first.status, second.status),
+    hunterDelta: normalizeStudioCurrencyDelta(allocatedHunter - baselineHunter),
+    maintenanceDelta: normalizeStudioCurrencyDelta(allocatedMaintenance - baselineMaintenance),
+    allocationDelta: normalizeStudioCurrencyDelta(allocatedTotal - baselineTotal),
+    status: mergeStudioStatus(first.status, second.status, normalizeStudioCurrencyDelta(allocatedTotal - baselineTotal)),
   };
 }
 
-function mergeStudioStatus(first: StudioBaselineComparisonRow["status"], second: StudioBaselineComparisonRow["status"]) {
+function mergeStudioStatus(first: StudioBaselineComparisonRow["status"], second: StudioBaselineComparisonRow["status"], allocationDelta: number) {
   if (first === "missing_customer" || second === "missing_customer") return "missing_customer";
   if (first === "missing_studio" || second === "missing_studio") return "missing_studio";
+  if (Math.abs(normalizeStudioCurrencyDelta(allocationDelta)) <= 0.01) return "ok";
   if (first === "allocation_gap" || second === "allocation_gap") return "allocation_gap";
   return "ok";
 }
@@ -670,14 +672,16 @@ function getDivergenceLabel(row: StudioBaselineComparisonRow) {
 
 function getDivergenceClassName(row: StudioBaselineComparisonRow) {
   if (row.status === "missing_customer" || row.status === "missing_studio") return "text-red-700";
-  if (row.allocationDelta > 0.01) return "text-emerald-700";
-  if (row.allocationDelta < -0.01) return "text-red-700";
+  const allocationDelta = normalizeStudioCurrencyDelta(row.allocationDelta);
+  if (allocationDelta > 0.01) return "text-emerald-700";
+  if (allocationDelta < -0.01) return "text-red-700";
   return "text-sky-700";
 }
 
 function getDeltaTone(value: number) {
-  if (Math.abs(value) <= 0.01) return "sky";
-  if (value > 0.01) return "ok";
+  const normalized = normalizeStudioCurrencyDelta(value);
+  if (Math.abs(normalized) <= 0.01) return "sky";
+  if (normalized > 0.01) return "ok";
   return "danger";
 }
 

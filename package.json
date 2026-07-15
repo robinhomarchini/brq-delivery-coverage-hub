@@ -11,7 +11,7 @@
     "test:contracts": "node scripts/run-repository-contract-tests.cjs",
     "test:performance": "node scripts/verify-performance-hardening.cjs",
     "test:provider": "node scripts/verify-provider-abstraction.cjs",
-    "test:baselines": "node scripts/verify-baseline-centralization.cjs && tsx scripts/verify-studio-curve-baseline.ts && tsx scripts/verify-target-baseline-import.ts",
+    "test:baselines": "node scripts/verify-baseline-centralization.cjs && tsx scripts/verify-studio-curve-baseline.ts && tsx scripts/verify-studio-baseline-report.ts && tsx scripts/verify-target-baseline-import.ts",
     "test:reports": "node scripts/verify-report-exports.cjs",
     "test:currency-input": "tsx scripts/verify-currency-input.ts",
     "test:security": "node scripts/verify-security-hardening.cjs",

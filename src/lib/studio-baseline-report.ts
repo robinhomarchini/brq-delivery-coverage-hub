@@ -1,4 +1,4 @@
-import type { StudioBaselineComparisonRow } from "@/lib/studio-baseline-import";
+import { normalizeStudioCurrencyDelta, type StudioBaselineComparisonRow } from "@/lib/studio-baseline-import";
 import { roundCurrency } from "@/lib/utils";
 
 export type StudioBaselineReportView = "Baseline Studio" | "Cadastrado" | "Hunters / Alocações" | "Baseline Curva" | "Baseline" | "Alocado";
@@ -78,9 +78,9 @@ export function buildStudioBaselineReportRows(
       customerStudioMaintenanceTarget: row.registeredCustomerStudioMaintenanceTarget,
       customerStudioTarget: row.registeredCustomerStudioTarget,
       customerTotalTarget: row.registeredCustomerTotalTarget,
-      difference: row.allocationDelta,
-      hunterDelta: row.hunterDelta,
-      maintenanceDelta: row.maintenanceDelta,
+      difference: normalizeStudioCurrencyDelta(row.allocationDelta),
+      hunterDelta: normalizeStudioCurrencyDelta(row.hunterDelta),
+      maintenanceDelta: normalizeStudioCurrencyDelta(row.maintenanceDelta),
       differenceLabel: includeLabels ? options.allocatedDifferenceLabel ?? "" : undefined,
     },
     {
@@ -96,7 +96,7 @@ export function buildStudioBaselineReportRows(
       customerStudioMaintenanceTarget: row.registeredCustomerStudioMaintenanceTarget,
       customerStudioTarget: row.registeredCustomerStudioTarget,
       customerTotalTarget: row.registeredCustomerTotalTarget,
-      difference: roundCurrency(row.allocatedTotal - row.registeredCustomerStudioTarget),
+      difference: normalizeStudioCurrencyDelta(row.allocatedTotal - row.registeredCustomerStudioTarget),
       hunterDelta: 0,
       maintenanceDelta: 0,
       differenceLabel: includeLabels ? "Baseline de Studio da Curva principal do cliente no ano selecionado." : undefined,
@@ -157,6 +157,10 @@ function restoreStudioBaselineGroup(group: {
   const registeredCustomerStudioHunterTarget = curveSplitMissing ? baselineHunter : curveHunter;
   const registeredCustomerStudioMaintenanceTarget = curveSplitMissing ? baselineMaintenance : curveMaintenance;
   const sourceNote = reference.sourceNote ?? "";
+  const hunterDelta = normalizeStudioCurrencyDelta(allocated?.hunterDelta ?? roundCurrency(allocatedHunter - baselineHunter));
+  const maintenanceDelta = normalizeStudioCurrencyDelta(allocated?.maintenanceDelta ?? roundCurrency(allocatedMaintenance - baselineMaintenance));
+  const allocationDelta = normalizeStudioCurrencyDelta(allocated?.difference ?? roundCurrency(allocatedTotal - baselineTotal));
+  const status = restoreStudioStatus(reference.status, allocationDelta);
 
   return {
     key: `${reference.customerName}:${reference.studioName}`,
@@ -176,10 +180,10 @@ function restoreStudioBaselineGroup(group: {
     allocatedHunter,
     allocatedMaintenance,
     allocatedTotal,
-    hunterDelta: allocated?.hunterDelta ?? roundCurrency(allocatedHunter - baselineHunter),
-    maintenanceDelta: allocated?.maintenanceDelta ?? roundCurrency(allocatedMaintenance - baselineMaintenance),
-    allocationDelta: allocated?.difference ?? roundCurrency(allocatedTotal - baselineTotal),
-    status: restoreStudioStatus(reference.status),
+    hunterDelta,
+    maintenanceDelta,
+    allocationDelta,
+    status,
   } satisfies StudioBaselineComparisonRow;
 }
 
@@ -194,9 +198,10 @@ function isStudioBaselineReportRow(row: unknown): row is StudioBaselineReportRow
     && typeof item.totalAmount === "number";
 }
 
-function restoreStudioStatus(label: string): StudioBaselineComparisonRow["status"] {
+function restoreStudioStatus(label: string, allocationDelta: number): StudioBaselineComparisonRow["status"] {
   if (label === "OK" || label === "Reconciliado") return "ok";
   if (label === "Cliente ausente") return "missing_customer";
   if (label === "Studio ausente") return "missing_studio";
+  if (Math.abs(normalizeStudioCurrencyDelta(allocationDelta)) <= 0.01) return "ok";
   return "allocation_gap";
 }
