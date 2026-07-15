@@ -773,7 +773,7 @@ function buildRow(
   const studioHunterAmount = isSpecialistHunter
     ? Math.min(rawStudioHunterAmount, targetBreakdown.hunter)
     : rawStudioHunterAmount;
-  const savedHunterOwnAmount = hunterAllocation?.ownAmount ?? Math.max((hunterAllocation?.amount ?? 0) - studioHunterAmount, 0);
+  const savedHunterOwnAmount = roundCurrency(Math.max((hunterAllocation?.amount ?? 0) - studioHunterAmount, 0));
   const hunterOwnAmount = isSpecialistHunter ? 0 : parseAmount(draft?.hunter ?? getInputValue(savedHunterOwnAmount));
   const hunterAmount = isSpecialistHunter ? studioHunterAmount : roundCurrency(hunterOwnAmount + studioHunterAmount);
   const studioRenewalAmount = isSpecialistHunter ? 0 : getEligibleStudioRenewalAmountForPerson({

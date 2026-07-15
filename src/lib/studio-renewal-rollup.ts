@@ -48,7 +48,7 @@ export function getStudioMaintenancePersonId(allocation: Pick<StudioTargetAlloca
 }
 
 export function getTargetOwnAmount(allocation: { amount: number; ownAmount?: number } | undefined, derivedAmount: number) {
-  return roundCurrency(allocation?.ownAmount ?? Math.max((allocation?.amount ?? 0) - derivedAmount, 0));
+  return roundCurrency(Math.max((allocation?.amount ?? 0) - derivedAmount, 0));
 }
 
 function roundCurrency(value: number) {

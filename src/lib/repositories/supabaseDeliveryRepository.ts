@@ -946,7 +946,7 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
     if (existingError) throw existingError;
 
     const existing = existingData ? fromTargetAllocationRow(existingData as TargetAllocationRow) : null;
-    const ownAmount = roundCurrency(existing?.ownAmount ?? Math.max((existing?.amount ?? 0) - studioHunterAmount, 0));
+    const ownAmount = roundCurrency(Math.max((existing?.amount ?? 0) - studioHunterAmount, 0));
     const totalAmount = roundCurrency(ownAmount + studioHunterAmount);
 
     if (totalAmount <= 0.01) {

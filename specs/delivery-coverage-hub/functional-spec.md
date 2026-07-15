@@ -948,7 +948,11 @@ Regras do cadastro de Metas:
   Hunter quanto para Studio Manutenção/Renovação. Em telas e relatórios, quando
   houver decomposição de Meta própria e Studio contido, a Meta própria deve ser
   calculada por `Meta atual - Studio contido`; caches técnicos como `own_amount`
-  não podem prevalecer sobre essa fórmula de apresentação.
+  não podem prevalecer sobre essa fórmula de apresentação. Ao criar ou alterar
+  alocações de Studio, a sincronização da meta da pessoa deve manter o Studio
+  contido no valor atual: se o Studio couber na meta atual, recalcula a própria
+  para baixo; se o Studio sozinho superar a meta atual, o valor atual passa a
+  ser o Studio mínimo necessário.
 - Na tela de Clientes, a distribuição por pessoa e a lista de Hunters alocados
   devem considerar Studio Hunter atribuído a pessoas. A cobertura Hunter por
   pessoa usa `max(Meta Hunter direta, soma de Studio Hunter da pessoa)` para

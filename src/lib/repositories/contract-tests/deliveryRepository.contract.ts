@@ -164,7 +164,7 @@ export async function runDeliveryRepositoryContractTests({
     assert(savedFarmer?.clientIds.includes(customer.id), "Farmer responsible person should include the customer assignment.");
   });
 
-  await runContractTest(providerName, "saveStudioTargetAllocation preserves own Hunter and refreshes current Hunter total", async () => {
+  await runContractTest(providerName, "saveStudioTargetAllocation keeps Studio Hunter contained in current Hunter total", async () => {
     const repository = await createRepository();
     const { area, customer, hunter } = await seedHunter(repository);
 
@@ -197,8 +197,8 @@ export async function runDeliveryRepositoryContractTests({
 
     const data = await repository.getAll();
     const hunterAllocation = findTargetAllocation(data, customer.id, hunter.id, "hunter");
-    assertEqual(hunterAllocation.ownAmount, 100, "Studio save must preserve editable own Hunter amount.");
-    assertEqual(hunterAllocation.amount, 140, "Hunter current target should equal own Hunter plus Studio Hunter.");
+    assertEqual(hunterAllocation.ownAmount, 60, "Studio save must recalculate own Hunter as current Hunter minus contained Studio Hunter.");
+    assertEqual(hunterAllocation.amount, 100, "Hunter current target should remain the current total with Studio Hunter contained.");
 
     const savedStudioRows = data.studioTargetAllocations.filter((allocation) =>
       allocation.customerId === customer.id
@@ -314,8 +314,8 @@ export async function runDeliveryRepositoryContractTests({
 
     let nextData = await repository.getAll();
     let renewalAllocation = findTargetAllocation(nextData, customer.id, farmer.id, "farmer_renewal");
-    assertEqual(renewalAllocation.ownAmount, 30, "Studio renewal save must preserve editable own Farmer/Delivery amount.");
-    assertEqual(renewalAllocation.amount, 50, "Farmer/Delivery current target should equal own renewal plus eligible Studio renewal.");
+    assertEqual(renewalAllocation.ownAmount, 10, "Studio renewal save must recalculate own Farmer/Delivery as current renewal minus contained Studio renewal.");
+    assertEqual(renewalAllocation.amount, 30, "Farmer/Delivery current target should keep Studio renewal contained in the current total.");
 
     await repository.saveStudioTargetAllocation({
       id: `contract-studio-px-${customer.id}-${farmer.id}`,
@@ -330,8 +330,8 @@ export async function runDeliveryRepositoryContractTests({
 
     nextData = await repository.getAll();
     renewalAllocation = findTargetAllocation(nextData, customer.id, farmer.id, "farmer_renewal");
-    assertEqual(renewalAllocation.ownAmount, 30, "PX Studio save must preserve editable own Farmer/Delivery amount.");
-    assertEqual(renewalAllocation.amount, 90, "PX Studio renewal should roll into the declared Farmer/Delivery target.");
+    assertEqual(renewalAllocation.ownAmount, 0, "PX Studio save must not keep stale own Farmer/Delivery when Studio renewal covers the current total.");
+    assertEqual(renewalAllocation.amount, 60, "PX Studio renewal should be contained in the declared Farmer/Delivery target.");
   });
 }
 

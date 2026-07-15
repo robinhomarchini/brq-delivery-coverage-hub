@@ -419,7 +419,7 @@ export class LocalDeliveryRepository implements DeliveryRepository {
       && item.year === year
     );
     const studioHunterAmount = this.getStudioHunterAmount(customerId, hunterPersonId, year);
-    const ownAmount = roundCurrency(existing?.ownAmount ?? Math.max((existing?.amount ?? 0) - studioHunterAmount, 0));
+    const ownAmount = roundCurrency(Math.max((existing?.amount ?? 0) - studioHunterAmount, 0));
     const totalAmount = roundCurrency(ownAmount + studioHunterAmount);
 
     if (totalAmount <= 0.01) {
