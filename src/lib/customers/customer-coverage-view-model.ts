@@ -3,7 +3,7 @@ import type { SortDirection, SortState } from "@/components/shared/sortable-tabl
 import { getContainedHunterAllocation } from "@/lib/customer-hunter-reconciliation";
 import { getCustomerTotalTarget } from "@/lib/customer-target-total";
 import { displayDirectorName } from "@/lib/director-governance";
-import { isCustomerFarmerResponsibleProfile, isHunterRole, isTargetAssignableRole } from "@/lib/roles";
+import { isCustomerFarmerResponsibleProfile, isHunterSelectionRole, isTargetAssignableRole } from "@/lib/roles";
 import { formatCurrency, roundCurrency } from "@/lib/utils";
 
 export interface CustomerTargetBreakdown {
@@ -516,7 +516,7 @@ export function sortCustomerRows(
 export function getPrimaryHunterIdForCustomer(customerId: string, people: Person[]) {
   if (!customerId) return "";
   return people
-    .filter((person) => person.active && isHunterRole(person.roleType) && person.clientIds.includes(customerId))
+    .filter((person) => person.active && isHunterSelectionRole(person.roleType) && person.clientIds.includes(customerId))
     .sort((first, second) => first.name.localeCompare(second.name))[0]?.id ?? "";
 }
 

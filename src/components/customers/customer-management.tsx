@@ -26,7 +26,7 @@ import { getCustomerTotalTargetFromParts } from "@/lib/customer-target-total";
 import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears } from "@/lib/customer-targets";
 import { getFinancialCustomerMetric } from "@/lib/financial-customers";
 import { formatPercentPtBr, targetMarginPercent } from "@/lib/financial-targets";
-import { isCustomerFarmerResponsibleProfile, isHunterRole } from "@/lib/roles";
+import { isCustomerFarmerResponsibleProfile, isHunterSelectionRole, isSpecialistHunterRole } from "@/lib/roles";
 import { formatCurrency, makeId } from "@/lib/utils";
 import { useCloseOnNavigation } from "@/lib/use-close-on-navigation";
 import { displayDirectorName, OTHER_DIRECTOR_ID, OTHER_DIRECTOR_NAME } from "@/lib/director-governance";
@@ -84,7 +84,7 @@ export function CustomerManagement() {
   const scopedHunterPerson = useMemo(() => {
     if (!hunterConsultOnly || !accessEmail) return null;
     const email = normalizeAccessEmail(accessEmail);
-    return people.find((person) => person.email && normalizeAccessEmail(person.email) === email && isHunterRole(person.roleType)) ?? null;
+    return people.find((person) => person.email && normalizeAccessEmail(person.email) === email && isHunterSelectionRole(person.roleType)) ?? null;
   }, [accessEmail, hunterConsultOnly, people]);
   const scopedCustomerIds = useMemo(() => {
     if (!hunterConsultOnly || !scopedHunterPerson) return null;
@@ -131,7 +131,7 @@ export function CustomerManagement() {
     .sort((first, second) => first.name.localeCompare(second.name)),
   [people]);
   const hunters = useMemo(() => people
-    .filter((person) => person.active && isHunterRole(person.roleType))
+    .filter((person) => person.active && isHunterSelectionRole(person.roleType))
     .sort((first, second) => first.name.localeCompare(second.name)),
   [people]);
   const managerIds = useMemo(() => new Set(managers.map((person) => person.id)), [managers]);
@@ -388,6 +388,7 @@ export function CustomerManagement() {
         farmerRenewalAmount: 0,
         studioAmount: 0,
         increaseCustomerTarget: false,
+        allowSpecialistHunterAsCustomerHunter: isSpecialistHunterRole(selectedHunter.roleType),
         notes: "Meta Hunter sincronizada pela tela Clientes.",
       });
       return;
@@ -415,6 +416,7 @@ export function CustomerManagement() {
         farmerRenewalAmount: 0,
         studioAmount: 0,
         increaseCustomerTarget: false,
+        allowSpecialistHunterAsCustomerHunter: isSpecialistHunterRole(selectedHunter.roleType),
         notes: hasTransferableTargets && shouldTransferTargets
           ? "Meta Hunter transferida pela tela Clientes."
           : "Meta Hunter sincronizada pela tela Clientes.",
@@ -580,7 +582,7 @@ export function CustomerManagement() {
             <Field label="Hunter responsável">
               <Select value={formHunterId} onChange={(event) => setFormHunterId(event.target.value)}>
                 <option value="">Sem Hunter responsável</option>
-                {hunters.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+                {hunters.map((item) => <option key={item.id} value={item.id}>{formatHunterOptionLabel(item)}</option>)}
               </Select>
               <span className="mt-1 block text-xs text-slate-400">
                 Ao salvar, o vínculo e a meta Hunter da pessoa/ano são sincronizados automaticamente. Valor zero mantém apenas o vínculo.
@@ -1078,6 +1080,10 @@ function getInputValue(value: number) {
     minimumFractionDigits: value % 1 === 0 ? 0 : 2,
     maximumFractionDigits: 2,
   }).format(value);
+}
+
+function formatHunterOptionLabel(person: Pick<Person, "name" | "roleType">) {
+  return isSpecialistHunterRole(person.roleType) ? `${person.name} · Hunter Especializado` : person.name;
 }
 
 function parseAmount(value: string) {

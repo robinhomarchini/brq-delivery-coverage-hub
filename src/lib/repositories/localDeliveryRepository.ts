@@ -12,7 +12,7 @@ import {
   buildAssignmentsFromCoverage,
   type CoverageAssignment,
 } from "@/lib/coverage-sync";
-import { isCustomerFarmerResponsibleProfile, isCustomerManagerProfile, isHunterRole, isTargetAssignableRole } from "@/lib/roles";
+import { isCustomerFarmerResponsibleProfile, isCustomerManagerProfile, isHunterRole, isSpecialistHunterRole, isTargetAssignableRole } from "@/lib/roles";
 import { normalizeBusinessName } from "@/lib/utils";
 import { getEligibleStudioRenewalAmountForPerson, getTargetOwnAmount } from "@/lib/studio-renewal-rollup";
 
@@ -277,7 +277,8 @@ export class LocalDeliveryRepository implements DeliveryRepository {
   async savePersonCustomerTargets(input: PersonCustomerTargetsInput) {
     const person = this.data.people.find((item) => item.id === input.personId);
     if (!person) throw new Error("Pessoa não encontrada para a meta.");
-    if (!isTargetAssignableRole(person.roleType)) {
+    const specialistAsCustomerHunter = input.allowSpecialistHunterAsCustomerHunter === true && isSpecialistHunterRole(person.roleType);
+    if (!isTargetAssignableRole(person.roleType) && !specialistAsCustomerHunter) {
       throw new Error("Executivo, Diretor e Staff não recebem meta direta.");
     }
 
@@ -346,7 +347,7 @@ export class LocalDeliveryRepository implements DeliveryRepository {
     this.replaceTargetAmount(input, "farmer_renewal", nextFarmerRenewalAmount, nextFarmerRenewalOwnAmount);
     this.replaceTargetAmount(input, "studio", nextStudioAmount);
 
-    if (isHunterRole(person.roleType)) {
+    if (isHunterRole(person.roleType) || specialistAsCustomerHunter) {
       const hasAssignment = this.assignments.some((assignment) =>
         assignment.personId === input.personId && assignment.customerId === input.customerId
       );

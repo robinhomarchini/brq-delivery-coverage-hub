@@ -29,7 +29,7 @@ import {
   buildAssignmentsFromCoverage,
   type CoverageAssignment,
 } from "@/lib/coverage-sync";
-import { isCustomerFarmerResponsibleProfile, isCustomerManagerProfile, isHunterRole, isTargetAssignableRole } from "@/lib/roles";
+import { isCustomerFarmerResponsibleProfile, isCustomerManagerProfile, isHunterRole, isSpecialistHunterRole, isTargetAssignableRole } from "@/lib/roles";
 import { normalizeBusinessName } from "@/lib/utils";
 import { OTHER_DIRECTOR_ID, OTHER_DIRECTOR_NAME } from "@/lib/director-governance";
 import { getEligibleStudioRenewalAmountForPerson, getTargetOwnAmount } from "@/lib/studio-renewal-rollup";
@@ -802,7 +802,8 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
     if (error) throw error;
 
     const personRole = (personResult.data as { role_type: RoleType }).role_type;
-    if (!isTargetAssignableRole(personRole)) {
+    const specialistAsCustomerHunter = input.allowSpecialistHunterAsCustomerHunter === true && isSpecialistHunterRole(personRole);
+    if (!isTargetAssignableRole(personRole) && !specialistAsCustomerHunter) {
       throw new Error("Executivo, Diretor e Staff não recebem meta direta.");
     }
 
@@ -857,7 +858,7 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
     await this.persistTypeTargetWithFallback(input, "farmer_renewal", nextFarmerRenewalAmount, allocations, nextFarmerRenewalOwnAmount);
     await this.persistTypeTargetWithFallback(input, "studio", nextStudioAmount, allocations);
 
-    if (isHunterRole(personRole)) {
+    if (isHunterRole(personRole) || specialistAsCustomerHunter) {
       const { error: assignmentError } = await this.client
         .from("person_customer_assignments")
         .upsert({
@@ -879,7 +880,7 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
       if (assignmentError) throw assignmentError;
     }
 
-    if (!isHunterRole(personRole) && nextFarmerRenewalAmount <= 0) {
+    if (!isHunterRole(personRole) && !specialistAsCustomerHunter && nextFarmerRenewalAmount <= 0) {
       const { error: assignmentDeleteError } = await this.client
         .from("person_customer_assignments")
         .delete()

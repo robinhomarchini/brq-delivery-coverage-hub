@@ -55,6 +55,74 @@ export async function runDeliveryRepositoryContractTests({
     assert(assignedHunter?.clientIds.includes(customer.id), "Saving Hunter target should create the person/customer assignment.");
   });
 
+  await runContractTest(providerName, "savePersonCustomerTargets allows Specialist Hunter only as customer Hunter", async () => {
+    const repository = await createRepository();
+    const data = await repository.getAll();
+    const customer = data.customers[0];
+    const area = data.areas[0];
+
+    assert(customer, "Contract test requires at least one customer fixture.");
+    assert(area, "Contract test requires at least one area fixture.");
+
+    const specialistHunter: Person = {
+      id: `contract-specialist-hunter-${customer.id}`,
+      name: "Contract Specialist Hunter",
+      email: `contract-specialist-hunter-${customer.id}@brq.com`,
+      jobTitle: "Hunter Especializado",
+      directorId: undefined,
+      managerId: undefined,
+      roleType: "Hunter Especializado",
+      areaId: area.id,
+      clientIds: [],
+      photoUrl: undefined,
+      notes: undefined,
+      active: true,
+      lifecycleStatus: "active",
+      closedAt: undefined,
+      closedReason: undefined,
+      isManager: false,
+      hierarchyLevel: 3,
+    };
+
+    await repository.savePerson(specialistHunter);
+
+    let blocked = false;
+    try {
+      await repository.savePersonCustomerTargets({
+        customerId: customer.id,
+        personId: specialistHunter.id,
+        year: 2026,
+        hunterAmount: 100,
+        hunterOwnAmount: 100,
+        farmerRenewalAmount: 0,
+        studioAmount: 0,
+        increaseCustomerTarget: false,
+        notes: "Contract test blocked specialist direct target.",
+      });
+    } catch {
+      blocked = true;
+    }
+    assert(blocked, "Specialist Hunter must remain blocked without the customer Hunter override.");
+
+    const saved = await repository.savePersonCustomerTargets({
+      customerId: customer.id,
+      personId: specialistHunter.id,
+      year: 2026,
+      hunterAmount: 100,
+      hunterOwnAmount: 100,
+      farmerRenewalAmount: 0,
+      studioAmount: 0,
+      increaseCustomerTarget: false,
+      allowSpecialistHunterAsCustomerHunter: true,
+      notes: "Contract test customer Hunter specialist target.",
+    });
+
+    const allocation = findTargetAllocation(saved, customer.id, specialistHunter.id, "hunter");
+    assertEqual(allocation.amount, 100, "Specialist Hunter should work as customer Hunter when explicitly selected in customer flow.");
+    const assignedSpecialist = saved.people.find((person) => person.id === specialistHunter.id);
+    assert(assignedSpecialist?.clientIds.includes(customer.id), "Customer Hunter override should create the person/customer assignment.");
+  });
+
   await runContractTest(providerName, "saveCustomer accepts Farmer/Delivery responsible people even when isManager is stale", async () => {
     const repository = await createRepository();
     const data = await repository.getAll();

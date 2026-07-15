@@ -290,6 +290,10 @@
   total por cliente vem dos Studios do cliente, limitado à meta de Studios do
   cliente, sem Meta Renovação + Ampliação editável, sem clique de alocação rápida
   e sem botão ativo para salvar/remover meta direta.
+- No cadastro de Cliente, uma pessoa com papel Hunter Especializado pode ser
+  escolhida como Hunter responsável. Nesse cenário específico, ela funciona como
+  Hunter comum para criar vínculo pessoa-cliente e meta Hunter direta daquele
+  cliente, sem liberar lançamento direto em Metas por Pessoa.
 - A exportação/prévia da visão Hunters usa o consolidado quando nenhum Hunter
   está selecionado e o detalhe explodido quando há um ou mais Hunters
   selecionados.

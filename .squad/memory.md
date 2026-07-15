@@ -123,6 +123,7 @@ Centralizar importação de baselines em uma nova rota, removendo uploads antigo
 - [x] Rodar typecheck, lint, build e smoke critico apos ajustes de UX.
 - [x] Modelar Hunter Especializado como papel de Pessoa, nao como novo fato financeiro.
 - [x] Impedir Hunter Especializado de aparecer como pessoa lancavel em Metas por Pessoa.
+- [x] Permitir Hunter Especializado como Hunter responsavel no cadastro de Cliente; somente nesse fluxo ele funciona como Hunter comum para criar vinculo pessoa-cliente e meta Hunter direta do cliente.
 - [x] Criar relatorio derivado por Hunter Especializado + Cliente + Studio, usando `studio_target_allocations`.
 - [x] Criar migration para permitir o novo role e bloquear meta direta no banco.
 - [x] Aplicar migration no Supabase, rodar lint/typecheck/build/smoke e publicar producao.
@@ -440,7 +441,7 @@ Próximo passo: mover a view model de Clientes do Relatório de Metas (`buildCli
 - Telas executivas precisam de sinais visuais, tooltips de racional e KPIs sem overflow.
 - Acoes de exportacao devem aparecer em um unico lugar por contexto/visao ativa; duplicar Preview/CSV/Excel no header e no card da mesma funcao e bloqueio de UX.
 - Em telas operacionais de metas, filtros de contexto, totais e acoes de inclusao devem ficar agrupados no mesmo painel para reduzir zigue-zague visual.
-- Hunter Especializado e um papel gerencial cross. Ele nao tem `own_amount`, nao recebe `revenue_target_allocations` e nao altera totais oficiais; seu relatorio deriva apenas das linhas selecionadas em `specialist_hunter_studio_assignments`, que apontam para `studio_target_allocations`.
+- Hunter Especializado e um papel gerencial cross. Em regra, ele nao tem `own_amount`, nao recebe `revenue_target_allocations` e nao altera totais oficiais; seu relatorio deriva apenas das linhas selecionadas em `specialist_hunter_studio_assignments`, que apontam para `studio_target_allocations`. Excecao: quando selecionado como Hunter responsavel no cadastro de Cliente, ele funciona como Hunter comum apenas para aquele cliente, criando vinculo pessoa-cliente e meta Hunter direta via `allowSpecialistHunterAsCustomerHunter`; nao liberar esse comportamento em Metas por Pessoa.
 - Na tela Clientes, Studio Manutencao cobre a leitura de Renovacao/Manutencao para fins de pessoa e nao deve gerar linha "Abaixo da meta sem pessoa alocada"; eventuais diferencas ficam na conciliacao de Areas/Studios.
 - Na tela Clientes, o seletor de responsaveis Farmer/Delivery deve usar pessoas ativas com perfil operacional elegivel (`Farmer + Delivery`, `Delivery`, `Farmer`, `Hunter + Farmer`) mesmo quando o legado `isManager` estiver desatualizado. A RPC `save_customer_with_managers_and_targets` continua exigindo `can_write_delivery_hardening()`.
 - Na tela Metas por Area/Studio, quando a soma detalhada alocada supera a meta-base antiga do cliente, a conciliacao usa o detalhamento como alvo efetivo exibido para nao marcar "Acima" falso apos edicao da abertura.

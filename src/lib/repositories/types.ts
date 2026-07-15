@@ -18,6 +18,7 @@ export interface PersonCustomerTargetsInput {
   farmerRenewalAmount: number;
   studioAmount: number;
   increaseCustomerTarget: boolean;
+  allowSpecialistHunterAsCustomerHunter?: boolean;
   notes?: string;
 }
 

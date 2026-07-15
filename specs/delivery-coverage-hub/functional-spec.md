@@ -511,6 +511,11 @@ por cliente é limitado à meta de Studios do cliente, os campos de Meta própri
 Renovação ficam inibidos, e atalhos de clique para alocar meta do cliente ou
 salvar/remover meta direta ficam desabilitados. A visão não altera totais
 oficiais de cliente, pessoa, dashboard, baseline ou análise de desafio.
+Exceção: quando o Hunter responsável do Cliente for uma pessoa com papel Hunter
+Especializado, o cadastro de Cliente deve tratá-la como Hunter comum somente
+nesse fluxo, permitindo vínculo pessoa-cliente e meta Hunter direta daquele
+cliente. Essa exceção não libera lançamento direto para Hunter Especializado em
+Metas por Pessoa nem altera a visão gerencial dedicada.
 Para cadastrar a meta gerencial, a rota Metas Hunter Especializado deve usar uma
 tela dedicada. Quando o usuário escolhe um Hunter Especializado em Metas por
 Pessoa, a aplicação deve orientar a abertura dessa rota porque esse perfil não

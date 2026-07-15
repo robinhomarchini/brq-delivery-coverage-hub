@@ -13,6 +13,7 @@ const personCustomerTargetsCommandSchema = z.object({
   farmerRenewalAmount: z.number().finite().min(0).max(999999999999),
   studioAmount: z.number().finite().min(0).max(999999999999),
   increaseCustomerTarget: z.boolean(),
+  allowSpecialistHunterAsCustomerHunter: z.boolean().optional(),
   notes: z.string().trim().max(2000).optional(),
 });
 
