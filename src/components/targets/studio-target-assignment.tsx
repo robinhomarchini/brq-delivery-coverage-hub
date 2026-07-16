@@ -128,7 +128,22 @@ export function StudioTargetAssignment() {
     window.history.replaceState(null, "", window.location.pathname);
   }, [initialParams.consumedFromUrl]);
 
-  function openForm(allocation?: StudioTargetAllocation, presetCustomerId = "") {
+  function openForm(allocation?: StudioTargetAllocation, presetCustomerId = "", forceNew = false) {
+    if (forceNew) {
+      setEditing(null);
+      setFormCustomerId(presetCustomerId);
+      setFormAreaId("");
+      setFormHunterPersonId("");
+      setFormMaintenancePersonId("");
+      setFormYear(String(effectiveYear));
+      setFormHunterAmount("0");
+      setFormMaintenanceAmount("0");
+      setFormNotes("");
+      setFormError("");
+      setOpen(true);
+      return;
+    }
+
     const targetCustomerId = allocation?.customerId || presetCustomerId || customerId;
     const allocationToEdit = allocation ?? findDefaultAllocationForCustomer(
       studioTargetAllocations,
@@ -304,7 +319,7 @@ export function StudioTargetAssignment() {
         eyebrow="BU Financial"
         title="Metas por Área/Studio"
         description="Distribua a abertura anual de Áreas / Studios entre Hunter, que fica contido na meta Hunter do cliente, e Manutenção/Renovação, que compõe o total."
-        actions={<Button onClick={() => openForm()}><Plus className="h-4 w-4" /> Nova meta por studio</Button>}
+        actions={<Button onClick={() => openForm(undefined, "", true)}><Plus className="h-4 w-4" /> Nova meta por studio</Button>}
       />
 
       {successMessage && <SuccessNotice message={successMessage} floating />}
@@ -487,7 +502,7 @@ export function StudioTargetAssignment() {
             <DialogTitle>{editing ? "Editar meta por área/studio" : "Nova meta por área/studio"}</DialogTitle>
             <DialogDescription>Informe cliente, área/studio, ano e os valores Hunter e Manutenção. Hunter não soma novamente no total do cliente.</DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-2">
+          <form key={editing?.id ?? `new-studio-target-${formCustomerId || "blank"}`} onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-2">
             <Field label="Cliente">
               <Select name="customerId" value={formCustomerId} onChange={(event) => {
                 const nextCustomerId = event.target.value;
@@ -606,7 +621,7 @@ export function StudioTargetAssignment() {
             <Button type="button" variant="outline" onClick={() => {
               const targetCustomerId = allocationPickerCustomerId;
               closeAllocationPicker();
-              openForm(undefined, targetCustomerId);
+              openForm(undefined, targetCustomerId, true);
             }}>
               Nova linha para este cliente
             </Button>

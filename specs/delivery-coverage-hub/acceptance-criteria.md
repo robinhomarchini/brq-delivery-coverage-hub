@@ -574,5 +574,8 @@
 - Na tela `Metas por Pessoa`, Hunter Especializado continua bloqueado para
   lançar meta direta, mas o botão `Remover` fica disponível para limpar vínculo
   ou meta histórica indevida de cliente.
+- Na tela `Metas por Área/Studio`, abrir `Nova meta por studio` sempre inicia
+  cliente, área, responsáveis, valores e observações limpos/zerados; filtros e
+  edições anteriores não podem pré-preencher uma nova meta.
 - Interface está em português; código e identificadores estão em inglês.
 - `npm run lint`, `npm run typecheck` e `npm run build` concluem sem erros.

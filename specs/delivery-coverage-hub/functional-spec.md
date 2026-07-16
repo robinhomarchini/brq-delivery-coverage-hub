@@ -1027,6 +1027,16 @@ Mapeamento de origem:
   responsável, sem metas e com as aberturas de Studio zeradas até que o cliente
   seja salvo e receba alocações em `Metas por Área/Studio`.
 
+## Metas por Área/Studio
+
+- A abertura de `Nova meta por studio` deve entrar em modo explícito de criação:
+  não reutiliza filtros, alocação anterior nem default de Hunter do cliente. O
+  formulário inicia com cliente, área, Hunter, Farmer/Delivery e observações em
+  branco, ano vigente e valores Hunter/Manutenção zerados.
+- A ação `Nova linha para este cliente` pode preservar somente o cliente
+  escolhido, mas também deve iniciar responsáveis, área, observações e valores
+  zerados.
+
 ## Responsividade
 
 Em telas menores a sidebar vira barra superior compacta, tabelas permitem rolagem

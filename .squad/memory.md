@@ -470,6 +470,7 @@ Próximo passo: mover a view model de Clientes do Relatório de Metas (`buildCli
 - Metas diretas historicas de Hunter Especializado com `ownAmount > 0` devem aparecer como alerta na tela de Metas Hunter Especializado. Se houver Studio selecionado, corrigir para `ownAmount = 0`, mantendo apenas o valor herdado de Studio; se nao houver Studio selecionado, remover a alocacao direta.
 - Na tela Clientes, `linkedEditing` pode usar o cliente inicial da URL somente em abertura automatica. Ao clicar `Novo cliente`, `manualOpen` deve impedir fallback para `initialCustomer`, o form deve remontar com key de novo cliente e as aberturas derivadas de Studio precisam ficar zeradas ate existir um cliente salvo.
 - Na tela Metas por Pessoa, Hunter Especializado permanece bloqueado para salvar/alocar meta direta, mas o botao Remover deve ficar habilitado para limpar associacao ou alocacao historica indevida criada por sujeira/formulario antigo.
+- Na tela Metas por Area/Studio, `Nova meta por studio` deve usar modo explicito de criacao (`forceNew`) e nunca reaproveitar filtros, default de Hunter, alocacao anterior ou valores. `Nova linha para este cliente` pode preservar apenas o cliente, mantendo area/responsaveis/valores/observacoes limpos.
 
 ## Stable Facts About the Project
 

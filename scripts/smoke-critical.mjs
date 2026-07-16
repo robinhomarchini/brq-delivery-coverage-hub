@@ -35,6 +35,23 @@ const checks = [
     ],
   },
   {
+    name: "New Studio target form must start empty instead of reusing filters or prior allocation",
+    file: "src/components/targets/studio-target-assignment.tsx",
+    failWhen: [
+      /actions=\{<Button onClick=\{\(\) => openForm\(\)\}>/,
+      /openForm\(undefined, targetCustomerId\);/,
+    ],
+    require: [
+      /function openForm\(allocation\?: StudioTargetAllocation, presetCustomerId = "", forceNew = false\)/,
+      /if \(forceNew\) \{/,
+      /setFormHunterAmount\("0"\)/,
+      /setFormMaintenanceAmount\("0"\)/,
+      /actions=\{<Button onClick=\{\(\) => openForm\(undefined, "", true\)\}>/,
+      /<form key=\{editing\?\.id \?\? `new-studio-target-\$\{formCustomerId \|\| "blank"\}`\}/,
+      /openForm\(undefined, targetCustomerId, true\)/,
+    ],
+  },
+  {
     name: "Target form must not auto-select the first customer or person",
     file: "src/components/targets/target-management.tsx",
     failWhen: [
