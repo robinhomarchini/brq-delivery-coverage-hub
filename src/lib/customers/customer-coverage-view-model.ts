@@ -1,9 +1,8 @@
 import type { Area, Customer, Person, StudioTargetAllocation, TargetAllocation } from "@/data/mockData";
 import type { SortDirection, SortState } from "@/components/shared/sortable-table-head";
-import { getContainedHunterAllocation } from "@/lib/customer-hunter-reconciliation";
 import { getCustomerTotalTarget } from "@/lib/customer-target-total";
 import { displayDirectorName } from "@/lib/director-governance";
-import { isCustomerFarmerResponsibleProfile, isHunterSelectionRole, isTargetAssignableRole } from "@/lib/roles";
+import { isCustomerFarmerResponsibleProfile, isHunterSelectionRole, isSpecialistHunterRole, isTargetAssignableRole } from "@/lib/roles";
 import { formatCurrency, roundCurrency } from "@/lib/utils";
 
 export interface CustomerTargetBreakdown {
@@ -95,7 +94,7 @@ export interface CustomerTargetPerson {
   amount: number;
 }
 
-export type CustomerCoverageStatus = "ok" | "issue" | "mismatch" | "empty";
+export type CustomerCoverageStatus = "ok" | "issue" | "mismatch" | "specialist" | "empty";
 
 export type CustomerCoverageSignal = {
   status: CustomerCoverageStatus;
@@ -151,12 +150,7 @@ export function getCustomerCoverageStatus(
     && allocation.year === year
   );
   const assignedPeople = people.filter((person) => person.clientIds.includes(customer.id));
-  const hunterAllocation = getContainedHunterAllocation({
-    customerId: customer.id,
-    year,
-    targetAllocations: allocations,
-    studioTargetAllocations: studioAllocations,
-  });
+  const hunterAllocation = getContainedHunterAllocationForCustomer(customer.id, people, allocations, studioAllocations, year);
   const allocatedDirectHunter = hunterAllocation.directHunter;
   const allocatedStudioHunter = hunterAllocation.studioHunter;
   const allocatedHunter = hunterAllocation.containedHunter;
@@ -170,6 +164,7 @@ export function getCustomerCoverageStatus(
   const farmerRenewalGap = roundCurrency(allocatedFarmerRenewal - breakdown.farmerRenewal);
   const studioMaintenanceGap = roundCurrency(allocatedStudioMaintenance - breakdown.studio);
   const difference = roundCurrency(hunterGap + farmerRenewalGap);
+  const specialistOnlyCoverage = hasOnlySpecialistHunterCoverage(customer, people, customerAllocations, customerStudioAllocations);
   const compositionTitle = buildCustomerReconciliationTitle({
     year,
     breakdown,
@@ -198,6 +193,18 @@ export function getCustomerCoverageStatus(
         compositionTitle,
       ].join("\n"),
       difference: 0,
+    };
+  }
+
+  if (specialistOnlyCoverage && difference < -0.01 && hasVisibleCurrencyAmount(difference)) {
+    return {
+      status: "specialist",
+      title: [
+        "Cliente com cobertura apenas por Hunter Especializado.",
+        "",
+        compositionTitle,
+      ].join("\n"),
+      difference,
     };
   }
 
@@ -258,6 +265,7 @@ export function getCustomerCoverageStatus(
 
 export function getCustomerStatusIconClassName(status: CustomerCoverageStatus, difference = 0) {
   if (status === "ok") return "bg-sky-50 text-sky-700";
+  if (status === "specialist") return "bg-purple-50 text-purple-700";
   if (status === "mismatch") return difference > 0.01 ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700";
   if (status === "issue") return "bg-amber-50 text-amber-700";
   return "bg-slate-100 text-slate-400";
@@ -265,6 +273,7 @@ export function getCustomerStatusIconClassName(status: CustomerCoverageStatus, d
 
 export function getCoverageStatusLabel(status: CustomerCoverageStatus) {
   if (status === "ok") return "Reconciliado";
+  if (status === "specialist") return "Hunter Especializado";
   if (status === "mismatch") return "Diferença de valores";
   if (status === "issue") return "Pendente de responsável";
   return "Sem dados";
@@ -283,12 +292,7 @@ export function getCustomerAllocationWarning(
     && allocation.year === year
     && allocation.type !== "studio"
   );
-  const hunterAllocation = getContainedHunterAllocation({
-    customerId: customer.id,
-    year,
-    targetAllocations: allocations,
-    studioTargetAllocations: studioAllocations,
-  });
+  const hunterAllocation = getContainedHunterAllocationForCustomer(customer.id, people, allocations, studioAllocations, year);
   const allocatedFarmerRenewal = customerAllocations
     .filter((allocation) => allocation.type === "farmer_renewal")
     .reduce((sum, allocation) => sum + allocation.amount, 0);
@@ -533,7 +537,73 @@ export function getPrimaryHunterIdForCustomer(customerId: string, people: Person
 }
 
 export function hasVisibleCurrencyAmount(value: number) {
-  return Math.abs(Math.round(value)) >= 1;
+  return Math.abs(value) >= 1;
+}
+
+function getContainedHunterAllocationForCustomer(
+  customerId: string,
+  people: Person[],
+  targetAllocations: TargetAllocation[],
+  studioTargetAllocations: StudioTargetAllocation[],
+  year: number,
+) {
+  const directByPerson = new Map<string, number>();
+  const studioByPerson = new Map<string, number>();
+
+  targetAllocations
+    .filter((allocation) => allocation.customerId === customerId && allocation.year === year && allocation.type === "hunter")
+    .forEach((allocation) => {
+      directByPerson.set(allocation.personId, roundCurrency((directByPerson.get(allocation.personId) ?? 0) + allocation.amount));
+    });
+
+  studioTargetAllocations
+    .filter((allocation) => allocation.customerId === customerId && allocation.year === year && allocation.hunterAmount > 0)
+    .forEach((allocation) => {
+      const personId = getEffectiveStudioHunterPersonId(allocation, people, targetAllocations);
+      if (!personId) return;
+      studioByPerson.set(personId, roundCurrency((studioByPerson.get(personId) ?? 0) + allocation.hunterAmount));
+    });
+
+  const personIds = new Set([...directByPerson.keys(), ...studioByPerson.keys()]);
+  const containedHunter = Array.from(personIds).reduce((total, personId) => {
+    const direct = directByPerson.get(personId) ?? 0;
+    const studio = studioByPerson.get(personId) ?? 0;
+    return total + Math.max(direct, studio);
+  }, 0);
+
+  return {
+    directHunter: roundCurrency(sumMapValues(directByPerson)),
+    studioHunter: roundCurrency(sumMapValues(studioByPerson)),
+    containedHunter: roundCurrency(containedHunter),
+  };
+}
+
+function hasOnlySpecialistHunterCoverage(
+  customer: Customer,
+  people: Person[],
+  customerAllocations: TargetAllocation[],
+  customerStudioAllocations: StudioTargetAllocation[],
+) {
+  const peopleById = new Map(people.map((person) => [person.id, person]));
+  const personIds = new Set([
+    ...people
+      .filter((person) => person.clientIds.includes(customer.id) && isHunterSelectionRole(person.roleType))
+      .map((person) => person.id),
+    ...customerAllocations.map((allocation) => allocation.personId),
+    ...customerStudioAllocations
+      .filter((allocation) => hasStudioAllocationValue(allocation))
+      .map((allocation) => getEffectiveStudioHunterPersonId(allocation, people, customerAllocations))
+      .filter(Boolean),
+  ]);
+  const involvedPeople = Array.from(personIds)
+    .map((personId) => peopleById.get(personId))
+    .filter((person): person is Person => Boolean(person));
+
+  return involvedPeople.length > 0 && involvedPeople.every((person) => isSpecialistHunterRole(person.roleType));
+}
+
+function sumMapValues(values: Map<string, number>) {
+  return Array.from(values.values()).reduce((total, value) => total + value, 0);
 }
 
 function buildCustomerReconciliationTitle({

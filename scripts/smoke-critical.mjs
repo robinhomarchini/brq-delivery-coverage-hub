@@ -21,6 +21,21 @@ const checks = [
     ],
   },
   {
+    name: "Customer status colors must keep matched, above, below and Specialist Hunter distinct",
+    file: "src/lib/customers/customer-coverage-view-model.ts",
+    failWhen: [
+      /if \(status === "ok"\) return "bg-emerald-50 text-emerald-700"/,
+      /Math\.abs\(Math\.round\(value\)\) >= 1/,
+    ],
+    require: [
+      /CustomerCoverageStatus = "ok" \| "issue" \| "mismatch" \| "specialist" \| "empty"/,
+      /hasOnlySpecialistHunterCoverage/,
+      /if \(status === "ok"\) return "bg-sky-50 text-sky-700"/,
+      /if \(status === "specialist"\) return "bg-purple-50 text-purple-700"/,
+      /return Math\.abs\(value\) >= 1/,
+    ],
+  },
+  {
     name: "New customer form must not reuse initial URL customer values",
     file: "src/components/customers/customer-management.tsx",
     failWhen: [

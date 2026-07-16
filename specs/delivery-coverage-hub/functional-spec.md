@@ -1035,6 +1035,9 @@ Mapeamento de origem:
   vermelho quando a soma de Hunters/Farmers estiver abaixo da meta, azul quando
   estiver batida e verde quando estiver acima. Pendências cadastrais, como falta
   de responsável, usam sinalização distinta de valor.
+- Clientes com cobertura apenas por Hunter Especializado devem usar sinalização
+  roxa, pois representam uma situação gerencial específica e não o mesmo erro
+  visual de alocação financeira abaixo da meta.
 
 ## Metas por Área/Studio
 
