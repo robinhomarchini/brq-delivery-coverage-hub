@@ -461,6 +461,7 @@ Próximo passo: mover a view model de Clientes do Relatório de Metas (`buildCli
 - Se antivirus bloquear `%USERPROFILE%\.vercel\auth.json`, usar `VERCEL_TOKEN` em `.env.local`. Os scripts `deploy:check` e `deploy:prod` carregam `.env.local` via `scripts/env-loader.mjs`; nunca commitar token nem colar o valor em resposta.
 - Em 2026-07-15 foi corrigida regressao em que a tela/conciliacao de metas por cliente somava Studio Manutencao ao total alocado e alguns saves ainda persistiam `revenue` como Hunter + Renovacao + Studio. Regra vigente: `getCustomerTotalTarget` e a persistencia devem usar apenas Hunter + Renovacao; Studio Hunter e Studio Manutencao sao composicao contida. Nao usar `customer.revenue` como fonte para Meta Total em telas/exports quando Hunter/Farmer estiverem disponiveis.
 - Ainda em 2026-07-15, a tela Metas por Pessoa foi corrigida para os inputs de Hunter e Renovacao representarem a Meta atual total da pessoa no cliente. Ao salvar, o payload grava `own_amount = total digitado - Studio contido`. Nao voltar a exibir/salvar o input como propria pura, porque isso soma Studio novamente no "Total atual".
+- Para Hunter Especializado na tela Metas por Pessoa, a linha e somente consulta e deve herdar apenas as alocacoes de Studio selecionadas para a pessoa em `specialist_hunter_studio_assignments`, usando a parcela `hunterAmount`. Nao usar todos os Studios do cliente nem somar `maintenanceAmount`; isso dobra casos como Professional Services/Guedelha.
 
 ## Stable Facts About the Project
 

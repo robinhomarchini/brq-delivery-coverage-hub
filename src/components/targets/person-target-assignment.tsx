@@ -28,7 +28,7 @@ type AllocationField = "hunter" | "farmerRenewal";
 export function PersonTargetAssignment() {
   const router = useRouter();
   const initialParams = useMemo(() => getInitialTargetParams(), []);
-  const { areas, people, customers, customerTargets, targetAllocations, studioTargetAllocations, savePersonCustomerTargets, removePersonCustomerTargets } = useDeliveryStore();
+  const { areas, people, customers, customerTargets, targetAllocations, studioTargetAllocations, specialistHunterStudioAssignments, savePersonCustomerTargets, removePersonCustomerTargets } = useDeliveryStore();
   const activePeople = useMemo(() => people.filter((person) => person.active), [people]);
   const assignablePeople = useMemo(() =>
     activePeople.filter((person) => isTargetAssignableRole(person.roleType) || isSpecialistHunterRole(person.roleType)),
@@ -89,12 +89,13 @@ export function PersonTargetAssignment() {
       year,
       targetAllocations,
       studioTargetAllocations,
+      specialistHunterStudioAssignments,
       areas,
       drafts[customer.id],
       getRowSource(customer.id, people, selectedPerson?.clientIds ?? [], targetAllocations, studioTargetAllocations, effectivePersonId, year, extraCustomerIds),
       selectedPerson?.roleType,
     )),
-    [areas, drafts, effectivePersonId, extraCustomerIds, people, scopedVisibleCustomers, selectedPerson?.clientIds, selectedPerson?.roleType, studioTargetAllocations, targetAllocations, year],
+    [areas, drafts, effectivePersonId, extraCustomerIds, people, scopedVisibleCustomers, selectedPerson?.clientIds, selectedPerson?.roleType, specialistHunterStudioAssignments, studioTargetAllocations, targetAllocations, year],
   );
   const totals = useMemo(() => rows.reduce((summary, row) => ({
     hunter: summary.hunter + row.hunterAmount,
@@ -760,6 +761,7 @@ function buildRow(
   year: number,
   allocations: TargetAllocation[],
   studioAllocations: StudioTargetAllocation[],
+  specialistAssignments: Array<{ personId: string; studioTargetAllocationId: string; year: number }>,
   areas: Array<{ id: string; name: string }>,
   draft: { hunter: string; farmerRenewal: string } | undefined,
   source: RowSource,
@@ -770,11 +772,14 @@ function buildRow(
   const farmerRenewalAllocation = findAllocation(allocations, customer.id, personId, year, "farmer_renewal");
   const targetBreakdown = getCustomerTargetBreakdown(customer, allocations, year, isSpecialistHunter);
   const rawStudioHunterAmount = isSpecialistHunter
-    ? sumSpecialistStudioAllocations(studioAllocations, customer.id, year)
+    ? sumSpecialistStudioAllocations(studioAllocations, specialistAssignments, customer.id, personId, year)
     : sumStudioHunterAllocations(studioAllocations, customer.id, personId, year, people, allocations);
   const studioHunterAmount = isSpecialistHunter
     ? Math.min(rawStudioHunterAmount, targetBreakdown.hunter)
     : rawStudioHunterAmount;
+  const rowTargetBreakdown = isSpecialistHunter
+    ? { hunter: studioHunterAmount, farmerRenewal: 0 }
+    : targetBreakdown;
   const savedHunterAmount = roundCurrency(hunterAllocation?.amount ?? studioHunterAmount);
   const hunterAmount = isSpecialistHunter ? studioHunterAmount : parseAmount(draft?.hunter ?? getInputValue(savedHunterAmount));
   const hunterOwnAmount = isSpecialistHunter ? 0 : roundCurrency(Math.max(hunterAmount - studioHunterAmount, 0));
@@ -792,7 +797,7 @@ function buildRow(
   const otherPeopleHunterTotal = isSpecialistHunter ? 0 : sumOtherPeopleAllocations(allocations, customer.id, personId, year, "hunter");
   const otherPeopleFarmerRenewalTotal = isSpecialistHunter ? 0 : sumOtherPeopleAllocations(allocations, customer.id, personId, year, "farmer_renewal");
   const otherPeopleTotal = otherPeopleHunterTotal + otherPeopleFarmerRenewalTotal;
-  const customerTarget = isSpecialistHunter ? roundCurrency(targetBreakdown.hunter + targetBreakdown.farmerRenewal) : getCustomerTarget(customer);
+  const customerTarget = isSpecialistHunter ? roundCurrency(rowTargetBreakdown.hunter + rowTargetBreakdown.farmerRenewal) : getCustomerTarget(customer);
   const clientHunterTotal = otherPeopleHunterTotal + hunterAmount;
   const clientFarmerRenewalTotal = otherPeopleFarmerRenewalTotal + farmerRenewalAmount;
   const clientTotal = clientHunterTotal + clientFarmerRenewalTotal;
@@ -803,16 +808,16 @@ function buildRow(
     customerName: customer.name,
     industry: customer.industry,
     customerTarget,
-    customerHunterTarget: targetBreakdown.hunter,
-    customerFarmerRenewalTarget: targetBreakdown.farmerRenewal,
+    customerHunterTarget: rowTargetBreakdown.hunter,
+    customerFarmerRenewalTarget: rowTargetBreakdown.farmerRenewal,
     otherPeopleHunterTotal,
     otherPeopleFarmerRenewalTotal,
     otherPeopleTotal,
     clientHunterTotal,
     clientFarmerRenewalTotal,
     clientTotal,
-    hunterGap: clientHunterTotal - targetBreakdown.hunter,
-    farmerRenewalGap: clientFarmerRenewalTotal - targetBreakdown.farmerRenewal,
+    hunterGap: clientHunterTotal - rowTargetBreakdown.hunter,
+    farmerRenewalGap: clientFarmerRenewalTotal - rowTargetBreakdown.farmerRenewal,
     hunterAllocation,
     farmerRenewalAllocation,
     hunterOwnAmount,
@@ -824,7 +829,7 @@ function buildRow(
     hunterInput: getInputValue(savedHunterAmount),
     farmerRenewalInput: getInputValue(savedFarmerRenewalAmount),
     personTotal: hunterAmount + farmerRenewalAmount,
-    clientStatus: getClientStatus(targetBreakdown, { hunter: clientHunterTotal, farmerRenewal: clientFarmerRenewalTotal }),
+    clientStatus: getClientStatus(rowTargetBreakdown, { hunter: clientHunterTotal, farmerRenewal: clientFarmerRenewalTotal }),
     source,
   };
 }
@@ -848,15 +853,22 @@ function sumStudioHunterAllocations(
 
 function sumSpecialistStudioAllocations(
   allocations: StudioTargetAllocation[],
+  specialistAssignments: Array<{ personId: string; studioTargetAllocationId: string; year: number }>,
   customerId: string,
+  personId: string,
   year: number,
 ) {
+  const selectedAllocationIds = new Set(specialistAssignments
+    .filter((assignment) => assignment.personId === personId && assignment.year === year)
+    .map((assignment) => assignment.studioTargetAllocationId));
+
   return roundCurrency(allocations
     .filter((allocation) =>
       allocation.customerId === customerId
       && allocation.year === year
+      && selectedAllocationIds.has(allocation.id)
     )
-    .reduce((total, allocation) => total + allocation.hunterAmount + allocation.maintenanceAmount, 0));
+    .reduce((total, allocation) => total + allocation.hunterAmount, 0));
 }
 
 function findAllocation(
