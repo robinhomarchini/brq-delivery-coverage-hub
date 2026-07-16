@@ -48,7 +48,7 @@ Planilha oficial agora ficam em:
 - `src/lib/reports/person-target-rollups.ts`
 
 Esse módulo centraliza cálculo de Studio Hunter efetivo, manutenção elegível por
-pessoa, meta própria versus meta herdada e fallback de Hunter principal do
+pessoa, Meta Squads/Times versus meta herdada e fallback de Hunter principal do
 cliente. Ele evita que relatório visual e exportação oficial implementem a mesma
 regra em paralelo.
 

@@ -88,7 +88,7 @@ experiência do usuário até nova definição de modelo.
   do lançamento direto de metas. Robinson, Ane Knust e CA aparecem apenas por
   consolidação derivada dos subordinados.
 - A tela "Metas por Pessoa" também deve excluir Staff de lançamento direto de
-  metas. Renan responde diretamente a Robinson e não deve carregar meta própria.
+  metas. Renan responde diretamente a Robinson e não deve carregar Meta Squads/Times.
 - Ao selecionar uma pessoa em "Metas por Pessoa", a tela deve carregar
   automaticamente os clientes já vinculados à pessoa e os clientes com meta já
   existente para aquela pessoa/ano, permitindo incluir clientes adicionais para

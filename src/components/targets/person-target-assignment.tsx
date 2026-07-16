@@ -138,7 +138,7 @@ export function PersonTargetAssignment() {
     { key: "customerFarmerRenewalTarget", label: "Meta Renovação Cliente", value: (row) => row.customerFarmerRenewalTarget, format: "currency", align: "right" },
     { key: "customerTarget", label: "Meta Total Cliente", value: (row) => row.customerTarget, format: "currency", align: "right" },
     { key: "otherPeopleHunterTotal", label: "Hunter já associado a outras pessoas", value: (row) => row.otherPeopleHunterTotal, format: "currency", align: "right" },
-    { key: "personHunterOwnTarget", label: "Meta própria Hunter", value: (row) => row.personHunterOwnTarget, format: "currency", align: "right" },
+    { key: "personHunterOwnTarget", label: "Meta Squads/Times Hunter", value: (row) => row.personHunterOwnTarget, format: "currency", align: "right" },
     { key: "personStudioHunterTarget", label: "Meta herdada de Studios", value: (row) => row.personStudioHunterTarget, format: "currency", align: "right" },
     { key: "otherPeopleFarmerRenewalTotal", label: "Renovação já associada a outras pessoas", value: (row) => row.otherPeopleFarmerRenewalTotal, format: "currency", align: "right" },
     { key: "otherPeopleTotal", label: "Total já associado a outras pessoas", value: (row) => row.otherPeopleTotal, format: "currency", align: "right" },
@@ -420,7 +420,7 @@ export function PersonTargetAssignment() {
               <p className="text-xs text-slate-400">
                 {selectedPersonIsSpecialistHunter
                   ? "Hunter Especializado é somente consulta: total derivado dos Studios do cliente."
-                  : "Meta Hunter atual = meta própria + meta herdada de Studios"}
+                  : "Meta Hunter atual = Meta Squads/Times + meta herdada de Studios"}
               </p>
             </div>
             <div className="grid gap-2 md:grid-cols-2 2xl:grid-cols-4">
@@ -493,7 +493,7 @@ export function PersonTargetAssignment() {
                 <TableHead>Meta do Cliente</TableHead>
                 <TableHead>Já associado a outras pessoas</TableHead>
                 <TableHead>Gap após edição</TableHead>
-                <TableHead>Meta própria / Hunter atual</TableHead>
+                <TableHead>Meta Squads/Times / Hunter atual</TableHead>
                 <TableHead>Meta Renovação + Ampliação</TableHead>
                 <TableHead>Total da Pessoa</TableHead>
                 <TableHead>Status do Cliente</TableHead>
@@ -543,7 +543,7 @@ export function PersonTargetAssignment() {
                     <MoneyInput
                       value={drafts[row.customerId]?.hunter ?? row.hunterInput}
                       onChange={(event) => updateDraft(row.customerId, "hunter", event.target.value)}
-                      aria-label={`Meta própria Hunter para ${row.customerName}`}
+                      aria-label={`Meta Squads/Times Hunter para ${row.customerName}`}
                       disabled={selectedPersonIsSpecialistHunter}
                     />
                     <div className="mt-2 space-y-0.5 text-xs text-slate-500">
@@ -555,7 +555,7 @@ export function PersonTargetAssignment() {
                     <MoneyInput
                       value={drafts[row.customerId]?.farmerRenewal ?? row.farmerRenewalInput}
                       onChange={(event) => updateDraft(row.customerId, "farmerRenewal", event.target.value)}
-                      aria-label={`Meta própria Renovação + Ampliação para ${row.customerName}`}
+                      aria-label={`Meta Squads/Times Renovação + Ampliação para ${row.customerName}`}
                       disabled={selectedPersonIsSpecialistHunter}
                     />
                     <div className="mt-2 space-y-0.5 text-xs text-slate-500">

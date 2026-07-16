@@ -973,7 +973,7 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
       year,
       amount: totalAmount,
       ownAmount,
-      notes: existing?.notes ?? "Meta Hunter total recalculada a partir da meta própria e dos Studios.",
+      notes: existing?.notes ?? "Meta Hunter total recalculada a partir da Meta Squads/Times e dos Studios.",
     });
     const { error } = await this.client.from("revenue_target_allocations").upsert(toTargetAllocationRow(allocation));
     if (error) throw error;
@@ -1026,7 +1026,7 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
       year,
       amount: totalAmount,
       ownAmount,
-      notes: existing?.notes ?? "Meta Renovação total recalculada a partir da meta própria e dos Studios elegíveis.",
+      notes: existing?.notes ?? "Meta Renovação total recalculada a partir da Meta Squads/Times e dos Studios elegíveis.",
     });
     const { error } = await this.client.from("revenue_target_allocations").upsert(toTargetAllocationRow(allocation));
     if (error) throw error;

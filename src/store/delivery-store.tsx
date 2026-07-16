@@ -481,8 +481,8 @@ function syncDerivedTargetFromStudioAllocations(
     amount: totalAmount,
     ownAmount,
     notes: existing?.notes ?? (type === "hunter"
-      ? "Meta Hunter total recalculada a partir da meta própria e dos Studios."
-      : "Meta Renovação total recalculada a partir da meta própria e dos Studios elegíveis."),
+      ? "Meta Hunter total recalculada a partir da Meta Squads/Times e dos Studios."
+      : "Meta Renovação total recalculada a partir da Meta Squads/Times e dos Studios elegíveis."),
   });
 }
 

@@ -520,7 +520,7 @@ const generatedHunterClientOfficialRows = buildOfficialRowsForView({
       customerId: "customer-hunter-client-qa",
       customerName: "Cliente Hunter Client QA",
       detailName: "Meta Hunter",
-      segment: "Meta própria Hunter",
+      segment: "Meta Squads/Times Hunter",
       hunterAmount: 100,
       maintenanceAmount: 0,
       total: 100,

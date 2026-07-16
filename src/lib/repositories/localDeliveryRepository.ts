@@ -443,7 +443,7 @@ export class LocalDeliveryRepository implements DeliveryRepository {
       year,
       amount: totalAmount,
       ownAmount,
-      notes: existing?.notes ?? "Meta Hunter total recalculada a partir da meta própria e dos Studios.",
+      notes: existing?.notes ?? "Meta Hunter total recalculada a partir da Meta Squads/Times e dos Studios.",
     }));
   }
 
@@ -480,7 +480,7 @@ export class LocalDeliveryRepository implements DeliveryRepository {
       year,
       amount: totalAmount,
       ownAmount,
-      notes: existing?.notes ?? "Meta Renovação total recalculada a partir da meta própria e dos Studios elegíveis.",
+      notes: existing?.notes ?? "Meta Renovação total recalculada a partir da Meta Squads/Times e dos Studios elegíveis.",
     }));
   }
 

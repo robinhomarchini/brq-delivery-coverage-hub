@@ -107,7 +107,7 @@
   novo, editar ou excluir, e mostra apenas clientes vinculados ao Hunter pelo
   e-mail cadastrado na Pessoa, por meta Hunter direta ou por Studio Hunter.
 - Para Consulta Hunter, o Relatório de Metas abre diretamente no detalhe do
-  próprio Hunter, mostrando Hunter próprio e Studio Hunter, sem seletor de
+  próprio Hunter, mostrando Meta Squads/Times Hunter e Studio Hunter, sem seletor de
   outros Hunters e sem botão de ajuste de metas.
 - A rota Análise de Desafio aparece na navegação apenas para usuário BRQ ativo
   com perfil admin e cargo próprio de VP ou Vice-presidente.
@@ -210,10 +210,10 @@
 - A tela Metas por Pessoa grava apenas metas proprietárias diretas da pessoa em
   `revenue_target_allocations`; Studio Hunter permanece em
   `studio_target_allocations` e não é duplicado como meta direta.
-- Para metas Hunter por pessoa, o campo editável é "Meta própria". A "Meta
-  Hunter atual" é derivada automaticamente como Meta própria + Studio Hunter
+- Para metas Hunter por pessoa, o campo editável é "Meta Squads/Times". A "Meta
+  Hunter atual" é derivada automaticamente como Meta Squads/Times + Studio Hunter
   alocado para a mesma Pessoa + Cliente + Ano, e não é editável.
-- A carga inicial de "Meta própria" usa a diferença entre a Meta Hunter total já
+- A carga inicial de "Meta Squads/Times" usa a diferença entre a Meta Hunter total já
   cadastrada e a soma dos Studios Hunter daquele Hunter no mesmo Cliente/Ano,
   preservando o total atual.
 - Em Metas por Pessoa, incluir ou focar um novo cliente adiciona uma linha à
@@ -231,9 +231,9 @@
   do cliente/studio e não soma no total de nenhuma pessoa até associação futura.
 - A grade de Metas por Área/Studio separa visualmente Studio Hunter e Studio
   Manutenção, indicando que Studio Hunter é uma abertura contida na meta
-  própria do Hunter e Studio Manutenção não soma no Hunter.
+  Squads/Times do Hunter e Studio Manutenção não soma no Hunter.
 - Studio Manutenção/Renovação com responsável Farmer/Delivery elegível compõe a
-  meta Renovação + Ampliação atual da pessoa, preservando a meta própria em
+  meta Renovação + Ampliação atual da pessoa, preservando a Meta Squads/Times em
   `ownAmount`; linhas sem responsável elegível permanecem somente no componente
   de Áreas / Studios.
 - O Relatório de Metas possui visão por Diretoria Delivery com seletor de
@@ -257,8 +257,8 @@
   composição detalhada da seleção com cliente, segmento, área/studio quando
   aplicável, valor alocado, subtotais por Hunter + cliente e total selecionado.
 - O total do Hunter em relatórios e na Análise de Desafio usa a Meta Hunter
-  atual derivada como Meta própria + Meta herdada de Studios.
-- No detalhe de Hunters do Relatório de Metas, existe uma linha de Meta própria
+  atual derivada como Meta Squads/Times + Meta herdada de Studios.
+- No detalhe de Hunters do Relatório de Metas, existe uma linha de Meta Squads/Times
   e linhas de Meta herdada de Studios por cliente/studio, sem duplicar Studio
   como novo lançamento direto.
 - Na visão Hunters do Relatório de Metas, tela, prévia, CSV, Excel e Planilha
@@ -267,7 +267,7 @@
 - O Relatório de Metas possui visão "Hunters Especializados" que explode valores
   por Hunter Especializado, Cliente e Área/Studio, sempre derivados de
   `studio_target_allocations` dos clientes vinculados à pessoa.
-- A visão "Hunters Especializados" é apenas gerencial: não possui Meta própria,
+- A visão "Hunters Especializados" é apenas gerencial: não possui Meta Squads/Times,
   não exporta valores como total oficial e não altera dashboards, conciliações,
   baseline ou Análise de Desafio.
 - A rota Metas Hunter Especializado permite selecionar Hunter Especializado,
@@ -316,8 +316,8 @@
   linhas de Studio, `Cliente Faturamento` recebe o nome do Studio em vez de
   `10`.
 - Na visão Pessoas, a Planilha oficial é ordenada por pessoa. Para cada pessoa,
-  as metas diretas por cliente aparecem primeiro; linhas de Studio Hunter do
-  Hunter efetivo aparecem logo depois da meta própria do mesmo cliente. Studio
+  as Metas Squads/Times por cliente aparecem primeiro; linhas de Studio Hunter do
+  Hunter efetivo aparecem logo depois da Meta Squads/Times do mesmo cliente. Studio
   Manutenção/Renovação aparece no fim da planilha por chave Studio + Cliente.
 - Quando a exportação do Relatório de Metas ou da tela Metas por Pessoa se
   refere a uma única pessoa, o nome do arquivo inclui o nome da pessoa em formato

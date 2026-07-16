@@ -462,7 +462,7 @@ function formatMultiple(value: number | null) {
 
 function getViewRationale(view: ChallengeView) {
   if (view === "hunters") {
-    return "Hunters compara Hunter próprio + Studio Hunter atribuído com salário mensal anualizado por 12; Studio Hunter é somado aqui como leitura derivada, sem virar meta direta da pessoa.";
+    return "Hunters compara Meta Squads/Times Hunter + Studio Hunter atribuído com salário mensal anualizado por 12; Studio Hunter é somado aqui como leitura derivada, sem virar meta direta da pessoa.";
   }
   if (view === "farmers") {
     return "Farmers compara Renovação + Ampliação com salário mensal anualizado por 12 para avaliar desafio de expansão e retenção.";

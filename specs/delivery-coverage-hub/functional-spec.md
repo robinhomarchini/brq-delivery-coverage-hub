@@ -17,7 +17,7 @@ ou ignorados para não esconder resultados sem indicação visual.
 Usuários com perfil de acesso Consulta Hunter veem apenas Clientes, Relatório de
 Metas e Ajuda. Nesse perfil, Clientes fica em modo leitura e limitado aos
 clientes vinculados ao Hunter identificado pelo e-mail da Pessoa; Relatório de
-Metas abre diretamente no detalhe do próprio Hunter, incluindo Hunter próprio e
+Metas abre diretamente no detalhe do próprio Hunter, incluindo Meta Squads/Times Hunter e
 Studio Hunter atribuído a ele, sem exibir demais visões ou demais hunters.
 
 Em telas de celular, a experiência deve ser restrita a consultas simples e
@@ -327,7 +327,7 @@ pessoa/ano, além de `studio_target_allocations` como fonte derivada de Studio
 Hunter atribuído. O salário mensal cadastrado deve ser anualizado por 12 para
 calcular o múltiplo contra metas anuais. A tela deve ter visões alternáveis de
 Hunters, Farmers e Delivery. Na visão Hunters, o valor analisado é a soma da
-Meta Hunter própria da pessoa no ano mais o Studio Hunter atribuído a ela.
+Meta Squads/Times Hunter da pessoa no ano mais o Studio Hunter atribuído a ela.
 Studio Hunter entra apenas como derivação de visualização/análise, não como meta
 direta gravada na pessoa. Na visão Farmers, o valor analisado é a soma de metas de
 Renovação + Ampliação/Farmer. Na visão Delivery, o valor analisado é a soma de
@@ -390,7 +390,7 @@ como referência analítica importada.
 A rota Metas funciona como visão de conciliação e consolidação executiva. A rota
 Metas por Pessoa é a tela operacional principal para associar metas: o usuário
 seleciona uma pessoa e um ano, escolhe o cliente na grade e informa os valores
-de Meta Hunter própria e Meta Renovação + Ampliação própria para aquele
+de Meta Squads/Times Hunter e Meta Squads/Times Renovação + Ampliação para aquele
 Cliente + Pessoa + Ano.
 Ambas as telas usam `revenue_target_allocations` como fonte única de verdade.
 Renovação + Ampliação pode ser distribuída entre managers, farmers/delivery e
@@ -415,7 +415,7 @@ clientes com meta já lançada para a pessoa no ano selecionado. O usuário pode
 incluir clientes adicionais apenas para associação de meta, sem alterar
 automaticamente a cobertura de Delivery da pessoa.
 Perfis Staff também não aparecem para lançamento direto. Renan responde
-diretamente a Robinson e não deve carregar meta própria.
+diretamente a Robinson e não deve carregar Meta Squads/Times.
 
 A rota Metas possui um Assistente de Metas acionável. Ele apresenta clientes sem
 valor de meta, clientes sem manager, clientes sem hunter associado quando existe
@@ -432,9 +432,9 @@ lista resumida de clientes. Cada pessoa do relatório deve navegar para Metas po
 Pessoa com a pessoa e o ano pré-selecionados. A visão Pessoas x Clientes abre o
 grão Pessoa + Cliente e deve listar todos os clientes com relacionamento da
 pessoa no ano: vínculo cadastral pessoa-cliente, responsável Delivery/Farmer do
-cliente, meta própria lançada, Studio Hunter herdado ou Studio Manutenção
-herdado. Essa visão separa Meta Hunter própria, Studio Hunter, Renovação +
-Ampliação própria e Studio Manutenção/Delivery, mostrando os Studios que
+cliente, Meta Squads/Times lançada, Studio Hunter herdado ou Studio Manutenção
+herdado. Essa visão separa Meta Squads/Times Hunter, Studio Hunter, Meta Squads/Times Renovação +
+Ampliação e Studio Manutenção/Delivery, mostrando os Studios que
 compõem cada cliente sem criar nova fonte de verdade. A visão por Cliente consolida, no
 grão Cliente + Ano, os Hunters envolvidos, Delivery Managers/Farmers
 responsáveis e Hunters Especializados quando houver seleção gerencial de
@@ -472,9 +472,9 @@ comercial individual.
 Na visão de Hunters, sem Hunter selecionado, a tela mostra o consolidado por
 Hunter. A tabela deve permitir selecionar um ou mais Hunters por checkbox; com
 seleção ativa, a tela mostra o relatório detalhado no grão Hunter + cliente +
-segmento + área/studio quando aplicável, separando Meta própria de Meta herdada
+segmento + área/studio quando aplicável, separando Meta Squads/Times de Meta herdada
 de Studios, com subtotais por Hunter + cliente e total selecionado. Meta Hunter
-atual é a soma de Meta própria + Meta herdada de Studios; a linha herdada é
+atual é a soma de Meta Squads/Times + Meta herdada de Studios; a linha herdada é
 derivada de `studio_target_allocations` e não deve ser interpretada como novo
 lançamento direto. A prévia e
 exportação devem usar exatamente o modo ativo: consolidado quando não houver
@@ -489,14 +489,14 @@ fórmulas auditáveis por linha, seguindo o modelo Financial. Nas linhas do corp
 `BU` usa `Financial`. Para linhas de Studio, `Cliente Faturamento` deve receber
 o nome do Studio; linhas sem Studio não forçam o valor `10`. Na visão de
 Pessoas, a Planilha oficial deve ser ordenada por pessoa: primeiro entram as
-metas diretas da pessoa por cliente; em seguida, para o mesmo cliente, entram as
+Metas Squads/Times da pessoa por cliente; em seguida, para o mesmo cliente, entram as
 linhas de Studio Hunter atribuídas ao Hunter efetivo, porque Studio Hunter está
 contido na meta Hunter da pessoa. Studio Manutenção/Renovação não deve aparecer
 misturado nas pessoas; deve ser colocado ao fim da planilha, separado por chave
 Studio + Cliente, preenchendo Renovação (FARMER) e deixando Novo (HUNTER)
 zerado.
 A visão Hunter x Clientes permite escolher um único Hunter e abrir a composição
-por Cliente + Área/Studio + Ano, com linhas de Meta própria Hunter quando
+por Cliente + Área/Studio + Ano, com linhas de Meta Squads/Times Hunter quando
 existirem e linhas de Studio separando Studio Hunter e Studio
 Manutenção/Renovação. Essa visão usa o Hunter efetivo da linha: Hunter
 associado ao Studio ou, se vazio, Hunter principal cadastrado no cliente.
@@ -506,11 +506,11 @@ Manutenção e Renovação + Ampliação aparecem para leitura operacional do cl
 e não alteram a meta Hunter. A prévia e exportação usam o mesmo grão detalhado
 exibido em tela.
 Na visão de Hunters Especializados, a tela mostra uma leitura gerencial cross.
-Esse papel não possui Meta própria lançável nem Meta Renovação + Ampliação: os
+Esse papel não possui Meta Squads/Times lançável nem Meta Renovação + Ampliação: os
 valores são sempre derivados das alocações de Studios dos clientes vinculados à
 pessoa, explodidos por Hunter Especializado, Cliente e Área/Studio. Em Metas por
 Pessoa, Hunter Especializado aparece apenas em modo de consulta derivada; o valor
-por cliente é limitado à meta de Studios do cliente, os campos de Meta própria e
+por cliente é limitado à meta de Studios do cliente, os campos de Meta Squads/Times e
 Renovação ficam inibidos, e atalhos de clique para alocar meta do cliente ou
 salvar/remover meta direta ficam desabilitados. A visão não altera totais
 oficiais de cliente, pessoa, dashboard, baseline ou análise de desafio.
@@ -559,8 +559,8 @@ Telas com valores financeiros devem exibir e filtrar o ano de referência.
 
 Na rota Metas por Pessoa, o combo Pessoa deve iniciar vazio quando não houver
 `personId` na URL, obrigando o usuário a escolher uma pessoa antes de carregar a
-grade ou incluir clientes. Os campos de Meta Hunter própria e Meta Renovação +
-Ampliação própria devem ser inputs monetários largos, com prefixo visual de R$,
+grade ou incluir clientes. Os campos de Meta Squads/Times Hunter e Meta Squads/Times Renovação +
+Ampliação devem ser inputs monetários largos, com prefixo visual de R$,
 seleção automática ao focar e suporte a digitação em formato brasileiro, como
 `11.033.497,00`.
 O seletor "Cliente em foco" é um filtro explícito da grade. Ao escolher um
@@ -934,7 +934,7 @@ Regras do cadastro de Metas:
   Hunter efetivo da linha; quando estiver vazio, o Hunter efetivo é o Hunter
   principal cadastrado no cliente. Somente o valor de Studio Hunter
   (`hunterAmount`) aparece como Studio herdado e compõe a Meta Hunter atual da
-  pessoa sem duplicar a Meta própria.
+  pessoa sem duplicar a Meta Squads/Times.
 - Para Manutenção/Renovação de Studio, a responsabilidade operacional deve ser
   declarada em `studio_target_allocations.maintenancePersonId`. Esse campo
   identifica o Farmer/Delivery responsável por incorporar a renovação elegível
@@ -945,11 +945,11 @@ Regras do cadastro de Metas:
   ainda esteja desatualizado; no fallback legado por `hunterPersonId`, a pessoa
   só incorpora a renovação se tiver papel Farmer/Delivery elegível. Studio PX
   segue a mesma regra de incorporação dos demais Studios.
-  Na Planilha oficial Financial, em todas as visões exportáveis, metas próprias
+  Na Planilha oficial Financial, em todas as visões exportáveis, Metas Squads/Times
   devem ficar em linhas separadas de metas herdadas de Studio. A linha herdada
   deve trazer o nome do Studio em `Cliente Faturamento`, tanto para Studio
   Hunter quanto para Studio Manutenção/Renovação. Em telas e relatórios, quando
-  houver decomposição de Meta própria e Studio contido, a Meta própria deve ser
+  houver decomposição de Meta Squads/Times e Studio contido, a Meta Squads/Times deve ser
   calculada por `Meta atual - Studio contido`; caches técnicos como `own_amount`
   não podem prevalecer sobre essa fórmula de apresentação. Ao criar ou alterar
   alocações de Studio, a sincronização da meta da pessoa deve manter o Studio

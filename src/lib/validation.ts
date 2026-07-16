@@ -93,7 +93,7 @@ const targetAllocationSchema = z.object({
   type: z.enum(["hunter", "farmer_renewal", "studio"]),
   year: z.number().int("Ano deve ser inteiro.").min(2020, "Ano inválido.").max(2100, "Ano inválido."),
   amount: z.number().finite().min(0, "Valor da meta não pode ser negativo.").max(999999999999),
-  ownAmount: z.number().finite().min(0, "Valor da meta própria não pode ser negativo.").max(999999999999).optional(),
+  ownAmount: z.number().finite().min(0, "Valor da Meta Squads/Times não pode ser negativo.").max(999999999999).optional(),
   notes: optionalText(2000),
 });
 

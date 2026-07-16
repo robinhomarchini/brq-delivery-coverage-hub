@@ -42,7 +42,12 @@ import {
 const currentYear = 2026;
 const hunterOwnTotalLabel = "Meta Hunter atual";
 const hunterStudioContainedLabel = "Meta herdada de Studios";
-const hunterBaseWithoutStudioLabel = "Meta própria";
+const squadsTeamsTargetLabel = "Meta Squads/Times";
+const hunterBaseWithoutStudioLabel = squadsTeamsTargetLabel;
+const hunterSquadsTeamsSegmentLabel = "Meta Squads/Times Hunter";
+const renewalSquadsTeamsSegmentLabel = "Renovação Squads/Times";
+const squadsTeamsRelationshipHunterLabel = "Meta Hunter Squads/Times";
+const squadsTeamsRelationshipRenewalLabel = "Meta Renovação Squads/Times";
 
 type PeopleSortKey = "person" | "role" | "clients" | "hunter" | "renewal" | "total" | "status";
 type PeopleClientSortKey = "person" | "role" | "customer" | "relationship" | "hunter" | "renewal" | "total";
@@ -64,7 +69,7 @@ export function PersonTargetReport() {
   const [selectedHunterIds, setSelectedHunterIds] = useState<Set<string>>(new Set());
   const [selectedAreaIds, setSelectedAreaIds] = useState<Set<string>>(new Set());
   const [peopleSort, setPeopleSort] = useState<SortState<PeopleSortKey>>({ key: "total", direction: "desc" });
-  const [peopleClientSort, setPeopleClientSort] = useState<SortState<PeopleClientSortKey>>({ key: "person", direction: "asc" });
+  const [peopleClientSort, setPeopleClientSort] = useState<SortState<PeopleClientSortKey>>({ key: "customer", direction: "asc" });
   const [areaSort, setAreaSort] = useState<SortState<AreaSortKey>>({ key: "total", direction: "desc" });
   const [hunterSort, setHunterSort] = useState<SortState<HunterSortKey>>({ key: "totalHunter", direction: "desc" });
   const [showClientCoverageValues, setShowClientCoverageValues] = useState(true);
@@ -824,15 +829,14 @@ export function PersonTargetReport() {
           <div className="border-b border-slate-200 px-5 py-4">
             <p className="text-sm font-bold text-slate-900">Visão completa por pessoa e cliente</p>
             <p className="text-xs text-slate-500">
-              Mostra todo cliente com relacionamento da pessoa. Studio Hunter e Studio Manutenção aparecem como composição contida na meta atual, sem somar novamente.
+              Mostra os clientes da pessoa em linhas de Meta Squads/Times e Studios contidos, sem somar Studio novamente.
             </p>
           </div>
           <div className="overflow-x-auto">
-            <Table className="min-w-[1320px]">
+            <Table className="min-w-[1120px]">
               <TableHeader>
                 <TableRow>
                   <SortableTableHead label="Cliente" sortKey="customer" sortState={peopleClientSort} onSort={setPeopleClientSort} />
-                  <SortableTableHead label="Relacionamento" sortKey="relationship" sortState={peopleClientSort} onSort={setPeopleClientSort} />
                   <TableHead>Origem</TableHead>
                   <TableHead>Studio</TableHead>
                   <TableHead>Tipo</TableHead>
@@ -847,13 +851,6 @@ export function PersonTargetReport() {
                   <TableRow key={row.id}>
                     <TableCell>
                       <p className="font-semibold text-slate-900">{row.customerName}</p>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex max-w-xs flex-wrap gap-1.5">
-                        {row.relationships.map((relationship) => (
-                          <Badge key={relationship} variant="secondary">{relationship}</Badge>
-                        ))}
-                      </div>
                     </TableCell>
                     <TableCell><Badge variant="secondary">{row.lineSource}</Badge></TableCell>
                     <TableCell>
@@ -880,7 +877,7 @@ export function PersonTargetReport() {
                 ))}
                 {selectedPeopleClientPersonId && filteredPeopleClientRows.length > 0 && (
                   <TableRow className="bg-slate-900 text-white hover:bg-slate-900">
-                    <TableCell colSpan={5} className="font-bold">Total da visão filtrada</TableCell>
+                    <TableCell colSpan={4} className="font-bold">Total da visão filtrada</TableCell>
                     <TableCell className="text-right font-bold tabular-nums">{formatCurrency(sumPeopleClientHunter(filteredPeopleClientRows))}</TableCell>
                     <TableCell className="text-right font-bold tabular-nums">{formatCurrency(sumPeopleClientRenewal(filteredPeopleClientRows))}</TableCell>
                     <TableCell className="text-right font-bold tabular-nums">{formatCurrency(sumPeopleClientTotal(filteredPeopleClientRows))}</TableCell>
@@ -890,8 +887,8 @@ export function PersonTargetReport() {
               </TableBody>
             </Table>
           </div>
-          {!selectedPeopleClientPersonId && <EmptyState message="Escolha uma pessoa para montar a visão completa de clientes, metas próprias e Studios contidos." />}
-          {selectedPeopleClientPersonId && !filteredPeopleClientRows.length && <EmptyState message="Nenhum relacionamento pessoa x cliente foi encontrado para os filtros atuais." />}
+          {!selectedPeopleClientPersonId && <EmptyState message="Escolha uma pessoa para montar a visão completa de clientes, Metas Squads/Times e Studios contidos." />}
+          {selectedPeopleClientPersonId && !filteredPeopleClientRows.length && <EmptyState message="Nenhum cliente foi encontrado para os filtros atuais." />}
         </Card>
       )}
 
@@ -1082,7 +1079,7 @@ export function PersonTargetReport() {
             <div className={hunterConsultOnly ? "" : "border-t border-slate-200"}>
               <div className="px-5 py-4">
                 <p className="text-sm font-bold text-slate-900">Detalhe explodido da seleção</p>
-                <p className="text-xs text-slate-500">A meta do Hunter é composta por Meta própria + Meta herdada de Studios. A herdada não deve ser lançada novamente como meta própria.</p>
+                <p className="text-xs text-slate-500">A meta do Hunter é composta por Meta Squads/Times + Meta herdada de Studios. A herdada não deve ser lançada novamente como Meta Squads/Times.</p>
               </div>
               <div className="overflow-x-auto">
               <Table className="min-w-[1120px]">
@@ -1151,7 +1148,7 @@ export function PersonTargetReport() {
           <div className="border-b border-slate-200 px-5 py-4">
             <p className="text-sm font-bold text-slate-900">Hunter x Clientes</p>
             <p className="text-xs text-slate-500">
-              Escolha um Hunter para ver Meta própria, Studio Hunter, Studio Manutenção e Renovação + Ampliação por cliente. Manutenção/Renovação aparece para leitura operacional e não soma na meta Hunter.
+              Escolha um Hunter para ver Meta Squads/Times, Studio Hunter, Studio Manutenção e Renovação + Ampliação por cliente. Manutenção/Renovação aparece para leitura operacional e não soma na meta Hunter.
             </p>
           </div>
           <div className="overflow-x-auto">
@@ -1197,7 +1194,7 @@ export function PersonTargetReport() {
                           {row.observations && <p className="max-w-xl text-xs text-slate-500">{row.observations}</p>}
                         </TableCell>
                         <TableCell>
-                          <Badge className={row.segment === "Meta própria Hunter" ? "bg-violet-100 text-violet-800 hover:bg-violet-100" : row.hunterAmount > 0 ? "bg-sky-100 text-sky-800 hover:bg-sky-100" : "bg-slate-100 text-slate-700 hover:bg-slate-100"}>
+                          <Badge className={row.segment === hunterSquadsTeamsSegmentLabel ? "bg-violet-100 text-violet-800 hover:bg-violet-100" : row.hunterAmount > 0 ? "bg-sky-100 text-sky-800 hover:bg-sky-100" : "bg-slate-100 text-slate-700 hover:bg-slate-100"}>
                             {row.segment}
                           </Badge>
                         </TableCell>
@@ -1329,7 +1326,7 @@ export function PersonTargetReport() {
             <p className="text-sm font-bold text-slate-900">Metas gerenciais derivadas de Studios</p>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-xs text-slate-500">
-                Hunter Especializado não tem meta própria e não altera totais oficiais. Os valores abaixo vêm da seleção gerencial de Studios.
+                Hunter Especializado não tem Meta Squads/Times e não altera totais oficiais. Os valores abaixo vêm da seleção gerencial de Studios.
               </p>
               {canEdit && (
                 <Button asChild size="sm" variant="outline">
@@ -1458,7 +1455,7 @@ function getViewDescription(view: ReportView) {
   if (view === "areas") return "Metas agrupadas por Área/Studio, com clientes apenas como detalhe.";
   if (view === "hunters") return "Metas consolidadas por Hunter, sem repetir uma linha por cliente.";
   if (view === "hunterClients") return "Escolha um Hunter e abra cliente, Studio, Hunter, manutenção e total no maior detalhe.";
-  if (view === "specialistHunters") return "Leitura gerencial cross derivada de Studios, sem meta própria e sem impacto nos totais oficiais.";
+  if (view === "specialistHunters") return "Leitura gerencial cross derivada de Studios, sem Meta Squads/Times e sem impacto nos totais oficiais.";
   if (view === "directors") return "Abra pessoa, cliente e quebras de studio da diretoria selecionada.";
   return "Metas operacionais por pessoa, com acesso rápido para ajuste.";
 }
@@ -1664,9 +1661,9 @@ function buildPeopleClientRows({
           rows.push({
             ...baseRow,
             id: `${person.id}:${customerId}:own-hunter`,
-            lineSource: "Meta própria",
+            lineSource: squadsTeamsTargetLabel,
             studioName: "-",
-            lineType: "Hunter próprio",
+            lineType: hunterSquadsTeamsSegmentLabel,
             hunterAmount: ownHunter,
             renewalAmount: 0,
             total: ownHunter,
@@ -1678,9 +1675,9 @@ function buildPeopleClientRows({
           rows.push({
             ...baseRow,
             id: `${person.id}:${customerId}:own-renewal`,
-            lineSource: "Meta própria",
+            lineSource: squadsTeamsTargetLabel,
             studioName: "-",
-            lineType: "Renovação própria",
+            lineType: renewalSquadsTeamsSegmentLabel,
             hunterAmount: 0,
             renewalAmount: ownRenewal,
             total: ownRenewal,
@@ -1727,9 +1724,9 @@ function buildPeopleClientRows({
 }
 
 function getPeopleClientLineSortValue(row: PeopleClientRow) {
-  if (row.lineType === "Hunter próprio") return 0;
+  if (row.lineType === hunterSquadsTeamsSegmentLabel) return 0;
   if (row.lineType === "Studio Hunter") return 1;
-  if (row.lineType === "Renovação própria") return 2;
+  if (row.lineType === renewalSquadsTeamsSegmentLabel) return 2;
   if (row.lineType === "Studio Manutenção") return 3;
   return 4;
 }
@@ -1791,8 +1788,8 @@ function buildPeopleClientRelationshipLabels({
   const labels = new Set<string>();
   if (person.clientIds.includes(customer.id)) labels.add("Cliente associado");
   if (customer.managerResponsibleIds.includes(person.id)) labels.add("Delivery/Farmer do cliente");
-  if (directAllocations.some((allocation) => allocation.type === "hunter")) labels.add("Meta Hunter própria");
-  if (directAllocations.some((allocation) => allocation.type === "farmer_renewal")) labels.add("Meta Renovação própria");
+  if (directAllocations.some((allocation) => allocation.type === "hunter")) labels.add(squadsTeamsRelationshipHunterLabel);
+  if (directAllocations.some((allocation) => allocation.type === "farmer_renewal")) labels.add(squadsTeamsRelationshipRenewalLabel);
   if (studioItems.some((item) => item.kind === "Studio Hunter")) labels.add("Studio Hunter");
   if (studioItems.some((item) => item.kind === "Studio Manutenção")) labels.add("Studio Manutenção");
   return Array.from(labels);
@@ -2499,7 +2496,7 @@ function buildHunterClientRows({
         customerId: allocation.customerId,
         customerName: customerNames.get(allocation.customerId) ?? allocation.customerId,
         detailName: hunterBaseWithoutStudioLabel,
-        segment: "Meta própria Hunter",
+        segment: hunterSquadsTeamsSegmentLabel,
         hunterAmount: ownAmount,
         maintenanceAmount: 0,
         total: ownAmount,
@@ -2595,7 +2592,7 @@ function buildHunterClientGroups(rows: HunterClientRow[]) {
 }
 
 function getHunterClientSegmentSortValue(segment: string) {
-  if (segment === "Meta própria Hunter") return 0;
+  if (segment === hunterSquadsTeamsSegmentLabel) return 0;
   if (segment.includes("Studio Hunter")) return 1;
   if (segment === "Renovação + Ampliação") return 2;
   return 2;
@@ -2798,7 +2795,7 @@ function getHunterBaseWithoutStudio(row: HunterRow) {
 }
 
 function isHunterOwnSegment(segment: string) {
-  return segment === hunterBaseWithoutStudioLabel || segment === hunterOwnTotalLabel || segment === "Hunter próprio";
+  return segment === hunterBaseWithoutStudioLabel || segment === hunterOwnTotalLabel || segment === hunterSquadsTeamsSegmentLabel;
 }
 
 function isHunterStudioContainedSegment(segment: string) {
@@ -2875,12 +2872,7 @@ const peopleReportColumns: ReportColumn<PeopleRow>[] = [
 ];
 
 const peopleClientReportColumns: ReportColumn<PeopleClientRow>[] = [
-  { key: "personName", label: "Pessoa", value: (row) => row.personName },
-  { key: "email", label: "E-mail", value: (row) => row.email ?? "" },
-  { key: "roleType", label: "Perfil", value: (row) => row.roleType },
   { key: "customerName", label: "Cliente", value: (row) => row.customerName },
-  { key: "customerTargetTotal", label: "Meta total do cliente", value: (row) => row.customerTargetTotal, format: "currency", align: "right" },
-  { key: "relationshipText", label: "Relacionamentos", value: (row) => row.relationshipText },
   { key: "lineSource", label: "Origem", value: (row) => row.lineSource },
   { key: "studioName", label: "Studio", value: (row) => row.studioName },
   { key: "lineType", label: "Tipo", value: (row) => row.lineType },
@@ -3070,7 +3062,7 @@ type PeopleClientStudioItem = {
   kind: "Studio Hunter" | "Studio Manutenção";
   amount: number;
 };
-type PeopleClientLineType = "Hunter próprio" | "Renovação própria" | "Studio Hunter" | "Studio Manutenção" | "Sem valor";
+type PeopleClientLineType = typeof hunterSquadsTeamsSegmentLabel | typeof renewalSquadsTeamsSegmentLabel | "Studio Hunter" | "Studio Manutenção" | "Sem valor";
 type PeopleClientRow = {
   id: string;
   personId: string;
@@ -3082,7 +3074,7 @@ type PeopleClientRow = {
   customerTargetTotal: number;
   relationships: string[];
   relationshipText: string;
-  lineSource: "Meta própria" | "Studio" | "Sem meta";
+  lineSource: typeof squadsTeamsTargetLabel | "Studio" | "Sem meta";
   studioName: string;
   lineType: PeopleClientLineType;
   hunterAmount: number;
