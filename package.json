@@ -15,7 +15,7 @@
     "test:reports": "node scripts/verify-report-exports.cjs",
     "test:currency-input": "tsx scripts/verify-currency-input.ts",
     "test:security": "node scripts/verify-security-hardening.cjs",
-    "smoke:critical": "node scripts/smoke-critical.mjs",
+    "smoke:critical": "node scripts/smoke-critical.mjs && node scripts/verify-customer-coverage-status.cjs",
     "smoke:csp": "node scripts/smoke-csp-local.mjs",
     "smoke:rls": "node scripts/smoke-rls-access.mjs",
     "smoke:rls:provision": "node scripts/provision-rls-smoke-users.mjs",

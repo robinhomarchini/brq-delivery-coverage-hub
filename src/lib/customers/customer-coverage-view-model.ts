@@ -196,7 +196,7 @@ export function getCustomerCoverageStatus(
     };
   }
 
-  if (specialistOnlyCoverage && difference < -0.01 && hasVisibleCurrencyAmount(difference)) {
+  if (specialistOnlyCoverage) {
     return {
       status: "specialist",
       title: [
@@ -240,7 +240,7 @@ export function getCustomerCoverageStatus(
     };
   }
 
-  if (!customer.managerResponsibleIds.length && breakdown.total > 0.01) {
+  if (!customer.managerResponsibleIds.length && breakdown.farmerRenewal > 0.01) {
     return {
       status: "issue",
       title: [
@@ -303,7 +303,9 @@ export function getCustomerAllocationWarning(
 
   const involvedIds = new Set([
     ...customer.managerResponsibleIds,
-    ...customerAllocations.map((allocation) => allocation.personId),
+    ...customerAllocations
+      .filter((allocation) => hasVisibleCurrencyAmount(allocation.amount))
+      .map((allocation) => allocation.personId),
     ...studioAllocations
       .filter((allocation) =>
         allocation.customerId === customer.id
@@ -589,7 +591,9 @@ function hasOnlySpecialistHunterCoverage(
     ...people
       .filter((person) => person.clientIds.includes(customer.id) && isHunterSelectionRole(person.roleType))
       .map((person) => person.id),
-    ...customerAllocations.map((allocation) => allocation.personId),
+    ...customerAllocations
+      .filter((allocation) => hasVisibleCurrencyAmount(allocation.amount))
+      .map((allocation) => allocation.personId),
     ...customerStudioAllocations
       .filter((allocation) => hasStudioAllocationValue(allocation))
       .map((allocation) => getEffectiveStudioHunterPersonId(allocation, people, customerAllocations))
