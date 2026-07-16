@@ -473,6 +473,7 @@ Próximo passo: mover a view model de Clientes do Relatório de Metas (`buildCli
 - No Dashboard Executivo, a "Visao Financeira por Cliente" deve comparar Baseline Board com Alocado em Pessoas, usando `getCustomerCoverageAllocatedTotal`; nao usar `customer.revenue` como alocacao. Exemplo esperado: Itau deve mostrar alocado em pessoas acima do baseline quando as metas das pessoas superam a curva.
 - Na tela Metas por Pessoa, Hunter Especializado permanece bloqueado para salvar/alocar meta direta, mas o botao Remover deve ficar habilitado para limpar associacao ou alocacao historica indevida criada por sujeira/formulario antigo.
 - Na tela Metas por Area/Studio, `Nova meta por studio` deve usar modo explicito de criacao (`forceNew`) e nunca reaproveitar filtros, default de Hunter, alocacao anterior ou valores. `Nova linha para este cliente` pode preservar apenas o cliente, mantendo area/responsaveis/valores/observacoes limpos.
+- O GitHub Actions `Security & Quality Gate` valida `.env.local` com `grep -q "\.env\.local" .gitignore`; manter uma linha explicita `.env.local` no `.gitignore`, mesmo que `.env*` ja cubra o arquivo, e preservar essa verificacao tambem em `scripts/verify-security-hardening.cjs`.
 
 ## Stable Facts About the Project
 

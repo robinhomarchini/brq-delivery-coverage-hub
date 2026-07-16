@@ -32,6 +32,7 @@ const pentestLitePath = path.join(root, "scripts", "pentest-lite.mjs");
 const securityCheckPath = path.join(root, "scripts", "security-check.mjs");
 const securityDocPath = path.join(root, "docs", "SECURITY.md");
 const envExamplePath = path.join(root, ".env.example");
+const gitignorePath = path.join(root, ".gitignore");
 const packagePath = path.join(root, "package.json");
 
 const challengeRouteSource = fs.readFileSync(challengeRoutePath, "utf8");
@@ -62,6 +63,7 @@ const pentestLiteSource = fs.readFileSync(pentestLitePath, "utf8");
 const securityCheckSource = fs.readFileSync(securityCheckPath, "utf8");
 const securityDocSource = fs.readFileSync(securityDocPath, "utf8");
 const envExampleSource = fs.readFileSync(envExamplePath, "utf8");
+const gitignoreSource = fs.readFileSync(gitignorePath, "utf8");
 const packageSource = fs.readFileSync(packagePath, "utf8");
 
 assertIncludes(challengeRouteSource, "await assertCanUseChallengeAnalysis(request)", "Challenge analysis API must enforce server-side authorization.");
@@ -170,6 +172,7 @@ assertIncludes(securityDocSource, "npm run security:check", "Security documentat
 assertIncludes(securityDocSource, "NEXT_PUBLIC_AUTH_PROVIDER", "Security documentation must explain auth provider selection.");
 assertIncludes(envExampleSource, "NEXT_PUBLIC_AUTH_PROVIDER=supabase", ".env.example must expose the auth provider selector without secrets.");
 assertNotIncludes(envExampleSource, "SUPABASE_SERVICE_ROLE_KEY=", ".env.example must not expose or model service role key assignments.");
+assertIncludes(gitignoreSource, ".env.local", ".gitignore must explicitly ignore .env.local for CI security validation.");
 
 console.log("Security hardening QA checks passed.");
 
