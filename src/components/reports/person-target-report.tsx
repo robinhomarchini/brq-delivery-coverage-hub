@@ -2636,11 +2636,7 @@ function buildSpecialistHunterRows(
   const principalHunterKeys = new Set(allocations
     .filter((allocation) => allocation.year === year && allocation.type === "hunter")
     .map((allocation) => `${allocation.personId}:${allocation.customerId}`));
-  const hunterAllocationsByPersonCustomer = new Map(allocations
-    .filter((allocation) => allocation.year === year && allocation.type === "hunter")
-    .map((allocation) => [`${allocation.personId}:${allocation.customerId}`, allocation]));
   const rows: SpecialistHunterRow[] = [];
-  const emittedKeys = new Set<string>();
 
   assignments
     .filter((assignment) => assignment.year === year)
@@ -2659,46 +2655,11 @@ function buildSpecialistHunterRows(
         areaName: areaNames.get(allocation.areaId) ?? allocation.areaId,
         sourceLabel: getSpecialistHunterSourceLabel(allocation.hunterAmount, allocation.maintenanceAmount),
         isPrincipalHunter: principalHunterKeys.has(`${person.id}:${allocation.customerId}`),
-        relationshipType: "selection",
+        relationshipType: principalHunterKeys.has(`${person.id}:${allocation.customerId}`) ? "principal" : "selection",
         hunterAmount: allocation.hunterAmount,
         maintenanceAmount: allocation.maintenanceAmount,
         amount: allocation.hunterAmount + allocation.maintenanceAmount,
         year,
-      });
-      emittedKeys.add(`${person.id}:${allocation.customerId}:selection:${assignment.studioTargetAllocationId}`);
-    });
-
-  people
-    .filter((person) => person.active && isSpecialistHunterRole(person.roleType))
-    .forEach((person) => {
-      const customerIds = new Set<string>(person.clientIds);
-      allocations
-        .filter((allocation) => allocation.year === year && allocation.personId === person.id && allocation.type === "hunter")
-        .forEach((allocation) => customerIds.add(allocation.customerId));
-
-      Array.from(customerIds).forEach((customerId) => {
-        const hunterAllocation = hunterAllocationsByPersonCustomer.get(`${person.id}:${customerId}`);
-        const isPrincipalHunter = Boolean(hunterAllocation);
-        const relationshipType: SpecialistHunterRelationshipType = isPrincipalHunter ? "principal" : "associated";
-        const rowKey = `${person.id}:${customerId}:${relationshipType}`;
-        if (emittedKeys.has(rowKey)) return;
-
-        rows.push({
-          id: rowKey,
-          personId: person.id,
-          personName: person.name,
-          customerId,
-          customerName: customerNames.get(customerId) ?? customerId,
-          areaName: isPrincipalHunter ? "Hunter principal" : "-",
-          sourceLabel: isPrincipalHunter ? "Hunter principal" : "Cliente associado",
-          isPrincipalHunter,
-          relationshipType,
-          hunterAmount: hunterAllocation?.amount ?? 0,
-          maintenanceAmount: 0,
-          amount: hunterAllocation?.amount ?? 0,
-          year,
-        });
-        emittedKeys.add(rowKey);
       });
     });
 

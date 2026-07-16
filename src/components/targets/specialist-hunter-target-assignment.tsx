@@ -1,6 +1,6 @@
 "use client";
 
-import { Pencil, Save, SquareCheckBig, Target, Trash2, UsersRound } from "lucide-react";
+import { AlertTriangle, Pencil, Save, SquareCheckBig, Target, Trash2, UsersRound } from "lucide-react";
 import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { KpiSummaryCard } from "@/components/shared/kpi-summary-card";
@@ -14,6 +14,7 @@ import { useDeliveryStore } from "@/store/delivery-store";
 import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears } from "@/lib/customer-targets";
 import { isSpecialistHunterRole } from "@/lib/roles";
 import { formatCurrency } from "@/lib/utils";
+import type { TargetAllocation } from "@/data/mockData";
 
 const currentYear = defaultTargetYear;
 
@@ -35,6 +36,14 @@ type SpecialistSelectionRow = {
   pending: boolean;
 };
 
+type DirectHunterAdjustmentRow = {
+  allocation: TargetAllocation;
+  customerName: string;
+  currentAmount: number;
+  ownAmount: number;
+  inheritedAmount: number;
+};
+
 export function SpecialistHunterTargetAssignment({ initialPersonId = "", initialYear }: SpecialistHunterTargetAssignmentProps) {
   const {
     people,
@@ -42,7 +51,10 @@ export function SpecialistHunterTargetAssignment({ initialPersonId = "", initial
     customerTargets,
     areas,
     studioTargetAllocations,
+    targetAllocations,
     specialistHunterStudioAssignments,
+    saveTargetAllocation,
+    deleteTargetAllocation,
     saveSpecialistHunterStudioAssignments,
   } = useDeliveryStore();
   const specialistHunters = useMemo(
@@ -65,6 +77,7 @@ export function SpecialistHunterTargetAssignment({ initialPersonId = "", initial
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const [deletingCustomerId, setDeletingCustomerId] = useState("");
+  const [correctingAllocationId, setCorrectingAllocationId] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -154,6 +167,31 @@ export function SpecialistHunterTargetAssignment({ initialPersonId = "", initial
 
     return Array.from(groups.values()).sort((first, second) => first.customerName.localeCompare(second.customerName, "pt-BR"));
   }, [savedSelectionRows]);
+  const directHunterAdjustmentRows = useMemo<DirectHunterAdjustmentRow[]>(() => {
+    const inheritedByCustomer = new Map<string, number>();
+    savedSelectionRows.forEach((row) => {
+      inheritedByCustomer.set(row.customerId, (inheritedByCustomer.get(row.customerId) ?? 0) + row.hunterAmount);
+    });
+
+    return targetAllocations
+      .filter((allocation) =>
+        allocation.personId === personId
+        && allocation.year === year
+        && allocation.type === "hunter"
+        && (allocation.ownAmount ?? 0) > 0.01
+      )
+      .map((allocation) => {
+        const inheritedAmount = inheritedByCustomer.get(allocation.customerId) ?? 0;
+        return {
+          allocation,
+          customerName: customersById.get(allocation.customerId)?.name ?? allocation.customerId,
+          currentAmount: allocation.amount,
+          ownAmount: allocation.ownAmount ?? Math.max(allocation.amount - inheritedAmount, 0),
+          inheritedAmount,
+        };
+      })
+      .sort((first, second) => first.customerName.localeCompare(second.customerName, "pt-BR"));
+  }, [customersById, personId, savedSelectionRows, targetAllocations, year]);
   const pendingSelectionRows = useMemo<SpecialistSelectionRow[]>(() => selectedRows
     .filter((row) => !savedSelectionIds.has(row.id))
     .map((row) => ({
@@ -301,6 +339,30 @@ export function SpecialistHunterTargetAssignment({ initialPersonId = "", initial
     }
   }
 
+  async function correctDirectHunterAllocation(row: DirectHunterAdjustmentRow) {
+    setSuccessMessage("");
+    setErrorMessage("");
+    setCorrectingAllocationId(row.allocation.id);
+
+    try {
+      if (row.inheritedAmount <= 0.01) {
+        await deleteTargetAllocation(row.allocation.id);
+      } else {
+        await saveTargetAllocation({
+          ...row.allocation,
+          amount: row.inheritedAmount,
+          ownAmount: 0,
+          notes: "Corrigido para manter apenas a meta herdada de Studio do Hunter Especializado.",
+        });
+      }
+      setSuccessMessage(`Meta direta de ${row.customerName} corrigida para manter somente ${formatCurrency(row.inheritedAmount)} herdado de Studio.`);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Não foi possível corrigir a meta direta.");
+    } finally {
+      setCorrectingAllocationId("");
+    }
+  }
+
   return (
     <div className="space-y-5">
       <PageHeader
@@ -336,6 +398,56 @@ export function SpecialistHunterTargetAssignment({ initialPersonId = "", initial
         <KpiSummaryCard label="Studio Manutenção selecionado" currencyValue={selectedMaintenanceTotal} icon={SquareCheckBig} tone="sky" />
         <KpiSummaryCard label="Disponível no cliente" currencyValue={availableTotal} icon={UsersRound} tone="neutral" />
       </div>
+
+      {directHunterAdjustmentRows.length > 0 && (
+        <Card className="border-amber-200 bg-amber-50 p-4 shadow-sm">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+            <div className="flex gap-3">
+              <AlertTriangle className="mt-1 h-5 w-5 shrink-0 text-amber-700" />
+              <div>
+                <h2 className="text-base font-bold text-amber-950">Meta direta encontrada para Hunter Especializado</h2>
+                <p className="text-sm text-amber-900">
+                  Essas linhas parecem sujeira histórica: existe valor de Meta Squads/Times em cima de Studio herdado. Corrigir mantém somente o valor herdado do Studio.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="mt-4 overflow-x-auto rounded-lg border border-amber-200 bg-white">
+            <Table className="min-w-[760px]">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead className="text-right">Valor atual</TableHead>
+                  <TableHead className="text-right">Valor próprio</TableHead>
+                  <TableHead className="text-right">Herdado de Studio</TableHead>
+                  <TableHead className="text-right">Ação</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {directHunterAdjustmentRows.map((row) => (
+                  <TableRow key={row.allocation.id}>
+                    <TableCell className="font-semibold text-slate-950">{row.customerName}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatCurrency(row.currentAmount)}</TableCell>
+                    <TableCell className="text-right tabular-nums text-amber-800">{formatCurrency(row.ownAmount)}</TableCell>
+                    <TableCell className="text-right tabular-nums text-emerald-700">{formatCurrency(row.inheritedAmount)}</TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={correctingAllocationId === row.allocation.id}
+                        onClick={() => correctDirectHunterAllocation(row)}
+                      >
+                        {correctingAllocationId === row.allocation.id ? "Corrigindo..." : "Corrigir para herdado"}
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </Card>
+      )}
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
         <Card className="overflow-hidden shadow-sm">

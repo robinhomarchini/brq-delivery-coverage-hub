@@ -1006,10 +1006,17 @@ Mapeamento de origem:
 - Organograma: PNG gerado a partir da área do organograma.
 - Dados: CSV com pessoas e clientes em seções. Assuntos ficam fora do export
   enquanto o módulo estiver pausado.
-- No Relatório de Metas, a visão `Hunters Especializados` separa três vínculos:
-  seleção gerencial de Studio, cliente associado ao Hunter Especializado e
-  conta em que o Hunter Especializado é o Hunter principal. A conta principal
-  deve aparecer mesmo quando a meta Hunter direta estiver zerada.
+- No Relatório de Metas, a visão `Hunters Especializados` exibe somente metas
+  gerenciais derivadas de Studio selecionado. Vínculo de cliente associado ou
+  Hunter principal sem Studio não cria meta nessa visão.
+- Quando o mesmo Hunter Especializado tiver seleção de Studio e também for
+  Hunter principal do cliente, a seleção de Studio é a linha única do relatório;
+  o status de Hunter principal aparece como rótulo nessa linha, sem duplicar o
+  valor como Meta Squads/Times.
+- A tela `Metas Hunter Especializado` sinaliza metas Hunter diretas históricas
+  com valor próprio e oferece ação para corrigir o registro: remover quando não
+  houver Studio selecionado ou manter somente o valor herdado do Studio quando
+  houver.
 - A Planilha oficial da visão `Hunters Especializados` usa nome de arquivo
   próprio para não sobrescrever a Planilha oficial padrão de executivos.
 

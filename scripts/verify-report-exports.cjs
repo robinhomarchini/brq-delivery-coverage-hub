@@ -67,8 +67,7 @@ if (!source.includes("FINANCIAL-Hunters-Especializados") || !source.includes("FI
 }
 
 const requiredSpecialistHunterReportTokens = [
-  'const relationshipType: SpecialistHunterRelationshipType = isPrincipalHunter ? "principal" : "associated"',
-  'relationshipType: "selection"',
+  'relationshipType: principalHunterKeys.has(`${person.id}:${allocation.customerId}`) ? "principal" : "selection"',
   'row.relationshipType === "principal" ? "Hunter principal" : row.relationshipType === "associated" ? "Cliente associado" : "Seleção gerencial"',
 ];
 const missingSpecialistHunterReportTokens = requiredSpecialistHunterReportTokens.filter((token) => !source.includes(token));
@@ -609,9 +608,9 @@ const generatedSpecialistHunterOfficialRows = buildOfficialRowsForView({
       personName: "Especialista QA",
       customerName: "Cliente Principal",
       areaName: "Salesforce",
-      hunterAmount: 0,
+      hunterAmount: 10,
       maintenanceAmount: 0,
-      amount: 0,
+      amount: 10,
       isPrincipalHunter: true,
     },
   ],
@@ -627,8 +626,8 @@ const generatedSpecialistHunterOfficialRows = buildOfficialRowsForView({
 if (!generatedSpecialistHunterOfficialRows.some((row) => row.executive === "Especialista QA" && row.customerName === "Cliente Especialista" && row.billingCustomer === "Google - Alianças" && row.hunter === 40)) {
   throw new Error("Specialist Hunter official rows must include regular managerial selections.");
 }
-if (!generatedSpecialistHunterOfficialRows.some((row) => row.executive === "Especialista QA - Hunter principal" && row.customerName === "Cliente Principal" && row.billingCustomer === "Salesforce" && row.hunter === 0 && row.farmerRenewal === 0)) {
-  throw new Error("Specialist Hunter official rows must append principal Hunter accounts in a differentiated block, even when the value is zero.");
+if (!generatedSpecialistHunterOfficialRows.some((row) => row.executive === "Especialista QA - Hunter principal" && row.customerName === "Cliente Principal" && row.billingCustomer === "Salesforce" && row.hunter === 10 && row.farmerRenewal === 0)) {
+  throw new Error("Specialist Hunter official rows must append Studio-backed principal Hunter accounts in a differentiated block.");
 }
 
 const generatedOfficialRows = buildOfficialRowsForView({

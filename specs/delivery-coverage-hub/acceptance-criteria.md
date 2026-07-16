@@ -558,9 +558,14 @@
 - A exportação do Relatório de Metas oferece prévia formatada antes do download.
 - Quando houver pessoas selecionadas no Relatório de Metas, a prévia e o arquivo
   exportado mostram apenas a seleção ativa.
-- Na visão `Hunters Especializados`, clientes associados aparecem mesmo sem
-  valor gerencial de Studio; contas em que o Hunter Especializado é Hunter
-  principal aparecem diferenciadas, inclusive com valor zero.
+- Na visão `Hunters Especializados`, somente metas derivadas de Studio
+  selecionado aparecem; cliente associado ou Hunter principal sem Studio não
+  gera linha de meta.
+- Se o Hunter Especializado for principal e já tiver seleção de Studio no mesmo
+  cliente, o relatório exibe uma única linha marcada como principal e não soma
+  uma segunda Meta Squads/Times.
+- A tela de `Metas Hunter Especializado` permite corrigir meta direta histórica
+  de Hunter Especializado para manter apenas o valor herdado de Studio.
 - A Planilha oficial de `Hunters Especializados` gera arquivo com nome distinto
   da Planilha oficial padrão, evitando sobrescrita local.
 - Interface está em português; código e identificadores estão em inglês.
