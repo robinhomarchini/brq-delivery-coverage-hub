@@ -1020,6 +1020,13 @@ Mapeamento de origem:
 - A Planilha oficial da visão `Hunters Especializados` usa nome de arquivo
   próprio para não sobrescrever a Planilha oficial padrão de executivos.
 
+## Clientes
+
+- A abertura de `Novo cliente` deve ignorar qualquer cliente aberto por URL ou
+  edição anterior. O formulário novo inicia sem cliente vinculado, sem Hunter
+  responsável, sem metas e com as aberturas de Studio zeradas até que o cliente
+  seja salvo e receba alocações em `Metas por Área/Studio`.
+
 ## Responsividade
 
 Em telas menores a sidebar vira barra superior compacta, tabelas permitem rolagem

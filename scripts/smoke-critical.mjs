@@ -14,6 +14,18 @@ const checks = [
     ],
   },
   {
+    name: "New customer form must not reuse initial URL customer values",
+    file: "src/components/customers/customer-management.tsx",
+    failWhen: [
+      /const linkedEditing = editing \?\? \(!dismissInitialOpen \? initialCustomer \?\? null : null\)/,
+    ],
+    require: [
+      /const linkedEditing = editing \?\? \(!manualOpen && !dismissInitialOpen \? initialCustomer \?\? null : null\)/,
+      /setDismissInitialOpen\(!item\)/,
+      /<form key=\{linkedEditing\?\.id \?\? "new-customer"\}/,
+    ],
+  },
+  {
     name: "Target form must not auto-select the first customer or person",
     file: "src/components/targets/target-management.tsx",
     failWhen: [

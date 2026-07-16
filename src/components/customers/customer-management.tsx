@@ -135,7 +135,7 @@ export function CustomerManagement() {
     .sort((first, second) => first.name.localeCompare(second.name)),
   [people]);
   const managerIds = useMemo(() => new Set(managers.map((person) => person.id)), [managers]);
-  const linkedEditing = editing ?? (!dismissInitialOpen ? initialCustomer ?? null : null);
+  const linkedEditing = editing ?? (!manualOpen && !dismissInitialOpen ? initialCustomer ?? null : null);
   const open = manualOpen || Boolean(linkedEditing && !dismissInitialOpen);
 
   const filtered = useMemo(() => scopedYearCustomers.filter((customer) => {
@@ -302,7 +302,7 @@ export function CustomerManagement() {
     setFormFarmerRenewalTarget(getInputValue(item?.farmerRenewalTarget ?? getFinancialCustomerMetric(item?.name ?? "", "deliveryFarmerRevenue")));
     setFormError("");
     setManualOpen(true);
-    setDismissInitialOpen(false);
+    setDismissInitialOpen(!item);
   }
 
   function applyCustomerRules(name: string) {
@@ -557,7 +557,7 @@ export function CustomerManagement() {
       <Dialog open={open} onOpenChange={(nextOpen) => (nextOpen ? setManualOpen(true) : closeForm())}>
         <DialogContent className="max-w-5xl">
           <DialogHeader><DialogTitle>{linkedEditing ? "Editar cliente" : "Novo cliente"}</DialogTitle><DialogDescription>Cadastre a conta e seus indicadores executivos.</DialogDescription></DialogHeader>
-          <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-2">
+          <form key={linkedEditing?.id ?? "new-customer"} onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-2">
             <Field label="Nome do cliente"><Input name="name" value={formName} onChange={(event) => setFormName(event.target.value)} onBlur={(event) => applyCustomerRules(event.target.value)} maxLength={160} required /></Field>
             <Field label="Indústria"><Input name="industry" defaultValue={linkedEditing?.industry ?? "Financial Services"} maxLength={120} required /></Field>
             <Field label="Diretor responsável"><Select name="directorResponsibleId" value={formDirectorId} onChange={(event) => setFormDirectorId(event.target.value)} required><option value="">Selecione</option>{directors.map((item) => <option key={item.id} value={item.id}>{displayDirectorName(item.name)}</option>)}</Select></Field>

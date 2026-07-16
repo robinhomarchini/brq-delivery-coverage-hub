@@ -568,5 +568,8 @@
   de Hunter Especializado para manter apenas o valor herdado de Studio.
 - A Planilha oficial de `Hunters Especializados` gera arquivo com nome distinto
   da Planilha oficial padrão, evitando sobrescrita local.
+- Na tela `Clientes`, abrir `Novo cliente` sempre inicia um formulário limpo:
+  sem Hunter responsável, sem metas, sem alocações derivadas de Studio e sem
+  reutilizar valores de cliente aberto por URL ou edição anterior.
 - Interface está em português; código e identificadores estão em inglês.
 - `npm run lint`, `npm run typecheck` e `npm run build` concluem sem erros.
