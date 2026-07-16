@@ -221,6 +221,18 @@ export function getCustomerCoverageStatus(
     };
   }
 
+  if (difference > 0.01 && hasVisibleCurrencyAmount(difference)) {
+    return {
+      status: "mismatch",
+      title: [
+        "Distribuição por pessoas acima da meta geral do cliente.",
+        "",
+        compositionTitle,
+      ].join("\n"),
+      difference,
+    };
+  }
+
   if (!customer.managerResponsibleIds.length && breakdown.total > 0.01) {
     return {
       status: "issue",
@@ -245,9 +257,9 @@ export function getCustomerCoverageStatus(
 }
 
 export function getCustomerStatusIconClassName(status: CustomerCoverageStatus, difference = 0) {
-  if (status === "ok") return "bg-emerald-50 text-emerald-700";
+  if (status === "ok") return "bg-sky-50 text-sky-700";
   if (status === "mismatch") return difference > 0.01 ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700";
-  if (status === "issue") return "bg-blue-50 text-blue-700";
+  if (status === "issue") return "bg-amber-50 text-amber-700";
   return "bg-slate-100 text-slate-400";
 }
 

@@ -284,6 +284,9 @@ Authorization must be enforced server-side and/or database-side, not only by UI.
   The command validates the bearer token, app access and editor/admin role
   server-side, then saves customer, yearly target context and manager
   assignments transactionally under the current provider/RLS context.
+  It must not overwrite existing person target allocations for associated
+  Hunters, Farmers or Delivery managers; those targets are separate annual facts
+  managed by person/studio target commands.
 - `saveCustomers`: bulk operational target/customer update, idempotent and not
   allowed to overwrite board baselines.
 - `deleteCustomer`: blocks or cleans dependent subjects, assignments, targets,

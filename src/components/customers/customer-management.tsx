@@ -3,7 +3,7 @@
 import { Building2, Info, Pencil, Plus, Star, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
-import type { Customer, Person, StudioTargetAllocation } from "@/data/mockData";
+import type { Customer, Person, StudioTargetAllocation, TargetAllocation } from "@/data/mockData";
 import { PageHeader } from "@/components/shared/page-header";
 import { KpiSummaryCard } from "@/components/shared/kpi-summary-card";
 import { ReportExportActions, type ReportColumn } from "@/components/shared/report-export-actions";
@@ -359,6 +359,9 @@ export function CustomerManagement() {
     const selectedHunter = hunters.find((person) => person.id === formHunterId);
     const previousHunterId = getPrimaryHunterIdForCustomer(customerId, people);
     const hunterChanged = Boolean(previousHunterId && previousHunterId !== formHunterId);
+    const selectedHunterAllocation = selectedHunter
+      ? getHunterAllocationForCustomerPerson(targetAllocations, customerId, selectedHunter.id, year)
+      : undefined;
     const staleHunterAllocations = targetAllocations.filter((allocation) =>
       allocation.customerId === customerId
       && allocation.year === year
@@ -380,16 +383,20 @@ export function CustomerManagement() {
     }
 
     if (!hunterChanged) {
+      if (selectedHunterAllocation) {
+        return;
+      }
+
       await savePersonCustomerTargets({
         customerId,
         personId: selectedHunter.id,
         year,
-        hunterAmount: formHunterAmount,
+        hunterAmount: 0,
         farmerRenewalAmount: 0,
         studioAmount: 0,
         increaseCustomerTarget: false,
         allowSpecialistHunterAsCustomerHunter: isSpecialistHunterRole(selectedHunter.roleType),
-        notes: "Meta Hunter sincronizada pela tela Clientes.",
+        notes: "Vínculo Hunter sincronizado pela tela Clientes sem alterar metas lançadas.",
       });
       return;
     }
@@ -401,28 +408,34 @@ export function CustomerManagement() {
       )
       : true;
 
+    const transferredHunterAmount = staleHunterAllocations.reduce((total, allocation) => total + allocation.amount, 0);
+    const shouldTransferDirectHunterTarget = shouldTransferTargets && transferredHunterAmount > 0 && !selectedHunterAllocation;
+
     if (hasTransferableTargets && shouldTransferTargets) {
       for (const allocation of staleStudioAllocations) {
         await transferStudioHunterAllocation(allocation, selectedHunter.id);
       }
     }
 
-    const transferredHunterAmount = staleHunterAllocations.reduce((total, allocation) => total + allocation.amount, 0);
-    await savePersonCustomerTargets({
-        customerId,
-        personId: selectedHunter.id,
-        year,
-        hunterAmount: shouldTransferTargets && transferredHunterAmount > 0 ? transferredHunterAmount : formHunterAmount,
-        farmerRenewalAmount: 0,
-        studioAmount: 0,
-        increaseCustomerTarget: false,
-        allowSpecialistHunterAsCustomerHunter: isSpecialistHunterRole(selectedHunter.roleType),
-        notes: hasTransferableTargets && shouldTransferTargets
-          ? "Meta Hunter transferida pela tela Clientes."
-          : "Meta Hunter sincronizada pela tela Clientes.",
-      });
+    if (selectedHunterAllocation) {
+      return;
+    }
 
-    if (hasTransferableTargets && shouldTransferTargets) {
+    await savePersonCustomerTargets({
+      customerId,
+      personId: selectedHunter.id,
+      year,
+      hunterAmount: shouldTransferDirectHunterTarget ? transferredHunterAmount : 0,
+      farmerRenewalAmount: 0,
+      studioAmount: 0,
+      increaseCustomerTarget: false,
+      allowSpecialistHunterAsCustomerHunter: isSpecialistHunterRole(selectedHunter.roleType),
+      notes: hasTransferableTargets && shouldTransferTargets
+        ? "Meta Hunter transferida pela tela Clientes."
+        : "Vínculo Hunter sincronizado pela tela Clientes sem alterar metas lançadas.",
+    });
+
+    if (shouldTransferDirectHunterTarget) {
       for (const allocation of staleHunterAllocations) {
         await deleteTargetAllocation(allocation.id);
       }
@@ -585,7 +598,7 @@ export function CustomerManagement() {
                 {hunters.map((item) => <option key={item.id} value={item.id}>{formatHunterOptionLabel(item)}</option>)}
               </Select>
               <span className="mt-1 block text-xs text-slate-400">
-                Ao salvar, o vínculo e a meta Hunter da pessoa/ano são sincronizados automaticamente. Valor zero mantém apenas o vínculo.
+                Ao salvar, o vínculo do Hunter é sincronizado. Metas já lançadas para a pessoa não são alteradas pela meta geral do cliente.
               </span>
             </Field>
             <Field label="Conta estratégica"><Select name="strategicAccount" defaultValue={String(linkedEditing?.strategicAccount ?? true)}><option value="true">Sim</option><option value="false">Não</option></Select></Field>
@@ -1084,6 +1097,20 @@ function getInputValue(value: number) {
 
 function formatHunterOptionLabel(person: Pick<Person, "name" | "roleType">) {
   return isSpecialistHunterRole(person.roleType) ? `${person.name} · Hunter Especializado` : person.name;
+}
+
+function getHunterAllocationForCustomerPerson(
+  allocations: TargetAllocation[],
+  customerId: string,
+  personId: string,
+  year: number,
+) {
+  return allocations.find((allocation) =>
+    allocation.customerId === customerId
+    && allocation.personId === personId
+    && allocation.year === year
+    && allocation.type === "hunter"
+  );
 }
 
 function parseAmount(value: string) {

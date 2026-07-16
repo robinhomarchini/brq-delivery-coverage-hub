@@ -1026,6 +1026,15 @@ Mapeamento de origem:
   edição anterior. O formulário novo inicia sem cliente vinculado, sem Hunter
   responsável, sem metas e com as aberturas de Studio zeradas até que o cliente
   seja salvo e receba alocações em `Metas por Área/Studio`.
+- Alterar metas gerais do cliente atualiza somente o fato anual do cliente. A
+  tela pode sincronizar o vínculo do Hunter responsável, mas não pode sobrescrever
+  metas já lançadas em `Metas por Pessoa` para Hunters, Farmers ou Delivery
+  associados. Esses fatos permanecem independentes e podem ficar acima, abaixo ou
+  batidos em relação à meta geral do cliente.
+- Na lista de Clientes, o ícone do cliente deve indicar a conciliação financeira:
+  vermelho quando a soma de Hunters/Farmers estiver abaixo da meta, azul quando
+  estiver batida e verde quando estiver acima. Pendências cadastrais, como falta
+  de responsável, usam sinalização distinta de valor.
 
 ## Metas por Área/Studio
 

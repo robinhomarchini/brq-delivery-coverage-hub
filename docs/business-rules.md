@@ -5,6 +5,7 @@
 - Customer targets are annual facts.
 - Board baselines are reference facts and must not be overwritten by operational edits.
 - Operational customer targets, person targets and studio allocations are separate sources and are compared through reports.
+- Saving a customer target must not overwrite existing person target allocations. Customer targets express the account objective; person targets express allocation/reconciliation and can legitimately be above, below or equal to the customer target.
 
 ## Hunters And Studios
 

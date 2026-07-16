@@ -7,10 +7,17 @@ const checks = [
     failWhen: [
       /savePerson,\s*\n/,
       /await\s+savePerson\s*\(/,
+      /hunterAmount:\s*formHunterAmount/,
+      /hunterAmount:\s*shouldTransferTargets && transferredHunterAmount > 0 \? transferredHunterAmount : formHunterAmount/,
+      /Meta Hunter sincronizada pela tela Clientes/,
+      /Ao salvar, o vínculo e a meta Hunter da pessoa\/ano são sincronizados automaticamente/,
     ],
     require: [
       /savePersonCustomerTargets/,
       /syncCustomerHunterAssignmentAndTarget/,
+      /getHunterAllocationForCustomerPerson/,
+      /Metas já lançadas para a pessoa não são alteradas pela meta geral do cliente/,
+      /Vínculo Hunter sincronizado pela tela Clientes sem alterar metas lançadas/,
     ],
   },
   {
