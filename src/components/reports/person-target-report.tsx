@@ -258,7 +258,7 @@ export function PersonTargetReport() {
   const filteredSpecialistHunterRows = useMemo(() => {
     const query = search.toLowerCase();
     return specialistHunterRows.filter((row) =>
-      !query || `${row.personName} ${row.customerName} ${row.areaName}`.toLowerCase().includes(query)
+      !query || `${row.personName} ${row.customerName} ${row.areaName} ${row.sourceLabel} ${row.relationshipType}`.toLowerCase().includes(query)
     );
   }, [search, specialistHunterRows]);
   const directorDetailRows = useMemo(
@@ -340,8 +340,10 @@ export function PersonTargetReport() {
   });
   const officialCustomExports = [{
     label: "Planilha oficial",
-    title: "Executivo e Cliente (R$) - FINANCIAL",
-    filename: `FINANCIAL-Rateio-Metas-AEs-${year}${officialFilenameSuffix}`,
+    title: effectiveView === "specialistHunters" ? "Hunter Especializado (R$) - FINANCIAL" : "Executivo e Cliente (R$) - FINANCIAL",
+    filename: effectiveView === "specialistHunters"
+      ? `FINANCIAL-Hunters-Especializados-${year}${officialFilenameSuffix}`
+      : `FINANCIAL-Rateio-Metas-AEs-${year}${officialFilenameSuffix}`,
     worksheetName: "Resumo_Cliente",
     rows: currentOfficialRows as unknown[],
     columns: officialReportColumns as ReportColumn<unknown>[],
@@ -1358,9 +1360,11 @@ export function PersonTargetReport() {
                     </TableCell>
                     <TableCell>{row.customerName}</TableCell>
                     <TableCell>
-                      {row.isPrincipalHunter
+                      {row.relationshipType === "principal"
                         ? <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">Hunter principal</Badge>
-                        : <Badge variant="secondary">Seleção gerencial</Badge>}
+                        : row.relationshipType === "associated"
+                          ? <Badge variant="secondary">Cliente associado</Badge>
+                          : <Badge className="bg-sky-100 text-sky-800 hover:bg-sky-100">Seleção gerencial</Badge>}
                     </TableCell>
                     <TableCell>{row.areaName}</TableCell>
                     <TableCell><Badge className="bg-sky-100 text-sky-800 hover:bg-sky-100">{row.sourceLabel}</Badge></TableCell>
@@ -2630,9 +2634,13 @@ function buildSpecialistHunterRows(
   const peopleById = new Map(people.map((person) => [person.id, person]));
   const studioById = new Map(studioAllocations.map((allocation) => [allocation.id, allocation]));
   const principalHunterKeys = new Set(allocations
-    .filter((allocation) => allocation.year === year && allocation.type === "hunter" && allocation.amount > 0)
+    .filter((allocation) => allocation.year === year && allocation.type === "hunter")
     .map((allocation) => `${allocation.personId}:${allocation.customerId}`));
+  const hunterAllocationsByPersonCustomer = new Map(allocations
+    .filter((allocation) => allocation.year === year && allocation.type === "hunter")
+    .map((allocation) => [`${allocation.personId}:${allocation.customerId}`, allocation]));
   const rows: SpecialistHunterRow[] = [];
+  const emittedKeys = new Set<string>();
 
   assignments
     .filter((assignment) => assignment.year === year)
@@ -2651,10 +2659,46 @@ function buildSpecialistHunterRows(
         areaName: areaNames.get(allocation.areaId) ?? allocation.areaId,
         sourceLabel: getSpecialistHunterSourceLabel(allocation.hunterAmount, allocation.maintenanceAmount),
         isPrincipalHunter: principalHunterKeys.has(`${person.id}:${allocation.customerId}`),
+        relationshipType: "selection",
         hunterAmount: allocation.hunterAmount,
         maintenanceAmount: allocation.maintenanceAmount,
         amount: allocation.hunterAmount + allocation.maintenanceAmount,
         year,
+      });
+      emittedKeys.add(`${person.id}:${allocation.customerId}:selection:${assignment.studioTargetAllocationId}`);
+    });
+
+  people
+    .filter((person) => person.active && isSpecialistHunterRole(person.roleType))
+    .forEach((person) => {
+      const customerIds = new Set<string>(person.clientIds);
+      allocations
+        .filter((allocation) => allocation.year === year && allocation.personId === person.id && allocation.type === "hunter")
+        .forEach((allocation) => customerIds.add(allocation.customerId));
+
+      Array.from(customerIds).forEach((customerId) => {
+        const hunterAllocation = hunterAllocationsByPersonCustomer.get(`${person.id}:${customerId}`);
+        const isPrincipalHunter = Boolean(hunterAllocation);
+        const relationshipType: SpecialistHunterRelationshipType = isPrincipalHunter ? "principal" : "associated";
+        const rowKey = `${person.id}:${customerId}:${relationshipType}`;
+        if (emittedKeys.has(rowKey)) return;
+
+        rows.push({
+          id: rowKey,
+          personId: person.id,
+          personName: person.name,
+          customerId,
+          customerName: customerNames.get(customerId) ?? customerId,
+          areaName: isPrincipalHunter ? "Hunter principal" : "-",
+          sourceLabel: isPrincipalHunter ? "Hunter principal" : "Cliente associado",
+          isPrincipalHunter,
+          relationshipType,
+          hunterAmount: hunterAllocation?.amount ?? 0,
+          maintenanceAmount: 0,
+          amount: hunterAllocation?.amount ?? 0,
+          year,
+        });
+        emittedKeys.add(rowKey);
       });
     });
 
@@ -2968,7 +3012,7 @@ function getClientCoverageReportColumns(showValues: boolean): ReportColumn<Clien
 const specialistHunterReportColumns: ReportColumn<SpecialistHunterRow>[] = [
   { key: "personName", label: "Hunter Especializado", value: (row) => row.personName },
   { key: "customerName", label: "Cliente", value: (row) => row.customerName },
-  { key: "principalHunter", label: "Papel no cliente", value: (row) => row.isPrincipalHunter ? "Hunter principal" : "Seleção gerencial" },
+  { key: "principalHunter", label: "Papel no cliente", value: (row) => row.relationshipType === "principal" ? "Hunter principal" : row.relationshipType === "associated" ? "Cliente associado" : "Seleção gerencial" },
   { key: "areaName", label: "Área / Studio", value: (row) => row.areaName },
   { key: "sourceLabel", label: "Origem", value: (row) => row.sourceLabel },
   { key: "amount", label: "Valor gerencial", value: (row) => row.amount, format: "currency", align: "right" },
@@ -3206,11 +3250,13 @@ type SpecialistHunterRow = {
   areaName: string;
   sourceLabel: string;
   isPrincipalHunter: boolean;
+  relationshipType: SpecialistHunterRelationshipType;
   hunterAmount: number;
   maintenanceAmount: number;
   amount: number;
   year: number;
 };
+type SpecialistHunterRelationshipType = "selection" | "principal" | "associated";
 type DirectorDetailRow = {
   id: string;
   personId: string;

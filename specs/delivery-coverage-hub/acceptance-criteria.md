@@ -558,5 +558,10 @@
 - A exportação do Relatório de Metas oferece prévia formatada antes do download.
 - Quando houver pessoas selecionadas no Relatório de Metas, a prévia e o arquivo
   exportado mostram apenas a seleção ativa.
+- Na visão `Hunters Especializados`, clientes associados aparecem mesmo sem
+  valor gerencial de Studio; contas em que o Hunter Especializado é Hunter
+  principal aparecem diferenciadas, inclusive com valor zero.
+- A Planilha oficial de `Hunters Especializados` gera arquivo com nome distinto
+  da Planilha oficial padrão, evitando sobrescrita local.
 - Interface está em português; código e identificadores estão em inglês.
 - `npm run lint`, `npm run typecheck` e `npm run build` concluem sem erros.

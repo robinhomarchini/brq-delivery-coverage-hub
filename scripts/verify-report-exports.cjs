@@ -62,6 +62,20 @@ if (!source.includes("officialLayout: true")) {
   throw new Error("Planilha oficial is not using the official workbook layout.");
 }
 
+if (!source.includes("FINANCIAL-Hunters-Especializados") || !source.includes("FINANCIAL-Rateio-Metas-AEs")) {
+  throw new Error("Specialist Hunter official export must use a distinct filename from the standard official spreadsheet.");
+}
+
+const requiredSpecialistHunterReportTokens = [
+  'const relationshipType: SpecialistHunterRelationshipType = isPrincipalHunter ? "principal" : "associated"',
+  'relationshipType: "selection"',
+  'row.relationshipType === "principal" ? "Hunter principal" : row.relationshipType === "associated" ? "Cliente associado" : "Seleção gerencial"',
+];
+const missingSpecialistHunterReportTokens = requiredSpecialistHunterReportTokens.filter((token) => !source.includes(token));
+if (missingSpecialistHunterReportTokens.length) {
+  throw new Error(`Specialist Hunter report is missing relationship handling: ${missingSpecialistHunterReportTokens.join(", ")}`);
+}
+
 if (!officialExportSource.includes('export const officialDefaultBillingCustomer = ""')) {
   throw new Error("Planilha oficial must keep Cliente Faturamento blank by default for non-Studio rows.");
 }
@@ -595,9 +609,9 @@ const generatedSpecialistHunterOfficialRows = buildOfficialRowsForView({
       personName: "Especialista QA",
       customerName: "Cliente Principal",
       areaName: "Salesforce",
-      hunterAmount: 10,
-      maintenanceAmount: 20,
-      amount: 30,
+      hunterAmount: 0,
+      maintenanceAmount: 0,
+      amount: 0,
       isPrincipalHunter: true,
     },
   ],
@@ -613,8 +627,8 @@ const generatedSpecialistHunterOfficialRows = buildOfficialRowsForView({
 if (!generatedSpecialistHunterOfficialRows.some((row) => row.executive === "Especialista QA" && row.customerName === "Cliente Especialista" && row.billingCustomer === "Google - Alianças" && row.hunter === 40)) {
   throw new Error("Specialist Hunter official rows must include regular managerial selections.");
 }
-if (!generatedSpecialistHunterOfficialRows.some((row) => row.executive === "Especialista QA - Hunter principal" && row.customerName === "Cliente Principal" && row.billingCustomer === "Salesforce" && row.hunter === 10 && row.farmerRenewal === 20)) {
-  throw new Error("Specialist Hunter official rows must append principal Hunter accounts in a differentiated block.");
+if (!generatedSpecialistHunterOfficialRows.some((row) => row.executive === "Especialista QA - Hunter principal" && row.customerName === "Cliente Principal" && row.billingCustomer === "Salesforce" && row.hunter === 0 && row.farmerRenewal === 0)) {
+  throw new Error("Specialist Hunter official rows must append principal Hunter accounts in a differentiated block, even when the value is zero.");
 }
 
 const generatedOfficialRows = buildOfficialRowsForView({

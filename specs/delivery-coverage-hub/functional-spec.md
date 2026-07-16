@@ -1006,6 +1006,12 @@ Mapeamento de origem:
 - Organograma: PNG gerado a partir da área do organograma.
 - Dados: CSV com pessoas e clientes em seções. Assuntos ficam fora do export
   enquanto o módulo estiver pausado.
+- No Relatório de Metas, a visão `Hunters Especializados` separa três vínculos:
+  seleção gerencial de Studio, cliente associado ao Hunter Especializado e
+  conta em que o Hunter Especializado é o Hunter principal. A conta principal
+  deve aparecer mesmo quando a meta Hunter direta estiver zerada.
+- A Planilha oficial da visão `Hunters Especializados` usa nome de arquivo
+  próprio para não sobrescrever a Planilha oficial padrão de executivos.
 
 ## Responsividade
 

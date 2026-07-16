@@ -30,6 +30,7 @@ export type OfficialTargetItem = {
   businessUnit?: string;
   farmerRenewal: number;
   hunter: number;
+  forceInclude?: boolean;
 };
 
 export type OfficialPeopleRow = {
@@ -201,6 +202,7 @@ export function buildOfficialRowsForView({
         billingCustomer: row.areaName,
         farmerRenewal: row.maintenanceAmount,
         hunter: row.hunterAmount,
+        forceInclude: true,
       }));
     const principalRows = specialistHunterRows
       .filter((row) => row.isPrincipalHunter)
@@ -210,6 +212,7 @@ export function buildOfficialRowsForView({
         billingCustomer: row.areaName,
         farmerRenewal: row.maintenanceAmount,
         hunter: row.hunterAmount,
+        forceInclude: true,
       }));
 
     return buildOfficialGroupedRows([...gerencialRows, ...principalRows]);
@@ -248,7 +251,7 @@ export function buildOfficialRowsForView({
 function buildOfficialGroupedRows(items: OfficialTargetItem[]) {
   const byExecutive = new Map<string, Map<string, OfficialTargetItem>>();
   items
-    .filter((item) => item.farmerRenewal + item.hunter > 0)
+    .filter((item) => item.forceInclude || item.farmerRenewal + item.hunter > 0)
     .forEach((item) => {
       const customerMap = byExecutive.get(item.executive) ?? new Map<string, OfficialTargetItem>();
       const itemKey = [
@@ -263,9 +266,11 @@ function buildOfficialGroupedRows(items: OfficialTargetItem[]) {
         businessUnit: item.businessUnit ?? officialDefaultBusinessUnit,
         farmerRenewal: 0,
         hunter: 0,
+        forceInclude: item.forceInclude,
       };
       current.farmerRenewal += item.farmerRenewal;
       current.hunter += item.hunter;
+      current.forceInclude = current.forceInclude || item.forceInclude;
       customerMap.set(itemKey, current);
       byExecutive.set(item.executive, customerMap);
     });
@@ -284,7 +289,7 @@ function buildOfficialGroupedRows(items: OfficialTargetItem[]) {
         .forEach((amounts) => {
           executiveFarmer += amounts.farmerRenewal;
           executiveHunter += amounts.hunter;
-          rows.push(makeOfficialRow({
+          if (amounts.forceInclude || amounts.farmerRenewal + amounts.hunter > 0) rows.push(makeOfficialRow({
             executive,
             customerName: amounts.customerName,
             billingCustomer: amounts.billingCustomer ?? officialDefaultBillingCustomer,
