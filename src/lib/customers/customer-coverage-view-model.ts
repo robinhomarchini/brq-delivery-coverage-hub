@@ -191,7 +191,7 @@ export function getCustomerCoverageStatus(
     return {
       status: "outOfTarget",
       title: [
-        "Cliente mantido no controle, mas fora da meta do ano selecionado.",
+        "Cliente New Logo mantido no controle, mas sem compor a meta oficial do ano selecionado.",
         "",
         compositionTitle,
       ].join("\n"),
@@ -290,7 +290,7 @@ export function getCustomerStatusIconClassName(status: CustomerCoverageStatus, d
 export function getCoverageStatusLabel(status: CustomerCoverageStatus) {
   if (status === "ok") return "Reconciliado";
   if (status === "specialist") return "Hunter Especializado";
-  if (status === "outOfTarget") return "Fora da meta";
+  if (status === "outOfTarget") return "New Logo";
   if (status === "mismatch") return "Diferença de valores";
   if (status === "issue") return "Pendente de responsável";
   return "Sem dados";

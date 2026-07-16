@@ -545,7 +545,7 @@ export function CustomerManagement() {
                     title={hunterConsultOnly || !canEdit ? "Consulta em modo leitura" : "Dê duplo clique para editar o cliente"}
                     onDoubleClick={() => openForm(customer)}
                   >
-                    <TableCell><div className="flex items-center gap-3"><div className={`grid h-10 w-10 place-items-center rounded-xl ${getCustomerStatusIconClassName(coverage.status, coverage.difference)}`} title={coverage.title} aria-label={coverage.title}><Building2 className="h-5 w-5" /></div><div><p className="font-semibold">{customer.name}</p><p className="text-xs text-slate-400">{customer.industry}</p>{coverage.status === "outOfTarget" && <p className="text-xs font-semibold text-slate-600" title={coverage.title}>Fora da meta</p>}{coverage.status === "mismatch" && typeof coverage.difference === "number" && <p className={`text-xs font-semibold ${coverage.difference > 0 ? "text-emerald-700" : "text-red-600"}`} title={coverage.title}>{coverage.difference > 0 ? "Acima" : "Abaixo"}: {formatCurrency(Math.abs(coverage.difference))}</p>}</div></div></TableCell>
+                    <TableCell><div className="flex items-center gap-3"><div className={`grid h-10 w-10 place-items-center rounded-xl ${getCustomerStatusIconClassName(coverage.status, coverage.difference)}`} title={coverage.title} aria-label={coverage.title}><Building2 className="h-5 w-5" /></div><div><p className="font-semibold">{customer.name}</p><p className="text-xs text-slate-400">{customer.industry}</p>{coverage.status === "outOfTarget" && <p className="text-xs font-semibold text-slate-600" title={coverage.title}>(New Logo)</p>}{coverage.status === "mismatch" && typeof coverage.difference === "number" && <p className={`text-xs font-semibold ${coverage.difference > 0 ? "text-emerald-700" : "text-red-600"}`} title={coverage.title}>{coverage.difference > 0 ? "Acima" : "Abaixo"}: {formatCurrency(Math.abs(coverage.difference))}</p>}</div></div></TableCell>
                     <TableCell>
                       <p>{displayDirectorName(people.find((item) => item.id === customer.directorResponsibleId)?.name ?? customer.directorResponsibleId)}</p>
                       <p className="text-xs text-slate-400">Governança Delivery</p>
@@ -621,7 +621,7 @@ export function CustomerManagement() {
                 onChange={(event) => setFormCountsTowardTarget(!event.target.checked)}
               />
               <span>
-                <span className="block text-sm font-semibold text-slate-800">Fora da meta do ano</span>
+                <span className="block text-sm font-semibold text-slate-800">New Logo</span>
                 <span className="mt-1 block text-xs leading-5 text-slate-500">
                   Use para clientes novos que devem ficar no controle, mas não compõem a meta oficial de {year}. Os valores ficam cadastrados para auditoria e podem voltar a compor a meta em outro ano.
                 </span>
@@ -683,7 +683,7 @@ export function CustomerManagement() {
               <p className="mt-1 text-xs text-slate-500">
                 {formCountsTowardTarget
                   ? `Calculada por Hunter + Renovação + Ampliação para ${year}. As aberturas de Área/Studio estão contidas nesses componentes e não somam novamente no total.`
-                  : `Fora da meta oficial de ${year}. Valor cadastrado para controle: ${formatCurrency(formRevenue)}.`}
+                  : `New Logo sem composição na meta oficial de ${year}. Valor cadastrado para controle: ${formatCurrency(formRevenue)}.`}
               </p>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 md:col-span-2">
@@ -696,7 +696,7 @@ export function CustomerManagement() {
                 </>
               ) : (
                 <p className="mt-3 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
-                  Cliente fora da meta do ano: a composição fica disponível para controle, mas não gera pendência de batimento.
+                  Cliente New Logo: a composição fica disponível para controle, mas não gera pendência de batimento.
                 </p>
               )}
               <p className="mt-2 text-xs text-slate-500">

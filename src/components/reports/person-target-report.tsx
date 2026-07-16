@@ -17,7 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useDeliveryStore } from "@/store/delivery-store";
 import { useAccess } from "@/lib/access-context";
 import { isHunterConsultAccess, normalizeAccessEmail } from "@/lib/access-control";
-import { getCustomerTotalTarget } from "@/lib/customer-target-total";
+import { customerCountsTowardTarget, getCustomerTotalTarget } from "@/lib/customer-target-total";
 import { formatCurrency, toFileSlug } from "@/lib/utils";
 import { isCustomerFarmerResponsibleProfile, isHunterRole, isSpecialistHunterRole, isTargetAssignableRole } from "@/lib/roles";
 import { getStudioMaintenancePersonId, isStudioRenewalEligibleForFarmer } from "@/lib/studio-renewal-rollup";
@@ -73,6 +73,7 @@ export function PersonTargetReport() {
   const [areaSort, setAreaSort] = useState<SortState<AreaSortKey>>({ key: "total", direction: "desc" });
   const [hunterSort, setHunterSort] = useState<SortState<HunterSortKey>>({ key: "totalHunter", direction: "desc" });
   const [showClientCoverageValues, setShowClientCoverageValues] = useState(true);
+  const [includeNewLogos, setIncludeNewLogos] = useState(false);
   const [selectedPersonIds, setSelectedPersonIds] = useState<Set<string>>(new Set());
 
   const selectedYear = Number(year) || currentYear;
@@ -101,7 +102,28 @@ export function PersonTargetReport() {
     ])).sort((a, b) => b - a),
     [studioTargetAllocations, targetAllocations],
   );
-  const customerNames = useMemo(() => new Map(customers.map((customer) => [customer.id, customer.name])), [customers]);
+  const reportCustomers = useMemo(
+    () => includeNewLogos ? customers : customers.filter(customerCountsTowardTarget),
+    [customers, includeNewLogos],
+  );
+  const reportCustomerIds = useMemo(() => new Set(reportCustomers.map((customer) => customer.id)), [reportCustomers]);
+  const reportTargetAllocations = useMemo(
+    () => targetAllocations.filter((allocation) => reportCustomerIds.has(allocation.customerId)),
+    [reportCustomerIds, targetAllocations],
+  );
+  const reportStudioTargetAllocations = useMemo(
+    () => studioTargetAllocations.filter((allocation) => reportCustomerIds.has(allocation.customerId)),
+    [reportCustomerIds, studioTargetAllocations],
+  );
+  const reportStudioTargetAllocationIds = useMemo(
+    () => new Set(reportStudioTargetAllocations.map((allocation) => allocation.id)),
+    [reportStudioTargetAllocations],
+  );
+  const reportSpecialistHunterStudioAssignments = useMemo(
+    () => specialistHunterStudioAssignments.filter((assignment) => reportStudioTargetAllocationIds.has(assignment.studioTargetAllocationId)),
+    [reportStudioTargetAllocationIds, specialistHunterStudioAssignments],
+  );
+  const customerNames = useMemo(() => new Map(reportCustomers.map((customer) => [customer.id, customer.name])), [reportCustomers]);
   const areaNames = useMemo(() => new Map(areas.map((area) => [area.id, area.name])), [areas]);
   const peopleNames = useMemo(() => new Map(people.map((person) => [person.id, person.name])), [people]);
   const directorOptions = useMemo(
@@ -111,19 +133,19 @@ export function PersonTargetReport() {
     [people],
   );
   const peopleRows = useMemo(
-    () => buildPeopleRows(assignablePeople, targetAllocations, studioTargetAllocations, customerNames, areaNames, selectedYear),
-    [areaNames, assignablePeople, customerNames, selectedYear, studioTargetAllocations, targetAllocations],
+    () => buildPeopleRows(assignablePeople, reportTargetAllocations, reportStudioTargetAllocations, customerNames, areaNames, selectedYear),
+    [areaNames, assignablePeople, customerNames, selectedYear, reportStudioTargetAllocations, reportTargetAllocations],
   );
   const peopleClientRows = useMemo(
     () => buildPeopleClientRows({
       people: assignablePeople,
-      customers,
-      allocations: targetAllocations,
-      studioAllocations: studioTargetAllocations,
+      customers: reportCustomers,
+      allocations: reportTargetAllocations,
+      studioAllocations: reportStudioTargetAllocations,
       areaNames,
       year: selectedYear,
     }),
-    [areaNames, assignablePeople, customers, selectedYear, studioTargetAllocations, targetAllocations],
+    [areaNames, assignablePeople, reportCustomers, selectedYear, reportStudioTargetAllocations, reportTargetAllocations],
   );
   const peopleClientPersonOptions = useMemo(
     () => Array.from(new Map(peopleClientRows.map((row) => [row.personId, {
@@ -138,24 +160,24 @@ export function PersonTargetReport() {
     [peopleClientPersonOptions, selectedPeopleClientPersonId],
   );
   const areaRows = useMemo(
-    () => buildAreaStudioRows(areas, customers, studioTargetAllocations, selectedYear),
-    [areas, customers, selectedYear, studioTargetAllocations],
+    () => buildAreaStudioRows(areas, reportCustomers, reportStudioTargetAllocations, selectedYear),
+    [areas, reportCustomers, selectedYear, reportStudioTargetAllocations],
   );
   const hunterRows = useMemo(
-    () => buildHunterRows(people, targetAllocations, studioTargetAllocations, areaNames, selectedYear),
-    [areaNames, people, selectedYear, studioTargetAllocations, targetAllocations],
+    () => buildHunterRows(people, reportTargetAllocations, reportStudioTargetAllocations, areaNames, selectedYear),
+    [areaNames, people, selectedYear, reportStudioTargetAllocations, reportTargetAllocations],
   );
   const hunterClientRows = useMemo(
     () => buildHunterClientRows({
       people,
-      allocations: targetAllocations,
-      studioAllocations: studioTargetAllocations,
+      allocations: reportTargetAllocations,
+      studioAllocations: reportStudioTargetAllocations,
       customerNames,
       areaNames,
       hunterId: selectedHunterClientId,
       year: selectedYear,
     }),
-    [areaNames, customerNames, people, selectedHunterClientId, selectedYear, studioTargetAllocations, targetAllocations],
+    [areaNames, customerNames, people, selectedHunterClientId, selectedYear, reportStudioTargetAllocations, reportTargetAllocations],
   );
   const filteredPeopleRows = useMemo(() => {
     const query = search.toLowerCase();
@@ -181,14 +203,14 @@ export function PersonTargetReport() {
   }, [areaRows, areaSort, search]);
   const areaDetailRows = useMemo(
     () => buildAreaStudioDetailRows({
-      allocations: studioTargetAllocations,
+      allocations: reportStudioTargetAllocations,
       customerNames,
       areaNames,
       peopleNames,
       areaIds: selectedAreaIds,
       year: selectedYear,
     }),
-    [areaNames, customerNames, peopleNames, selectedAreaIds, selectedYear, studioTargetAllocations],
+    [areaNames, customerNames, peopleNames, selectedAreaIds, selectedYear, reportStudioTargetAllocations],
   );
   const filteredAreaDetailRows = useMemo(() => {
     const query = search.toLowerCase();
@@ -206,14 +228,14 @@ export function PersonTargetReport() {
   const hunterDetailRows = useMemo(
     () => buildHunterDetailRows({
       people,
-      allocations: targetAllocations,
-      studioAllocations: studioTargetAllocations,
+      allocations: reportTargetAllocations,
+      studioAllocations: reportStudioTargetAllocations,
       customerNames,
       areaNames,
       hunterIds: detailHunterIds,
       year: selectedYear,
     }),
-    [areaNames, customerNames, detailHunterIds, people, selectedYear, studioTargetAllocations, targetAllocations],
+    [areaNames, customerNames, detailHunterIds, people, selectedYear, reportStudioTargetAllocations, reportTargetAllocations],
   );
   const filteredHunterDetailRows = useMemo(() => {
     const query = search.toLowerCase();
@@ -230,20 +252,20 @@ export function PersonTargetReport() {
   }, [hunterClientRows, search]);
   const hunterClientGroups = useMemo(() => buildHunterClientGroups(filteredHunterClientRows), [filteredHunterClientRows]);
   const specialistHunterRows = useMemo(
-    () => buildSpecialistHunterRows(people, customers, targetAllocations, studioTargetAllocations, specialistHunterStudioAssignments, areaNames, selectedYear),
-    [areaNames, customers, people, selectedYear, specialistHunterStudioAssignments, studioTargetAllocations, targetAllocations],
+    () => buildSpecialistHunterRows(people, reportCustomers, reportTargetAllocations, reportStudioTargetAllocations, reportSpecialistHunterStudioAssignments, areaNames, selectedYear),
+    [areaNames, reportCustomers, people, selectedYear, reportSpecialistHunterStudioAssignments, reportStudioTargetAllocations, reportTargetAllocations],
   );
   const clientCoverageRows = useMemo(
     () => buildClientCoverageRows({
-      customers,
+      customers: reportCustomers,
       people,
-      allocations: targetAllocations,
-      studioAllocations: studioTargetAllocations,
-      specialistAssignments: specialistHunterStudioAssignments,
+      allocations: reportTargetAllocations,
+      studioAllocations: reportStudioTargetAllocations,
+      specialistAssignments: reportSpecialistHunterStudioAssignments,
       areaNames,
       year: selectedYear,
     }),
-    [areaNames, customers, people, selectedYear, specialistHunterStudioAssignments, studioTargetAllocations, targetAllocations],
+    [areaNames, reportCustomers, people, selectedYear, reportSpecialistHunterStudioAssignments, reportStudioTargetAllocations, reportTargetAllocations],
   );
   const filteredClientCoverageRows = useMemo(() => {
     const query = search.toLowerCase();
@@ -264,15 +286,15 @@ export function PersonTargetReport() {
   const directorDetailRows = useMemo(
     () => buildDirectorDetailRows({
       people,
-      allocations: targetAllocations,
-      studioAllocations: studioTargetAllocations,
+      allocations: reportTargetAllocations,
+      studioAllocations: reportStudioTargetAllocations,
       customerNames,
       areaNames,
       peopleNames,
       directorId: selectedDirectorId,
       year: selectedYear,
     }),
-    [areaNames, customerNames, people, peopleNames, selectedDirectorId, selectedYear, studioTargetAllocations, targetAllocations],
+    [areaNames, customerNames, people, peopleNames, selectedDirectorId, selectedYear, reportStudioTargetAllocations, reportTargetAllocations],
   );
   const filteredDirectorDetailRows = useMemo(() => {
     const query = search.toLowerCase();
@@ -322,13 +344,13 @@ export function PersonTargetReport() {
       selectedHunterNames: selectedHunterRows.map((row) => row.hunterName),
       selectedAreaNames: selectedAreaRows.map((row) => row.areaName),
       people,
-      allocations: targetAllocations,
-      studioAllocations: studioTargetAllocations,
+      allocations: reportTargetAllocations,
+      studioAllocations: reportStudioTargetAllocations,
       customerNames,
       areaNames,
       year: selectedYear,
     }),
-    [areaNames, customerNames, effectiveView, filteredAreaDetailRows, filteredAreaRows, filteredDirectorDetailRows, filteredHunterClientRows, filteredHunterDetailRows, filteredSpecialistHunterRows, hunterSummaryRows, people, peopleExportRows, selectedAreaRows, selectedHunterRows, selectedYear, studioTargetAllocations, targetAllocations],
+    [areaNames, customerNames, effectiveView, filteredAreaDetailRows, filteredAreaRows, filteredDirectorDetailRows, filteredHunterClientRows, filteredHunterDetailRows, filteredSpecialistHunterRows, hunterSummaryRows, people, peopleExportRows, selectedAreaRows, selectedHunterRows, selectedYear, reportStudioTargetAllocations, reportTargetAllocations],
   );
   const officialFilenameSuffix = getOfficialFilenameSuffix({
     view: effectiveView,
@@ -566,6 +588,26 @@ export function PersonTargetReport() {
           </div>
         )}
       />
+
+      <Card className="mb-5 p-4 shadow-sm">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-slate-900">New Logos</p>
+            <p className="text-xs text-slate-500">
+              New Logos ficam no controle, mas não compõem a meta oficial. Ative para incluir esses clientes na consulta e nas exportações desta tela.
+            </p>
+          </div>
+          <label className="inline-flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
+            <input
+              type="checkbox"
+              className="h-4 w-4 rounded border-slate-300 text-brq-purple focus:ring-brq-purple"
+              checked={includeNewLogos}
+              onChange={(event) => setIncludeNewLogos(event.target.checked)}
+            />
+            Incluir New Logos
+          </label>
+        </div>
+      </Card>
 
       <section className="mb-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <KpiSummaryCard label={totals.countLabel} value={totals.count} />

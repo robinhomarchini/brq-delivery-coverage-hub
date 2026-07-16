@@ -75,7 +75,7 @@ assert.equal(
     year,
   ).status,
   "outOfTarget",
-  "Customers outside the annual target must not be marked as mismatched even when they keep control values.",
+  "New Logo customers must not be marked as mismatched even when they keep control values.",
 );
 
 console.log("Customer coverage status checks passed.");

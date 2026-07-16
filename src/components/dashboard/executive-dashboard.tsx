@@ -23,7 +23,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import { KpiSummaryCard } from "@/components/shared/kpi-summary-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,7 +33,7 @@ import { cn, formatCompactCurrency, formatCurrency, normalizeBusinessName } from
 import { translateRole } from "@/lib/roles";
 import { applyCustomerTargetsForYear, defaultTargetYear } from "@/lib/customer-targets";
 import { getBoardTargetBaselineRows, getBoardTargetBaselineTotals, getRegisteredTargetTotals } from "@/lib/board-target-baseline";
-import { getCustomerTotalTarget } from "@/lib/customer-target-total";
+import { customerCountsTowardTarget, getCustomerTotalTarget } from "@/lib/customer-target-total";
 import { getCustomerCoverageAllocatedTotal } from "@/lib/customers/customer-coverage-view-model";
 
 const COLORS = ["#15171B", "#7F2EC9", "#EE7C38", "#2563EB", "#F97316", "#A3A3A3"];
@@ -41,7 +41,9 @@ const COLORS = ["#15171B", "#7F2EC9", "#EE7C38", "#2563EB", "#F97316", "#A3A3A3"
 export function ExecutiveDashboard() {
   const chartsReady = useSyncExternalStore(subscribeToHydration, () => true, () => false);
   const { areas, people, customers, customerTargets, boardTargetBaselines, targetAllocations, studioTargetAllocations } = useDeliveryStore();
+  const [includeNewLogos, setIncludeNewLogos] = useState(false);
   const financialCustomers = applyCustomerTargetsForYear(customers, customerTargets, defaultTargetYear);
+  const dashboardCustomers = includeNewLogos ? financialCustomers : financialCustomers.filter(customerCountsTowardTarget);
   const activePeople = people.filter((person) => person.active);
   const directors = activePeople.filter((person) => person.roleType === "Director" || person.roleType === "Executive");
   const managers = activePeople.filter((person) => person.isManager);
@@ -52,17 +54,20 @@ export function ExecutiveDashboard() {
   const hunterFarmers = activePeople.filter((person) => person.roleType === "Hunter + Farmer");
   const staff = activePeople.filter((person) => person.roleType === "Staff");
   const boardTotals = getBoardTargetBaselineTotals(defaultTargetYear, boardTargetBaselines);
-  const registeredTotals = getRegisteredTargetTotals(financialCustomers);
+  const registeredTotals = getRegisteredTargetTotals(dashboardCustomers);
   const totalRevenue = boardTotals.totalTarget;
   const registeredDelta = registeredTotals.totalTarget - boardTotals.totalTarget;
   const baselineByCustomer = new Map(
     getBoardTargetBaselineRows(defaultTargetYear, boardTargetBaselines)
       .map((row) => [normalizeBusinessName(row.customerName), row.totalTarget]),
   );
-  const financialByCustomer = financialCustomers
+  const dashboardCustomerIds = new Set(dashboardCustomers.map((customer) => customer.id));
+  const dashboardTargetAllocations = targetAllocations.filter((allocation) => dashboardCustomerIds.has(allocation.customerId));
+  const dashboardStudioTargetAllocations = studioTargetAllocations.filter((allocation) => dashboardCustomerIds.has(allocation.customerId));
+  const financialByCustomer = dashboardCustomers
     .map((customer) => {
       const baselineTarget = baselineByCustomer.get(normalizeBusinessName(customer.name)) ?? getCustomerTarget(customer);
-      const allocatedPeople = getCustomerCoverageAllocatedTotal(customer, people, targetAllocations, studioTargetAllocations, areas, defaultTargetYear);
+      const allocatedPeople = getCustomerCoverageAllocatedTotal(customer, people, dashboardTargetAllocations, dashboardStudioTargetAllocations, areas, defaultTargetYear);
       return {
         customerCluster: customer.name,
         revenueCurrent: allocatedPeople,
@@ -78,7 +83,7 @@ export function ExecutiveDashboard() {
   const financialByDirector = activePeople
     .filter((person) => person.roleType === "Director")
     .map((director) => {
-    const plans = financialCustomers.filter((customer) => customer.directorResponsibleId === director.id);
+    const plans = dashboardCustomers.filter((customer) => customer.directorResponsibleId === director.id);
     return {
       name: director.name,
       revenueTarget: plans.reduce((total, customer) => total + getCustomerTarget(customer), 0),
@@ -91,7 +96,7 @@ export function ExecutiveDashboard() {
     .sort((a, b) => b.revenueTarget - a.revenueTarget);
   const financialByManager = managers
     .map((manager) => {
-      const plans = financialCustomers.filter((customer) => customer.managerResponsibleIds.includes(manager.id));
+      const plans = dashboardCustomers.filter((customer) => customer.managerResponsibleIds.includes(manager.id));
       return {
         name: manager.name,
         revenueTarget: plans.reduce((total, customer) => total + getCustomerTarget(customer), 0),
@@ -108,7 +113,7 @@ export function ExecutiveDashboard() {
     .map((director) => ({
       name: director.name,
       managers: managers.filter((manager) => manager.directorId === director.id).length,
-      clientes: customers.filter((customer) => customer.directorResponsibleId === director.id).length,
+      clientes: dashboardCustomers.filter((customer) => customer.directorResponsibleId === director.id).length,
     }));
 
   const roleDistribution = [
@@ -123,7 +128,7 @@ export function ExecutiveDashboard() {
   const clientsByManager = managers
     .map((manager) => ({
       name: manager.name.split(" ")[0],
-      clientes: customers.filter((customer) => customer.managerResponsibleIds.includes(manager.id)).length,
+      clientes: dashboardCustomers.filter((customer) => customer.managerResponsibleIds.includes(manager.id)).length,
     }))
     .sort((a, b) => b.clientes - a.clientes)
     .slice(0, 10);
@@ -136,7 +141,7 @@ export function ExecutiveDashboard() {
     { label: "Hunters", value: hunters.length, icon: Target },
     { label: "Farmers", value: farmers.length, icon: BriefcaseBusiness },
     { label: "Hunter + Farmer", value: hunterFarmers.length, icon: TrendingUp },
-    { label: "Clientes", value: customers.length, icon: Building2 },
+    { label: "Clientes", value: dashboardCustomers.length, icon: Building2 },
   ];
 
   return (
@@ -152,7 +157,7 @@ export function ExecutiveDashboard() {
             <p className="text-[10px] uppercase tracking-wider text-slate-400">Meta Board 2026</p>
             <p className="truncate text-lg font-bold text-brq-purple" title={formatCurrency(totalRevenue)}>{formatCompactCurrency(totalRevenue)}</p>
           </div>
-            <Button variant="outline" className="w-full sm:w-auto" onClick={() => exportDeliveryDataAsCsv(people, customers)}>
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => exportDeliveryDataAsCsv(people, dashboardCustomers)}>
               <Download className="h-4 w-4" /> Exportar dados CSV
             </Button>
             <Button className="w-full sm:w-auto" onClick={() => exportElementAsPdf("executive-dashboard", "dashboard-executivo-brq.pdf")}>
@@ -160,6 +165,26 @@ export function ExecutiveDashboard() {
             </Button>
         </div>
       </div>
+
+      <Card className="p-4 shadow-sm" data-no-print="true">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-slate-900">New Logos</p>
+            <p className="text-xs text-slate-500">
+              New Logos ficam no controle, mas não compõem a meta oficial. Ative para incluir esses clientes nos KPIs, gráficos e exportação do dashboard.
+            </p>
+          </div>
+          <label className="inline-flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
+            <input
+              type="checkbox"
+              className="h-4 w-4 rounded border-slate-300 text-brq-purple focus:ring-brq-purple"
+              checked={includeNewLogos}
+              onChange={(event) => setIncludeNewLogos(event.target.checked)}
+            />
+            Incluir New Logos
+          </label>
+        </div>
+      </Card>
 
       <div id="executive-dashboard" className="min-w-0 space-y-4 rounded-xl">
         <section className="grid min-w-0 grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-8">

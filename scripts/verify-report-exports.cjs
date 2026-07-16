@@ -122,6 +122,11 @@ const requiredClientCoverageTokens = [
   "Diferença",
   "getClientCoverageReportColumns",
   "showClientCoverageValues",
+  "includeNewLogos",
+  "Incluir New Logos",
+  "reportCustomers",
+  "reportTargetAllocations",
+  "reportStudioTargetAllocations",
 ];
 const missingClientCoverageTokens = requiredClientCoverageTokens.filter((token) => !source.includes(token));
 if (missingClientCoverageTokens.length) {
