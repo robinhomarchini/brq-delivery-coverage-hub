@@ -78,6 +78,14 @@ For final handoff after implementation or review, use this structure:
   `npx --cache .npm-cache --yes supabase ...` command with approved escalation
   instead of switching to browser/manual SQL or inventing a new path.
 - Automation scripts must use local/project cache paths, bounded retries, and clear failure messages. Do not keep changing command strategy after one path has produced a reliable result.
+- Vercel production operations must use the versioned project scripts only:
+  `npm run deploy:check`, `npm run deploy:prod`, `npm run deploy:inspect:prod`,
+  and `npm run deploy:inspect -- <deployment-url>`. Do not run raw
+  `npx vercel ...` commands in this repo; the scripts load local env files,
+  pin Node/Vercel versions, and isolate Windows cache paths.
+- GitHub Actions status checks should use `npm run github:checks`. If it returns
+  a repository/API 404, do not retry raw `gh run list` variants; validate
+  permissions or inspect the run in GitHub UI.
 
 ## Security & Production Readiness Gates
 

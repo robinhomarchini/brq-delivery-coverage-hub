@@ -43,16 +43,18 @@ Antes de publicar manualmente, rode `npm run deploy:check`. Ele valida que o
 projeto está linkado em `.vercel/project.json` e que existe autenticação do
 Vercel CLI via `VERCEL_TOKEN` ou `%USERPROFILE%\.vercel\auth.json`.
 Também valida que o cache isolado do Vercel CLI em `.vercel-cli/` é gravável.
-O script `deploy:prod` executa o Vercel CLI com `node@22` via `npx` e cache
-local do projeto, evitando a combinação Node 24 + `%LOCALAPPDATA%` que já gerou
-falhas intermitentes como `The value of "err" is out of range`.
+O script `deploy:prod` executa o Vercel CLI por `scripts/vercel-cli.mjs`, com
+`node@22`, versão fixa do Vercel CLI, cache local do projeto e `%LOCALAPPDATA%`
+isolado. Isso evita a combinação Node 24 + cache global que já gerou falhas
+intermitentes como `The value of "err" is out of range`.
 
 O comando padrão de produção é `npm run deploy:prod`. Se `deploy:check` falhar,
-não tente variações do `vercel deploy`: primeiro regularize o login com
-`npx --cache .npm-cache --yes vercel login` ou configure `VERCEL_TOKEN` no
-ambiente seguro. Se antivírus bloquear `%USERPROFILE%\.vercel\auth.json`, use
-`VERCEL_TOKEN` em `.env.production.local` ou `.env.local`; `deploy:check` e
-`deploy:prod` carregam esses arquivos locais ignorados pelo Git, com
-`.env.production.local` tendo precedência. Para deploy manual local, use Node 22 LTS;
-Node 24 só deve ser usado para a aplicação/build. O deploy manual do projeto já
-força Node 22 pelo script.
+não tente variações manuais do Vercel CLI: primeiro regularize o login ou
+configure `VERCEL_TOKEN` no ambiente seguro. Se antivírus bloquear
+`%USERPROFILE%\.vercel\auth.json`, use `VERCEL_TOKEN` em `.env.production.local`
+ou `.env.local`; `deploy:check`, `deploy:prod` e `deploy:inspect` carregam esses
+arquivos locais ignorados pelo Git, com `.env.production.local` tendo
+precedência. Para verificar publicação, use `npm run deploy:inspect:prod` ou
+`npm run deploy:inspect -- <deployment-url>`. Para consultar checks remotos,
+use `npm run github:checks`; se o GitHub CLI retornar 404, não repetir variantes
+cruas do comando, validar permissões/Actions no GitHub UI.

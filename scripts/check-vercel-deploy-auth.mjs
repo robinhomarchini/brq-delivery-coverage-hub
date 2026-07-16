@@ -30,10 +30,14 @@ if (nodeMajor >= 24) {
     `Local Node.js is ${process.versions.node}.`,
     "deploy:prod will run Vercel CLI through node@22 from the project npm cache.",
   ].join(" "));
-  const node22Check = spawnSync("npx", ["--cache", ".npm-cache", "--yes", "--package", "node@22", "node", "-v"], {
+  const npxCliPath = path.join(path.dirname(process.execPath), "node_modules", "npm", "bin", "npx-cli.js");
+  const command = fs.existsSync(npxCliPath) ? process.execPath : (process.platform === "win32" ? "npx.cmd" : "npx");
+  const commandArgs = fs.existsSync(npxCliPath)
+    ? [npxCliPath, "--cache", ".npm-cache", "--yes", "--package", "node@22", "node", "-v"]
+    : ["--cache", ".npm-cache", "--yes", "--package", "node@22", "node", "-v"];
+  const node22Check = spawnSync(command, commandArgs, {
     cwd: root,
     encoding: "utf8",
-    shell: process.platform === "win32",
   });
   if (node22Check.status !== 0 || !node22Check.stdout.trim().startsWith("v22.")) {
     problems.push("Node 22 fallback is not available through npx. Run `npx --cache .npm-cache --yes --package node@22 node -v` and retry.");
@@ -48,7 +52,7 @@ if (!hasToken && !hasAuthFile) {
     "- local login at %USERPROFILE%\\.vercel\\auth.json.",
     "",
     "Preferred when auth.json is blocked: add VERCEL_TOKEN to .env.local, then retry deploy.",
-    "Alternative: run `npx --cache .npm-cache --yes --package node@22 --package vercel@56.2.0 vercel login` once.",
+    "Alternative: run the approved Vercel login flow once, then continue using `npm run deploy:*` scripts.",
   ].join("\n"));
 }
 

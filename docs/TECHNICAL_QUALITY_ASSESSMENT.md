@@ -457,15 +457,16 @@ specialist_hunter_studio_assignments_person_year_idx
 
 ### ⚠️ Fraquezas
 
-#### Sem CI/CD automático
+#### CI/CD e deploy ainda parcialmente manuais
 
-- Não há `.github/workflows/` visível
-- Deploy requer comando manual: `npx vercel deploy --prod --yes`
+- Deploy de produção usa script padronizado: `npm run deploy:prod`
+- Inspeção de produção usa script padronizado: `npm run deploy:inspect:prod`
+- O caminho manual direto do Vercel CLI foi substituído por wrapper com Node/cache/env controlados
 
-#### Sem validação automatizada pré-deploy
+#### Validação pré-deploy ainda depende de disciplina operacional
 
-- Erro em `npm run build` não aborta deploy automaticamente
-- Sem GitHub Actions com early exit
+- `npm run build` e checks locais existem, mas o deploy manual ainda depende de rodar o gate correto
+- GitHub Actions existe, porém a consulta local via GitHub CLI pode falhar por permissão/API e deve ser validada no GitHub UI quando `npm run github:checks` não conseguir listar runs
 
 #### Migrações Supabase sem rollback automático
 
