@@ -571,5 +571,8 @@
 - Na tela `Clientes`, abrir `Novo cliente` sempre inicia um formulário limpo:
   sem Hunter responsável, sem metas, sem alocações derivadas de Studio e sem
   reutilizar valores de cliente aberto por URL ou edição anterior.
+- Na tela `Metas por Pessoa`, Hunter Especializado continua bloqueado para
+  lançar meta direta, mas o botão `Remover` fica disponível para limpar vínculo
+  ou meta histórica indevida de cliente.
 - Interface está em português; código e identificadores estão em inglês.
 - `npm run lint`, `npm run typecheck` e `npm run build` concluem sem erros.

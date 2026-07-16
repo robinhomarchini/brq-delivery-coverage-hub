@@ -26,6 +26,15 @@ const checks = [
     ],
   },
   {
+    name: "Person target screen must allow cleanup removal for Specialist Hunter",
+    file: "src/components/targets/person-target-assignment.tsx",
+    failWhen: [],
+    require: [
+      /disabled=\{savingCustomerId === row\.customerId \|\| removingCustomerId === row\.customerId\}/,
+      /disabled=\{selectedPersonIsSpecialistHunter \|\| savingCustomerId === row\.customerId \|\| removingCustomerId === row\.customerId\}/,
+    ],
+  },
+  {
     name: "Target form must not auto-select the first customer or person",
     file: "src/components/targets/target-management.tsx",
     failWhen: [

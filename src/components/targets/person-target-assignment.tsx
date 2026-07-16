@@ -572,7 +572,7 @@ export function PersonTargetAssignment() {
                         variant="outline"
                         className="text-red-700 hover:text-red-800"
                         onClick={() => removeCustomerFromPerson(row)}
-                        disabled={selectedPersonIsSpecialistHunter || savingCustomerId === row.customerId || removingCustomerId === row.customerId}
+                        disabled={savingCustomerId === row.customerId || removingCustomerId === row.customerId}
                       >
                         <Trash2 className="h-4 w-4" />
                         {removingCustomerId === row.customerId ? "Removendo..." : "Remover"}
