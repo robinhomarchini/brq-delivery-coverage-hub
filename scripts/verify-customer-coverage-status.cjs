@@ -65,6 +65,19 @@ assert.equal(
   "QUOD must be reconciled/blue when a normal Hunter covers a Hunter-only target.",
 );
 
+assert.equal(
+  getCustomerCoverageStatus(
+    makeCustomer("new-current-year", { hunterTarget: 300000, farmerRenewalTarget: 200000, countsTowardTarget: false }),
+    people,
+    [],
+    [makeAllocation("new-current-year-hunter", "new-current-year", "hunter", "hunter", 300000)],
+    [],
+    year,
+  ).status,
+  "outOfTarget",
+  "Customers outside the annual target must not be marked as mismatched even when they keep control values.",
+);
+
 console.log("Customer coverage status checks passed.");
 
 function makeCustomer(id, overrides = {}) {

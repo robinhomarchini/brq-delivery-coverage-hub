@@ -28,7 +28,7 @@ const checks = [
       /Math\.abs\(Math\.round\(value\)\) >= 1/,
     ],
     require: [
-      /CustomerCoverageStatus = "ok" \| "issue" \| "mismatch" \| "specialist" \| "empty"/,
+      /CustomerCoverageStatus = "ok" \| "issue" \| "mismatch" \| "specialist" \| "outOfTarget" \| "empty"/,
       /hasOnlySpecialistHunterCoverage/,
       /if \(status === "ok"\) return "bg-sky-50 text-sky-700"/,
       /if \(status === "specialist"\) return "bg-purple-50 text-purple-700"/,

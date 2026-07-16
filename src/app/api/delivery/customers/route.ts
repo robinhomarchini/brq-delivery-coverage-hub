@@ -25,6 +25,8 @@ const customerCommandSchema = z.object({
     revenue: z.number().finite().min(0).max(999999999999),
     margin: z.number().finite().min(0).max(100),
     strategicAccount: z.boolean(),
+    countsTowardTarget: z.boolean().default(true),
+    targetExclusionReason: z.enum(["new_customer_current_year", "manual"]).optional(),
     ...lifecycleFieldsSchema,
   }),
   targetYear: z.number().int().min(2020).max(2100).default(2026),

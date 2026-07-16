@@ -562,6 +562,10 @@ As metas-base do cliente também são anuais. A chave canônica é
 `customer_id + target_year` em `customer_target_years`; os campos financeiros
 legados em `customers` existem apenas para compatibilidade durante a migração.
 Telas com valores financeiros devem exibir e filtrar o ano de referência.
+Clientes novos ou em controle que não compõem a meta oficial do ano devem usar
+o mesmo grão anual, com `counts_toward_target = false` e um motivo de exclusão.
+Esses clientes permanecem visíveis no cadastro e no controle operacional, mas a
+meta efetiva para batimento do ano é zero.
 
 Na rota Metas por Pessoa, o combo Pessoa deve iniciar vazio quando não houver
 `personId` na URL, obrigando o usuário a escolher uma pessoa antes de carregar a

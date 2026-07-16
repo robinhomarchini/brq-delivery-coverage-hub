@@ -73,6 +73,8 @@ const customerSchema = z.object({
   revenue: z.number().finite().min(0, "Receita não pode ser negativa.").max(999999999999),
   margin: z.number().finite().min(0, "Margem não pode ser negativa.").max(100, "Margem não pode exceder 100%."),
   strategicAccount: z.boolean(),
+  countsTowardTarget: z.boolean().optional(),
+  targetExclusionReason: z.enum(["new_customer_current_year", "manual"]).optional(),
   ...lifecycleFields,
 }).superRefine(addLifecycleClosureIssue);
 

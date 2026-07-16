@@ -139,6 +139,7 @@ export class LocalDeliveryRepository implements DeliveryRepository {
   }
 
   private upsertCustomerTarget(customer: Customer, targetYear: number) {
+    const existingTarget = this.data.customerTargets.find((item) => item.customerId === customer.id && item.year === targetYear);
     const nextTarget = {
       customerId: customer.id,
       year: targetYear,
@@ -147,6 +148,10 @@ export class LocalDeliveryRepository implements DeliveryRepository {
       studioHunterTarget: customer.studioHunterTarget,
       studioTarget: customer.studioTarget,
       revenue: getCustomerTarget(customer),
+      countsTowardTarget: customer.countsTowardTarget ?? existingTarget?.countsTowardTarget ?? true,
+      targetExclusionReason: customer.countsTowardTarget === false
+        ? customer.targetExclusionReason ?? existingTarget?.targetExclusionReason ?? "manual"
+        : undefined,
     };
     this.data.customerTargets = this.data.customerTargets.some((item) => item.customerId === customer.id && item.year === targetYear)
       ? this.data.customerTargets.map((item) => item.customerId === customer.id && item.year === targetYear ? nextTarget : item)
@@ -345,6 +350,8 @@ export class LocalDeliveryRepository implements DeliveryRepository {
             studioHunterTarget: customer.studioHunterTarget,
             studioTarget: nextStudioTarget,
             revenue: nextCustomerRevenue,
+            countsTowardTarget: customer.countsTowardTarget !== false,
+            targetExclusionReason: customer.targetExclusionReason,
           }];
       }
     }

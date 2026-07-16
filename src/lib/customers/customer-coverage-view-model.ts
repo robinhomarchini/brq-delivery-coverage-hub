@@ -1,6 +1,6 @@
 import type { Area, Customer, Person, StudioTargetAllocation, TargetAllocation } from "@/data/mockData";
 import type { SortDirection, SortState } from "@/components/shared/sortable-table-head";
-import { getCustomerTotalTarget } from "@/lib/customer-target-total";
+import { customerCountsTowardTarget, getCustomerEffectiveTotalTarget, getCustomerTotalTarget } from "@/lib/customer-target-total";
 import { displayDirectorName } from "@/lib/director-governance";
 import { isCustomerFarmerResponsibleProfile, isHunterSelectionRole, isSpecialistHunterRole, isTargetAssignableRole } from "@/lib/roles";
 import { formatCurrency, roundCurrency } from "@/lib/utils";
@@ -94,7 +94,7 @@ export interface CustomerTargetPerson {
   amount: number;
 }
 
-export type CustomerCoverageStatus = "ok" | "issue" | "mismatch" | "specialist" | "empty";
+export type CustomerCoverageStatus = "ok" | "issue" | "mismatch" | "specialist" | "outOfTarget" | "empty";
 
 export type CustomerCoverageSignal = {
   status: CustomerCoverageStatus;
@@ -105,6 +105,9 @@ export type CustomerCoverageSignal = {
 export type CustomerSortKey = "customer" | "director" | "allocated" | "target" | "margin" | "strategic";
 
 export function getCustomerTargetBreakdown(customer: Customer): CustomerTargetBreakdown {
+  if (!customerCountsTowardTarget(customer)) {
+    return { hunter: 0, farmerRenewal: 0, studioHunter: 0, studio: 0, total: 0 };
+  }
   const hunter = roundCurrency(customer.hunterTarget);
   const farmerRenewal = roundCurrency(customer.farmerRenewalTarget);
   const studioHunter = roundCurrency(customer.studioHunterTarget);
@@ -183,6 +186,18 @@ export function getCustomerCoverageStatus(
     studioHunterAreas: getStudioAllocationTitleRows(customerStudioAllocations, areas, "hunter"),
     studioMaintenanceAreas: getStudioAllocationTitleRows(customerStudioAllocations, areas, "maintenance"),
   });
+
+  if (!customerCountsTowardTarget(customer)) {
+    return {
+      status: "outOfTarget",
+      title: [
+        "Cliente mantido no controle, mas fora da meta do ano selecionado.",
+        "",
+        compositionTitle,
+      ].join("\n"),
+      difference: 0,
+    };
+  }
 
   if (breakdown.total <= 0.01 && !customer.managerResponsibleIds.length && !assignedPeople.length && !customerAllocations.length && !customerStudioAllocations.length) {
     return {
@@ -266,6 +281,7 @@ export function getCustomerCoverageStatus(
 export function getCustomerStatusIconClassName(status: CustomerCoverageStatus, difference = 0) {
   if (status === "ok") return "bg-sky-50 text-sky-700";
   if (status === "specialist") return "bg-purple-50 text-purple-700";
+  if (status === "outOfTarget") return "bg-slate-100 text-slate-700";
   if (status === "mismatch") return difference > 0.01 ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700";
   if (status === "issue") return "bg-amber-50 text-amber-700";
   return "bg-slate-100 text-slate-400";
@@ -274,6 +290,7 @@ export function getCustomerStatusIconClassName(status: CustomerCoverageStatus, d
 export function getCoverageStatusLabel(status: CustomerCoverageStatus) {
   if (status === "ok") return "Reconciliado";
   if (status === "specialist") return "Hunter Especializado";
+  if (status === "outOfTarget") return "Fora da meta";
   if (status === "mismatch") return "Diferença de valores";
   if (status === "issue") return "Pendente de responsável";
   return "Sem dados";
@@ -286,7 +303,9 @@ export function getCustomerAllocationWarning(
   studioAllocations: StudioTargetAllocation[],
   year: number,
 ): CustomerAllocationWarningData | null {
-  const target = getCustomerTotalTarget(customer);
+  if (!customerCountsTowardTarget(customer)) return null;
+
+  const target = getCustomerEffectiveTotalTarget(customer);
   const customerAllocations = allocations.filter((allocation) =>
     allocation.customerId === customer.id
     && allocation.year === year

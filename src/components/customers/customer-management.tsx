@@ -22,7 +22,7 @@ import { DualListSelector } from "@/components/shared/dual-list-selector";
 import { useDeliveryStore } from "@/store/delivery-store";
 import { useAccess } from "@/lib/access-context";
 import { isHunterConsultAccess, normalizeAccessEmail } from "@/lib/access-control";
-import { getCustomerTotalTargetFromParts } from "@/lib/customer-target-total";
+import { customerCountsTowardTarget, getCustomerTotalTargetFromParts } from "@/lib/customer-target-total";
 import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears } from "@/lib/customer-targets";
 import { getFinancialCustomerMetric } from "@/lib/financial-customers";
 import { formatPercentPtBr, targetMarginPercent } from "@/lib/financial-targets";
@@ -116,6 +116,7 @@ export function CustomerManagement() {
   const [formHunterId, setFormHunterId] = useState(getPrimaryHunterIdForCustomer(initialCustomer?.id ?? "", people));
   const [formHunterTarget, setFormHunterTarget] = useState(getInputValue(initialCustomer?.hunterTarget ?? getFinancialCustomerMetric(initialCustomer?.name ?? "", "hunterRevenue")));
   const [formFarmerRenewalTarget, setFormFarmerRenewalTarget] = useState(getInputValue(initialCustomer?.farmerRenewalTarget ?? getFinancialCustomerMetric(initialCustomer?.name ?? "", "deliveryFarmerRevenue")));
+  const [formCountsTowardTarget, setFormCountsTowardTarget] = useState(customerCountsTowardTarget(initialCustomer ?? { countsTowardTarget: true }));
   const [successMessage, setSuccessMessage] = useState("");
   const [formError, setFormError] = useState("");
   const [sortState, setSortState] = useState<SortState<CustomerSortKey>>({ key: "customer", direction: "asc" });
@@ -190,6 +191,7 @@ export function CustomerManagement() {
       farmerRenewalTarget: breakdown.farmerRenewal,
       studioTarget: breakdown.studio,
       totalTarget: breakdown.total,
+      countsTowardTarget: customerCountsTowardTarget(customer) ? "Sim" : "Não",
       margin: customer.margin,
       strategicAccount: customer.strategicAccount ? "Sim" : "Não",
       status: getCoverageStatusLabel(coverage.status),
@@ -209,6 +211,7 @@ export function CustomerManagement() {
     { key: "farmerRenewalTarget", label: "Renovação + Ampliação", value: (row) => row.farmerRenewalTarget, format: "currency", align: "right" },
     { key: "studioTarget", label: "Studio Manutenção", value: (row) => row.studioTarget, format: "currency", align: "right" },
     { key: "totalTarget", label: "Meta total", value: (row) => row.totalTarget, format: "currency", align: "right" },
+    { key: "countsTowardTarget", label: "Compõe meta", value: (row) => row.countsTowardTarget, align: "center" },
     { key: "margin", label: "Margem alvo (%)", value: (row) => row.margin, format: "percent", align: "right" },
     { key: "strategicAccount", label: "Conta estratégica", value: (row) => row.strategicAccount, align: "center" },
     { key: "status", label: "Status", value: (row) => row.status },
@@ -227,6 +230,7 @@ export function CustomerManagement() {
     studioHunterTarget: formStudioHunterAmount,
     studioTarget: formStudioAmount,
     revenue: formRevenue,
+    countsTowardTarget: true,
     margin: linkedEditing?.margin ?? 0,
     strategicAccount: linkedEditing?.strategicAccount ?? true,
     lifecycleStatus: linkedEditing?.lifecycleStatus ?? "active",
@@ -242,6 +246,8 @@ export function CustomerManagement() {
         studioHunterTarget: formStudioHunterAmount,
         studioTarget: formStudioAmount,
         revenue: formRevenue,
+        countsTowardTarget: formCountsTowardTarget,
+        targetExclusionReason: formCountsTowardTarget ? undefined : "new_customer_current_year",
       },
       people,
       targetAllocations,
@@ -273,6 +279,8 @@ export function CustomerManagement() {
         studioHunterTarget: formStudioHunterAmount,
         studioTarget: formStudioAmount,
         revenue: formRevenue,
+        countsTowardTarget: formCountsTowardTarget,
+        targetExclusionReason: formCountsTowardTarget ? undefined : "new_customer_current_year",
       },
       people,
       targetAllocations,
@@ -300,6 +308,7 @@ export function CustomerManagement() {
     setFormHunterId(getPrimaryHunterIdForCustomer(item?.id ?? "", people));
     setFormHunterTarget(getInputValue(item?.hunterTarget ?? getFinancialCustomerMetric(item?.name ?? "", "hunterRevenue")));
     setFormFarmerRenewalTarget(getInputValue(item?.farmerRenewalTarget ?? getFinancialCustomerMetric(item?.name ?? "", "deliveryFarmerRevenue")));
+    setFormCountsTowardTarget(customerCountsTowardTarget(item ?? { countsTowardTarget: true }));
     setFormError("");
     setManualOpen(true);
     setDismissInitialOpen(!item);
@@ -340,6 +349,8 @@ export function CustomerManagement() {
         studioHunterTarget: formStudioHunterAmount,
         studioTarget: formStudioAmount,
         revenue: formRevenue,
+        countsTowardTarget: formCountsTowardTarget,
+        targetExclusionReason: formCountsTowardTarget ? undefined : "new_customer_current_year",
         margin: Number(formData.get("margin")),
         strategicAccount: formData.get("strategicAccount") === "true",
         lifecycleStatus: linkedEditing?.lifecycleStatus ?? "active",
@@ -534,7 +545,7 @@ export function CustomerManagement() {
                     title={hunterConsultOnly || !canEdit ? "Consulta em modo leitura" : "Dê duplo clique para editar o cliente"}
                     onDoubleClick={() => openForm(customer)}
                   >
-                    <TableCell><div className="flex items-center gap-3"><div className={`grid h-10 w-10 place-items-center rounded-xl ${getCustomerStatusIconClassName(coverage.status, coverage.difference)}`} title={coverage.title} aria-label={coverage.title}><Building2 className="h-5 w-5" /></div><div><p className="font-semibold">{customer.name}</p><p className="text-xs text-slate-400">{customer.industry}</p>{coverage.status === "mismatch" && typeof coverage.difference === "number" && <p className={`text-xs font-semibold ${coverage.difference > 0 ? "text-emerald-700" : "text-red-600"}`} title={coverage.title}>{coverage.difference > 0 ? "Acima" : "Abaixo"}: {formatCurrency(Math.abs(coverage.difference))}</p>}</div></div></TableCell>
+                    <TableCell><div className="flex items-center gap-3"><div className={`grid h-10 w-10 place-items-center rounded-xl ${getCustomerStatusIconClassName(coverage.status, coverage.difference)}`} title={coverage.title} aria-label={coverage.title}><Building2 className="h-5 w-5" /></div><div><p className="font-semibold">{customer.name}</p><p className="text-xs text-slate-400">{customer.industry}</p>{coverage.status === "outOfTarget" && <p className="text-xs font-semibold text-slate-600" title={coverage.title}>Fora da meta</p>}{coverage.status === "mismatch" && typeof coverage.difference === "number" && <p className={`text-xs font-semibold ${coverage.difference > 0 ? "text-emerald-700" : "text-red-600"}`} title={coverage.title}>{coverage.difference > 0 ? "Acima" : "Abaixo"}: {formatCurrency(Math.abs(coverage.difference))}</p>}</div></div></TableCell>
                     <TableCell>
                       <p>{displayDirectorName(people.find((item) => item.id === customer.directorResponsibleId)?.name ?? customer.directorResponsibleId)}</p>
                       <p className="text-xs text-slate-400">Governança Delivery</p>
@@ -602,6 +613,20 @@ export function CustomerManagement() {
               </span>
             </Field>
             <Field label="Conta estratégica"><Select name="strategicAccount" defaultValue={String(linkedEditing?.strategicAccount ?? true)}><option value="true">Sim</option><option value="false">Não</option></Select></Field>
+            <label className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 md:col-span-2">
+              <input
+                type="checkbox"
+                className="mt-1 h-4 w-4 rounded border-slate-300 text-brq-purple focus:ring-brq-purple"
+                checked={!formCountsTowardTarget}
+                onChange={(event) => setFormCountsTowardTarget(!event.target.checked)}
+              />
+              <span>
+                <span className="block text-sm font-semibold text-slate-800">Fora da meta do ano</span>
+                <span className="mt-1 block text-xs leading-5 text-slate-500">
+                  Use para clientes novos que devem ficar no controle, mas não compõem a meta oficial de {year}. Os valores ficam cadastrados para auditoria e podem voltar a compor a meta em outro ano.
+                </span>
+              </span>
+            </label>
             <Field label={`Meta Hunter ${year} (R$)`}>
               <div className="flex items-center rounded-xl border border-slate-200 bg-white px-3 focus-within:border-purple-400 focus-within:ring-2 focus-within:ring-purple-100">
                 <span className="mr-2 text-sm font-semibold text-slate-400">R$</span>
@@ -654,14 +679,26 @@ export function CustomerManagement() {
             </Field>
             <div className="rounded-2xl border border-slate-200 bg-white p-4">
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Meta total</p>
-              <p className="mt-2 text-2xl font-black text-slate-950">{formatCurrency(formRevenue)}</p>
-              <p className="mt-1 text-xs text-slate-500">Calculada por Hunter + Renovação + Ampliação para {year}. As aberturas de Área/Studio estão contidas nesses componentes e não somam novamente no total.</p>
+              <p className="mt-2 text-2xl font-black text-slate-950">{formCountsTowardTarget ? formatCurrency(formRevenue) : formatCurrency(0)}</p>
+              <p className="mt-1 text-xs text-slate-500">
+                {formCountsTowardTarget
+                  ? `Calculada por Hunter + Renovação + Ampliação para ${year}. As aberturas de Área/Studio estão contidas nesses componentes e não somam novamente no total.`
+                  : `Fora da meta oficial de ${year}. Valor cadastrado para controle: ${formatCurrency(formRevenue)}.`}
+              </p>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 md:col-span-2">
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Composição da meta</p>
               <TargetBreakdownView breakdown={formBreakdown} compact />
-              {allocationComposition && <CustomerAllocationCompositionView composition={allocationComposition} />}
-              {studioComposition && <CustomerStudioCompositionView composition={studioComposition} />}
+              {formCountsTowardTarget ? (
+                <>
+                  {allocationComposition && <CustomerAllocationCompositionView composition={allocationComposition} />}
+                  {studioComposition && <CustomerStudioCompositionView composition={studioComposition} />}
+                </>
+              ) : (
+                <p className="mt-3 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
+                  Cliente fora da meta do ano: a composição fica disponível para controle, mas não gera pendência de batimento.
+                </p>
+              )}
               <p className="mt-2 text-xs text-slate-500">
                 A tela de Cliente é a base da meta. Metas por Pessoa distribui Hunter/Farmer; Metas por Área/Studio distribui a abertura Hunter e Manutenção por studio.
               </p>

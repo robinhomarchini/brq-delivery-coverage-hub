@@ -70,10 +70,14 @@ export interface Customer {
   revenue: number;
   margin: number;
   strategicAccount: boolean;
+  countsTowardTarget?: boolean;
+  targetExclusionReason?: TargetExclusionReason;
   lifecycleStatus: LifecycleStatus;
   closedAt?: string;
   closedReason?: string;
 }
+
+export type TargetExclusionReason = "new_customer_current_year" | "manual";
 
 export interface CustomerTarget {
   customerId: string;
@@ -83,6 +87,8 @@ export interface CustomerTarget {
   studioHunterTarget: number;
   studioTarget: number;
   revenue: number;
+  countsTowardTarget?: boolean;
+  targetExclusionReason?: TargetExclusionReason;
 }
 
 export interface Subject {

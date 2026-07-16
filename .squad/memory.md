@@ -478,6 +478,7 @@ Próximo passo: mover a view model de Clientes do Relatório de Metas (`buildCli
 - Na tela Metas por Pessoa, Hunter Especializado permanece bloqueado para salvar/alocar meta direta, mas o botao Remover deve ficar habilitado para limpar associacao ou alocacao historica indevida criada por sujeira/formulario antigo.
 - Na tela Metas por Area/Studio, `Nova meta por studio` deve usar modo explicito de criacao (`forceNew`) e nunca reaproveitar filtros, default de Hunter, alocacao anterior ou valores. `Nova linha para este cliente` pode preservar apenas o cliente, mantendo area/responsaveis/valores/observacoes limpos.
 - O GitHub Actions `Security & Quality Gate` valida `.env.local` com `grep -q "\.env\.local" .gitignore`; manter uma linha explicita `.env.local` no `.gitignore`, mesmo que `.env*` ja cubra o arquivo, e preservar essa verificacao tambem em `scripts/verify-security-hardening.cjs`.
+- Clientes novos/em controle podem ficar fora da meta oficial por ano. Fonte de verdade: `customer_target_years.counts_toward_target` + `target_exclusion_reason`, no grao cliente/ano. A tela Clientes exibe status "Fora da meta" e usa meta efetiva zero para batimento/KPIs, preservando os valores cadastrados para auditoria. Relatorios serao ajustados em etapa posterior conforme visoes selecionadas.
 
 ## Stable Facts About the Project
 

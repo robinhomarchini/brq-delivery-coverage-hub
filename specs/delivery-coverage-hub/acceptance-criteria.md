@@ -420,6 +420,9 @@
   pessoa alocada" na distribuição por pessoa. A pendência por pessoa considera
   somente Hunter e Renovação que realmente precisem de pessoa; diferenças de
   Studio Manutenção ficam na conciliação de Áreas/Studios.
+- Na tela Clientes, cliente marcado como fora da meta do ano permanece visível
+  no cadastro e nos controles, aparece com status "Fora da meta" e não gera
+  pendência de batimento de meta naquele ano.
 - As metas editáveis são persistidas em tabela normalizada
   `revenue_target_allocations` e não em campos duplicados de cliente ou pessoa.
 - O Dashboard Executivo exibe uma visão financeira resumida dos clientes

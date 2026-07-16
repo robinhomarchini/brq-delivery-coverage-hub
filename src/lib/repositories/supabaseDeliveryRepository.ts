@@ -126,6 +126,8 @@ type CustomerTargetRow = {
   studio_hunter_target?: number | string | null;
   studio_target?: number | string | null;
   revenue: number | string;
+  counts_toward_target?: boolean | null;
+  target_exclusion_reason?: string | null;
 };
 
 type StudioTargetAllocationRow = {
@@ -538,6 +540,8 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
         farmer_renewal_target: customer.farmerRenewalTarget,
         studio_hunter_target: customer.studioHunterTarget,
         studio_target: customer.studioTarget,
+        counts_toward_target: customer.countsTowardTarget !== false,
+        target_exclusion_reason: customer.countsTowardTarget === false ? customer.targetExclusionReason ?? "manual" : null,
       });
     if (error) throw error;
 
@@ -690,6 +694,8 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
       p_revenue: getCustomerTarget(customer),
       p_margin: customer.margin,
       p_strategic_account: customer.strategicAccount,
+      p_counts_toward_target: customer.countsTowardTarget !== false,
+      p_target_exclusion_reason: customer.countsTowardTarget === false ? customer.targetExclusionReason ?? "manual" : null,
     });
 
     if (!error) return true;
@@ -1217,6 +1223,8 @@ function fromCustomerTargetRow(row: CustomerTargetRow): CustomerTarget {
     studioHunterTarget,
     studioTarget,
     revenue: getCustomerTotalTargetFromParts(hunterTarget, farmerRenewalTarget),
+    countsTowardTarget: row.counts_toward_target !== false,
+    targetExclusionReason: normalizeTargetExclusionReason(row.target_exclusion_reason),
   };
 }
 
@@ -1230,6 +1238,8 @@ function fromLegacyCustomerTargetRow(row: CustomerRow): CustomerTarget {
     studioHunterTarget: customer.studioHunterTarget,
     studioTarget: customer.studioTarget,
     revenue: customer.revenue,
+    countsTowardTarget: true,
+    targetExclusionReason: undefined,
   };
 }
 
@@ -1247,8 +1257,14 @@ function applyCustomerTargetsForYear(customers: Customer[], targets: CustomerTar
       studioHunterTarget: target.studioHunterTarget,
       studioTarget: target.studioTarget,
       revenue: getCustomerTotalTargetFromParts(target.hunterTarget, target.farmerRenewalTarget),
+      countsTowardTarget: target.countsTowardTarget !== false,
+      targetExclusionReason: target.targetExclusionReason,
     };
   });
+}
+
+function normalizeTargetExclusionReason(value: string | null | undefined) {
+  return value === "new_customer_current_year" || value === "manual" ? value : undefined;
 }
 
 function getCustomerTargetDefaults(name: string, revenue: number) {

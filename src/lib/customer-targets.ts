@@ -23,6 +23,8 @@ export function applyCustomerTargetsForYear(customers: Customer[], customerTarge
       studioHunterTarget: 0,
       studioTarget: 0,
       revenue: 0,
+      countsTowardTarget: true,
+      targetExclusionReason: undefined,
     };
     return {
       ...customer,
@@ -31,6 +33,8 @@ export function applyCustomerTargetsForYear(customers: Customer[], customerTarge
       studioHunterTarget: target.studioHunterTarget,
       studioTarget: target.studioTarget,
       revenue: getCustomerTotalTargetFromParts(target.hunterTarget, target.farmerRenewalTarget),
+      countsTowardTarget: target.countsTowardTarget !== false,
+      targetExclusionReason: target.targetExclusionReason,
     };
   });
 }
