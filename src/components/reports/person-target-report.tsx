@@ -230,8 +230,8 @@ export function PersonTargetReport() {
   }, [hunterClientRows, search]);
   const hunterClientGroups = useMemo(() => buildHunterClientGroups(filteredHunterClientRows), [filteredHunterClientRows]);
   const specialistHunterRows = useMemo(
-    () => buildSpecialistHunterRows(people, customers, studioTargetAllocations, specialistHunterStudioAssignments, areaNames, selectedYear),
-    [areaNames, customers, people, selectedYear, specialistHunterStudioAssignments, studioTargetAllocations],
+    () => buildSpecialistHunterRows(people, customers, targetAllocations, studioTargetAllocations, specialistHunterStudioAssignments, areaNames, selectedYear),
+    [areaNames, customers, people, selectedYear, specialistHunterStudioAssignments, studioTargetAllocations, targetAllocations],
   );
   const clientCoverageRows = useMemo(
     () => buildClientCoverageRows({
@@ -318,6 +318,7 @@ export function PersonTargetReport() {
       areaRows: filteredAreaRows,
       areaDetailRows: filteredAreaDetailRows,
       hunterClientRows: filteredHunterClientRows,
+      specialistHunterRows: filteredSpecialistHunterRows,
       selectedHunterNames: selectedHunterRows.map((row) => row.hunterName),
       selectedAreaNames: selectedAreaRows.map((row) => row.areaName),
       people,
@@ -327,7 +328,7 @@ export function PersonTargetReport() {
       areaNames,
       year: selectedYear,
     }),
-    [areaNames, customerNames, effectiveView, filteredAreaDetailRows, filteredAreaRows, filteredDirectorDetailRows, filteredHunterClientRows, filteredHunterDetailRows, hunterSummaryRows, people, peopleExportRows, selectedAreaRows, selectedHunterRows, selectedYear, studioTargetAllocations, targetAllocations],
+    [areaNames, customerNames, effectiveView, filteredAreaDetailRows, filteredAreaRows, filteredDirectorDetailRows, filteredHunterClientRows, filteredHunterDetailRows, filteredSpecialistHunterRows, hunterSummaryRows, people, peopleExportRows, selectedAreaRows, selectedHunterRows, selectedYear, studioTargetAllocations, targetAllocations],
   );
   const officialFilenameSuffix = getOfficialFilenameSuffix({
     view: effectiveView,
@@ -547,6 +548,7 @@ export function PersonTargetReport() {
                 filename={`relatorio-hunter-especializado-${year}`}
                 rows={filteredSpecialistHunterRows}
                 columns={specialistHunterReportColumns}
+                customExports={officialCustomExports}
               />
             )}
             {effectiveView === "directors" && (
@@ -1341,6 +1343,7 @@ export function PersonTargetReport() {
                 <TableRow>
                   <TableHead>Hunter Especializado</TableHead>
                   <TableHead>Cliente</TableHead>
+                  <TableHead>Papel no cliente</TableHead>
                   <TableHead>Área / Studio</TableHead>
                   <TableHead>Origem</TableHead>
                   <TableHead className="text-right">Valor gerencial</TableHead>
@@ -1354,6 +1357,11 @@ export function PersonTargetReport() {
                       <p className="text-xs text-slate-500">cross / gerencial</p>
                     </TableCell>
                     <TableCell>{row.customerName}</TableCell>
+                    <TableCell>
+                      {row.isPrincipalHunter
+                        ? <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">Hunter principal</Badge>
+                        : <Badge variant="secondary">Seleção gerencial</Badge>}
+                    </TableCell>
                     <TableCell>{row.areaName}</TableCell>
                     <TableCell><Badge className="bg-sky-100 text-sky-800 hover:bg-sky-100">{row.sourceLabel}</Badge></TableCell>
                     <TableCell className="text-right font-bold tabular-nums text-slate-950">{formatCurrency(row.amount)}</TableCell>
@@ -1361,7 +1369,7 @@ export function PersonTargetReport() {
                 ))}
                 {filteredSpecialistHunterRows.length > 0 && (
                   <TableRow className="bg-slate-900 text-white hover:bg-slate-900">
-                    <TableCell colSpan={4} className="font-bold">Total gerencial</TableCell>
+                    <TableCell colSpan={5} className="font-bold">Total gerencial</TableCell>
                     <TableCell className="text-right font-bold tabular-nums">{formatCurrency(specialistHunterTotal)}</TableCell>
                   </TableRow>
                 )}
@@ -2601,6 +2609,7 @@ function getHunterClientSegmentSortValue(segment: string) {
 function buildSpecialistHunterRows(
   people: Array<{ id: string; name: string; roleType: RoleType; active: boolean; clientIds: string[] }>,
   customers: Array<{ id: string; name: string }>,
+  allocations: Array<{ customerId: string; personId: string; type: string; year: number; amount: number }>,
   studioAllocations: Array<{
     id: string;
     customerId: string;
@@ -2620,6 +2629,9 @@ function buildSpecialistHunterRows(
   const customerNames = new Map(customers.map((customer) => [customer.id, customer.name]));
   const peopleById = new Map(people.map((person) => [person.id, person]));
   const studioById = new Map(studioAllocations.map((allocation) => [allocation.id, allocation]));
+  const principalHunterKeys = new Set(allocations
+    .filter((allocation) => allocation.year === year && allocation.type === "hunter" && allocation.amount > 0)
+    .map((allocation) => `${allocation.personId}:${allocation.customerId}`));
   const rows: SpecialistHunterRow[] = [];
 
   assignments
@@ -2634,9 +2646,13 @@ function buildSpecialistHunterRows(
         id: `${person.id}-${assignment.studioTargetAllocationId}`,
         personId: person.id,
         personName: person.name,
+        customerId: allocation.customerId,
         customerName: customerNames.get(allocation.customerId) ?? allocation.customerId,
         areaName: areaNames.get(allocation.areaId) ?? allocation.areaId,
         sourceLabel: getSpecialistHunterSourceLabel(allocation.hunterAmount, allocation.maintenanceAmount),
+        isPrincipalHunter: principalHunterKeys.has(`${person.id}:${allocation.customerId}`),
+        hunterAmount: allocation.hunterAmount,
+        maintenanceAmount: allocation.maintenanceAmount,
         amount: allocation.hunterAmount + allocation.maintenanceAmount,
         year,
       });
@@ -2952,6 +2968,7 @@ function getClientCoverageReportColumns(showValues: boolean): ReportColumn<Clien
 const specialistHunterReportColumns: ReportColumn<SpecialistHunterRow>[] = [
   { key: "personName", label: "Hunter Especializado", value: (row) => row.personName },
   { key: "customerName", label: "Cliente", value: (row) => row.customerName },
+  { key: "principalHunter", label: "Papel no cliente", value: (row) => row.isPrincipalHunter ? "Hunter principal" : "Seleção gerencial" },
   { key: "areaName", label: "Área / Studio", value: (row) => row.areaName },
   { key: "sourceLabel", label: "Origem", value: (row) => row.sourceLabel },
   { key: "amount", label: "Valor gerencial", value: (row) => row.amount, format: "currency", align: "right" },
@@ -3184,9 +3201,13 @@ type SpecialistHunterRow = {
   id: string;
   personId: string;
   personName: string;
+  customerId: string;
   customerName: string;
   areaName: string;
   sourceLabel: string;
+  isPrincipalHunter: boolean;
+  hunterAmount: number;
+  maintenanceAmount: number;
   amount: number;
   year: number;
 };

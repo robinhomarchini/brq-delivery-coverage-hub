@@ -79,6 +79,16 @@ export type OfficialHunterClientRow = {
   maintenanceAmount: number;
 };
 
+export type OfficialSpecialistHunterRow = {
+  personName: string;
+  customerName: string;
+  areaName: string;
+  hunterAmount: number;
+  maintenanceAmount: number;
+  amount: number;
+  isPrincipalHunter: boolean;
+};
+
 export type OfficialPerson = {
   id: string;
   name: string;
@@ -122,6 +132,7 @@ export function buildOfficialRowsForView({
   areaRows,
   areaDetailRows,
   hunterClientRows,
+  specialistHunterRows = [],
   selectedHunterNames,
   selectedAreaNames,
   people,
@@ -139,6 +150,7 @@ export function buildOfficialRowsForView({
   areaRows: OfficialAreaRow[];
   areaDetailRows: OfficialAreaDetailRow[];
   hunterClientRows: OfficialHunterClientRow[];
+  specialistHunterRows?: OfficialSpecialistHunterRow[];
   selectedHunterNames: string[];
   selectedAreaNames: string[];
   people: OfficialPerson[];
@@ -178,6 +190,29 @@ export function buildOfficialRowsForView({
       farmerRenewal: row.segment === "Renovação + Ampliação" || row.segment === "Studio Manutenção" ? row.amount : 0,
       hunter: row.segment === "Meta Hunter" || row.segment === "Studio Hunter" ? row.amount : 0,
     })));
+  }
+
+  if (view === "specialistHunters") {
+    const gerencialRows = specialistHunterRows
+      .filter((row) => !row.isPrincipalHunter)
+      .map((row) => ({
+        executive: row.personName,
+        customerName: row.customerName,
+        billingCustomer: row.areaName,
+        farmerRenewal: row.maintenanceAmount,
+        hunter: row.hunterAmount,
+      }));
+    const principalRows = specialistHunterRows
+      .filter((row) => row.isPrincipalHunter)
+      .map((row) => ({
+        executive: `${row.personName} - Hunter principal`,
+        customerName: row.customerName,
+        billingCustomer: row.areaName,
+        farmerRenewal: row.maintenanceAmount,
+        hunter: row.hunterAmount,
+      }));
+
+    return buildOfficialGroupedRows([...gerencialRows, ...principalRows]);
   }
 
   if (view === "areas") {

@@ -272,7 +272,8 @@
   baseline ou Análise de Desafio.
 - A rota Metas Hunter Especializado permite selecionar Hunter Especializado,
   Cliente e Ano, listar as metas de Studio do cliente, marcar linhas por
-  checkbox e salvar a seleção gerencial.
+  checkbox, salvar/editar a seleção gerencial e excluir um cliente já cadastrado
+  para a pessoa no ano.
 - Ao selecionar uma pessoa Hunter Especializado em Metas por Pessoa, a aplicação
   orienta a ida para Metas Hunter Especializado, mantendo pessoa e ano como
   contexto inicial.
@@ -286,6 +287,10 @@
 - A seleção de Hunter Especializado é persistida em
   `specialist_hunter_studio_assignments` e o Relatório de Metas usa somente as
   linhas selecionadas para a visão Hunters Especializados.
+- Na visão Hunters Especializados do Relatório de Metas, linhas em que a pessoa
+  também possui meta Hunter direta no cliente devem ser sinalizadas como
+  "Hunter principal". A Planilha oficial dessa visão deve colocar essas contas
+  em bloco final diferenciado.
 - Em Metas por Pessoa, Hunter Especializado aparece somente em modo consulta:
   total por cliente vem dos Studios do cliente, limitado à meta de Studios do
   cliente, sem Meta Renovação + Ampliação editável, sem clique de alocação rápida

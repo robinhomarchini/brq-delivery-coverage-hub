@@ -465,6 +465,7 @@ Próximo passo: mover a view model de Clientes do Relatório de Metas (`buildCli
 - No Relatorio de Metas, a visao `Pessoas x Clientes` deve ser exportavel em linhas: Meta Squads/Times Hunter, Studio Hunter, Meta Squads/Times Renovacao, Studio Manutencao e Sem valor. Na tela, como a pessoa ja e escolhida no combo, nao repetir Pessoa/Perfil na grade; no CSV/Excel manter Pessoa/E-mail/Perfil para auditoria. Studios devem aparecer como linhas com origem, studio, tipo e valores, nao como badges concatenados.
 - Conceito de negocio atualizado: o que antes era chamado na UI/export como "Meta propria" passa a ser "Meta Squads/Times". `ownAmount`/`own_amount` continuam como nomes tecnicos internos para compatibilidade, mas textos, relatorios e exportacoes devem usar Meta Squads/Times.
 - Na visao `Pessoas x Clientes`, nao exibir coluna "Relacionamento" nem badge "Cliente associado"; isso polui a leitura. A grade/export devem focar em Cliente, Origem, Studio, Tipo, Hunter, Renovacao e Total da linha.
+- Metas Hunter Especializado nao e somente inclusao: a tela dedicada deve permitir carregar cliente salvo para editar a selecao de Studios e excluir o cliente da meta gerencial salvando a selecao vazia. No Relatorio de Metas, marcar "Hunter principal" quando o Hunter Especializado tambem tiver meta Hunter direta no cliente/ano; na Planilha oficial dessa visao, colocar essas contas em bloco final diferenciado.
 
 ## Stable Facts About the Project
 

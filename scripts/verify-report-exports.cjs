@@ -572,6 +572,51 @@ if (!generatedHunterClientOfficialRows.some((row) => row.executive === "Hunter C
   throw new Error("Hunter x Clientes official rows must write Studio Manutenção in Cliente Faturamento.");
 }
 
+const generatedSpecialistHunterOfficialRows = buildOfficialRowsForView({
+  view: "specialistHunters",
+  peopleRows: [],
+  hunterRows: [],
+  hunterDetailRows: [],
+  directorDetailRows: [],
+  areaRows: [],
+  areaDetailRows: [],
+  hunterClientRows: [],
+  specialistHunterRows: [
+    {
+      personName: "Especialista QA",
+      customerName: "Cliente Especialista",
+      areaName: "Google - Alianças",
+      hunterAmount: 40,
+      maintenanceAmount: 0,
+      amount: 40,
+      isPrincipalHunter: false,
+    },
+    {
+      personName: "Especialista QA",
+      customerName: "Cliente Principal",
+      areaName: "Salesforce",
+      hunterAmount: 10,
+      maintenanceAmount: 20,
+      amount: 30,
+      isPrincipalHunter: true,
+    },
+  ],
+  selectedHunterNames: [],
+  selectedAreaNames: [],
+  people: [],
+  allocations: [],
+  studioAllocations: [],
+  customerNames: new Map(),
+  areaNames: new Map(),
+  year: 2026,
+});
+if (!generatedSpecialistHunterOfficialRows.some((row) => row.executive === "Especialista QA" && row.customerName === "Cliente Especialista" && row.billingCustomer === "Google - Alianças" && row.hunter === 40)) {
+  throw new Error("Specialist Hunter official rows must include regular managerial selections.");
+}
+if (!generatedSpecialistHunterOfficialRows.some((row) => row.executive === "Especialista QA - Hunter principal" && row.customerName === "Cliente Principal" && row.billingCustomer === "Salesforce" && row.hunter === 10 && row.farmerRenewal === 20)) {
+  throw new Error("Specialist Hunter official rows must append principal Hunter accounts in a differentiated block.");
+}
+
 const generatedOfficialRows = buildOfficialRowsForView({
   view: "people",
   peopleRows: [{

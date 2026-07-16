@@ -1,6 +1,6 @@
 "use client";
 
-import { Save, SquareCheckBig, Target, UsersRound } from "lucide-react";
+import { Pencil, Save, SquareCheckBig, Target, Trash2, UsersRound } from "lucide-react";
 import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { KpiSummaryCard } from "@/components/shared/kpi-summary-card";
@@ -64,6 +64,7 @@ export function SpecialistHunterTargetAssignment({ initialPersonId = "", initial
   const [year, setYear] = useState(initialSafeYear);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
+  const [deletingCustomerId, setDeletingCustomerId] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -125,6 +126,34 @@ export function SpecialistHunterTargetAssignment({ initialPersonId = "", initial
         || first.areaName.localeCompare(second.areaName, "pt-BR"));
   }, [areasById, customersById, personId, specialistHunterStudioAssignments, studioTargetAllocations, year]);
   const savedSelectionIds = useMemo(() => new Set(savedSelectionRows.map((row) => row.id)), [savedSelectionRows]);
+  const savedCustomerGroups = useMemo(() => {
+    const groups = new Map<string, {
+      customerId: string;
+      customerName: string;
+      rows: SpecialistSelectionRow[];
+      hunterAmount: number;
+      maintenanceAmount: number;
+      total: number;
+    }>();
+
+    savedSelectionRows.forEach((row) => {
+      const group = groups.get(row.customerId) ?? {
+        customerId: row.customerId,
+        customerName: row.customerName,
+        rows: [],
+        hunterAmount: 0,
+        maintenanceAmount: 0,
+        total: 0,
+      };
+      group.rows.push(row);
+      group.hunterAmount += row.hunterAmount;
+      group.maintenanceAmount += row.maintenanceAmount;
+      group.total += row.total;
+      groups.set(row.customerId, group);
+    });
+
+    return Array.from(groups.values()).sort((first, second) => first.customerName.localeCompare(second.customerName, "pt-BR"));
+  }, [savedSelectionRows]);
   const pendingSelectionRows = useMemo<SpecialistSelectionRow[]>(() => selectedRows
     .filter((row) => !savedSelectionIds.has(row.id))
     .map((row) => ({
@@ -206,6 +235,13 @@ export function SpecialistHunterTargetAssignment({ initialPersonId = "", initial
     });
   }
 
+  function editSavedCustomer(nextCustomerId: string) {
+    setCustomerId(nextCustomerId);
+    setSelectedIds(getSavedSelectionIds(personId, nextCustomerId, year));
+    setSuccessMessage("");
+    setErrorMessage("");
+  }
+
   async function saveSelection() {
     setSuccessMessage("");
     setErrorMessage("");
@@ -233,6 +269,35 @@ export function SpecialistHunterTargetAssignment({ initialPersonId = "", initial
       setErrorMessage(error instanceof Error ? error.message : "Não foi possível salvar a seleção.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function deleteCustomerSelection(nextCustomerId: string) {
+    setSuccessMessage("");
+    setErrorMessage("");
+
+    if (!personId) {
+      setErrorMessage("Selecione um Hunter Especializado.");
+      return;
+    }
+
+    setDeletingCustomerId(nextCustomerId);
+    try {
+      await saveSpecialistHunterStudioAssignments({
+        personId,
+        customerId: nextCustomerId,
+        year,
+        studioTargetAllocationIds: [],
+      });
+      if (selectedCustomerId === nextCustomerId) {
+        setCustomerId("");
+        setSelectedIds(new Set());
+      }
+      setSuccessMessage("Cliente removido da meta gerencial do Hunter Especializado.");
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Não foi possível excluir o cliente da seleção.");
+    } finally {
+      setDeletingCustomerId("");
     }
   }
 
@@ -275,9 +340,9 @@ export function SpecialistHunterTargetAssignment({ initialPersonId = "", initial
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
         <Card className="overflow-hidden shadow-sm">
           <div className="border-b px-5 py-4">
-            <h2 className="text-base font-bold text-slate-950">Nova inclusão</h2>
+            <h2 className="text-base font-bold text-slate-950">{selectedCustomerId && getSavedSelectionIds(personId, selectedCustomerId, year).size ? "Editar cliente" : "Nova inclusão"}</h2>
             <p className="text-sm text-slate-500">
-              Escolha um cliente e marque as linhas de Studio que entram na meta gerencial.
+              Escolha um cliente e marque as linhas de Studio que entram na meta gerencial. Salvar substitui a seleção atual desse cliente.
             </p>
           </div>
           <div className="grid gap-4 p-5">
@@ -340,7 +405,7 @@ export function SpecialistHunterTargetAssignment({ initialPersonId = "", initial
               <Badge variant="secondary">{selectedRows.length} de {studioRows.length} linha(s) selecionada(s) no cliente</Badge>
               <Button type="button" onClick={saveSelection} disabled={saving || !personId || !selectedCustomerId}>
                 <Save className="h-4 w-4" />
-                {saving ? "Salvando..." : "Salvar inclusão"}
+                {saving ? "Salvando..." : "Salvar seleção"}
               </Button>
             </div>
           </div>
@@ -350,40 +415,55 @@ export function SpecialistHunterTargetAssignment({ initialPersonId = "", initial
           <div className="border-b px-5 py-4">
             <h2 className="text-base font-bold text-slate-950">Seleções cadastradas</h2>
             <p className="text-sm text-slate-500">
-              Lista consolidada da pessoa no ano. Linhas em prévia ainda dependem do botão Salvar inclusão.
+              Lista consolidada da pessoa no ano. Use Editar para carregar o cliente no painel ao lado ou Excluir para remover todas as linhas do cliente.
             </p>
           </div>
           <div className="overflow-x-auto">
-            <Table className="min-w-[760px]">
+            <Table className="min-w-[900px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Cliente</TableHead>
-                  <TableHead>Área / Studio</TableHead>
+                  <TableHead>Studios selecionados</TableHead>
                   <TableHead className="text-right">Hunter</TableHead>
                   <TableHead className="text-right">Manutenção</TableHead>
                   <TableHead className="text-right">Total</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Ação</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {selectionSummaryRows.map((row) => (
-                  <TableRow key={`${row.pending ? "pending" : "saved"}-${row.id}`} className={row.pending ? "bg-amber-50/60" : undefined}>
-                    <TableCell className="font-semibold text-slate-950">{row.customerName}</TableCell>
+                {savedCustomerGroups.map((group) => (
+                  <TableRow key={group.customerId}>
+                    <TableCell className="font-semibold text-slate-950">{group.customerName}</TableCell>
                     <TableCell>
-                      <p className="font-medium text-slate-900">{row.areaName}</p>
-                      {row.notes && <p className="mt-0.5 max-w-xs truncate text-xs text-slate-500" title={row.notes}>{row.notes}</p>}
+                      <div className="flex max-w-md flex-wrap gap-1.5">
+                        {group.rows.map((row) => (
+                          <Badge key={row.id} variant="secondary">{row.areaName}</Badge>
+                        ))}
+                      </div>
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">{formatCurrency(row.hunterAmount)}</TableCell>
-                    <TableCell className="text-right tabular-nums">{formatCurrency(row.maintenanceAmount)}</TableCell>
-                    <TableCell className="text-right font-bold tabular-nums text-slate-950">{formatCurrency(row.total)}</TableCell>
-                    <TableCell>
-                      {row.pending
-                        ? <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-100">Prévia</Badge>
-                        : <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">Salvo</Badge>}
+                    <TableCell className="text-right tabular-nums">{formatCurrency(group.hunterAmount)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatCurrency(group.maintenanceAmount)}</TableCell>
+                    <TableCell className="text-right font-bold tabular-nums text-slate-950">{formatCurrency(group.total)}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button type="button" variant="outline" size="sm" onClick={() => editSavedCustomer(group.customerId)}>
+                          <Pencil className="h-4 w-4" /> Editar
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="text-red-700 hover:text-red-800"
+                          disabled={deletingCustomerId === group.customerId}
+                          onClick={() => deleteCustomerSelection(group.customerId)}
+                        >
+                          <Trash2 className="h-4 w-4" /> {deletingCustomerId === group.customerId ? "Excluindo..." : "Excluir"}
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
-                {!selectionSummaryRows.length && (
+                {!savedCustomerGroups.length && (
                   <TableRow>
                     <TableCell colSpan={6} className="py-8 text-center text-slate-500">
                       Nenhuma meta gerencial cadastrada para essa pessoa no ano.
