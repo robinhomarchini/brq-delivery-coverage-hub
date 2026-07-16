@@ -1282,13 +1282,13 @@ export function PersonTargetReport() {
                       <p className="text-xs text-slate-400">{row.participantCount} participante(s)</p>
                     </TableCell>
                     <TableCell>
-                      <PersonBadgeList people={row.hunters} emptyLabel="Sem Hunter" tone="sky" showValues={showClientCoverageValues} />
+                      <PersonBadgeList people={row.hunters} emptyLabel="Sem Hunter" tone="sky" />
                     </TableCell>
                     <TableCell>
-                      <PersonBadgeList people={row.deliveryManagers} emptyLabel="Sem Delivery/Farmer" tone="purple" showValues={showClientCoverageValues} />
+                      <PersonBadgeList people={row.deliveryManagers} emptyLabel="Sem Delivery/Farmer" tone="purple" />
                     </TableCell>
                     <TableCell>
-                      <PersonBadgeList people={row.specialistHunters} emptyLabel="Sem Hunter Especializado" tone="slate" showValues={showClientCoverageValues} />
+                      <PersonBadgeList people={row.specialistHunters} emptyLabel="Sem Hunter Especializado" tone="slate" />
                     </TableCell>
                     <TableCell>
                       <div className="flex max-w-sm flex-wrap gap-1.5">
@@ -1476,12 +1476,10 @@ function PersonBadgeList({
   people,
   emptyLabel,
   tone,
-  showValues = true,
 }: {
   people: ClientCoveragePerson[];
   emptyLabel: string;
   tone: "sky" | "purple" | "slate";
-  showValues?: boolean;
 }) {
   const toneClass = tone === "sky"
     ? "bg-sky-100 text-sky-800 hover:bg-sky-100"
@@ -1496,7 +1494,6 @@ function PersonBadgeList({
       {people.map((person) => (
         <Badge key={person.personId} className={toneClass} title={person.roleType}>
           {person.personName}
-          {showValues && person.amount > 0.01 ? ` · ${formatCurrency(person.amount)}` : ""}
         </Badge>
       ))}
     </div>
@@ -2301,9 +2298,9 @@ function buildClientCoverageRows({
         customerTargetTotal,
         totalLinkedTarget,
         coverageDelta: totalLinkedTarget - customerTargetTotal,
-        huntersText: sortClientCoveragePeople(hunters).map(formatClientCoveragePerson).join(", "),
-        deliveryManagersText: sortClientCoveragePeople(deliveryManagers).map(formatClientCoveragePerson).join(", "),
-        specialistHuntersText: sortClientCoveragePeople(specialistHunters).map(formatClientCoveragePerson).join(", "),
+        huntersText: formatClientCoveragePeopleNames(sortClientCoveragePeople(hunters)),
+        deliveryManagersText: formatClientCoveragePeopleNames(sortClientCoveragePeople(deliveryManagers)),
+        specialistHuntersText: formatClientCoveragePeopleNames(sortClientCoveragePeople(specialistHunters)),
         studiosText: Array.from(studioNames).sort((first, second) => first.localeCompare(second, "pt-BR")).join(", "),
       };
     })
@@ -2335,10 +2332,6 @@ function sortClientCoveragePeople(people: ClientCoveragePerson[]) {
   return [...people].sort((first, second) =>
     second.amount - first.amount || first.personName.localeCompare(second.personName, "pt-BR")
   );
-}
-
-function formatClientCoveragePerson(person: ClientCoveragePerson) {
-  return person.amount > 0.01 ? `${person.personName} (${formatCurrency(person.amount)})` : person.personName;
 }
 
 function formatClientCoveragePeopleNames(people: ClientCoveragePerson[]) {
@@ -2953,9 +2946,9 @@ const hunterClientReportColumns: ReportColumn<HunterClientRow>[] = [
 function getClientCoverageReportColumns(showValues: boolean): ReportColumn<ClientCoverageRow>[] {
   const columns: ReportColumn<ClientCoverageRow>[] = [
     { key: "customerName", label: "Cliente", value: (row) => row.customerName },
-    { key: "huntersText", label: "Hunters", value: (row) => showValues ? row.huntersText : formatClientCoveragePeopleNames(row.hunters) },
-    { key: "deliveryManagersText", label: "Delivery / Farmers", value: (row) => showValues ? row.deliveryManagersText : formatClientCoveragePeopleNames(row.deliveryManagers) },
-    { key: "specialistHuntersText", label: "Hunters Especializados", value: (row) => showValues ? row.specialistHuntersText : formatClientCoveragePeopleNames(row.specialistHunters) },
+    { key: "huntersText", label: "Hunters", value: (row) => row.huntersText },
+    { key: "deliveryManagersText", label: "Delivery / Farmers", value: (row) => row.deliveryManagersText },
+    { key: "specialistHuntersText", label: "Hunters Especializados", value: (row) => row.specialistHuntersText },
     { key: "studiosText", label: "Studios", value: (row) => row.studiosText },
     { key: "participantCount", label: "Participantes", value: (row) => row.participantCount, format: "number", align: "right" },
   ];

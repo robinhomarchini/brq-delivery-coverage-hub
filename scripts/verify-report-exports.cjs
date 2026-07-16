@@ -128,6 +128,31 @@ if (missingClientCoverageTokens.length) {
   throw new Error(`Client coverage report is missing tokens: ${missingClientCoverageTokens.join(", ")}`);
 }
 
+const forbiddenClientCoverageValueTokens = [
+  "formatClientCoveragePerson",
+  "showValues ? row.huntersText",
+  "showValues ? row.deliveryManagersText",
+  "showValues ? row.specialistHuntersText",
+  "person.amount > 0.01 ? ` · ${formatCurrency(person.amount)}`",
+];
+const foundForbiddenClientCoverageValueTokens = forbiddenClientCoverageValueTokens.filter((token) => source.includes(token));
+if (foundForbiddenClientCoverageValueTokens.length) {
+  throw new Error(`Client coverage report must keep person labels value-free: ${foundForbiddenClientCoverageValueTokens.join(", ")}`);
+}
+
+const requiredValueFreeClientCoverageTokens = [
+  "huntersText: formatClientCoveragePeopleNames(sortClientCoveragePeople(hunters))",
+  "deliveryManagersText: formatClientCoveragePeopleNames(sortClientCoveragePeople(deliveryManagers))",
+  "specialistHuntersText: formatClientCoveragePeopleNames(sortClientCoveragePeople(specialistHunters))",
+  '{ key: "huntersText", label: "Hunters", value: (row) => row.huntersText }',
+  '{ key: "deliveryManagersText", label: "Delivery / Farmers", value: (row) => row.deliveryManagersText }',
+  '{ key: "specialistHuntersText", label: "Hunters Especializados", value: (row) => row.specialistHuntersText }',
+];
+const missingValueFreeClientCoverageTokens = requiredValueFreeClientCoverageTokens.filter((token) => !source.includes(token));
+if (missingValueFreeClientCoverageTokens.length) {
+  throw new Error(`Client coverage report must export person names without allocated values: ${missingValueFreeClientCoverageTokens.join(", ")}`);
+}
+
 for (const view of requiredOfficialExportViews) {
   const branchPattern = new RegExp(`\\{effectiveView === "${view}"[\\s\\S]*?<ReportExportActions([\\s\\S]*?)\\/>`);
   const branchMatch = source.match(branchPattern);

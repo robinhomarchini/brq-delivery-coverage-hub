@@ -331,6 +331,10 @@
   + Ano, com baseline, meta atual, composição alocada por pessoa/studio, valor
   atual e diferenças; para Consulta Hunter, essa visão respeita o escopo de
   clientes do próprio Hunter.
+- Na visão Clientes do Relatório de Metas, nomes de Hunters, Delivery/Farmers e
+  Hunters Especializados aparecem sem valor ao lado. O modo "Com valores"
+  adiciona apenas colunas financeiras do cliente, como Meta do cliente, Meta
+  ligada e Diferença, tanto na tela quanto nas exportações.
 - A tela de Metas permite salvar soma acima da meta total do cliente e mostra a
   diferença como positiva/verde.
 - Diferenças abaixo da meta aparecem negativas/vermelhas em Clientes, Metas,
