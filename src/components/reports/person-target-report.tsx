@@ -164,7 +164,7 @@ export function PersonTargetReport() {
     return sortPeopleClientRows(peopleClientRows.filter((row) =>
       (!selectedPeopleClientPersonId || row.personId === selectedPeopleClientPersonId)
       &&
-      (!query || `${row.personName} ${row.roleType} ${row.customerName} ${row.relationshipText} ${row.studioBreakdown}`.toLowerCase().includes(query))
+      (!query || `${row.personName} ${row.roleType} ${row.customerName} ${row.relationshipText} ${row.lineSource} ${row.studioName} ${row.lineType}`.toLowerCase().includes(query))
       && (!roleType || row.roleType === roleType)
     ), peopleClientSort);
   }, [peopleClientRows, peopleClientSort, roleType, search, selectedPeopleClientPersonId]);
@@ -828,28 +828,23 @@ export function PersonTargetReport() {
             </p>
           </div>
           <div className="overflow-x-auto">
-            <Table className="min-w-[1480px]">
+            <Table className="min-w-[1320px]">
               <TableHeader>
                 <TableRow>
-                  <SortableTableHead label="Pessoa" sortKey="person" sortState={peopleClientSort} onSort={setPeopleClientSort} />
-                  <SortableTableHead label="Perfil" sortKey="role" sortState={peopleClientSort} onSort={setPeopleClientSort} />
                   <SortableTableHead label="Cliente" sortKey="customer" sortState={peopleClientSort} onSort={setPeopleClientSort} />
                   <SortableTableHead label="Relacionamento" sortKey="relationship" sortState={peopleClientSort} onSort={setPeopleClientSort} />
+                  <TableHead>Origem</TableHead>
+                  <TableHead>Studio</TableHead>
+                  <TableHead>Tipo</TableHead>
                   <SortableTableHead label="Hunter atual" sortKey="hunter" sortState={peopleClientSort} onSort={setPeopleClientSort} />
                   <SortableTableHead label="Renov. + Ampl. atual" sortKey="renewal" sortState={peopleClientSort} onSort={setPeopleClientSort} />
-                  <SortableTableHead label="Total atual" sortKey="total" sortState={peopleClientSort} onSort={setPeopleClientSort} />
-                  <TableHead>Studios que compõem</TableHead>
+                  <SortableTableHead label="Total linha" sortKey="total" sortState={peopleClientSort} onSort={setPeopleClientSort} />
                   <TableHead className="text-right">Ação</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {selectedPeopleClientPersonId && filteredPeopleClientRows.map((row) => (
                   <TableRow key={row.id}>
-                    <TableCell>
-                      <p className="font-bold text-slate-950">{row.personName}</p>
-                      <p className="text-xs text-slate-400">{row.email || "E-mail não informado"}</p>
-                    </TableCell>
-                    <TableCell><Badge variant="secondary">{row.roleType}</Badge></TableCell>
                     <TableCell>
                       <p className="font-semibold text-slate-900">{row.customerName}</p>
                     </TableCell>
@@ -860,37 +855,20 @@ export function PersonTargetReport() {
                         ))}
                       </div>
                     </TableCell>
+                    <TableCell><Badge variant="secondary">{row.lineSource}</Badge></TableCell>
                     <TableCell>
-                      <MoneyBreakdown
-                        total={row.hunterTotal}
-                        lines={[
-                          ["Própria sem Studio", row.ownHunter],
-                          ["Studio contido", row.studioHunter],
-                        ]}
-                      />
+                      <p className="font-semibold text-slate-900">{row.studioName}</p>
                     </TableCell>
                     <TableCell>
-                      <MoneyBreakdown
-                        total={row.renewalTotal}
-                        lines={[
-                          ["Própria sem Studio", row.ownRenewal],
-                          ["Studio contido", row.studioMaintenance],
-                        ]}
-                      />
+                      <Badge className={row.lineType === "Studio Hunter" ? "bg-sky-100 text-sky-800 hover:bg-sky-100" : row.lineType === "Studio Manutenção" ? "bg-purple-100 text-purple-800 hover:bg-purple-100" : "bg-slate-100 text-slate-700 hover:bg-slate-100"}>
+                        {row.lineType}
+                      </Badge>
                     </TableCell>
+                    <TableCell className="text-right font-semibold tabular-nums">{formatCurrency(row.hunterAmount)}</TableCell>
+                    <TableCell className="text-right font-semibold tabular-nums">{formatCurrency(row.renewalAmount)}</TableCell>
                     <TableCell className="text-right font-black tabular-nums text-slate-950">{formatCurrency(row.total)}</TableCell>
-                    <TableCell>
-                      <div className="flex max-w-sm flex-wrap gap-1.5">
-                        {row.studioItems.length === 0 && <span className="text-sm text-slate-400">Sem composição Studio</span>}
-                        {row.studioItems.map((studio) => (
-                          <Badge key={`${row.id}-${studio.areaName}-${studio.kind}`} className={studio.kind === "Studio Hunter" ? "bg-sky-100 text-sky-800 hover:bg-sky-100" : "bg-purple-100 text-purple-800 hover:bg-purple-100"}>
-                            {studio.areaName} · {studio.kind === "Studio Hunter" ? "Hunter" : "Manut."} {formatCurrency(studio.amount)}
-                          </Badge>
-                        ))}
-                      </div>
-                    </TableCell>
                     <TableCell className="text-right">
-                      {canEdit && (
+                      {canEdit && row.isFirstCustomerLine && (
                         <Button asChild variant="outline" size="sm">
                           <Link href={`/metas-pessoas?personId=${encodeURIComponent(row.personId)}&customerId=${encodeURIComponent(row.customerId)}&year=${encodeURIComponent(year)}`}>
                             Ajustar <ArrowUpRight className="h-3.5 w-3.5" />
@@ -902,11 +880,11 @@ export function PersonTargetReport() {
                 ))}
                 {selectedPeopleClientPersonId && filteredPeopleClientRows.length > 0 && (
                   <TableRow className="bg-slate-900 text-white hover:bg-slate-900">
-                    <TableCell colSpan={4} className="font-bold">Total da visão filtrada</TableCell>
+                    <TableCell colSpan={5} className="font-bold">Total da visão filtrada</TableCell>
                     <TableCell className="text-right font-bold tabular-nums">{formatCurrency(sumPeopleClientHunter(filteredPeopleClientRows))}</TableCell>
                     <TableCell className="text-right font-bold tabular-nums">{formatCurrency(sumPeopleClientRenewal(filteredPeopleClientRows))}</TableCell>
                     <TableCell className="text-right font-bold tabular-nums">{formatCurrency(sumPeopleClientTotal(filteredPeopleClientRows))}</TableCell>
-                    <TableCell colSpan={2} />
+                    <TableCell />
                   </TableRow>
                 )}
               </TableBody>
@@ -1485,19 +1463,6 @@ function getViewDescription(view: ReportView) {
   return "Metas operacionais por pessoa, com acesso rápido para ajuste.";
 }
 
-function MoneyBreakdown({ total, lines }: { total: number; lines: Array<[string, number]> }) {
-  return (
-    <div className="text-right">
-      <p className="font-bold tabular-nums text-slate-950" title="Valor atual, já incluindo a parcela de Studio contida.">{formatCurrency(total)}</p>
-      <div className="mt-1 space-y-0.5 text-xs text-slate-500">
-        {lines.map(([label, value]) => (
-          <p key={label}>{label}: <span className="font-semibold text-slate-700">{formatCurrency(value)}</span></p>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function PersonBadgeList({
   people,
   emptyLabel,
@@ -1654,9 +1619,9 @@ function buildPeopleClientRows({
       });
 
     return Array.from(customerIds)
-      .map<PeopleClientRow | null>((customerId) => {
+      .flatMap<PeopleClientRow>((customerId) => {
         const customer = customers.find((item) => item.id === customerId);
-        if (!customer) return null;
+        if (!customer) return [];
 
         const customerAllocations = directAllocations.filter((allocation) => allocation.customerId === customerId);
         const hunterAllocations = customerAllocations.filter((allocation) => allocation.type === "hunter");
@@ -1682,11 +1647,7 @@ function buildPeopleClientRows({
           directAllocations: customerAllocations,
           studioItems,
         });
-        const hunterTotal = hunterCurrent;
-        const renewalTotal = renewalCurrent;
-
-        return {
-          id: `${person.id}:${customerId}`,
+        const baseRow = {
           personId: person.id,
           personName: person.name,
           email: person.email,
@@ -1696,22 +1657,81 @@ function buildPeopleClientRows({
           customerTargetTotal: getCustomerTotalTarget(customer),
           relationships,
           relationshipText: relationships.join(", "),
-          ownHunter,
-          studioHunter,
-          hunterTotal,
-          ownRenewal,
-          studioMaintenance,
-          renewalTotal,
-          total: hunterTotal + renewalTotal,
-          studioItems,
-          studioBreakdown: studioItems.map((item) => `${item.areaName} ${item.kind}: ${formatCurrency(item.amount)}`).join(" | "),
         };
+        const rows: PeopleClientRow[] = [];
+
+        if (ownHunter > 0.01) {
+          rows.push({
+            ...baseRow,
+            id: `${person.id}:${customerId}:own-hunter`,
+            lineSource: "Meta própria",
+            studioName: "-",
+            lineType: "Hunter próprio",
+            hunterAmount: ownHunter,
+            renewalAmount: 0,
+            total: ownHunter,
+            isFirstCustomerLine: rows.length === 0,
+          });
+        }
+
+        if (ownRenewal > 0.01) {
+          rows.push({
+            ...baseRow,
+            id: `${person.id}:${customerId}:own-renewal`,
+            lineSource: "Meta própria",
+            studioName: "-",
+            lineType: "Renovação própria",
+            hunterAmount: 0,
+            renewalAmount: ownRenewal,
+            total: ownRenewal,
+            isFirstCustomerLine: rows.length === 0,
+          });
+        }
+
+        studioItems.forEach((item, index) => {
+          rows.push({
+            ...baseRow,
+            id: `${person.id}:${customerId}:studio:${index}:${item.areaName}:${item.kind}`,
+            lineSource: "Studio",
+            studioName: item.areaName,
+            lineType: item.kind,
+            hunterAmount: item.kind === "Studio Hunter" ? item.amount : 0,
+            renewalAmount: item.kind === "Studio Manutenção" ? item.amount : 0,
+            total: item.amount,
+            isFirstCustomerLine: rows.length === 0,
+          });
+        });
+
+        if (!rows.length) {
+          rows.push({
+            ...baseRow,
+            id: `${person.id}:${customerId}:no-target`,
+            lineSource: "Sem meta",
+            studioName: "-",
+            lineType: "Sem valor",
+            hunterAmount: 0,
+            renewalAmount: 0,
+            total: 0,
+            isFirstCustomerLine: true,
+          });
+        }
+
+        return rows;
       })
-      .filter((row): row is PeopleClientRow => Boolean(row));
   }).sort((first, second) =>
     first.personName.localeCompare(second.personName, "pt-BR")
     || first.customerName.localeCompare(second.customerName, "pt-BR")
+    || getPeopleClientLineSortValue(first) - getPeopleClientLineSortValue(second)
+    || first.studioName.localeCompare(second.studioName, "pt-BR")
   );
+}
+
+function getPeopleClientLineSortValue(row: PeopleClientRow) {
+  if (row.lineType === "Hunter próprio") return 0;
+  if (row.lineType === "Studio Hunter") return 1;
+  if (row.lineType === "Renovação própria") return 2;
+  if (row.lineType === "Studio Manutenção") return 3;
+  return 4;
 }
 
 function buildPeopleClientStudioItems({
@@ -2832,11 +2852,11 @@ function sumAmount(rows: Array<{ amount: number }>) {
 }
 
 function sumPeopleClientHunter(rows: PeopleClientRow[]) {
-  return rows.reduce((total, row) => total + row.hunterTotal, 0);
+  return rows.reduce((total, row) => total + row.hunterAmount, 0);
 }
 
 function sumPeopleClientRenewal(rows: PeopleClientRow[]) {
-  return rows.reduce((total, row) => total + row.renewalTotal, 0);
+  return rows.reduce((total, row) => total + row.renewalAmount, 0);
 }
 
 function sumPeopleClientTotal(rows: PeopleClientRow[]) {
@@ -2861,14 +2881,12 @@ const peopleClientReportColumns: ReportColumn<PeopleClientRow>[] = [
   { key: "customerName", label: "Cliente", value: (row) => row.customerName },
   { key: "customerTargetTotal", label: "Meta total do cliente", value: (row) => row.customerTargetTotal, format: "currency", align: "right" },
   { key: "relationshipText", label: "Relacionamentos", value: (row) => row.relationshipText },
-  { key: "ownHunter", label: "Hunter própria sem Studio", value: (row) => row.ownHunter, format: "currency", align: "right" },
-  { key: "studioHunter", label: "Studio Hunter contido", value: (row) => row.studioHunter, format: "currency", align: "right" },
-  { key: "hunterTotal", label: "Hunter atual", value: (row) => row.hunterTotal, format: "currency", align: "right" },
-  { key: "ownRenewal", label: "Renovação própria sem Studio", value: (row) => row.ownRenewal, format: "currency", align: "right" },
-  { key: "studioMaintenance", label: "Studio Manutenção contido", value: (row) => row.studioMaintenance, format: "currency", align: "right" },
-  { key: "renewalTotal", label: "Renovação atual", value: (row) => row.renewalTotal, format: "currency", align: "right" },
-  { key: "total", label: "Total pessoa x cliente", value: (row) => row.total, format: "currency", align: "right" },
-  { key: "studioBreakdown", label: "Studios que compõem", value: (row) => row.studioBreakdown },
+  { key: "lineSource", label: "Origem", value: (row) => row.lineSource },
+  { key: "studioName", label: "Studio", value: (row) => row.studioName },
+  { key: "lineType", label: "Tipo", value: (row) => row.lineType },
+  { key: "hunterAmount", label: "Hunter atual", value: (row) => row.hunterAmount, format: "currency", align: "right" },
+  { key: "renewalAmount", label: "Renovação atual", value: (row) => row.renewalAmount, format: "currency", align: "right" },
+  { key: "total", label: "Total linha", value: (row) => row.total, format: "currency", align: "right" },
 ];
 
 const areaReportColumns: ReportColumn<AreaStudioRow>[] = [
@@ -3002,8 +3020,8 @@ function sortPeopleClientRows(rows: PeopleClientRow[], sortState: SortState<Peop
     if (sortState.key === "role") return compareText(first.roleType, second.roleType);
     if (sortState.key === "customer") return compareText(first.customerName, second.customerName);
     if (sortState.key === "relationship") return compareText(first.relationshipText, second.relationshipText);
-    if (sortState.key === "hunter") return compareNumber(first.hunterTotal, second.hunterTotal);
-    if (sortState.key === "renewal") return compareNumber(first.renewalTotal, second.renewalTotal);
+    if (sortState.key === "hunter") return compareNumber(first.hunterAmount, second.hunterAmount);
+    if (sortState.key === "renewal") return compareNumber(first.renewalAmount, second.renewalAmount);
     return compareNumber(first.total, second.total);
   });
 }
@@ -3052,6 +3070,7 @@ type PeopleClientStudioItem = {
   kind: "Studio Hunter" | "Studio Manutenção";
   amount: number;
 };
+type PeopleClientLineType = "Hunter próprio" | "Renovação própria" | "Studio Hunter" | "Studio Manutenção" | "Sem valor";
 type PeopleClientRow = {
   id: string;
   personId: string;
@@ -3063,15 +3082,13 @@ type PeopleClientRow = {
   customerTargetTotal: number;
   relationships: string[];
   relationshipText: string;
-  ownHunter: number;
-  studioHunter: number;
-  hunterTotal: number;
-  ownRenewal: number;
-  studioMaintenance: number;
-  renewalTotal: number;
+  lineSource: "Meta própria" | "Studio" | "Sem meta";
+  studioName: string;
+  lineType: PeopleClientLineType;
+  hunterAmount: number;
+  renewalAmount: number;
   total: number;
-  studioItems: PeopleClientStudioItem[];
-  studioBreakdown: string;
+  isFirstCustomerLine: boolean;
 };
 type AreaStudioRow = {
   areaId: string;
