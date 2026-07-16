@@ -29,17 +29,18 @@ import { KpiSummaryCard } from "@/components/shared/kpi-summary-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useDeliveryStore } from "@/store/delivery-store";
 import { exportDeliveryDataAsCsv, exportElementAsPdf } from "@/lib/export";
-import { cn, formatCompactCurrency, formatCurrency } from "@/lib/utils";
+import { cn, formatCompactCurrency, formatCurrency, normalizeBusinessName } from "@/lib/utils";
 import { translateRole } from "@/lib/roles";
 import { applyCustomerTargetsForYear, defaultTargetYear } from "@/lib/customer-targets";
-import { getBoardTargetBaselineTotals, getRegisteredTargetTotals } from "@/lib/board-target-baseline";
+import { getBoardTargetBaselineRows, getBoardTargetBaselineTotals, getRegisteredTargetTotals } from "@/lib/board-target-baseline";
 import { getCustomerTotalTarget } from "@/lib/customer-target-total";
+import { getCustomerCoverageAllocatedTotal } from "@/lib/customers/customer-coverage-view-model";
 
 const COLORS = ["#15171B", "#7F2EC9", "#EE7C38", "#2563EB", "#F97316", "#A3A3A3"];
 
 export function ExecutiveDashboard() {
   const chartsReady = useSyncExternalStore(subscribeToHydration, () => true, () => false);
-  const { people, customers, customerTargets, boardTargetBaselines } = useDeliveryStore();
+  const { areas, people, customers, customerTargets, boardTargetBaselines, targetAllocations, studioTargetAllocations } = useDeliveryStore();
   const financialCustomers = applyCustomerTargetsForYear(customers, customerTargets, defaultTargetYear);
   const activePeople = people.filter((person) => person.active);
   const directors = activePeople.filter((person) => person.roleType === "Director" || person.roleType === "Executive");
@@ -54,16 +55,25 @@ export function ExecutiveDashboard() {
   const registeredTotals = getRegisteredTargetTotals(financialCustomers);
   const totalRevenue = boardTotals.totalTarget;
   const registeredDelta = registeredTotals.totalTarget - boardTotals.totalTarget;
+  const baselineByCustomer = new Map(
+    getBoardTargetBaselineRows(defaultTargetYear, boardTargetBaselines)
+      .map((row) => [normalizeBusinessName(row.customerName), row.totalTarget]),
+  );
   const financialByCustomer = financialCustomers
-    .map((customer) => ({
-      customerCluster: customer.name,
-      revenueCurrent: customer.revenue,
-      revenueTarget: getCustomerTarget(customer),
-      hunterRevenue: customer.hunterTarget,
-      deliveryFarmerRevenue: customer.farmerRenewalTarget,
-      studioRevenue: customer.studioTarget,
-    }))
-    .sort((a, b) => b.revenueTarget - a.revenueTarget)
+    .map((customer) => {
+      const baselineTarget = baselineByCustomer.get(normalizeBusinessName(customer.name)) ?? getCustomerTarget(customer);
+      const allocatedPeople = getCustomerCoverageAllocatedTotal(customer, people, targetAllocations, studioTargetAllocations, areas, defaultTargetYear);
+      return {
+        customerCluster: customer.name,
+        revenueCurrent: allocatedPeople,
+        revenueTarget: baselineTarget,
+        hunterRevenue: customer.hunterTarget,
+        deliveryFarmerRevenue: customer.farmerRenewalTarget,
+        studioRevenue: customer.studioTarget,
+      };
+    })
+    .filter((item) => item.revenueCurrent > 0 || item.revenueTarget > 0)
+    .sort((a, b) => Math.max(b.revenueCurrent, b.revenueTarget) - Math.max(a.revenueCurrent, a.revenueTarget))
     .slice(0, 10);
   const financialByDirector = activePeople
     .filter((person) => person.roleType === "Director")
@@ -180,8 +190,8 @@ export function ExecutiveDashboard() {
               <YAxis type="category" dataKey="customerCluster" width={120} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
               <Tooltip cursor={{ fill: "#f1f5f9" }} formatter={(value) => formatCurrency(Number(value))} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar dataKey="revenueCurrent" name="Receita Atual" fill="#15171B" radius={[0, 4, 4, 0]} />
-              <Bar dataKey="revenueTarget" name="Meta Prevista" fill="#7F2EC9" radius={[0, 4, 4, 0]} />
+              <Bar dataKey="revenueCurrent" name="Alocado em Pessoas" fill="#15171B" radius={[0, 4, 4, 0]} />
+              <Bar dataKey="revenueTarget" name="Baseline Board" fill="#7F2EC9" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer> : <ChartPlaceholder />}
         </ChartCard>

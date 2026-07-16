@@ -894,7 +894,7 @@ function getCustomerDirectorName(customer: Customer, people: Person[]) {
   return displayDirectorName(people.find((person) => person.id === customer.directorResponsibleId)?.name ?? customer.directorResponsibleId);
 }
 
-function getCustomerCoverageAllocatedTotal(
+export function getCustomerCoverageAllocatedTotal(
   customer: Customer,
   people: Person[],
   allocations: TargetAllocation[],

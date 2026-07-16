@@ -985,7 +985,9 @@ Dashboards:
 
 - Receita Atual x Meta Prevista por Diretor.
 - Meta Prevista por Manager.
-- Receita Atual x Meta Prevista por Cliente/Cluster.
+- A visão financeira por Cliente/Cluster compara o Baseline Board contra o total
+  alocado em pessoas, usando a mesma regra contida de Hunter/Studio da tela
+  Clientes. Ela não deve usar `customer.revenue` como proxy de alocação.
 - Top clusters por Meta Prevista.
 - Tabela executiva por cluster de cliente.
 

@@ -36,6 +36,21 @@ const checks = [
     ],
   },
   {
+    name: "Executive customer chart must compare people allocation against Board baseline",
+    file: "src/components/dashboard/executive-dashboard.tsx",
+    failWhen: [
+      /revenueCurrent:\s*customer\.revenue/,
+      /name="Receita Atual"/,
+      /name="Meta Prevista"/,
+    ],
+    require: [
+      /getCustomerCoverageAllocatedTotal/,
+      /getBoardTargetBaselineRows/,
+      /name="Alocado em Pessoas"/,
+      /name="Baseline Board"/,
+    ],
+  },
+  {
     name: "New customer form must not reuse initial URL customer values",
     file: "src/components/customers/customer-management.tsx",
     failWhen: [
