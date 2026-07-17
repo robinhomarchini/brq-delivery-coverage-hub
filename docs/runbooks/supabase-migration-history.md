@@ -29,15 +29,15 @@ Se houver diferença, o workflow falha e lista as versões divergentes.
 Use primeiro o caminho já validado neste projeto:
 
 ```bash
-npx --no-install supabase migration list --linked
+npx --cache .npm-cache --yes supabase migration list --linked
 ```
 
 Evite trocar de estratégia a cada falha. Erros de cache, rede, login role ou
 PostHog/telemetria da CLI são falhas transitórias da ferramenta, não prova de
 drift. Reexecute o mesmo comando uma vez antes de investigar outro caminho.
 
-Não force cache local em scripts por padrão. Use o cache padrão do npm/ambiente;
-se uma esteira específica precisar isolar cache, defina
+Use cache local do projeto para evitar falhas de permissão no Windows/Codex.
+Se uma esteira específica precisar isolar outro cache, defina
 `SUPABASE_MIGRATION_CHECK_NPM_CACHE`.
 
 ## Secret necessário no GitHub
@@ -52,7 +52,10 @@ Use a connection string Postgres do projeto Supabase. Ela deve ficar apenas em
 GitHub Secrets, nunca em arquivos versionados.
 
 Quando o secret estiver presente, o script usa `--db-url`; localmente usa
-`--linked`.
+`--linked`. Este repositório não versiona `supabase/config.toml` nem `.supabase`;
+por isso o GitHub Actions não deve cair para `--linked`. Se `SUPABASE_DB_URL`
+estiver ausente no GitHub, o workflow falha como erro de configuração, não como
+drift de migration.
 
 ## Regra operacional
 

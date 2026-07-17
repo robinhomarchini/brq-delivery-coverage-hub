@@ -479,6 +479,7 @@ Próximo passo: mover a view model de Clientes do Relatório de Metas (`buildCli
 - Na tela Metas por Area/Studio, `Nova meta por studio` deve usar modo explicito de criacao (`forceNew`) e nunca reaproveitar filtros, default de Hunter, alocacao anterior ou valores. `Nova linha para este cliente` pode preservar apenas o cliente, mantendo area/responsaveis/valores/observacoes limpos.
 - O GitHub Actions `Security & Quality Gate` valida `.env.local` com `grep -q "\.env\.local" .gitignore`; manter uma linha explicita `.env.local` no `.gitignore`, mesmo que `.env*` ja cubra o arquivo, e preservar essa verificacao tambem em `scripts/verify-security-hardening.cjs`.
 - Clientes New Logo podem ficar em controle sem compor a meta oficial por ano. Fonte de verdade: `customer_target_years.counts_toward_target` + `target_exclusion_reason`, no grao cliente/ano. A tela Clientes exibe "(New Logo)" abaixo do nome e usa meta efetiva zero para batimento/KPIs, preservando os valores cadastrados para auditoria. Relatorio de Metas e Dashboard Executivo iniciam excluindo New Logos e possuem toggle "Incluir New Logos" para consulta/exportacao.
+- O workflow `Supabase Migration Drift` depende obrigatoriamente do secret GitHub `SUPABASE_DB_URL`, pois o repo nao versiona `supabase/config.toml` nem `.supabase`; em CI nao cair para `--linked`. Se o secret faltar, o script deve falhar como erro de configuracao acionavel, nao como drift real. Em 2026-07-17, check local escalado confirmou 78 migrations locais / 78 remotas alinhadas.
 
 ## Stable Facts About the Project
 

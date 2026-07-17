@@ -45,6 +45,10 @@ function getRemoteMigrationVersions() {
   if (process.env.SUPABASE_DB_URL) {
     args.push("--db-url", process.env.SUPABASE_DB_URL);
   } else {
+    if (process.env.GITHUB_ACTIONS === "true") {
+      console.error("::error title=Supabase migration check not configured::Configure the repository secret SUPABASE_DB_URL with the Supabase Postgres connection string. This repository does not commit supabase/config.toml, so GitHub Actions cannot use --linked.");
+      process.exit(1);
+    }
     args.push("--linked");
   }
 

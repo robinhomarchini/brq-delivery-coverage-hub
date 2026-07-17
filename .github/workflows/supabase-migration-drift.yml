@@ -28,6 +28,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Validate Supabase migration check secret
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "::error title=Missing SUPABASE_DB_URL secret::Configure repository secret SUPABASE_DB_URL with the Supabase Postgres connection string. Without it, this scheduled check cannot read remote migration history."
+            exit 1
+          fi
+
       - name: Check Supabase migration history
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
