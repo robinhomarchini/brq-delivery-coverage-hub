@@ -8,10 +8,12 @@ import { ErrorNotice, SuccessNotice } from "@/components/shared/success-notice";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useDeliveryStore } from "@/store/delivery-store";
 import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears } from "@/lib/customer-targets";
+import { formatCurrencyInput, formatCurrencyInputValue, parseCurrencyInput } from "@/lib/currency-input";
 import { isSpecialistHunterRole } from "@/lib/roles";
 import { formatCurrency } from "@/lib/utils";
 import type { TargetAllocation } from "@/data/mockData";
@@ -31,7 +33,9 @@ type SpecialistSelectionRow = {
   areaName: string;
   hunterAmount: number;
   maintenanceAmount: number;
+  assignedAmount?: number;
   total: number;
+  sourceTotal: number;
   notes?: string;
   pending: boolean;
 };
@@ -78,6 +82,7 @@ export function SpecialistHunterTargetAssignment({ initialPersonId = "", initial
   const [saving, setSaving] = useState(false);
   const [deletingCustomerId, setDeletingCustomerId] = useState("");
   const [correctingAllocationId, setCorrectingAllocationId] = useState("");
+  const [assignedAmountInputs, setAssignedAmountInputs] = useState<Record<string, string>>({});
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -120,15 +125,19 @@ export function SpecialistHunterTargetAssignment({ initialPersonId = "", initial
       .reduce<SpecialistSelectionRow[]>((rows, assignment) => {
         const allocation = allocationsById.get(assignment.studioTargetAllocationId);
         if (!allocation || allocation.hunterAmount + allocation.maintenanceAmount <= 0) return rows;
+        const sourceTotal = allocation.hunterAmount + allocation.maintenanceAmount;
+        const assignedAmount = assignment.assignedAmount;
         rows.push({
           id: allocation.id,
           personId,
           customerId: allocation.customerId,
           customerName: customersById.get(allocation.customerId)?.name ?? allocation.customerId,
           areaName: areasById.get(allocation.areaId) ?? allocation.areaId,
-          hunterAmount: allocation.hunterAmount,
-          maintenanceAmount: allocation.maintenanceAmount,
-          total: allocation.hunterAmount + allocation.maintenanceAmount,
+          hunterAmount: assignedAmount == null ? allocation.hunterAmount : assignedAmount,
+          maintenanceAmount: assignedAmount == null ? allocation.maintenanceAmount : 0,
+          assignedAmount,
+          total: assignedAmount ?? sourceTotal,
+          sourceTotal,
           notes: allocation.notes,
           pending: false,
         });
@@ -194,19 +203,25 @@ export function SpecialistHunterTargetAssignment({ initialPersonId = "", initial
   }, [customersById, personId, savedSelectionRows, targetAllocations, year]);
   const pendingSelectionRows = useMemo<SpecialistSelectionRow[]>(() => selectedRows
     .filter((row) => !savedSelectionIds.has(row.id))
-    .map((row) => ({
-      id: row.id,
-      personId,
-      customerId: row.customerId,
-      customerName: customersById.get(row.customerId)?.name ?? row.customerId,
-      areaName: row.areaName,
-      hunterAmount: row.hunterAmount,
-      maintenanceAmount: row.maintenanceAmount,
-      total: row.total,
-      notes: row.notes,
-      pending: true,
-    })),
-  [customersById, personId, savedSelectionIds, selectedRows]);
+    .map((row) => {
+      const rawAssignedAmount = assignedAmountInputs[row.id];
+      const assignedAmount = rawAssignedAmount?.trim() ? parseCurrencyInput(rawAssignedAmount) : undefined;
+      return {
+        id: row.id,
+        personId,
+        customerId: row.customerId,
+        customerName: customersById.get(row.customerId)?.name ?? row.customerId,
+        areaName: row.areaName,
+        hunterAmount: assignedAmount ?? row.hunterAmount,
+        maintenanceAmount: assignedAmount == null ? row.maintenanceAmount : 0,
+        assignedAmount,
+        total: assignedAmount ?? row.total,
+        sourceTotal: row.total,
+        notes: row.notes,
+        pending: true,
+      };
+    }),
+  [customersById, personId, savedSelectionIds, selectedRows, assignedAmountInputs]);
   const selectionSummaryRows = useMemo(
     () => [...savedSelectionRows, ...pendingSelectionRows].sort((first, second) =>
       first.customerName.localeCompare(second.customerName, "pt-BR")
@@ -236,6 +251,25 @@ export function SpecialistHunterTargetAssignment({ initialPersonId = "", initial
       .map((assignment) => assignment.studioTargetAllocationId));
   }
 
+  function getSavedSelectionAssignedAmountInputs(nextPersonId: string, nextCustomerId: string, nextYear: number) {
+    const studioIdsForCustomer = new Set(studioTargetAllocations
+      .filter((allocation) =>
+        allocation.customerId === nextCustomerId
+        && allocation.year === nextYear
+        && allocation.hunterAmount + allocation.maintenanceAmount > 0
+      )
+      .map((allocation) => allocation.id));
+
+    return Object.fromEntries(specialistHunterStudioAssignments
+      .filter((assignment) =>
+        assignment.personId === nextPersonId
+        && assignment.year === nextYear
+        && studioIdsForCustomer.has(assignment.studioTargetAllocationId)
+        && assignment.assignedAmount != null
+      )
+      .map((assignment) => [assignment.studioTargetAllocationId, formatCurrencyInputValue(assignment.assignedAmount ?? 0)]));
+  }
+
   function customerHasStudios(nextCustomerId: string, nextYear: number) {
     return studioTargetAllocations.some((allocation) =>
       allocation.customerId === nextCustomerId
@@ -247,11 +281,13 @@ export function SpecialistHunterTargetAssignment({ initialPersonId = "", initial
   function handlePersonChange(nextPersonId: string) {
     setPersonId(nextPersonId);
     setSelectedIds(getSavedSelectionIds(nextPersonId, selectedCustomerId, year));
+    setAssignedAmountInputs(getSavedSelectionAssignedAmountInputs(nextPersonId, selectedCustomerId, year));
   }
 
   function handleCustomerChange(nextCustomerId: string) {
     setCustomerId(nextCustomerId);
     setSelectedIds(getSavedSelectionIds(personId, nextCustomerId, year));
+    setAssignedAmountInputs(getSavedSelectionAssignedAmountInputs(personId, nextCustomerId, year));
   }
 
   function handleYearChange(nextYear: number) {
@@ -259,6 +295,7 @@ export function SpecialistHunterTargetAssignment({ initialPersonId = "", initial
     setYear(nextYear);
     setCustomerId(nextCustomerId);
     setSelectedIds(getSavedSelectionIds(personId, nextCustomerId, nextYear));
+    setAssignedAmountInputs(getSavedSelectionAssignedAmountInputs(personId, nextCustomerId, nextYear));
   }
 
   function toggleSelection(id: string) {
@@ -273,9 +310,17 @@ export function SpecialistHunterTargetAssignment({ initialPersonId = "", initial
     });
   }
 
+  function setAssignedAmountInput(id: string, value: string) {
+    setAssignedAmountInputs((current) => ({
+      ...current,
+      [id]: formatCurrencyInput(value),
+    }));
+  }
+
   function editSavedCustomer(nextCustomerId: string) {
     setCustomerId(nextCustomerId);
     setSelectedIds(getSavedSelectionIds(personId, nextCustomerId, year));
+    setAssignedAmountInputs(getSavedSelectionAssignedAmountInputs(personId, nextCustomerId, year));
     setSuccessMessage("");
     setErrorMessage("");
   }
@@ -300,6 +345,9 @@ export function SpecialistHunterTargetAssignment({ initialPersonId = "", initial
         customerId: selectedCustomerId,
         year,
         studioTargetAllocationIds: Array.from(selectedIds),
+        assignedAmounts: Object.fromEntries(Array.from(selectedIds)
+          .filter((id) => assignedAmountInputs[id]?.trim())
+          .map((id) => [id, parseCurrencyInput(assignedAmountInputs[id])])),
       });
       setSuccessMessage(`Meta gerencial de ${selectedPerson?.name ?? "Hunter Especializado"} salva para o cliente selecionado.`);
       setSelectedIds(new Set(selectedIds));
@@ -330,6 +378,7 @@ export function SpecialistHunterTargetAssignment({ initialPersonId = "", initial
       if (selectedCustomerId === nextCustomerId) {
         setCustomerId("");
         setSelectedIds(new Set());
+        setAssignedAmountInputs({});
       }
       setSuccessMessage("Cliente removido da meta gerencial do Hunter Especializado.");
     } catch (error) {
@@ -476,6 +525,7 @@ export function SpecialistHunterTargetAssignment({ initialPersonId = "", initial
                     <TableHead className="text-right">Studio Hunter</TableHead>
                     <TableHead className="text-right">Manutenção</TableHead>
                     <TableHead className="text-right">Total</TableHead>
+                    <TableHead className="text-right">Valor gerencial</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -500,12 +550,25 @@ export function SpecialistHunterTargetAssignment({ initialPersonId = "", initial
                         <TableCell className="text-right tabular-nums">{formatCurrency(row.hunterAmount)}</TableCell>
                         <TableCell className="text-right tabular-nums">{formatCurrency(row.maintenanceAmount)}</TableCell>
                         <TableCell className="text-right font-bold tabular-nums text-slate-950">{formatCurrency(row.total)}</TableCell>
+                        <TableCell className="min-w-48 text-right">
+                          <Input
+                            type="text"
+                            inputMode="decimal"
+                            value={assignedAmountInputs[row.id] ?? ""}
+                            onChange={(event) => setAssignedAmountInput(row.id, event.target.value)}
+                            placeholder={formatCurrency(row.total)}
+                            disabled={!checked}
+                            aria-label={`Valor gerencial de ${row.areaName}`}
+                            className="text-right tabular-nums"
+                          />
+                          <p className="mt-1 text-xs text-slate-500">Vazio usa o Studio</p>
+                        </TableCell>
                       </TableRow>
                     );
                   })}
                   {!studioRows.length && (
                     <TableRow>
-                      <TableCell colSpan={5} className="py-8 text-center text-slate-500">
+                      <TableCell colSpan={6} className="py-8 text-center text-slate-500">
                         Selecione um cliente com metas de Studio cadastradas para montar a meta gerencial.
                       </TableCell>
                     </TableRow>
@@ -539,6 +602,7 @@ export function SpecialistHunterTargetAssignment({ initialPersonId = "", initial
                   <TableHead className="text-right">Hunter</TableHead>
                   <TableHead className="text-right">Manutenção</TableHead>
                   <TableHead className="text-right">Total</TableHead>
+                  <TableHead className="text-right">Ajustes</TableHead>
                   <TableHead className="text-right">Ação</TableHead>
                 </TableRow>
               </TableHeader>
@@ -556,6 +620,11 @@ export function SpecialistHunterTargetAssignment({ initialPersonId = "", initial
                     <TableCell className="text-right tabular-nums">{formatCurrency(group.hunterAmount)}</TableCell>
                     <TableCell className="text-right tabular-nums">{formatCurrency(group.maintenanceAmount)}</TableCell>
                     <TableCell className="text-right font-bold tabular-nums text-slate-950">{formatCurrency(group.total)}</TableCell>
+                    <TableCell className="text-right text-xs text-slate-500">
+                      {group.rows.some((row) => row.assignedAmount != null)
+                        ? `${group.rows.filter((row) => row.assignedAmount != null).length} ajuste(s)`
+                        : "Sem ajuste"}
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button type="button" variant="outline" size="sm" onClick={() => editSavedCustomer(group.customerId)}>
@@ -577,7 +646,7 @@ export function SpecialistHunterTargetAssignment({ initialPersonId = "", initial
                 ))}
                 {!savedCustomerGroups.length && (
                   <TableRow>
-                    <TableCell colSpan={6} className="py-8 text-center text-slate-500">
+                    <TableCell colSpan={7} className="py-8 text-center text-slate-500">
                       Nenhuma meta gerencial cadastrada para essa pessoa no ano.
                     </TableCell>
                   </TableRow>

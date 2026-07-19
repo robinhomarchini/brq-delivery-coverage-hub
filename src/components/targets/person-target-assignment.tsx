@@ -761,7 +761,7 @@ function buildRow(
   year: number,
   allocations: TargetAllocation[],
   studioAllocations: StudioTargetAllocation[],
-  specialistAssignments: Array<{ personId: string; studioTargetAllocationId: string; year: number }>,
+  specialistAssignments: Array<{ personId: string; studioTargetAllocationId: string; year: number; assignedAmount?: number }>,
   areas: Array<{ id: string; name: string }>,
   draft: { hunter: string; farmerRenewal: string } | undefined,
   source: RowSource,
@@ -774,9 +774,7 @@ function buildRow(
   const rawStudioHunterAmount = isSpecialistHunter
     ? sumSpecialistStudioAllocations(studioAllocations, specialistAssignments, customer.id, personId, year)
     : sumStudioHunterAllocations(studioAllocations, customer.id, personId, year, people, allocations);
-  const studioHunterAmount = isSpecialistHunter
-    ? Math.min(rawStudioHunterAmount, targetBreakdown.hunter)
-    : rawStudioHunterAmount;
+  const studioHunterAmount = rawStudioHunterAmount;
   const rowTargetBreakdown = isSpecialistHunter
     ? { hunter: studioHunterAmount, farmerRenewal: 0 }
     : targetBreakdown;
@@ -853,22 +851,22 @@ function sumStudioHunterAllocations(
 
 function sumSpecialistStudioAllocations(
   allocations: StudioTargetAllocation[],
-  specialistAssignments: Array<{ personId: string; studioTargetAllocationId: string; year: number }>,
+  specialistAssignments: Array<{ personId: string; studioTargetAllocationId: string; year: number; assignedAmount?: number }>,
   customerId: string,
   personId: string,
   year: number,
 ) {
-  const selectedAllocationIds = new Set(specialistAssignments
+  const selectedAllocations = new Map(specialistAssignments
     .filter((assignment) => assignment.personId === personId && assignment.year === year)
-    .map((assignment) => assignment.studioTargetAllocationId));
+    .map((assignment) => [assignment.studioTargetAllocationId, assignment]));
 
   return roundCurrency(allocations
     .filter((allocation) =>
       allocation.customerId === customerId
       && allocation.year === year
-      && selectedAllocationIds.has(allocation.id)
+      && selectedAllocations.has(allocation.id)
     )
-    .reduce((total, allocation) => total + allocation.hunterAmount, 0));
+    .reduce((total, allocation) => total + (selectedAllocations.get(allocation.id)?.assignedAmount ?? allocation.hunterAmount), 0));
 }
 
 function findAllocation(

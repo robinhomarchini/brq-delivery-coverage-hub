@@ -20,8 +20,10 @@ Each row links one active `Hunter Especializado` person to one existing
 transactional Supabase RPC that replaces the selection for Person + Customer +
 Year. The selection is edited in a dedicated screen and consumed by reports.
 
-This relation does not create `revenue_target_allocations`, does not store derived
-totals, and does not affect official totals.
+This relation does not create `revenue_target_allocations` and does not affect
+official totals. It may store an optional `assigned_amount` as a reporting-only
+managerial override for the specialist hunter. When the value is absent, reports
+continue using the selected Studio allocation value.
 
 ## Options Considered
 
@@ -29,8 +31,11 @@ totals, and does not affect official totals.
   specialist views with official person targets.
 - Derive automatically from all linked customer studios: rejected because the
   user needs explicit checkbox selection by client/studio.
-- Store manual amounts per specialist hunter: rejected because it would duplicate
-  studio target facts and create reconciliation drift.
+- Store official manual amounts per specialist hunter: rejected because it would
+  duplicate target facts and create reconciliation drift.
+- Store a reporting-only override on the explicit selection: accepted later as a
+  narrow exception because the value is isolated from official customer, person,
+  dashboard and baseline totals.
 
 ## Trade-offs
 
@@ -47,7 +52,8 @@ totals, and does not affect official totals.
 - RLS and backend validation enforce that only active `Hunter Especializado`
   people can receive these selections.
 - Changing studio target values automatically changes the reported specialist
-  hunter totals because the selection points to the source allocation row.
+  hunter totals only when `assigned_amount` is empty. If `assigned_amount` is
+  filled, the specialist hunter report uses the managerial override.
 
 ## Date
 

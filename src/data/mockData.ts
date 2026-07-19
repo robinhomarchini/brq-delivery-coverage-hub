@@ -131,6 +131,7 @@ export interface SpecialistHunterStudioAssignment {
   personId: string;
   studioTargetAllocationId: string;
   year: number;
+  assignedAmount?: number;
   notes?: string;
 }
 

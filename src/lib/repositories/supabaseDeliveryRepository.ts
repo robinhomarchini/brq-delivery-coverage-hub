@@ -148,6 +148,7 @@ type SpecialistHunterStudioAssignmentRow = {
   person_id: string;
   studio_target_allocation_id: string;
   target_year: number;
+  assigned_amount?: number | string | null;
   notes: string | null;
 };
 
@@ -382,12 +383,14 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
     customerId: string;
     year: number;
     studioTargetAllocationIds: string[];
+    assignedAmounts?: Record<string, number>;
   }) {
     const { error } = await this.client.rpc("save_specialist_hunter_studio_assignments", {
       p_person_id: input.personId,
       p_customer_id: input.customerId,
       p_target_year: input.year,
       p_studio_target_allocation_ids: input.studioTargetAllocationIds,
+      p_assigned_amounts: input.assignedAmounts ?? {},
     });
     if (error) throw error;
     return this.fetchAll();
@@ -1389,6 +1392,7 @@ function fromSpecialistHunterStudioAssignmentRow(row: SpecialistHunterStudioAssi
     personId: row.person_id,
     studioTargetAllocationId: row.studio_target_allocation_id,
     year: row.target_year,
+    assignedAmount: row.assigned_amount == null ? undefined : Number(row.assigned_amount),
     notes: row.notes ?? undefined,
   };
 }

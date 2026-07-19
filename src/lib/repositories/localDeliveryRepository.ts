@@ -254,6 +254,9 @@ export class LocalDeliveryRepository implements DeliveryRepository {
         personId: input.personId,
         studioTargetAllocationId,
         year: input.year,
+        assignedAmount: input.assignedAmounts && Object.hasOwn(input.assignedAmounts, studioTargetAllocationId)
+          ? Math.max(Number(input.assignedAmounts[studioTargetAllocationId]) || 0, 0)
+          : undefined,
         notes: "Meta gerencial derivada de Studio para Hunter Especializado.",
       })),
     ];

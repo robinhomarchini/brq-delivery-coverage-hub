@@ -1017,6 +1017,11 @@ Mapeamento de origem:
 - No Relatório de Metas, a visão `Hunters Especializados` exibe somente metas
   gerenciais derivadas de Studio selecionado. Vínculo de cliente associado ou
   Hunter principal sem Studio não cria meta nessa visão.
+- A seleção gerencial de Hunter Especializado pode ter um valor gerencial
+  ajustado por linha de Studio. Esse valor é exclusivo para leitura/reporting do
+  Hunter Especializado; quando vazio, a visão usa o valor do Studio selecionado.
+  O ajuste não cria `revenue_target_allocations`, não altera metas oficiais do
+  cliente, da pessoa, de Studios, dashboards ou comparativos de baseline.
 - Quando o mesmo Hunter Especializado tiver seleção de Studio e também for
   Hunter principal do cliente, a seleção de Studio é a linha única do relatório;
   o status de Hunter principal aparece como rótulo nessa linha, sem duplicar o

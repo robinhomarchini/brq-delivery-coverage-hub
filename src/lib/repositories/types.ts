@@ -32,6 +32,7 @@ export interface SpecialistHunterStudioAssignmentsInput {
   customerId: string;
   year: number;
   studioTargetAllocationIds: string[];
+  assignedAmounts?: Record<string, number>;
 }
 
 export interface DeliveryData {

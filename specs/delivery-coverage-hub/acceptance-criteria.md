@@ -570,6 +570,12 @@
 - Na visão `Hunters Especializados`, somente metas derivadas de Studio
   selecionado aparecem; cliente associado ou Hunter principal sem Studio não
   gera linha de meta.
+- Em `Metas Hunter Especializado`, cada Studio selecionado permite preencher um
+  `Valor gerencial`; vazio preserva o valor do Studio, e qualquer valor
+  preenchido substitui apenas a visão gerencial do Hunter Especializado.
+- Alterar o `Valor gerencial` para mais, para menos ou zero não altera metas do
+  cliente, Metas por Pessoa, Metas por Área/Studio, Dashboard Executivo nem
+  baseline.
 - Se o Hunter Especializado for principal e já tiver seleção de Studio no mesmo
   cliente, o relatório exibe uma única linha marcada como principal e não soma
   uma segunda Meta Squads/Times.

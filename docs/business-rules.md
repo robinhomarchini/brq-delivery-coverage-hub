@@ -16,7 +16,7 @@
 - Studio Manutencao/Renovacao does not compose Hunter reports.
 - In client views, Hunter coverage uses the applicable Hunter/direct participants plus Studio Hunter detail without duplicate counting.
 - `Hunter Especializado` is a cross/managerial role. It has no own target and must not receive direct rows in `revenue_target_allocations`.
-- Specialist Hunter reporting is derived from Studio allocations for the customers linked to the person. It does not change customer totals, person totals, dashboard totals, baseline comparisons or challenge analysis.
+- Specialist Hunter reporting is derived from selected Studio allocations. The selection may carry an optional reporting-only `assigned_amount` for the Hunter Especializado; this value can be higher, lower or zero, and does not change customer totals, person totals, dashboard totals, baseline comparisons or challenge analysis.
 
 ## Delivery / Farmers / Managers
 

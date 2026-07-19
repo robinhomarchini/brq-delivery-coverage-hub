@@ -2232,7 +2232,7 @@ function buildClientCoverageRows({
   people: Array<{ id: string; name: string; roleType: RoleType; active: boolean; clientIds: string[]; isManager: boolean }>;
   allocations: Array<{ id: string; customerId: string; personId: string; type: string; year: number; amount: number; ownAmount?: number }>;
   studioAllocations: Array<{ id: string; customerId: string; areaId: string; hunterPersonId?: string; maintenancePersonId?: string; year: number; hunterAmount: number; maintenanceAmount: number }>;
-  specialistAssignments: Array<{ personId: string; studioTargetAllocationId: string; year: number }>;
+  specialistAssignments: Array<{ personId: string; studioTargetAllocationId: string; year: number; assignedAmount?: number }>;
   areaNames: Map<string, string>;
   year: number;
 }) {
@@ -2248,7 +2248,7 @@ function buildClientCoverageRows({
       const person = peopleById.get(assignment.personId);
       const allocation = studioById.get(assignment.studioTargetAllocationId);
       if (!person?.active || !isSpecialistHunterRole(person.roleType) || !allocation || allocation.year !== year) return;
-      const amount = allocation.hunterAmount + allocation.maintenanceAmount;
+      const amount = assignment.assignedAmount ?? allocation.hunterAmount + allocation.maintenanceAmount;
       if (amount <= 0.01) return;
       addClientCoveragePerson(specialistRowsByCustomer, allocation.customerId, {
         personId: person.id,
@@ -2661,6 +2661,7 @@ function buildSpecialistHunterRows(
     personId: string;
     studioTargetAllocationId: string;
     year: number;
+    assignedAmount?: number;
   }>,
   areaNames: Map<string, string>,
   year: number,
@@ -2680,6 +2681,9 @@ function buildSpecialistHunterRows(
       const allocation = studioById.get(assignment.studioTargetAllocationId);
       if (!person?.active || !isSpecialistHunterRole(person.roleType) || !allocation) return;
       if (allocation.year !== year || allocation.hunterAmount + allocation.maintenanceAmount <= 0) return;
+      const hasAssignedAmount = assignment.assignedAmount != null;
+      const hunterAmount = hasAssignedAmount ? assignment.assignedAmount ?? 0 : allocation.hunterAmount;
+      const maintenanceAmount = hasAssignedAmount ? 0 : allocation.maintenanceAmount;
 
       rows.push({
         id: `${person.id}-${assignment.studioTargetAllocationId}`,
@@ -2688,12 +2692,12 @@ function buildSpecialistHunterRows(
         customerId: allocation.customerId,
         customerName: customerNames.get(allocation.customerId) ?? allocation.customerId,
         areaName: areaNames.get(allocation.areaId) ?? allocation.areaId,
-        sourceLabel: getSpecialistHunterSourceLabel(allocation.hunterAmount, allocation.maintenanceAmount),
+        sourceLabel: hasAssignedAmount ? "Valor ajustado" : getSpecialistHunterSourceLabel(allocation.hunterAmount, allocation.maintenanceAmount),
         isPrincipalHunter: principalHunterKeys.has(`${person.id}:${allocation.customerId}`),
         relationshipType: principalHunterKeys.has(`${person.id}:${allocation.customerId}`) ? "principal" : "selection",
-        hunterAmount: allocation.hunterAmount,
-        maintenanceAmount: allocation.maintenanceAmount,
-        amount: allocation.hunterAmount + allocation.maintenanceAmount,
+        hunterAmount,
+        maintenanceAmount,
+        amount: hunterAmount + maintenanceAmount,
         year,
       });
     });
