@@ -1068,22 +1068,39 @@ function CustomerStudioCompositionView({ composition }: { composition: CustomerS
 }
 
 function CustomerAllocationWarning({ warning }: { warning: CustomerAllocationWarningData }) {
+  const isAboveTarget = warning.gap < -0.01;
+  const absoluteGap = Math.abs(warning.gap);
+  const tone = isAboveTarget
+    ? {
+      container: "border-emerald-200 bg-emerald-50 text-emerald-950",
+      button: "border-emerald-300 bg-white/80 text-emerald-950 hover:bg-white",
+      title: "Distribuição por pessoa acima da meta do cliente",
+      message: `Para ${warning.year}, a soma associada às pessoas está ${formatCurrency(absoluteGap)} acima da meta: ${formatCurrency(warning.target)} de meta vs. ${formatCurrency(warning.allocated)} distribuído.`,
+      action: "Ver",
+    }
+    : {
+      container: "border-red-200 bg-red-50 text-red-950",
+      button: "border-red-300 bg-white/80 text-red-950 hover:bg-white",
+      title: "Distribuição por pessoa abaixo da meta do cliente",
+      message: `Para ${warning.year}, faltam ${formatCurrency(absoluteGap)} para a soma associada às pessoas bater com a meta: ${formatCurrency(warning.target)} de meta vs. ${formatCurrency(warning.allocated)} distribuído.`,
+      action: "Ajustar",
+    };
+
   return (
-    <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-red-950 md:col-span-2">
-      <p className="font-semibold">Distribuição por pessoa abaixo da meta do cliente</p>
+    <div className={`rounded-2xl border p-4 md:col-span-2 ${tone.container}`}>
+      <p className="font-semibold">{tone.title}</p>
       <p className="mt-1 text-sm">
-        Para {warning.year}, faltam {formatCurrency(warning.gap)} para a soma associada às pessoas bater com a meta:
-        {" "}{formatCurrency(warning.target)} de meta vs. {formatCurrency(warning.allocated)} distribuído.
+        {tone.message}
       </p>
       <div className="mt-3 flex flex-wrap gap-2">
         {warning.people.length ? warning.people.map((person) => (
-          <Button key={person.id} asChild variant="outline" size="sm" className="border-red-300 bg-white/80 text-red-950 hover:bg-white">
+          <Button key={person.id} asChild variant="outline" size="sm" className={tone.button}>
             <Link href={`/metas-pessoas?personId=${encodeURIComponent(person.id)}&customerId=${encodeURIComponent(warning.customerId)}&year=${warning.year}`}>
-              Ajustar {person.name}
+              {tone.action} {person.name}
             </Link>
           </Button>
         )) : (
-          <Button asChild variant="outline" size="sm" className="border-red-300 bg-white/80 text-red-950 hover:bg-white">
+          <Button asChild variant="outline" size="sm" className={tone.button}>
             <Link href={`/metas-pessoas?customerId=${encodeURIComponent(warning.customerId)}&year=${warning.year}`}>
               Abrir Metas por Pessoa
             </Link>
