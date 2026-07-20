@@ -26,7 +26,7 @@ experiência do usuário até nova definição de modelo.
   Diretores têm identidade visual distinta.
 - Apenas pessoas com `isManager: true` entram no KPI de Managers.
 - Receita e margem pertencem ao portfólio de clientes. Nesta etapa, margem é
-  apenas margem-alvo informativa com padrão de 35,8%; apuração real fica para
+  apenas margem-alvo informativa com padrão de 36,8%; apuração real fica para
   evolução futura.
 - Assuntos por cliente estão pausados na navegação, nas visualizações e nos
   exports enquanto o modelo de cobertura é reavaliado.

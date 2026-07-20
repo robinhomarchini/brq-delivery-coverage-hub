@@ -385,6 +385,13 @@ Centralizar importação de baselines em uma nova rota, removendo uploads antigo
 
 Próximo passo: mover a view model de Clientes do Relatório de Metas (`buildClientCoverageRows` e colunas/totalizadores relacionados) para `src/lib/reports/`, reutilizando `person-target-rollups.ts` e mantendo `npm run test:reports` como gate obrigatório.
 
+## Current Decision Update - 2026-07-20
+
+- Margem-alvo informativa dos clientes atualizada de 35,8% para 36,8%.
+- Fonte de verdade de UI/default: `src/lib/financial-targets.ts`.
+- Registros existentes e defaults auxiliares do Supabase devem ser alinhados pela migration `20260720100000_update_target_margin_to_36_8.sql`.
+- A margem continua informativa; nao altera metas oficiais, distribuicoes de pessoas, Studios, New Logo, dashboards de meta ou relatorios financeiros.
+
 ## Discovered Commands
 
 - `npm run dev`: servidor local Next.js.

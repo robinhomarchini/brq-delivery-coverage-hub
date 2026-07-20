@@ -28,7 +28,7 @@
 - O cliente Itaú aceita múltiplos managers responsáveis: Bruno, Orion, Fernanda
   e Ricardo Bonfim.
 - A margem do cliente é exibida como margem-alvo informativa, com padrão de
-  35,8%, sem cálculo de apuração real nesta versão.
+  36,8%, sem cálculo de apuração real nesta versão.
 - Os clientes-fonte de Itaú ficam com diretor CA e managers Bruno, Orion,
   Fernanda e Ricardo Bonfim.
 - Alelo e CIP ficam com diretor CA e manager padrão Ana Braz.
