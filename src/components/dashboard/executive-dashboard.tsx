@@ -171,7 +171,7 @@ export function ExecutiveDashboard() {
           <div>
             <p className="text-sm font-semibold text-slate-900">New Logos</p>
             <p className="text-xs text-slate-500">
-              New Logos ficam no controle, mas não compõem a meta oficial. Ative para incluir esses clientes nos KPIs, gráficos e exportação do dashboard.
+              New Logos ficam no controle e podem ajudar na realização do ano, mas não compõem a meta oficial planejada. Ative para incluí-los nos KPIs, gráficos e exportação.
             </p>
           </div>
           <label className="inline-flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">

@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useDeliveryStore } from "@/store/delivery-store";
+import { customerCountsTowardTarget } from "@/lib/customer-target-total";
 import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears } from "@/lib/customer-targets";
 import { formatCurrencyInput, formatCurrencyInputValue, parseCurrencyInput } from "@/lib/currency-input";
 import { isSpecialistHunterRole } from "@/lib/roles";
@@ -90,19 +91,22 @@ export function SpecialistHunterTargetAssignment({ initialPersonId = "", initial
   const yearCustomers = useMemo(() => applyCustomerTargetsForYear(customers, customerTargets, year), [customerTargets, customers, year]);
   const areasById = useMemo(() => new Map(areas.map((area) => [area.id, area.name])), [areas]);
   const customersById = useMemo(() => new Map(yearCustomers.map((customer) => [customer.id, customer])), [yearCustomers]);
-  const customersWithStudios = useMemo(() => {
+  const selectableCustomers = useMemo(() => {
     const customerIds = new Set(studioTargetAllocations
       .filter((allocation) => allocation.year === year && allocation.hunterAmount + allocation.maintenanceAmount > 0)
       .map((allocation) => allocation.customerId));
     return yearCustomers
-      .filter((customer) => customerIds.has(customer.id))
       .sort((first, second) => {
         const firstLinked = selectedPerson?.clientIds.includes(first.id) ? 0 : 1;
         const secondLinked = selectedPerson?.clientIds.includes(second.id) ? 0 : 1;
-        return firstLinked - secondLinked || first.name.localeCompare(second.name, "pt-BR");
+        const firstHasStudio = customerIds.has(first.id) ? 0 : 1;
+        const secondHasStudio = customerIds.has(second.id) ? 0 : 1;
+        return firstLinked - secondLinked
+          || firstHasStudio - secondHasStudio
+          || first.name.localeCompare(second.name, "pt-BR");
       });
   }, [selectedPerson?.clientIds, studioTargetAllocations, year, yearCustomers]);
-  const selectedCustomerId = customersWithStudios.some((customer) => customer.id === customerId) ? customerId : "";
+  const selectedCustomerId = selectableCustomers.some((customer) => customer.id === customerId) ? customerId : "";
   const studioRows = useMemo(() => studioTargetAllocations
     .filter((allocation) =>
       allocation.customerId === selectedCustomerId
@@ -509,10 +513,12 @@ export function SpecialistHunterTargetAssignment({ initialPersonId = "", initial
           <div className="grid gap-4 p-5">
             <label className="grid gap-1.5">
               <span className="text-sm font-semibold text-slate-700">Cliente</span>
-              <Select value={selectedCustomerId} onChange={(event) => handleCustomerChange(event.target.value)} disabled={!personId || !customersWithStudios.length}>
-                <option value="">{customersWithStudios.length ? "Selecione um cliente" : "Sem clientes com Studio no ano"}</option>
-                {customersWithStudios.map((customer) => (
-                  <option key={customer.id} value={customer.id}>{customer.name}</option>
+              <Select value={selectedCustomerId} onChange={(event) => handleCustomerChange(event.target.value)} disabled={!personId || !selectableCustomers.length}>
+                <option value="">{selectableCustomers.length ? "Selecione um cliente" : "Sem clientes cadastrados no ano"}</option>
+                {selectableCustomers.map((customer) => (
+                  <option key={customer.id} value={customer.id}>
+                    {customer.name}{customerCountsTowardTarget(customer) ? "" : " (New Logo)"}
+                  </option>
                 ))}
               </Select>
             </label>
@@ -569,7 +575,9 @@ export function SpecialistHunterTargetAssignment({ initialPersonId = "", initial
                   {!studioRows.length && (
                     <TableRow>
                       <TableCell colSpan={6} className="py-8 text-center text-slate-500">
-                        Selecione um cliente com metas de Studio cadastradas para montar a meta gerencial.
+                        {selectedCustomerId
+                          ? "Cliente selecionado sem metas de Studio cadastradas no ano. Cadastre a linha em Metas por Área/Studio para compor a meta gerencial."
+                          : "Selecione um cliente para montar a meta gerencial."}
                       </TableCell>
                     </TableRow>
                   )}

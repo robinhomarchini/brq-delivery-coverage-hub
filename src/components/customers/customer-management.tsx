@@ -623,7 +623,7 @@ export function CustomerManagement() {
               <span>
                 <span className="block text-sm font-semibold text-slate-800">New Logo</span>
                 <span className="mt-1 block text-xs leading-5 text-slate-500">
-                  Use para clientes novos que devem ficar no controle, mas não compõem a meta oficial de {year}. Os valores ficam cadastrados para auditoria e podem voltar a compor a meta em outro ano.
+                  Use para clientes novos que devem ficar no controle e podem ajudar na realização de {year}, mas não compõem a meta oficial planejada. Os valores ficam cadastrados para auditoria.
                 </span>
               </span>
             </label>
