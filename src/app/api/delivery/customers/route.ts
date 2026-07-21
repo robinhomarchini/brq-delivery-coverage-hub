@@ -34,12 +34,28 @@ const customerCommandSchema = z.object({
 
 export async function POST(request: Request) {
   try {
-    const { client } = await createDeliveryCommandClient(request);
+    const { client, accessUser } = await createDeliveryCommandClient(request, { allowHunterScopedWrite: true });
     const body = await request.json();
     const parsed = customerCommandSchema.safeParse(body);
 
     if (!parsed.success) {
       return NextResponse.json({ error: "Dados inválidos para salvar cliente." }, { status: 400 });
+    }
+
+    const isHunterScopedWrite = accessUser.role === "hunter_viewer";
+    if (isHunterScopedWrite) {
+      const { data: existingCustomer, error: existingCustomerError } = await client
+        .from("customers")
+        .select("id")
+        .eq("id", parsed.data.customer.id)
+        .maybeSingle();
+      if (existingCustomerError) throw existingCustomerError;
+      if (existingCustomer) {
+        return NextResponse.json(
+          { error: "Consulta Hunter pode criar novos clientes, mas não editar clientes existentes." },
+          { status: 403 },
+        );
+      }
     }
 
     const repository = new SupabaseDeliveryRepository(client, {
@@ -48,6 +64,7 @@ export async function POST(request: Request) {
     });
     const customer = {
       ...parsed.data.customer,
+      managerResponsibleIds: isHunterScopedWrite ? [] : parsed.data.customer.managerResponsibleIds,
       revenue: getCustomerTotalTarget(parsed.data.customer),
     };
     const data = await repository.saveCustomer(customer, parsed.data.targetYear);

@@ -73,12 +73,14 @@ assertIncludes(challengeAccessSource, "accept_current_app_access", "Challenge an
 assertIncludes(challengeAccessSource, "canManageCompensation(accessUser", "Challenge analysis auth must enforce compensation access rules server-side.");
 assertIncludes(deliveryCommandAccessSource, "client.auth.getUser(token)", "Delivery command BFF must validate the user token server-side.");
 assertIncludes(deliveryCommandAccessSource, "accept_current_app_access", "Delivery command BFF must verify app access through Supabase/RLS.");
-assertIncludes(deliveryCommandAccessSource, "accessUser.role !== \"editor\" && accessUser.role !== \"admin\"", "Delivery command BFF must restrict writes to editor/admin.");
-assertIncludes(customersRouteSource, "createDeliveryCommandClient(request)", "Customer route must enforce server-side delivery command access.");
+assertIncludes(deliveryCommandAccessSource, "accessUser.role === \"editor\"", "Delivery command BFF must allow editor writes by default.");
+assertIncludes(deliveryCommandAccessSource, "accessUser.role === \"admin\"", "Delivery command BFF must allow admin writes by default.");
+assertIncludes(deliveryCommandAccessSource, "options.allowHunterScopedWrite && accessUser.role === \"hunter_viewer\"", "Delivery command BFF must require explicit Hunter scoped write opt-in.");
+assertIncludes(customersRouteSource, "createDeliveryCommandClient(request, { allowHunterScopedWrite: true })", "Customer route must enforce server-side delivery command access with explicit Hunter scoped creation.");
 assertIncludes(customersRouteSource, "customerCommandSchema.safeParse", "Customer route must validate payloads.");
 assertIncludes(customersRouteSource, "useCustomerBff: false", "Customer route must avoid recursive BFF calls.");
 assertIncludes(customersRouteSource, "getSafeCommandErrorMessage(error", "Customer route must sanitize backend command errors.");
-assertIncludes(personCustomerTargetsRouteSource, "createDeliveryCommandClient(request)", "Person customer targets route must enforce server-side delivery command access.");
+assertIncludes(personCustomerTargetsRouteSource, "createDeliveryCommandClient(request, { allowHunterScopedWrite: true })", "Person customer targets route must enforce server-side delivery command access with explicit Hunter scoped validation.");
 assertIncludes(personCustomerTargetsRouteSource, "personCustomerTargetsCommandSchema.safeParse", "Person customer targets route must validate payloads.");
 assertIncludes(personCustomerTargetsRouteSource, "usePersonCustomerTargetsBff: false", "Person customer targets route must avoid recursive BFF calls.");
 assertIncludes(personCustomerTargetsRouteSource, "getSafeCommandErrorMessage(error", "Person customer targets route must sanitize backend command errors.");

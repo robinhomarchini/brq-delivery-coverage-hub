@@ -21,7 +21,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DualListSelector } from "@/components/shared/dual-list-selector";
 import { useDeliveryStore } from "@/store/delivery-store";
 import { useAccess } from "@/lib/access-context";
-import { isHunterConsultAccess, normalizeAccessEmail } from "@/lib/access-control";
+import { isHunterConsultAccess } from "@/lib/access-control";
 import { customerCountsTowardTarget, getCustomerTotalTargetFromParts } from "@/lib/customer-target-total";
 import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears } from "@/lib/customer-targets";
 import { getFinancialCustomerMetric } from "@/lib/financial-customers";
@@ -30,6 +30,7 @@ import { isCustomerFarmerResponsibleProfile, isHunterSelectionRole, isSpecialist
 import { formatCurrency, makeId } from "@/lib/utils";
 import { useCloseOnNavigation } from "@/lib/use-close-on-navigation";
 import { displayDirectorName, OTHER_DIRECTOR_ID, OTHER_DIRECTOR_NAME } from "@/lib/director-governance";
+import { buildHunterAccessScope } from "@/lib/hunter-access-scope";
 import {
   getCoverageStatusLabel,
   getCustomerAllocationComposition,
@@ -62,6 +63,7 @@ export function CustomerManagement() {
     customerTargets,
     people,
     studioTargetAllocations,
+    specialistHunterStudioAssignments,
     targetAllocations,
     saveCustomer,
     deleteCustomer,
@@ -80,24 +82,17 @@ export function CustomerManagement() {
   );
   const yearCustomers = useMemo(() => applyCustomerTargetsForYear(customers, customerTargets, year), [customerTargets, customers, year]);
   const hunterConsultOnly = isHunterConsultAccess(accessUser);
-  const accessEmail = accessUser?.email ?? "";
-  const scopedHunterPerson = useMemo(() => {
-    if (!hunterConsultOnly || !accessEmail) return null;
-    const email = normalizeAccessEmail(accessEmail);
-    return people.find((person) => person.email && normalizeAccessEmail(person.email) === email && isHunterSelectionRole(person.roleType)) ?? null;
-  }, [accessEmail, hunterConsultOnly, people]);
-  const scopedCustomerIds = useMemo(() => {
-    if (!hunterConsultOnly || !scopedHunterPerson) return null;
-    return new Set([
-      ...scopedHunterPerson.clientIds,
-      ...targetAllocations
-        .filter((allocation) => allocation.personId === scopedHunterPerson.id && allocation.type === "hunter")
-        .map((allocation) => allocation.customerId),
-      ...studioTargetAllocations
-        .filter((allocation) => allocation.hunterPersonId === scopedHunterPerson.id)
-        .map((allocation) => allocation.customerId),
-    ]);
-  }, [hunterConsultOnly, scopedHunterPerson, studioTargetAllocations, targetAllocations]);
+  const hunterScope = useMemo(() => buildHunterAccessScope({
+    accessUser,
+    people,
+    customers: yearCustomers,
+    targetAllocations,
+    studioTargetAllocations,
+    specialistHunterStudioAssignments,
+  }), [accessUser, people, specialistHunterStudioAssignments, studioTargetAllocations, targetAllocations, yearCustomers]);
+  const scopedHunterPerson = hunterScope.person;
+  const scopedCustomerIds = hunterScope.enabled ? hunterScope.customerIds : null;
+  const canCreateCustomer = canEdit || Boolean(hunterConsultOnly && scopedHunterPerson);
   const scopedYearCustomers = useMemo(
     () => scopedCustomerIds ? yearCustomers.filter((customer) => scopedCustomerIds.has(customer.id)) : yearCustomers,
     [scopedCustomerIds, yearCustomers],
@@ -299,13 +294,14 @@ export function CustomerManagement() {
   useCloseOnNavigation(closeForm);
 
   function openForm(item?: Customer) {
-    if (hunterConsultOnly || !canEdit) return;
+    if (hunterConsultOnly && item) return;
+    if (!canEdit && !(hunterConsultOnly && !item && scopedHunterPerson)) return;
     setEditing(item ?? null);
     const defaults = getCustomerDefaults(item?.name ?? "", directors);
     setFormName(item?.name ?? "");
     setFormDirectorId(item?.directorResponsibleId ?? defaults.directorResponsibleId);
-    setFormManagerIds(item?.managerResponsibleIds ?? defaults.managerResponsibleIds);
-    setFormHunterId(getPrimaryHunterIdForCustomer(item?.id ?? "", people));
+    setFormManagerIds(hunterConsultOnly ? [] : item?.managerResponsibleIds ?? defaults.managerResponsibleIds);
+    setFormHunterId(hunterConsultOnly ? scopedHunterPerson?.id ?? "" : getPrimaryHunterIdForCustomer(item?.id ?? "", people));
     setFormHunterTarget(getInputValue(item?.hunterTarget ?? getFinancialCustomerMetric(item?.name ?? "", "hunterRevenue")));
     setFormFarmerRenewalTarget(getInputValue(item?.farmerRenewalTarget ?? getFinancialCustomerMetric(item?.name ?? "", "deliveryFarmerRevenue")));
     setFormCountsTowardTarget(customerCountsTowardTarget(item ?? { countsTowardTarget: true }));
@@ -327,14 +323,15 @@ export function CustomerManagement() {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (hunterConsultOnly || !canEdit) {
-      setFormError("Seu perfil permite apenas consulta de clientes.");
+    const hunterScopedCreate = hunterConsultOnly && !linkedEditing && Boolean(scopedHunterPerson);
+    if (!canEdit && !hunterScopedCreate) {
+      setFormError("Seu perfil permite criar novos clientes vinculados ao seu Hunter, mas não editar clientes existentes.");
       return;
     }
     const formData = new FormData(event.currentTarget);
     const customerName = String(formData.get("name"));
     const defaults = getCustomerDefaults(customerName, directors);
-    const validManagers = formManagerIds.filter((id) => managerIds.has(id));
+    const validManagers = hunterScopedCreate ? [] : formManagerIds.filter((id) => managerIds.has(id));
     const customerId = linkedEditing?.id ?? makeId("customer");
     try {
       setFormError("");
@@ -367,7 +364,9 @@ export function CustomerManagement() {
   }
 
   async function syncCustomerHunterAssignmentAndTarget(customerId: string) {
-    const selectedHunter = hunters.find((person) => person.id === formHunterId);
+    const selectedHunter = hunterConsultOnly && scopedHunterPerson
+      ? scopedHunterPerson
+      : hunters.find((person) => person.id === formHunterId);
     const previousHunterId = getPrimaryHunterIdForCustomer(customerId, people);
     const hunterChanged = Boolean(previousHunterId && previousHunterId !== formHunterId);
     const selectedHunterAllocation = selectedHunter
@@ -496,7 +495,7 @@ export function CustomerManagement() {
               rows={customerReportRows}
               columns={customerReportColumns}
             />
-            {!hunterConsultOnly && canEdit && <Button onClick={() => openForm()}><Plus className="h-4 w-4" /> Novo cliente</Button>}
+            {canCreateCustomer && <Button onClick={() => openForm()}><Plus className="h-4 w-4" /> Novo cliente</Button>}
           </>
         )}
       />
@@ -531,7 +530,7 @@ export function CustomerManagement() {
               <SortableTableHead label="Meta do cliente" sortKey="target" sortState={sortState} onSort={setSortState} />
               <SortableTableHead label="Margem alvo" sortKey="margin" sortState={sortState} onSort={setSortState} />
               <SortableTableHead label="Estratégica" sortKey="strategic" sortState={sortState} onSort={setSortState} />
-              {!hunterConsultOnly && canEdit && <TableHead className="text-right">Ações</TableHead>}
+              {canEdit && !hunterConsultOnly && <TableHead className="text-right">Ações</TableHead>}
             </TableRow></TableHeader>
             <TableBody>
               {sortedCustomers.map((customer) => {
@@ -542,8 +541,10 @@ export function CustomerManagement() {
                   <TableRow
                     key={customer.id}
                     className={hunterConsultOnly || !canEdit ? "" : "cursor-pointer"}
-                    title={hunterConsultOnly || !canEdit ? "Consulta em modo leitura" : "Dê duplo clique para editar o cliente"}
-                    onDoubleClick={() => openForm(customer)}
+                    title={hunterConsultOnly || !canEdit ? "Consulta do cliente" : "Dê duplo clique para editar o cliente"}
+                    onDoubleClick={() => {
+                      if (!hunterConsultOnly && canEdit) openForm(customer);
+                    }}
                   >
                     <TableCell><div className="flex items-center gap-3"><div className={`grid h-10 w-10 place-items-center rounded-xl ${getCustomerStatusIconClassName(coverage.status, coverage.difference)}`} title={coverage.title} aria-label={coverage.title}><Building2 className="h-5 w-5" /></div><div><p className="font-semibold">{customer.name}</p><p className="text-xs text-slate-400">{customer.industry}</p>{coverage.status === "outOfTarget" && <p className="text-xs font-semibold text-slate-600" title={coverage.title}>(New Logo)</p>}{coverage.status === "mismatch" && typeof coverage.difference === "number" && <p className={`text-xs font-semibold ${coverage.difference > 0 ? "text-emerald-700" : "text-red-600"}`} title={coverage.title}>{coverage.difference > 0 ? "Acima" : "Abaixo"}: {formatCurrency(Math.abs(coverage.difference))}</p>}</div></div></TableCell>
                     <TableCell>

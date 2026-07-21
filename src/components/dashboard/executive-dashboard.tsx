@@ -35,16 +35,39 @@ import { applyCustomerTargetsForYear, defaultTargetYear } from "@/lib/customer-t
 import { getBoardTargetBaselineRows, getBoardTargetBaselineTotals, getRegisteredTargetTotals } from "@/lib/board-target-baseline";
 import { customerCountsTowardTarget, getCustomerTotalTarget } from "@/lib/customer-target-total";
 import { getCustomerCoverageAllocatedTotal } from "@/lib/customers/customer-coverage-view-model";
+import { useAccess } from "@/lib/access-context";
+import { buildHunterAccessScope } from "@/lib/hunter-access-scope";
 
 const COLORS = ["#15171B", "#7F2EC9", "#EE7C38", "#2563EB", "#F97316", "#A3A3A3"];
 
 export function ExecutiveDashboard() {
   const chartsReady = useSyncExternalStore(subscribeToHydration, () => true, () => false);
-  const { areas, people, customers, customerTargets, boardTargetBaselines, targetAllocations, studioTargetAllocations } = useDeliveryStore();
+  const { accessUser } = useAccess();
+  const { areas, people, customers, customerTargets, boardTargetBaselines, targetAllocations, studioTargetAllocations, specialistHunterStudioAssignments } = useDeliveryStore();
   const [includeNewLogos, setIncludeNewLogos] = useState(false);
   const financialCustomers = applyCustomerTargetsForYear(customers, customerTargets, defaultTargetYear);
-  const dashboardCustomers = includeNewLogos ? financialCustomers : financialCustomers.filter(customerCountsTowardTarget);
-  const activePeople = people.filter((person) => person.active);
+  const hunterScope = buildHunterAccessScope({
+    accessUser,
+    people,
+    customers: financialCustomers,
+    targetAllocations,
+    studioTargetAllocations,
+    specialistHunterStudioAssignments,
+  });
+  const dashboardCustomers = (includeNewLogos ? financialCustomers : financialCustomers.filter(customerCountsTowardTarget))
+    .filter((customer) => !hunterScope.enabled || hunterScope.customerIds.has(customer.id));
+  const scopedCustomerIds = new Set(dashboardCustomers.map((customer) => customer.id));
+  const activePeople = people.filter((person) => {
+    if (!person.active) return false;
+    if (!hunterScope.enabled) return true;
+    if (hunterScope.person?.id === person.id) return true;
+    return person.clientIds.some((customerId) => scopedCustomerIds.has(customerId))
+      || targetAllocations.some((allocation) => allocation.personId === person.id && scopedCustomerIds.has(allocation.customerId))
+      || studioTargetAllocations.some((allocation) =>
+        scopedCustomerIds.has(allocation.customerId)
+        && (allocation.hunterPersonId === person.id || allocation.maintenancePersonId === person.id)
+      );
+  });
   const directors = activePeople.filter((person) => person.roleType === "Director" || person.roleType === "Executive");
   const managers = activePeople.filter((person) => person.isManager);
   const farmerDeliveryManagers = managers.filter((person) => person.roleType === "Farmer + Delivery");
@@ -157,7 +180,7 @@ export function ExecutiveDashboard() {
             <p className="text-[10px] uppercase tracking-wider text-slate-400">Meta Board 2026</p>
             <p className="truncate text-lg font-bold text-brq-purple" title={formatCurrency(totalRevenue)}>{formatCompactCurrency(totalRevenue)}</p>
           </div>
-            <Button variant="outline" className="w-full sm:w-auto" onClick={() => exportDeliveryDataAsCsv(people, dashboardCustomers)}>
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => exportDeliveryDataAsCsv(activePeople, dashboardCustomers)}>
               <Download className="h-4 w-4" /> Exportar dados CSV
             </Button>
             <Button className="w-full sm:w-auto" onClick={() => exportElementAsPdf("executive-dashboard", "dashboard-executivo-brq.pdf")}>

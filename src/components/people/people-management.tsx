@@ -21,8 +21,9 @@ import { DualListSelector } from "@/components/shared/dual-list-selector";
 import { useDeliveryStore } from "@/store/delivery-store";
 import { useAccess } from "@/lib/access-context";
 import { accessUsersChangedEvent } from "@/lib/access-events";
-import { normalizeAccessEmail, translateAccessRole, type AccessUser } from "@/lib/access-control";
+import { isHunterConsultAccess, normalizeAccessEmail, translateAccessRole, type AccessUser } from "@/lib/access-control";
 import { canManageCompensation } from "@/lib/compensation-access";
+import { buildHunterAccessScope } from "@/lib/hunter-access-scope";
 import { createAccessRepositorySelection } from "@/lib/repositories/accessRepository";
 import type { LifecycleStatus } from "@/lib/lifecycle";
 import { getActiveFromLifecycle, getLifecycleStatusBadgeVariant, translateLifecycleStatus } from "@/lib/lifecycle";
@@ -39,8 +40,19 @@ const suggestedJobTitles = [
 ];
 
 export function PeopleManagement() {
-  const { people, personCompensations, customers, areas, savePerson, savePersonCompensation, deletePersonCompensation } = useDeliveryStore();
-  const { accessUser, isAdmin } = useAccess();
+  const {
+    people,
+    personCompensations,
+    customers,
+    areas,
+    targetAllocations,
+    studioTargetAllocations,
+    specialistHunterStudioAssignments,
+    savePerson,
+    savePersonCompensation,
+    deletePersonCompensation,
+  } = useDeliveryStore();
+  const { accessUser, canEdit, isAdmin } = useAccess();
   const accessRepositorySelection = useMemo(() => createAccessRepositorySelection(), []);
   const accessRepository = accessRepositorySelection.repository;
   const [search, setSearch] = useState("");
@@ -69,14 +81,25 @@ export function PeopleManagement() {
     [selectableCustomerIds, selectedClientIds],
   );
 
+  const hunterScope = useMemo(() => buildHunterAccessScope({
+    accessUser,
+    people,
+    customers,
+    targetAllocations,
+    studioTargetAllocations,
+    specialistHunterStudioAssignments,
+  }), [accessUser, customers, people, specialistHunterStudioAssignments, studioTargetAllocations, targetAllocations]);
+  const hunterConsultOnly = isHunterConsultAccess(accessUser);
+  const canCreatePerson = canEdit && !hunterScope.enabled;
   const filtered = useMemo(() => people.filter((person) => {
+    if (hunterScope.enabled && person.id !== hunterScope.person?.id) return false;
     const query = search.toLowerCase();
     return (!query || `${person.name} ${person.email ?? ""} ${person.jobTitle}`.toLowerCase().includes(query))
       && (!director || person.directorId === director || person.id === director)
       && (!roleType || person.roleType === roleType)
       && (!area || person.areaId === area)
       && (!status || person.lifecycleStatus === status);
-  }), [area, director, people, roleType, search, status]);
+  }), [area, director, hunterScope.enabled, hunterScope.person?.id, people, roleType, search, status]);
   const sortedPeople = useMemo(
     () => sortPeopleRows(filtered, sortState, people, areas),
     [areas, filtered, people, sortState],
@@ -89,6 +112,10 @@ export function PeopleManagement() {
     [isAdmin, systemUsers],
   );
   const canEditCompensation = canManageCompensation(accessUser, people);
+  const canEditPerson = useCallback((person: Person) => {
+    if (canEdit && !hunterScope.enabled) return true;
+    return Boolean(hunterScope.enabled && hunterScope.person?.id === person.id);
+  }, [canEdit, hunterScope.enabled, hunterScope.person?.id]);
   const editingCompensation = editing
     ? personCompensations.find((item) => item.personId === editing.id)
     : undefined;
@@ -127,6 +154,8 @@ export function PeopleManagement() {
   }, [accessRepository, isAdmin]);
 
   function openForm(person?: Person) {
+    if (!person && !canCreatePerson) return;
+    if (person && !canEditPerson(person)) return;
     setEditing(person ?? null);
     setSelectedClientIds(person?.clientIds ?? []);
     setDraftRoleType(person?.roleType ?? "Delivery");
@@ -141,12 +170,20 @@ export function PeopleManagement() {
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (hunterScope.enabled && (!editing || editing.id !== hunterScope.person?.id)) {
+      setFormError("Seu perfil permite alterar apenas o próprio cadastro.");
+      return;
+    }
     const formData = new FormData(event.currentTarget);
-    const selectedRole = String(formData.get("roleType")) as RoleType;
-    const lifecycleStatus = String(formData.get("lifecycleStatus") || "active") as LifecycleStatus;
+    const selectedRole = hunterScope.enabled && editing
+      ? editing.roleType
+      : String(formData.get("roleType")) as RoleType;
+    const lifecycleStatus = hunterScope.enabled && editing
+      ? editing.lifecycleStatus
+      : String(formData.get("lifecycleStatus") || "active") as LifecycleStatus;
     const closedAt = String(formData.get("closedAt") || "") || undefined;
     const closedReason = String(formData.get("closedReason") || "") || undefined;
-    const person: Person = {
+    const nextPerson: Person = {
       id: editing?.id ?? makeId("person"),
       name: String(formData.get("name")),
       email: String(formData.get("email") || "") || undefined,
@@ -164,6 +201,16 @@ export function PeopleManagement() {
       isManager: isDeliveryManagerRole(selectedRole),
       hierarchyLevel: getHierarchyLevelForRole(selectedRole),
     };
+    const person: Person = hunterScope.enabled && editing
+      ? {
+        ...editing,
+        name: nextPerson.name,
+        email: nextPerson.email,
+        jobTitle: nextPerson.jobTitle,
+        photoUrl: nextPerson.photoUrl,
+        notes: nextPerson.notes,
+      }
+      : nextPerson;
     try {
       setFormError("");
       await savePerson(person);
@@ -191,6 +238,7 @@ export function PeopleManagement() {
   }
 
   async function closePerson(person: Person) {
+    if (!canEdit || hunterScope.enabled) return;
     if (!window.confirm(`Registrar ${person.name} como desligado? O histórico será preservado e a pessoa deixará de aparecer como ativa.`)) return;
     const closedPerson: Person = {
       ...person,
@@ -211,6 +259,7 @@ export function PeopleManagement() {
   }
 
   async function reactivatePerson(person: Person) {
+    if (!canEdit || hunterScope.enabled) return;
     if (!window.confirm(`Reativar ${person.name}?`)) return;
     const activePerson: Person = {
       ...person,
@@ -234,9 +283,9 @@ export function PeopleManagement() {
     <>
       <PageHeader
         eyebrow="Gestão organizacional"
-        title="Pessoas"
-        description="Cadastre profissionais, responsabilidades, áreas e clientes atendidos."
-        actions={<Button onClick={() => openForm()}><Plus className="h-4 w-4" /> Nova pessoa</Button>}
+        title={hunterConsultOnly ? "Meu cadastro" : "Pessoas"}
+        description={hunterConsultOnly ? "Consulte e mantenha seus dados básicos. Estrutura, perfil e clientes continuam sob governança da operação." : "Cadastre profissionais, responsabilidades, áreas e clientes atendidos."}
+        actions={canCreatePerson ? <Button onClick={() => openForm()}><Plus className="h-4 w-4" /> Nova pessoa</Button> : null}
       />
 
       {successMessage && <SuccessNotice message={successMessage} floating />}
@@ -280,13 +329,16 @@ export function PeopleManagement() {
             <TableBody>
               {sortedPeople.map((person) => {
                 const systemUser = person.email ? systemUserByEmail.get(normalizeAccessEmail(person.email)) : undefined;
+                const editable = canEditPerson(person);
 
                 return (
                 <TableRow
                   key={person.id}
-                  className="cursor-pointer"
-                  title="Dê duplo clique para editar a pessoa"
-                  onDoubleClick={() => openForm(person)}
+                  className={editable ? "cursor-pointer" : ""}
+                  title={editable ? "Dê duplo clique para editar a pessoa" : "Consulta em modo leitura"}
+                  onDoubleClick={() => {
+                    if (editable) openForm(person);
+                  }}
                 >
                   <TableCell>
                     <div className="flex items-center gap-3">
@@ -323,12 +375,12 @@ export function PeopleManagement() {
                   </TableCell>
                   <TableCell onDoubleClick={(event) => event.stopPropagation()}>
                     <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" onClick={() => openForm(person)} aria-label={`Editar ${person.name}`}><Pencil className="h-4 w-4" /></Button>
-                      {person.active ? (
+                      {editable && <Button variant="ghost" size="icon" onClick={() => openForm(person)} aria-label={`Editar ${person.name}`}><Pencil className="h-4 w-4" /></Button>}
+                      {canEdit && !hunterScope.enabled && person.active ? (
                         <Button variant="ghost" size="icon" className="text-red-600" onClick={() => void closePerson(person)} aria-label={`Desligar ${person.name}`} title="Desligar sem excluir histórico"><Power className="h-4 w-4" /></Button>
-                      ) : (
+                      ) : canEdit && !hunterScope.enabled ? (
                         <Button variant="ghost" size="icon" className="text-emerald-700" onClick={() => void reactivatePerson(person)} aria-label={`Reativar ${person.name}`} title="Reativar pessoa"><RotateCcw className="h-4 w-4" /></Button>
-                      )}
+                      ) : null}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -344,7 +396,7 @@ export function PeopleManagement() {
         <DialogContent className="max-w-5xl">
           <DialogHeader>
             <DialogTitle>{editing ? "Editar pessoa" : "Nova pessoa"}</DialogTitle>
-            <DialogDescription>Preencha os dados de estrutura e cobertura.</DialogDescription>
+            <DialogDescription>{hunterScope.enabled ? "Atualize apenas seus dados básicos. Perfil, hierarquia e clientes são governados pela operação." : "Preencha os dados de estrutura e cobertura."}</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-2">
             <Field label="Nome"><Input name="name" defaultValue={editing?.name} maxLength={120} required /></Field>
@@ -356,45 +408,53 @@ export function PeopleManagement() {
               </datalist>
             </Field>
             <Field label="Diretor">
-              <Select name="directorId" defaultValue={editing?.directorId}>
+              <Select name="directorId" defaultValue={editing?.directorId} disabled={hunterScope.enabled}>
                 <option value="">Sem diretor</option>
                 {directors.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
               </Select>
             </Field>
             <Field label="Tipo de atuação">
-              <Select name="roleType" value={draftRoleType} onChange={(event) => updateDraftRoleType(event.target.value as RoleType)} required>
+              <Select name="roleType" value={draftRoleType} onChange={(event) => updateDraftRoleType(event.target.value as RoleType)} disabled={hunterScope.enabled} required>
                 {roleTypes.map((item) => <option key={item} value={item}>{translateRole(item)}</option>)}
               </Select>
             </Field>
             <Field label="Área">
-              <Select name="areaId" defaultValue={editing?.areaId}>
+              <Select name="areaId" defaultValue={editing?.areaId} disabled={hunterScope.enabled}>
                 <option value="">Sem área</option>
                 {areas.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
               </Select>
             </Field>
             <Field label="Clientes" className="md:col-span-2">
-              <DualListSelector
-                items={selectableCustomers.map((item) => ({
-                  id: item.id,
-                  label: item.name,
-                  description: item.industry,
-                }))}
-                selectedIds={effectiveSelectedClientIds}
-                onChange={setSelectedClientIds}
-                availableTitle="Clientes disponíveis"
-                selectedTitle="Clientes selecionados"
-                availableSearchPlaceholder="Buscar cliente disponível"
-                selectedSearchPlaceholder="Buscar cliente selecionado"
-                emptyAvailableMessage="Todos os clientes já foram selecionados."
-                emptySelectedMessage="Nenhum cliente selecionado."
-              />
+              {hunterScope.enabled ? (
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                  {effectiveSelectedClientIds.length
+                    ? effectiveSelectedClientIds.map((clientId) => customers.find((customer) => customer.id === clientId)?.name ?? clientId).join(", ")
+                    : "Nenhum cliente associado diretamente."}
+                </div>
+              ) : (
+                <DualListSelector
+                  items={selectableCustomers.map((item) => ({
+                    id: item.id,
+                    label: item.name,
+                    description: item.industry,
+                  }))}
+                  selectedIds={effectiveSelectedClientIds}
+                  onChange={setSelectedClientIds}
+                  availableTitle="Clientes disponíveis"
+                  selectedTitle="Clientes selecionados"
+                  availableSearchPlaceholder="Buscar cliente disponível"
+                  selectedSearchPlaceholder="Buscar cliente selecionado"
+                  emptyAvailableMessage="Todos os clientes já foram selecionados."
+                  emptySelectedMessage="Nenhum cliente selecionado."
+                />
+              )}
               <span className="mt-1 block text-xs text-slate-400">
-                Mova um ou mais clientes para a lista de selecionados antes de salvar.
+                {hunterScope.enabled ? "A associação de clientes não é editável neste perfil." : "Mova um ou mais clientes para a lista de selecionados antes de salvar."}
               </span>
             </Field>
             <Field label="URL da foto"><Input name="photoUrl" type="url" defaultValue={editing?.photoUrl} /></Field>
             <Field label="Status">
-              <Select name="lifecycleStatus" value={draftLifecycleStatus} onChange={(event) => setDraftLifecycleStatus(event.target.value as LifecycleStatus)}>
+              <Select name="lifecycleStatus" value={draftLifecycleStatus} onChange={(event) => setDraftLifecycleStatus(event.target.value as LifecycleStatus)} disabled={hunterScope.enabled}>
                 <option value="active">Ativo</option>
                 <option value="inactive">Desativado</option>
                 <option value="closed">Encerrado / desligado</option>

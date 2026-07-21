@@ -17,6 +17,8 @@ import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useDeliveryStore } from "@/store/delivery-store";
+import { useAccess } from "@/lib/access-context";
+import { buildHunterAccessScope, canEditStudioAllocationInHunterScope } from "@/lib/hunter-access-scope";
 import { formatCurrencyInput, formatCurrencyInputValue, parseCurrencyInput } from "@/lib/currency-input";
 import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears } from "@/lib/customer-targets";
 import { isFarmerDeliveryTargetRole, isHunterRole, isHunterSelectionRole } from "@/lib/roles";
@@ -33,6 +35,7 @@ type StudioAllocationSegment = "hunter" | "maintenance";
 export function StudioTargetAssignment() {
   const initialParams = useMemo(() => getInitialStudioTargetParams(), []);
   const { areas, customers, customerTargets, people, studioTargetAllocations, targetAllocations, saveStudioTargetAllocation, deleteStudioTargetAllocation } = useDeliveryStore();
+  const { accessUser, canEdit } = useAccess();
   const [customerId, setCustomerId] = useState(initialParams.customerId);
   const [areaId, setAreaId] = useState("");
   const [hunterPersonId, setHunterPersonId] = useState("");
@@ -68,6 +71,18 @@ export function StudioTargetAssignment() {
     () => studioTargetAllocations.filter((allocation) => allocation.year === effectiveYear),
     [effectiveYear, studioTargetAllocations],
   );
+  const hunterScope = useMemo(() => buildHunterAccessScope({
+    accessUser,
+    people,
+    customers: yearCustomers,
+    targetAllocations,
+    studioTargetAllocations,
+  }), [accessUser, people, studioTargetAllocations, targetAllocations, yearCustomers]);
+  const canCreateStudioAllocation = canEdit || Boolean(hunterScope.enabled && hunterScope.person);
+  const canEditStudioAllocation = useCallback((allocation: StudioTargetAllocation) => {
+    if (canEdit && !hunterScope.enabled) return true;
+    return canEditStudioAllocationInHunterScope(hunterScope, allocation);
+  }, [canEdit, hunterScope]);
   const filteredRows = useMemo(() => allocationsForYear.filter((allocation) => {
     return (!customerId || allocation.customerId === customerId)
       && (!areaId || allocation.areaId === areaId)
@@ -129,11 +144,20 @@ export function StudioTargetAssignment() {
   }, [initialParams.consumedFromUrl]);
 
   function openForm(allocation?: StudioTargetAllocation, presetCustomerId = "", forceNew = false) {
+    if (allocation && !canEditStudioAllocation(allocation)) {
+      setFormError("Seu perfil permite alterar apenas metas de área/studio associadas a você.");
+      return;
+    }
+    if (!allocation && !canCreateStudioAllocation) {
+      setFormError("Seu perfil não permite criar metas de área/studio.");
+      return;
+    }
+
     if (forceNew) {
       setEditing(null);
       setFormCustomerId(presetCustomerId);
       setFormAreaId("");
-      setFormHunterPersonId("");
+      setFormHunterPersonId(hunterScope.enabled ? hunterScope.person?.id ?? "" : "");
       setFormMaintenancePersonId("");
       setFormYear(String(effectiveYear));
       setFormHunterAmount("0");
@@ -158,7 +182,7 @@ export function StudioTargetAssignment() {
     );
     const defaultHunterPersonId = allocationToEdit?.hunterPersonId
       || hunterPersonId
-      || getDefaultHunterPersonIdForCustomer(people, targetAllocations, targetCustomerId, effectiveYear);
+      || (hunterScope.enabled ? hunterScope.person?.id ?? "" : getDefaultHunterPersonIdForCustomer(people, targetAllocations, targetCustomerId, effectiveYear));
 
     setEditing(allocationToEdit ?? null);
     setFormCustomerId(allocationToEdit?.customerId || targetCustomerId);
@@ -302,6 +326,19 @@ export function StudioTargetAssignment() {
       return;
     }
 
+    if (hunterScope.enabled) {
+      const ownPersonId = hunterScope.person?.id;
+      const hasOwnResponsibility = Boolean(ownPersonId && (draft.hunterPersonId === ownPersonId || draft.maintenancePersonId === ownPersonId));
+      const hasForeignResponsibility = Boolean(
+        (draft.hunterPersonId && draft.hunterPersonId !== ownPersonId)
+        || (draft.maintenancePersonId && draft.maintenancePersonId !== ownPersonId),
+      );
+      if (!ownPersonId || !hasOwnResponsibility || hasForeignResponsibility) {
+        setFormError("Consulta Hunter só pode salvar metas de área/studio vinculadas à própria pessoa.");
+        return;
+      }
+    }
+
     try {
       setFormError("");
       await saveStudioTargetAllocation(draft);
@@ -319,7 +356,7 @@ export function StudioTargetAssignment() {
         eyebrow="BU Financial"
         title="Metas por Área/Studio"
         description="Distribua a abertura anual de Áreas / Studios entre Hunter, que fica contido na meta Hunter do cliente, e Manutenção/Renovação, que compõe o total."
-        actions={<Button onClick={() => openForm(undefined, "", true)}><Plus className="h-4 w-4" /> Nova meta por studio</Button>}
+        actions={canCreateStudioAllocation ? <Button onClick={() => openForm(undefined, "", true)}><Plus className="h-4 w-4" /> Nova meta por studio</Button> : null}
       />
 
       {successMessage && <SuccessNotice message={successMessage} floating />}
@@ -401,7 +438,7 @@ export function StudioTargetAssignment() {
                   <TableCell>{row.areaNames.join(", ") || "Sem área/studio alocado"}</TableCell>
                   <TableCell><StatusBadge status={row.status} /></TableCell>
                   <TableCell className="text-right">
-                    <Button variant="outline" size="sm" onClick={() => openFromCustomer(row.customerId)}>Alocar</Button>
+                    <Button variant="outline" size="sm" onClick={() => openFromCustomer(row.customerId)}>{hunterScope.enabled ? "Nova relação" : "Alocar"}</Button>
                   </TableCell>
                 </TableRow>
               ))}
@@ -431,11 +468,15 @@ export function StudioTargetAssignment() {
             </TableHeader>
             <TableBody>
               {sortedAllocations.flatMap((allocation) =>
-                getAllocationSegments(allocation).map((segment) => (
+                getAllocationSegments(allocation).map((segment) => {
+                  const editable = canEditStudioAllocation(allocation);
+                  return (
                   <TableRow
                     key={`${allocation.id}-${segment}`}
-                    className={segment === "hunter" ? "cursor-pointer bg-sky-50/35 hover:bg-sky-50" : "cursor-pointer bg-white hover:bg-slate-50"}
-                    onDoubleClick={() => openForm(allocation)}
+                    className={segment === "hunter" ? `${editable ? "cursor-pointer " : ""}bg-sky-50/35 hover:bg-sky-50` : `${editable ? "cursor-pointer " : ""}bg-white hover:bg-slate-50`}
+                    onDoubleClick={() => {
+                      if (editable) openForm(allocation);
+                    }}
                   >
                     <TableCell className="font-semibold text-slate-900">{findCustomer(yearCustomers, allocation.customerId)?.name ?? allocation.customerId}</TableCell>
                     <TableCell>
@@ -473,22 +514,27 @@ export function StudioTargetAssignment() {
                     <TableCell className="max-w-xs truncate text-slate-500">{allocation.notes || "—"}</TableCell>
                     <TableCell onDoubleClick={(event) => event.stopPropagation()}>
                       <div className="flex justify-end gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => openForm(allocation)} aria-label="Editar alocação"><Pencil className="h-4 w-4" /></Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-red-600"
-                          aria-label="Excluir alocação"
-                          onClick={() => {
-                            if (window.confirm("Excluir esta meta de área/studio?")) void deleteStudioTargetAllocation(allocation.id).catch(() => undefined);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {editable && (
+                          <>
+                            <Button variant="ghost" size="icon" onClick={() => openForm(allocation)} aria-label="Editar alocação"><Pencil className="h-4 w-4" /></Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-red-600"
+                              aria-label="Excluir alocação"
+                              onClick={() => {
+                                if (window.confirm("Excluir esta meta de área/studio?")) void deleteStudioTargetAllocation(allocation.id).catch(() => undefined);
+                              }}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
-                ))
+                );
+                })
               )}
             </TableBody>
           </Table>
@@ -530,7 +576,10 @@ export function StudioTargetAssignment() {
                 syncExistingAllocation(formCustomerId, formAreaId, nextHunterPersonId, formMaintenancePersonId, formYear);
               }}>
                 <option value="">Hunter não informado</option>
-                {getHunterOptions(people, targetAllocations, studioTargetAllocations, formCustomerId, Number(formYear) || effectiveYear, editing?.hunterPersonId ? [editing.hunterPersonId] : []).map((person) => (
+                {(hunterScope.enabled && hunterScope.person
+                  ? [hunterScope.person]
+                  : getHunterOptions(people, targetAllocations, studioTargetAllocations, formCustomerId, Number(formYear) || effectiveYear, editing?.hunterPersonId ? [editing.hunterPersonId] : [])
+                ).map((person) => (
                   <option key={person.id} value={person.id}>{person.name}</option>
                 ))}
               </Select>
@@ -543,7 +592,10 @@ export function StudioTargetAssignment() {
                 syncExistingAllocation(formCustomerId, formAreaId, formHunterPersonId, nextMaintenancePersonId, formYear);
               }}>
                 <option value="">Responsável não informado</option>
-                {getMaintenancePersonOptions(people, targetAllocations, studioTargetAllocations, formCustomerId, Number(formYear) || effectiveYear, editing?.maintenancePersonId ? [editing.maintenancePersonId] : []).map((person) => (
+                {(hunterScope.enabled && hunterScope.person
+                  ? [hunterScope.person]
+                  : getMaintenancePersonOptions(people, targetAllocations, studioTargetAllocations, formCustomerId, Number(formYear) || effectiveYear, editing?.maintenancePersonId ? [editing.maintenancePersonId] : [])
+                ).map((person) => (
                   <option key={person.id} value={person.id}>{person.name}</option>
                 ))}
               </Select>
@@ -588,7 +640,8 @@ export function StudioTargetAssignment() {
               <button
                 key={allocation.id}
                 type="button"
-                className="w-full rounded-xl border bg-white p-3 text-left shadow-sm transition hover:border-brq-purple hover:bg-purple-50 focus:outline-none focus:ring-2 focus:ring-brq-purple"
+                className="w-full rounded-xl border bg-white p-3 text-left shadow-sm transition hover:border-brq-purple hover:bg-purple-50 focus:outline-none focus:ring-2 focus:ring-brq-purple disabled:cursor-not-allowed disabled:opacity-55"
+                disabled={!canEditStudioAllocation(allocation)}
                 onClick={() => {
                   closeAllocationPicker();
                   openForm(allocation);

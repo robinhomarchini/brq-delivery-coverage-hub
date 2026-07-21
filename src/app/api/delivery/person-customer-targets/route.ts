@@ -19,12 +19,34 @@ const personCustomerTargetsCommandSchema = z.object({
 
 export async function POST(request: Request) {
   try {
-    const { client } = await createDeliveryCommandClient(request);
+    const { client, accessUser } = await createDeliveryCommandClient(request, { allowHunterScopedWrite: true });
     const body = await request.json();
     const parsed = personCustomerTargetsCommandSchema.safeParse(body);
 
     if (!parsed.success) {
       return NextResponse.json({ error: "Dados inválidos para salvar metas." }, { status: 400 });
+    }
+
+    if (accessUser.role === "hunter_viewer") {
+      if (parsed.data.increaseCustomerTarget) {
+        return NextResponse.json(
+          { error: "Consulta Hunter não pode alterar a meta total do cliente." },
+          { status: 403 },
+        );
+      }
+      const { data: person, error: personError } = await client
+        .from("people")
+        .select("id, email")
+        .eq("id", parsed.data.personId)
+        .maybeSingle();
+      if (personError) throw personError;
+      const personEmail = typeof person?.email === "string" ? person.email.trim().toLowerCase() : "";
+      if (!person || personEmail !== accessUser.email.trim().toLowerCase()) {
+        return NextResponse.json(
+          { error: "Consulta Hunter só pode alterar metas vinculadas à própria pessoa." },
+          { status: 403 },
+        );
+      }
     }
 
     const repository = new SupabaseDeliveryRepository(client, {

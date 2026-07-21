@@ -83,7 +83,7 @@ const checks = [
       /if \(forceNew\) \{/,
       /setFormHunterAmount\("0"\)/,
       /setFormMaintenanceAmount\("0"\)/,
-      /actions=\{<Button onClick=\{\(\) => openForm\(undefined, "", true\)\}>/,
+      /openForm\(undefined, "", true\)/,
       /<form key=\{editing\?\.id \?\? `new-studio-target-\$\{formCustomerId \|\| "blank"\}`\}/,
       /openForm\(undefined, targetCustomerId, true\)/,
     ],

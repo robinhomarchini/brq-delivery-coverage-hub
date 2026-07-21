@@ -17,7 +17,11 @@ export class DeliveryCommandAccessError extends Error {
   }
 }
 
-export async function createDeliveryCommandClient(request: Request): Promise<{
+type DeliveryCommandAccessOptions = {
+  allowHunterScopedWrite?: boolean;
+};
+
+export async function createDeliveryCommandClient(request: Request, options: DeliveryCommandAccessOptions = {}): Promise<{
   client: SupabaseClient;
   accessUser: AccessUser;
 }> {
@@ -50,7 +54,10 @@ export async function createDeliveryCommandClient(request: Request): Promise<{
   }
 
   const accessUser = fromAppUserRow(accessData as AppUserRow);
-  if (!accessUser.active || (accessUser.role !== "editor" && accessUser.role !== "admin")) {
+  const canUseDeliveryCommand = accessUser.role === "editor"
+    || accessUser.role === "admin"
+    || Boolean(options.allowHunterScopedWrite && accessUser.role === "hunter_viewer");
+  if (!accessUser.active || !canUseDeliveryCommand) {
     throw new DeliveryCommandAccessError("Delivery write access denied.", 403);
   }
 

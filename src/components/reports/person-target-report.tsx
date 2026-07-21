@@ -16,8 +16,9 @@ import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useDeliveryStore } from "@/store/delivery-store";
 import { useAccess } from "@/lib/access-context";
-import { isHunterConsultAccess, normalizeAccessEmail } from "@/lib/access-control";
+import { isHunterConsultAccess } from "@/lib/access-control";
 import { customerCountsTowardTarget, getCustomerTotalTarget } from "@/lib/customer-target-total";
+import { buildHunterAccessScope } from "@/lib/hunter-access-scope";
 import { formatCurrency, toFileSlug } from "@/lib/utils";
 import { isCustomerFarmerResponsibleProfile, isHunterRole, isSpecialistHunterRole, isTargetAssignableRole } from "@/lib/roles";
 import { getStudioMaintenancePersonId, isStudioRenewalEligibleForFarmer } from "@/lib/studio-renewal-rollup";
@@ -78,12 +79,19 @@ export function PersonTargetReport() {
 
   const selectedYear = Number(year) || currentYear;
   const hunterConsultOnly = isHunterConsultAccess(accessUser);
-  const accessEmail = accessUser?.email ?? "";
-  const scopedHunterPerson = useMemo(() => {
-    if (!hunterConsultOnly || !accessEmail) return null;
-    const email = normalizeAccessEmail(accessEmail);
-    return people.find((person) => person.email && normalizeAccessEmail(person.email) === email && isHunterRole(person.roleType)) ?? null;
-  }, [accessEmail, hunterConsultOnly, people]);
+  const baseReportCustomers = useMemo(
+    () => includeNewLogos ? customers : customers.filter(customerCountsTowardTarget),
+    [customers, includeNewLogos],
+  );
+  const hunterScope = useMemo(() => buildHunterAccessScope({
+    accessUser,
+    people,
+    customers: baseReportCustomers,
+    targetAllocations,
+    studioTargetAllocations,
+    specialistHunterStudioAssignments,
+  }), [accessUser, baseReportCustomers, people, specialistHunterStudioAssignments, studioTargetAllocations, targetAllocations]);
+  const scopedHunterPerson = hunterScope.person;
   const effectiveView: ReportView = hunterConsultOnly ? "hunters" : view;
   const scopedHunterId = hunterConsultOnly ? scopedHunterPerson?.id ?? "" : "";
   const detailHunterIds = useMemo(
@@ -103,8 +111,8 @@ export function PersonTargetReport() {
     [studioTargetAllocations, targetAllocations],
   );
   const reportCustomers = useMemo(
-    () => includeNewLogos ? customers : customers.filter(customerCountsTowardTarget),
-    [customers, includeNewLogos],
+    () => hunterScope.enabled ? baseReportCustomers.filter((customer) => hunterScope.customerIds.has(customer.id)) : baseReportCustomers,
+    [baseReportCustomers, hunterScope],
   );
   const reportCustomerIds = useMemo(() => new Set(reportCustomers.map((customer) => customer.id)), [reportCustomers]);
   const reportTargetAllocations = useMemo(

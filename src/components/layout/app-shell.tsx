@@ -65,7 +65,10 @@ const mobileAllowedRoutes = new Set([
 ]);
 
 const hunterConsultRoutes = new Set([
+  "/",
   "/clientes",
+  "/pessoas",
+  "/metas-studios",
   "/relatorio-metas",
   "/ajuda",
 ]);
@@ -225,7 +228,7 @@ function RestrictedAccessView() {
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Consulta Hunter</p>
           <h1 className="mt-1 text-xl font-bold text-slate-950">Acesso limitado ao seu relatório</h1>
           <p className="mt-2 text-sm leading-6 text-slate-500">
-            Este perfil consulta apenas o relatório de metas do próprio Hunter e os clientes vinculados, sem permissões de alteração.
+            Este perfil acessa apenas clientes, dashboard, studios e relatórios vinculados ao próprio Hunter. Alterações ficam limitadas ao próprio cadastro e às relações de Studio sob sua responsabilidade.
           </p>
         </div>
       </div>

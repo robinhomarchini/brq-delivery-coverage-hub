@@ -101,14 +101,24 @@
   serviço só pode ser usado em backend/BFF, sem substituir a identidade nominal
   do usuário no navegador.
 - Administradores podem atribuir o papel Consulta Hunter a um usuário BRQ.
-- Usuários com papel Consulta Hunter veem apenas Clientes, Relatório de Metas e
-  Ajuda na navegação.
-- Para Consulta Hunter, a tela Clientes fica em modo leitura, sem botões de
-  novo, editar ou excluir, e mostra apenas clientes vinculados ao Hunter pelo
-  e-mail cadastrado na Pessoa, por meta Hunter direta ou por Studio Hunter.
+- Usuários com papel Consulta Hunter veem Dashboard, Clientes, Pessoas, Metas
+  por Área/Studio, Relatório de Metas e Ajuda na navegação, sempre limitados ao
+  escopo do próprio Hunter quando a tela for de cliente/pessoa/relatório.
+- Para Consulta Hunter, a tela Clientes mostra apenas clientes vinculados ao
+  Hunter pelo e-mail cadastrado na Pessoa, por meta Hunter direta, por Studio
+  Hunter/Manutenção sob sua responsabilidade ou por seleção de Hunter
+  Especializado. O perfil pode criar novo cliente já vinculado ao próprio
+  Hunter, mas não editar clientes existentes.
+- Para Consulta Hunter, a tela Pessoas mostra apenas a própria pessoa e permite
+  editar somente dados básicos; perfil, hierarquia, status e clientes continuam
+  sob governança de editor/admin.
+- Para Consulta Hunter, a tela Metas por Área/Studio é visível por completo,
+  mas criação, edição e exclusão ficam limitadas às linhas cujo Hunter ou
+  responsável de Manutenção/Renovação seja a própria pessoa logada.
 - Para Consulta Hunter, o Relatório de Metas abre diretamente no detalhe do
   próprio Hunter, mostrando Meta Squads/Times Hunter e Studio Hunter, sem seletor de
-  outros Hunters e sem botão de ajuste de metas.
+  outros Hunters e sem botão de ajuste de metas. As demais fontes do relatório
+  são filtradas para clientes do escopo do Hunter.
 - A rota Análise de Desafio aparece na navegação apenas para usuário BRQ ativo
   com perfil admin e cargo próprio de VP ou Vice-presidente.
 - A Análise de Desafio permite alternar entre visões Hunters, Farmers e
