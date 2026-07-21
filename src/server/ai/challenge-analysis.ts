@@ -57,6 +57,9 @@ export async function generateChallengeNarrative({
         linhas: anonymizedRows,
         respostaEsperada: {
           narrative: "Um parágrafo executivo revisado, citando que os números oficiais permanecem preservados.",
+          opinion: "O que você acha da coerência do desafio, em tom executivo e direto.",
+          reconsideredCriteria: "Array com até 4 critérios novos/reconsiderados a partir do contexto.",
+          simulatedReassessment: "Array com até 4 efeitos simulados da reconsideração, sem alterar números oficiais.",
           assumptions: "Array com até 4 conceitos, hipóteses ou aprendizados incorporados ao baseline GEN AI.",
           recommendations: "Array com 3 recomendações objetivas.",
           pendingQuestions: "Array com até 2 perguntas pendentes para calibrar melhor a análise.",
@@ -114,6 +117,20 @@ function buildFallbackResult({
   const aggressive = rows.filter((row) => row.status === "aggressive").length;
   const label = getChallengeViewLabel(view);
   const narrative = `${label}: ${adequate} de ${total} pessoa(s) estão na faixa adequada, ${low} abaixo do desafio esperado, ${aggressive} com desafio agressivo e ${missing} sem salário cadastrado. ${context ? "O contexto informado foi incorporado como baseline GEN AI da análise, sem alterar salários, metas ou classificações oficiais." : "Este baseline GEN AI inicial usa apenas os dados calculados oficiais."} Use esta leitura como apoio gerencial.`;
+  const opinion = context
+    ? "Minha leitura determinística é que o contexto pode mudar a interpretação executiva do desafio, mas ainda precisa ser validado contra evidências quantitativas antes de virar regra oficial."
+    : "Minha leitura determinística é que a coerência do desafio deve ser avaliada primeiro pela distribuição dos múltiplos e pela completude dos salários cadastrados.";
+  const reconsideredCriteria = [
+    ...(context ? ["Contexto informado pelo usuário tratado como critério temporário de reavaliação."] : ["Faixa interna padrão mantida como único critério objetivo."]),
+    "Números oficiais preservados como referência principal.",
+    "Salários ausentes limitam qualquer conclusão individual.",
+  ];
+  const simulatedReassessment = [
+    context
+      ? "A simulação considera que o contexto pode justificar exceções, mas não recalcula metas nem status oficiais sem regra formal."
+      : "Sem critério adicional, a simulação mantém a classificação calculada pela faixa padrão.",
+    `Distribuição atual: ${adequate} adequado(s), ${low} abaixo, ${aggressive} agressivo(s) e ${missing} sem salário.`,
+  ];
   const assumptions = [
     ...(previousBaseline ? ["Baseline GEN AI anterior considerado como ponto de partida contextual."] : []),
     ...(context ? [`Contexto incorporado como aprendizado da análise: ${context}`] : ["Nenhum contexto adicional informado."]),
@@ -131,9 +148,13 @@ function buildFallbackResult({
     context,
     reflectedNumbers,
     narrative,
+    opinion,
+    reconsideredCriteria,
+    simulatedReassessment,
     assumptions,
     recommendations,
     pendingQuestions,
+    source: "deterministic_fallback",
   });
 }
 
@@ -163,9 +184,13 @@ function buildResultFromAiText({
     context,
     reflectedNumbers,
     narrative: normalizeText(parsed.narrative) || fallback.narrative,
+    opinion: normalizeText(parsed.opinion) || fallback.opinion,
+    reconsideredCriteria: normalizeStringArray(parsed.reconsideredCriteria, fallback.reconsideredCriteria),
+    simulatedReassessment: normalizeStringArray(parsed.simulatedReassessment, fallback.simulatedReassessment),
     assumptions: normalizeStringArray(parsed.assumptions, fallback.assumptions),
     recommendations: normalizeStringArray(parsed.recommendations, fallback.recommendations),
     pendingQuestions: normalizeStringArray(parsed.pendingQuestions, fallback.pendingQuestions),
+    source: "generative_ai",
   });
 }
 
@@ -175,18 +200,26 @@ function makeAiResult({
   context,
   reflectedNumbers,
   narrative,
+  opinion,
+  reconsideredCriteria,
+  simulatedReassessment,
   assumptions,
   recommendations,
   pendingQuestions,
+  source,
 }: {
   view: ChallengeView;
   year: number;
   context?: string;
   reflectedNumbers: ChallengeAiNumbers;
   narrative: string;
+  opinion: string;
+  reconsideredCriteria: string[];
+  simulatedReassessment: string[];
   assumptions: string[];
   recommendations: string[];
   pendingQuestions: string[];
+  source: ChallengeAiResult["source"];
 }): ChallengeAiResult {
   const createdAt = new Date().toISOString();
   const baseline: ChallengeAiBaseline = {
@@ -196,6 +229,9 @@ function makeAiResult({
     createdAt,
     context: context || "",
     narrative,
+    opinion,
+    reconsideredCriteria,
+    simulatedReassessment,
     reflectedNumbers,
     assumptions,
     recommendations,
@@ -204,11 +240,15 @@ function makeAiResult({
 
   return {
     narrative,
+    opinion,
+    reconsideredCriteria,
+    simulatedReassessment,
     reflectedNumbers,
     assumptions,
     recommendations,
     pendingQuestions,
     baseline,
+    source,
   };
 }
 

@@ -24,6 +24,7 @@ export async function generateAiText(messages: AiMessage[]) {
         messages,
         max_tokens: config.maxTokens,
         temperature: config.temperature,
+        response_format: { type: "json_object" },
       }),
       signal: controller.signal,
     });

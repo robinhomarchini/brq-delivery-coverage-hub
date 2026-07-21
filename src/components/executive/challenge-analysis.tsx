@@ -171,7 +171,7 @@ export function ChallengeAnalysis() {
               <p className="text-sm font-bold text-slate-950">Assistente GEN AI de reavaliação</p>
             </div>
             <p className="mt-1 text-sm leading-6 text-slate-500">
-              Traga conceitos, hipóteses ou aprendizados por texto ou voz. A GEN AI compara esse baseline conceitual com os números oficiais cadastrados, sem alterar salário, metas ou qualquer dado oficial.
+              Pergunte o que quiser sobre a coerência do desafio ou traga novos critérios por texto/voz. A GEN AI responde o que acha, reconsidera a leitura com esses critérios e simula efeitos sem alterar salário, metas ou dados oficiais.
             </p>
             {activeBaseline && (
               <div className="mt-3 rounded-xl border border-purple-100 bg-purple-50 px-3 py-2 text-xs text-purple-900">
@@ -232,10 +232,27 @@ export function ChallengeAnalysis() {
             <Bot className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-sm font-bold text-slate-950">Leitura executiva</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm font-bold text-slate-950">Leitura executiva</p>
+              {aiResult && (
+                <Badge className={cn(
+                  aiResult.source === "generative_ai"
+                    ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-100"
+                    : "bg-amber-100 text-amber-800 hover:bg-amber-100",
+                )}>
+                  {aiResult.source === "generative_ai" ? "Resposta generativa" : "Leitura determinística"}
+                </Badge>
+              )}
+            </div>
             <p className="mt-2 text-sm leading-6 text-slate-600">
               {narrative || "Gere a leitura GEN AI para receber uma avaliação dos conceitos existentes/aprendidos contra os números oficiais cadastrados. A análise não cita nomes e deve ser usada como apoio gerencial, não como decisão automática de remuneração."}
             </p>
+            {aiResult?.opinion && (
+              <div className="mt-4 rounded-xl border border-purple-100 bg-purple-50 px-3 py-2">
+                <p className="text-xs font-bold uppercase tracking-[0.12em] text-purple-800">O que a IA acha</p>
+                <p className="mt-1 text-sm leading-6 text-purple-950">{aiResult.opinion}</p>
+              </div>
+            )}
           </div>
         </div>
       </Card>
@@ -266,6 +283,8 @@ export function ChallengeAnalysis() {
               Aprendizado contextual usado como tese da análise. Não altera dados oficiais.
             </p>
             <InsightList title="Conceitos aprendidos / hipóteses" items={aiResult.assumptions} />
+            <InsightList title="Critérios reconsiderados" items={aiResult.reconsideredCriteria} />
+            <InsightList title="Reavaliação / simulação" items={aiResult.simulatedReassessment} />
             <InsightList title="Recomendações" items={aiResult.recommendations} />
             {aiResult.pendingQuestions.length > 0 && <InsightList title="Perguntas pendentes" items={aiResult.pendingQuestions} />}
           </Card>

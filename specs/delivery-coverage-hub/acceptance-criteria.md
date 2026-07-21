@@ -139,6 +139,11 @@
 - A leitura com IA é agregada/anônima e não cita nomes de pessoas.
 - A Análise de Desafio permite informar contexto adicional em texto para
   reavaliar o insight com IA sem persistir esse contexto.
+- A pergunta/contexto da Análise de Desafio é enviado para IA generativa via
+  backend, e a resposta mostra parecer da IA, critérios reconsiderados e eventual
+  reavaliação/simulação sem alterar números oficiais.
+- Se a IA generativa não responder, a Análise de Desafio sinaliza leitura
+  determinística de fallback.
 - Quando o navegador suportar reconhecimento de voz, a Análise de Desafio
   permite ditar contexto em pt-BR e preencher o campo de contexto.
 - A reavaliação com IA diferencia dados calculados, hipóteses informadas no

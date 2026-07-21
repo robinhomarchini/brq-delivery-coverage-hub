@@ -47,7 +47,7 @@ export default function HelpPage() {
         <HelpCard
           icon={<FileSpreadsheet className="h-5 w-5" />}
           title="4. Valide a baseline"
-          description="Use Insights para importar a planilha Financial BU, comparar valores por cliente e aplicar somente as divergências marcadas."
+          description="Use Baselines para importar a planilha Financial BU e Comparativo Baseline para comparar a foto oficial contra cliente e pessoas."
         />
       </section>
 
@@ -55,7 +55,7 @@ export default function HelpPage() {
         <h2 className="text-lg font-black text-slate-950">Como começar</h2>
         <p className="mt-2 max-w-3xl text-sm text-slate-600">
           O fluxo mais eficiente é seguir em ordem: organizar pessoas, associar
-          metas, revisar inconsistências e validar a baseline com Insights.
+          metas, revisar inconsistências e validar a baseline com Baselines e Comparativo Baseline.
         </p>
         <div className="mt-4 grid gap-3 text-sm text-slate-600 md:grid-cols-2">
           <div className="rounded-2xl border bg-slate-50 p-4">
@@ -75,7 +75,7 @@ export default function HelpPage() {
             </p>
           </div>
           <div className="rounded-2xl border bg-slate-50 p-4">
-            <p className="font-bold text-slate-900">Insights / planilha</p>
+            <p className="font-bold text-slate-900">Baselines / planilha</p>
             <p className="mt-1">
               A importação respeita as colunas da planilha: Target RL Hunter,
               Target RL Farmer e, quando existir, Áreas / Studios. Se a terceira
@@ -102,7 +102,7 @@ export default function HelpPage() {
               </li>
               <li>Use o Assistente de metas para revisar inconsistências.</li>
               <li>
-                Valide divergências e aplique somente as marcadas em Insights.
+                Valide divergências na central de Baselines e acompanhe o batimento no Comparativo Baseline.
               </li>
             </ul>
           </div>
@@ -147,7 +147,10 @@ export default function HelpPage() {
             </Link>
           </Button>
           <Button asChild variant="outline">
-            <Link href="/insights">Abrir Insights</Link>
+            <Link href="/baselines">Abrir Baselines</Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/comparativo-baseline">Abrir Comparativo Baseline</Link>
           </Button>
           <Button asChild variant="outline">
             <Link href="/relatorio-metas">Abrir relatório de metas</Link>

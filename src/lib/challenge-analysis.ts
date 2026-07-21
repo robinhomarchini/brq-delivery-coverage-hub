@@ -25,6 +25,9 @@ export interface ChallengeAiBaseline {
   createdAt: string;
   context: string;
   narrative: string;
+  opinion: string;
+  reconsideredCriteria: string[];
+  simulatedReassessment: string[];
   reflectedNumbers: ChallengeAiNumbers;
   assumptions: string[];
   recommendations: string[];
@@ -33,11 +36,15 @@ export interface ChallengeAiBaseline {
 
 export interface ChallengeAiResult {
   narrative: string;
+  opinion: string;
+  reconsideredCriteria: string[];
+  simulatedReassessment: string[];
   reflectedNumbers: ChallengeAiNumbers;
   assumptions: string[];
   recommendations: string[];
   pendingQuestions: string[];
   baseline: ChallengeAiBaseline;
+  source: "generative_ai" | "deterministic_fallback";
 }
 
 export interface ChallengeAnalysisRow {

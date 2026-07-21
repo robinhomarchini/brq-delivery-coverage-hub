@@ -4,7 +4,7 @@
 
 Sidebar com Dashboard Executivo, Organograma, Pessoas, Áreas / Studios,
 Clientes, Portfólio de Clientes, Metas, Metas por Pessoa, Relatório de Metas,
-Comparativo Baseline, Insights, Análise de Desafio, Assuntos, Mapa de Cobertura, Configurações e Ajuda. O item Assuntos
+Comparativo Baseline, Análise de Desafio, Assuntos, Mapa de Cobertura, Configurações e Ajuda. O item Assuntos
 fica visível como pausado/desabilitado até nova definição do modelo.
 Ao navegar pelo menu ou mudar a rota/query, telas contextuais devem ser
 remontadas para fechar modais, limpar filtros temporários e evitar que uma tela
@@ -356,13 +356,17 @@ cargo/perfil para ajustar a faixa de referência. O sinal é apoio executivo par
 triagem, não decisão automática de remuneração, promoção ou cobrança individual.
 
 A tela também possui um Assistente de reavaliação. O usuário pode informar
-contexto adicional em texto ou, quando o navegador suportar, ditar por voz em
-pt-BR para preencher o campo. Ao acionar Reavaliar com IA, o backend deve enviar
-à IA a análise calculada, a visão ativa, a faixa de referência e o contexto
-adicional como hipótese temporária. Esse contexto não é persistido e não altera
-salários, metas ou classificações calculadas; ele apenas recalibra o insight
-executivo, distinguindo fatos medidos, hipóteses trazidas pelo usuário e
-recomendações.
+perguntas, contexto adicional ou novos critérios em texto ou, quando o navegador
+suportar, ditar por voz em pt-BR para preencher o campo. Ao acionar Reavaliar
+com IA, o backend deve enviar à IA generativa a análise calculada, a visão
+ativa, a faixa de referência, o baseline conceitual anterior da sessão e o
+contexto adicional como hipótese temporária. A resposta deve trazer o parecer da
+IA, critérios reconsiderados, eventual reavaliação/simulação com os critérios
+novos, hipóteses, recomendações e perguntas pendentes. Esse contexto não é
+persistido e não altera salários, metas ou classificações calculadas; ele apenas
+recalibra o insight executivo, distinguindo fatos medidos, hipóteses trazidas
+pelo usuário e recomendações. Se o provedor de IA não responder, a tela deve
+sinalizar que usou leitura determinística de fallback.
 Cada reavaliação gera um baseline conceitual GEN AI para a visão/ano da sessão:
 ele consolida conceitos existentes, hipóteses e aprendizados informados pelo
 usuário para serem comparados contra os números oficiais cadastrados/calculados.

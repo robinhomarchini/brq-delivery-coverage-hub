@@ -337,6 +337,8 @@ Centralizar importação de baselines em uma nova rota, removendo uploads antigo
 - No Relatório de Metas, Hunters e Áreas/Studios usam checkboxes para seleção de exportação. Sem seleção, exportam consolidado; com seleção, exportam detalhe explodido.
 - Na Análise de Desafio, baseline GEN AI é contextual/conceitual por visão+ano na sessão da tela. Ele aprende hipóteses e conceitos informados e os compara contra números oficiais, sem persistir ou sobrescrever dados oficiais.
 - A API `/api/challenge-analysis` aceita `year` opcional para tolerar frontend em cache; quando ausente, usa 2026.
+- A tela Insights saiu do menu principal. A central de Baselines e o Comparativo Baseline assumem os fluxos que antes dependiam de Insights.
+- Na Análise de Desafio, a pergunta/contexto deve ir para IA generativa por `/api/challenge-analysis`; a resposta precisa trazer parecer da IA, critérios reconsiderados e reavaliação/simulação. Se o provedor falhar ou estiver sem chave, a UI deve indicar fallback determinístico.
 - `director-other` representa o bucket "Outros" para clientes sem diretoria definida. Ele existe como pessoa operacional por causa da FK `customers.director_responsible_id -> people.id`, mas não deve consolidar metas por Diretoria Delivery.
 - Metas por Área/Studio devem editar a linha exata no grão Cliente + Área/Studio + Hunter + Ano; o modal não deve depender de `defaultValue` quando aberto repetidas vezes.
 - Na tela Clientes, Studio Hunter é detalhe contido em Hunter: quando há Meta Hunter direta e Studio Hunter detalhado no mesmo cliente/ano, a reconciliação usa o maior dos dois como cobertura Hunter, não a soma.

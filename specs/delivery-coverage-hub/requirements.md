@@ -132,4 +132,5 @@ experiência do usuário até nova definição de modelo.
 
 ## Fora de escopo
 
-IA generativa real e integração definitiva com Microsoft Entra ID.
+Integração definitiva com Microsoft Entra ID. A IA generativa da Análise de
+Desafio existe como apoio executivo server-side e não altera dados oficiais.
