@@ -124,6 +124,10 @@ experiência do usuário até nova definição de modelo.
   ser explícita na interface.
 - O acesso remoto exige autenticação com e-mail corporativo `@brq.com`.
 - Usuários `viewer` possuem leitura; `editor` e `admin` podem alterar dados.
+- Usuário `admin` pode simular, pela tela principal, o contexto de outro usuário
+  ativo ou Hunter operacional para validar filtros, navegação e permissões
+  percebidas. A simulação não troca o login, o token de autenticação nem a
+  identidade auditada por BFF/RLS.
 - Toda alteração persistida registra usuário e instante para auditoria.
 
 ## Fora de escopo

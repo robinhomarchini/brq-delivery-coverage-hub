@@ -6,19 +6,27 @@ import type { AuthenticatedUser } from "@/lib/auth/auth-service";
 
 interface AccessContextValue {
   user: AuthenticatedUser | null;
+  realAccessUser: AccessUser | null;
   accessUser: AccessUser | null;
   loadingAccess: boolean;
   isAdmin: boolean;
   canEdit: boolean;
+  accessSimulationActive: boolean;
+  setAccessSimulation: (user: AccessUser) => void;
+  clearAccessSimulation: () => void;
   refreshAccess: () => Promise<void>;
 }
 
 const AccessContext = createContext<AccessContextValue>({
   user: null,
+  realAccessUser: null,
   accessUser: null,
   loadingAccess: false,
   isAdmin: false,
   canEdit: false,
+  accessSimulationActive: false,
+  setAccessSimulation: () => undefined,
+  clearAccessSimulation: () => undefined,
   refreshAccess: async () => undefined,
 });
 

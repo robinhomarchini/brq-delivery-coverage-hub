@@ -10,12 +10,14 @@ import { AccessContextProvider } from "@/lib/access-context";
 import { createAuthServiceSelection, normalizeLoginEmail, validateCorporateEmail, type AuthenticatedUser } from "@/lib/auth/auth-service";
 
 type AuthMode = "password" | "first_access" | "reset_password";
+const accessSimulationStorageKey = "brq-access-simulation";
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const authSelection = useMemo(() => createAuthServiceSelection(), []);
   const authService = authSelection.service;
   const [user, setUser] = useState<AuthenticatedUser | null>(null);
   const [accessUser, setAccessUser] = useState<AccessUser | null>(null);
+  const [simulatedAccessUser, setSimulatedAccessUser] = useState<AccessUser | null>(() => readStoredAccessSimulation());
   const [loading, setLoading] = useState(authSelection.configured);
   const [loadingAccess, setLoadingAccess] = useState(false);
   const [sending, setSending] = useState(false);
@@ -70,13 +72,19 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
           if (!mounted) return;
           setUser(null);
           setAccessUser(null);
+          setSimulatedAccessUser(null);
           setError("Seu usuário BRQ ainda não está liberado para acessar este hub. Peça ao administrador para pré-cadastrar ou reativar seu e-mail.");
           setLoading(false);
           return;
         }
+        if (profile.role !== "admin") {
+          setSimulatedAccessUser(null);
+          if (typeof window !== "undefined") window.localStorage.removeItem(accessSimulationStorageKey);
+        }
         setAccessUser(profile);
       } else {
         setAccessUser(null);
+        setSimulatedAccessUser(null);
       }
       setUser(nextUser);
       setLoading(false);
@@ -103,6 +111,16 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       unsubscribe();
     };
   }, [authService]);
+
+  useEffect(() => {
+    if (!accessUser) {
+      return;
+    }
+    if (accessUser.role !== "admin" || !accessUser.active) {
+      if (typeof window !== "undefined") window.localStorage.removeItem(accessSimulationStorageKey);
+      return;
+    }
+  }, [accessUser]);
 
   async function submitAccess(formData: FormData) {
     if (authMode === "first_access") {
@@ -234,12 +252,36 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     setAccessUser(profile);
   }
 
+  function setAccessSimulation(nextUser: AccessUser) {
+    if (!accessUser || accessUser.role !== "admin" || !accessUser.active) return;
+    const simulation = { ...nextUser, active: true, status: "active" as const };
+    setSimulatedAccessUser(simulation);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(accessSimulationStorageKey, JSON.stringify(simulation));
+    }
+  }
+
+  function clearAccessSimulation() {
+    setSimulatedAccessUser(null);
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(accessSimulationStorageKey);
+    }
+  }
+
+  const effectiveAccessUser = accessUser?.role === "admin" && accessUser.active && simulatedAccessUser
+    ? simulatedAccessUser
+    : accessUser;
+
   const accessContextValue = {
     user,
-    accessUser,
+    realAccessUser: accessUser,
+    accessUser: effectiveAccessUser,
     loadingAccess,
-    isAdmin: accessUser?.active === true && accessUser.role === "admin",
-    canEdit: accessUser?.active === true && (accessUser.role === "editor" || accessUser.role === "admin"),
+    isAdmin: effectiveAccessUser?.active === true && effectiveAccessUser.role === "admin",
+    canEdit: effectiveAccessUser?.active === true && (effectiveAccessUser.role === "editor" || effectiveAccessUser.role === "admin"),
+    accessSimulationActive: Boolean(accessUser?.role === "admin" && simulatedAccessUser),
+    setAccessSimulation,
+    clearAccessSimulation,
     refreshAccess,
   };
 
@@ -374,4 +416,17 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       </Card>
     </main>
   );
+}
+
+function readStoredAccessSimulation(): AccessUser | null {
+  if (typeof window === "undefined") return null;
+  const rawSimulation = window.localStorage.getItem(accessSimulationStorageKey);
+  if (!rawSimulation) return null;
+  try {
+    const parsed = JSON.parse(rawSimulation) as AccessUser;
+    return parsed?.email && parsed?.role && parsed.active === true ? parsed : null;
+  } catch {
+    window.localStorage.removeItem(accessSimulationStorageKey);
+    return null;
+  }
 }

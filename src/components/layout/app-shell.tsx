@@ -29,9 +29,14 @@ import { createAuthServiceSelection } from "@/lib/auth/auth-service";
 import { resolvePersistenceProvider } from "@/lib/repositories";
 import { useDeliveryStore } from "@/store/delivery-store";
 import { ErrorNotice } from "@/components/shared/success-notice";
-import { isHunterConsultAccess, translateAccessRole } from "@/lib/access-control";
+import { type AccessUser, isHunterConsultAccess, normalizeAccessEmail, translateAccessRole } from "@/lib/access-control";
 import { useAccess } from "@/lib/access-context";
 import { canManageCompensation } from "@/lib/compensation-access";
+import { Select } from "@/components/ui/select";
+import { isHunterSelectionRole } from "@/lib/roles";
+import { createAccessRepositorySelection } from "@/lib/repositories/accessRepository";
+import { accessUsersChangedEvent } from "@/lib/access-events";
+import type { RoleType } from "@/data/mockData";
 
 const navigation = [
   { href: "/", label: "Dashboard Executivo", icon: LayoutDashboard },
@@ -73,12 +78,27 @@ const hunterConsultRoutes = new Set([
   "/ajuda",
 ]);
 
+const realAdminSimulationKey = "__real_admin__";
+
+type AccessSimulationOption = {
+  key: string;
+  label: string;
+  user: AccessUser;
+};
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isMobileViewport, setIsMobileViewport] = useState(false);
-  const { accessUser, isAdmin } = useAccess();
+  const {
+    accessUser,
+    realAccessUser,
+    isAdmin,
+    accessSimulationActive,
+    setAccessSimulation,
+    clearAccessSimulation,
+  } = useAccess();
   const { error, clearError, people } = useDeliveryStore();
   const canViewCompensation = canManageCompensation(accessUser, people);
   const hunterConsultOnly = isHunterConsultAccess(accessUser);
@@ -89,8 +109,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
   const current = navigation.find((item) => item.href === pathname) ?? navigation[0];
   const authSelection = useMemo(() => createAuthServiceSelection(), []);
+  const accessRepositorySelection = useMemo(() => createAccessRepositorySelection(), []);
   const persistenceProvider = useMemo(() => resolvePersistenceProvider(), []);
   const authService = authSelection.service;
+  const accessRepository = accessRepositorySelection.repository;
   const userEmail = accessUser?.email ?? "Usuário BRQ";
   const userInitials = getInitials(userEmail);
   const dataStatus = persistenceProvider === "supabase"
@@ -101,6 +123,61 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const routeKey = `${pathname}?${searchParams.toString()}`;
   const mobileRestricted = isMobileViewport && !mobileAllowedRoutes.has(pathname);
   const hunterRestricted = hunterConsultOnly && !hunterConsultRoutes.has(pathname);
+  const realAdmin = realAccessUser?.active === true && realAccessUser.role === "admin";
+  const [accessUsers, setAccessUsers] = useState<AccessUser[]>([]);
+  const simulationOptions = useMemo(
+    () => buildAccessSimulationOptions(accessUsers, people, realAccessUser),
+    [accessUsers, people, realAccessUser],
+  );
+  const activeSimulationKey = accessSimulationActive && accessUser
+    ? getAccessSimulationKey(accessUser)
+    : realAdminSimulationKey;
+
+  useEffect(() => {
+    if (!realAdmin || !accessRepository) {
+      return;
+    }
+
+    let mounted = true;
+    const loadAccessUsers = () => {
+      accessRepository.listAccessUsers()
+        .then((users) => {
+          if (mounted) setAccessUsers(users);
+        })
+        .catch((loadError) => {
+          console.error("Failed to load access users for admin simulation", loadError);
+          if (mounted) setAccessUsers([]);
+        });
+    };
+
+    loadAccessUsers();
+    window.addEventListener(accessUsersChangedEvent, loadAccessUsers);
+
+    return () => {
+      mounted = false;
+      window.removeEventListener(accessUsersChangedEvent, loadAccessUsers);
+    };
+  }, [accessRepository, realAdmin]);
+
+  const handleAccessSimulationChange = (key: string) => {
+    if (key === realAdminSimulationKey) {
+      clearAccessSimulation();
+      return;
+    }
+    const selectedOption = simulationOptions.find((option) => option.key === key);
+    if (selectedOption) {
+      setAccessSimulation(selectedOption.user);
+    }
+  };
+
+  useEffect(
+    () => {
+      if (!accessSimulationActive || activeSimulationKey === realAdminSimulationKey) return;
+      const stillAvailable = simulationOptions.some((option) => option.key === activeSimulationKey);
+      if (!stillAvailable) clearAccessSimulation();
+    },
+    [accessSimulationActive, activeSimulationKey, clearAccessSimulation, simulationOptions],
+  );
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 767px)");
@@ -195,9 +272,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <p className="truncate text-sm font-semibold text-slate-800 sm:hidden">{current.label}</p>
             </div>
           </div>
-          <div className="hidden items-center gap-2 text-xs text-slate-400 sm:flex">
-            <span className={`h-2 w-2 rounded-full ${dataStatus.className}`} />
-            {dataStatus.label}
+          <div className="hidden min-w-0 items-center gap-3 sm:flex">
+            {realAdmin && (
+              <AdminUserSimulationSelect
+                active={accessSimulationActive}
+                value={activeSimulationKey}
+                options={simulationOptions}
+                onChange={handleAccessSimulationChange}
+              />
+            )}
+            <div className="flex shrink-0 items-center gap-2 text-xs text-slate-400">
+              <span className={`h-2 w-2 rounded-full ${dataStatus.className}`} />
+              {dataStatus.label}
+            </div>
           </div>
         </header>
         <main className="mx-auto min-h-[calc(100vh-3.5rem)] w-full min-w-0 max-w-[1680px] overflow-x-hidden p-4 sm:p-6">
@@ -289,6 +376,83 @@ function MobileRestrictedView({ currentLabel }: { currentLabel: string }) {
       </div>
     </section>
   );
+}
+
+function AdminUserSimulationSelect({
+  active,
+  value,
+  options,
+  onChange,
+}: {
+  active: boolean;
+  value: string;
+  options: AccessSimulationOption[];
+  onChange: (key: string) => void;
+}) {
+  return (
+    <label className="flex min-w-0 items-center gap-2 text-xs font-semibold text-slate-500">
+      <span className="hidden shrink-0 xl:inline">Simular</span>
+      <Select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className={cn(
+          "h-9 w-72 max-w-[34vw] rounded-lg text-xs",
+          active && "border-amber-300 bg-amber-50 text-amber-900",
+        )}
+        aria-label="Simular usuário como administrador"
+        title="Simulação administrativa de contexto; o login real continua sendo o administrador."
+      >
+        <option value={realAdminSimulationKey}>Meu acesso admin real</option>
+        {options.map((option) => (
+          <option key={option.key} value={option.key}>{option.label}</option>
+        ))}
+      </Select>
+    </label>
+  );
+}
+
+function buildAccessSimulationOptions(
+  accessUsers: AccessUser[],
+  people: Array<{ active: boolean; email?: string; name: string; roleType: RoleType }>,
+  realAccessUser: AccessUser | null,
+): AccessSimulationOption[] {
+  const realEmail = normalizeAccessEmail(realAccessUser?.email ?? "");
+  const knownEmails = new Set<string>();
+  const options: AccessSimulationOption[] = [];
+
+  for (const user of accessUsers) {
+    const email = normalizeAccessEmail(user.email);
+    if (!user.active || email === realEmail || knownEmails.has(email)) continue;
+    knownEmails.add(email);
+    options.push({
+      key: getAccessSimulationKey(user),
+      label: `${user.email} · ${translateAccessRole(user.role)}`,
+      user: { ...user, email, active: true, status: "active" },
+    });
+  }
+
+  for (const person of people) {
+    const email = normalizeAccessEmail(person.email ?? "");
+    if (!person.active || !email || knownEmails.has(email) || !isHunterSelectionRole(person.roleType)) continue;
+    knownEmails.add(email);
+    const user: AccessUser = {
+      email,
+      role: "hunter_viewer",
+      active: true,
+      status: "active",
+    };
+    options.push({
+      key: getAccessSimulationKey(user),
+      label: `${person.name} · Consulta Hunter`,
+      user,
+    });
+  }
+
+  return options.sort((first, second) => first.label.localeCompare(second.label, "pt-BR"));
+}
+
+function getAccessSimulationKey(user: Pick<AccessUser, "email" | "role">) {
+  return `${normalizeAccessEmail(user.email)}::${user.role}`;
 }
 
 function getInitials(email: string) {
