@@ -2,7 +2,7 @@
 
 import { Building2, Pencil, Plus, Save, Target, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Area, Customer, Person, StudioTargetAllocation } from "@/data/mockData";
+import type { Area, Customer, Person, StudioTargetAllocation, TargetAllocation } from "@/data/mockData";
 import { EmptyState } from "@/components/shared/empty-state";
 import { ErrorNotice, SuccessNotice } from "@/components/shared/success-notice";
 import { KpiSummaryCard } from "@/components/shared/kpi-summary-card";
@@ -81,8 +81,9 @@ export function StudioTargetAssignment() {
   const canCreateStudioAllocation = canEdit || Boolean(hunterScope.enabled && hunterScope.person);
   const canEditStudioAllocation = useCallback((allocation: StudioTargetAllocation) => {
     if (canEdit && !hunterScope.enabled) return true;
-    return canEditStudioAllocationInHunterScope(hunterScope, allocation);
-  }, [canEdit, hunterScope]);
+    if (!canEditStudioAllocationInHunterScope(hunterScope, allocation)) return false;
+    return canEditWholeStudioAllocationInHunterScope(allocation, hunterScope.person?.id ?? "", people, targetAllocations);
+  }, [canEdit, hunterScope, people, targetAllocations]);
   const filteredRows = useMemo(() => allocationsForYear.filter((allocation) => {
     return (!customerId || allocation.customerId === customerId)
       && (!areaId || allocation.areaId === areaId)
@@ -335,6 +336,10 @@ export function StudioTargetAssignment() {
       );
       if (!ownPersonId || !hasOwnResponsibility || hasForeignResponsibility) {
         setFormError("Consulta Hunter só pode salvar metas de área/studio vinculadas à própria pessoa.");
+        return;
+      }
+      if (editing && !canEditWholeStudioAllocationInHunterScope(editing, ownPersonId, people, targetAllocations)) {
+        setFormError("Consulta Hunter não pode alterar uma linha de Studio que possui valor associado a outro responsável.");
         return;
       }
     }
@@ -708,6 +713,21 @@ function StatusBadge({ status }: { status: "ok" | "pending" | "over" | "empty" |
   if (status === "empty") return <Badge className="bg-slate-100 text-slate-600 hover:bg-slate-100">Sem meta</Badge>;
   if (status === "partial") return <Badge className="bg-sky-100 text-sky-800 hover:bg-sky-100">Hunter parcial</Badge>;
   return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Abaixo</Badge>;
+}
+
+function canEditWholeStudioAllocationInHunterScope(
+  allocation: StudioTargetAllocation,
+  ownPersonId: string,
+  people: Person[],
+  targetAllocations: TargetAllocation[],
+) {
+  if (!ownPersonId) return false;
+  const effectiveHunterPersonId = getEffectiveStudioHunterPersonId(allocation, people, targetAllocations);
+  const maintenancePersonId = getStudioMaintenancePersonId(allocation);
+  const hunterSegmentOwned = allocation.hunterAmount <= 0.01 || effectiveHunterPersonId === ownPersonId;
+  const maintenanceSegmentOwned = allocation.maintenanceAmount <= 0.01 || maintenancePersonId === ownPersonId;
+
+  return hunterSegmentOwned && maintenanceSegmentOwned;
 }
 
 function buildReconciliation(customers: Customer[], areas: Area[], allocations: StudioTargetAllocation[]) {

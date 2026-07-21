@@ -76,12 +76,13 @@ export function ExecutiveDashboard() {
   const farmers = activePeople.filter((person) => person.roleType === "Farmer");
   const hunterFarmers = activePeople.filter((person) => person.roleType === "Hunter + Farmer");
   const staff = activePeople.filter((person) => person.roleType === "Staff");
-  const boardTotals = getBoardTargetBaselineTotals(defaultTargetYear, boardTargetBaselines);
+  const boardRows = getBoardTargetBaselineRows(defaultTargetYear, boardTargetBaselines);
+  const boardTotals = getScopedBoardTotals(dashboardCustomers, boardRows, hunterScope.enabled);
   const registeredTotals = getRegisteredTargetTotals(dashboardCustomers);
   const totalRevenue = boardTotals.totalTarget;
   const registeredDelta = registeredTotals.totalTarget - boardTotals.totalTarget;
   const baselineByCustomer = new Map(
-    getBoardTargetBaselineRows(defaultTargetYear, boardTargetBaselines)
+    boardRows
       .map((row) => [normalizeBusinessName(row.customerName), row.totalTarget]),
   );
   const dashboardCustomerIds = new Set(dashboardCustomers.map((customer) => customer.id));
@@ -340,6 +341,33 @@ function FinancialKpi({
 
 function getCustomerTarget(customer: { hunterTarget: number; farmerRenewalTarget: number; studioTarget: number }) {
   return getCustomerTotalTarget(customer);
+}
+
+function getScopedBoardTotals(
+  customers: Array<{ name: string; hunterTarget: number; farmerRenewalTarget: number; studioTarget: number }>,
+  boardRows: ReturnType<typeof getBoardTargetBaselineRows>,
+  scoped: boolean,
+) {
+  if (!scoped) return getBoardTargetBaselineTotals(defaultTargetYear, boardRows);
+
+  const rowsByCustomer = new Map(boardRows.map((row) => [normalizeBusinessName(row.customerName), row]));
+
+  return customers.reduce((totals, customer) => {
+    const baseline = rowsByCustomer.get(normalizeBusinessName(customer.name));
+    const hunterTarget = baseline?.hunterTarget ?? customer.hunterTarget;
+    const farmerRenewalTarget = baseline?.farmerRenewalTarget ?? customer.farmerRenewalTarget;
+    const totalTarget = baseline?.totalTarget ?? getCustomerTarget(customer);
+
+    return {
+      hunterTarget: roundCurrency(totals.hunterTarget + hunterTarget),
+      farmerRenewalTarget: roundCurrency(totals.farmerRenewalTarget + farmerRenewalTarget),
+      totalTarget: roundCurrency(totals.totalTarget + totalTarget),
+    };
+  }, { hunterTarget: 0, farmerRenewalTarget: 0, totalTarget: 0 });
+}
+
+function roundCurrency(value: number) {
+  return Math.round(value * 100) / 100;
 }
 
 function compactCurrency(value: number) {
