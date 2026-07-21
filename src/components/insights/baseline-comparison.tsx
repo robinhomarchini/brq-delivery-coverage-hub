@@ -20,10 +20,10 @@ import { useAccess } from "@/lib/access-context";
 import { getCustomerTotalTargetFromParts } from "@/lib/customer-target-total";
 import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears } from "@/lib/customer-targets";
 import { buildHunterAccessScope } from "@/lib/hunter-access-scope";
+import { getCustomerAllocationComposition, getCustomerTargetBreakdown } from "@/lib/customers/customer-coverage-view-model";
 import {
   buildBoardTargetComparisonRows,
   getBoardComparisonStatusLabel,
-  getBoardTargetBaselineTotals,
   getRegisteredTargetTotals,
   type BaselineComparisonMode,
 } from "@/lib/board-target-baseline";
@@ -43,6 +43,12 @@ import {
 import { cn, formatCurrency, normalizeBusinessName } from "@/lib/utils";
 
 type ComparisonRow = ReturnType<typeof buildBoardTargetComparisonRows>[number];
+type BoardComparisonRow = ComparisonRow & {
+  allocatedPeopleHunterTarget: number;
+  allocatedPeopleFarmerRenewalTarget: number;
+  allocatedPeopleTotalTarget: number;
+  peopleDelta: number;
+};
 type BaselineWorkspace = "board" | "studios";
 const sourceSpecificStudioBaselineSourceCodes = studioBaselineSources
   .filter((source) => source.code !== "studio_general")
@@ -101,14 +107,27 @@ export function BaselineComparison() {
       : studioTargetAllocations,
     [hunterScope, studioTargetAllocations],
   );
+  const scopedTargetAllocations = useMemo(
+    () => hunterScope.enabled
+      ? targetAllocations.filter((allocation) => hunterScope.customerIds.has(allocation.customerId))
+      : targetAllocations,
+    [hunterScope, targetAllocations],
+  );
   const activeBaselineRows = boardTargetBaselines;
   const scopedBoardBaselineRows = useMemo(
     () => filterBoardBaselineRowsForScope(activeBaselineRows, scopedCustomerNames, hunterScope.enabled),
     [activeBaselineRows, hunterScope.enabled, scopedCustomerNames],
   );
-  const baselineTotals = useMemo(() => getBoardTargetBaselineTotals(year, scopedBoardBaselineRows), [scopedBoardBaselineRows, year]);
   const registeredTotals = useMemo(() => getRegisteredTargetTotals(scopedYearCustomers), [scopedYearCustomers]);
-  const rows = useMemo(() => buildBoardTargetComparisonRows(scopedYearCustomers, year, scopedBoardBaselineRows), [scopedBoardBaselineRows, year, scopedYearCustomers]);
+  const rows = useMemo(() => enrichBoardComparisonRows(
+    buildBoardTargetComparisonRows(scopedYearCustomers, year, scopedBoardBaselineRows),
+    scopedYearCustomers,
+    people,
+    scopedTargetAllocations,
+    scopedStudioTargetAllocations,
+    areas,
+    year,
+  ), [areas, people, scopedBoardBaselineRows, scopedStudioTargetAllocations, scopedTargetAllocations, scopedYearCustomers, year]);
   const filteredRows = useMemo(() => rows.filter((row) => {
     const query = search.toLowerCase();
     return (!query || `${row.customerName} ${row.registeredCustomerName}`.toLowerCase().includes(query))
@@ -130,9 +149,14 @@ export function BaselineComparison() {
       registeredFarmerRenewalTarget: row.registeredFarmerRenewalTarget,
       registeredStudioMaintenanceTarget: row.registeredStudioMaintenanceTarget,
       registeredTotalTarget: row.registeredTotalTarget,
+      allocatedPeopleHunterTarget: row.allocatedPeopleHunterTarget,
+      allocatedPeopleFarmerRenewalTarget: row.allocatedPeopleFarmerRenewalTarget,
+      allocatedPeopleTotalTarget: row.allocatedPeopleTotalTarget,
       comparedBaseline: focused.baseline,
       comparedRegistered: focused.registered,
+      comparedAllocatedPeople: focused.allocatedPeople,
       comparedDelta: focused.delta,
+      comparedPeopleDelta: focused.peopleDelta,
       status: getBoardComparisonStatusLabel(row.status),
       year,
     };
@@ -149,10 +173,15 @@ export function BaselineComparison() {
     { key: "registeredFarmerRenewalTarget", label: "Cadastrado Renovação", value: (row) => row.registeredFarmerRenewalTarget, format: "currency", align: "right" },
     { key: "registeredStudioMaintenanceTarget", label: "Cadastrado Studio Manutenção", value: (row) => row.registeredStudioMaintenanceTarget, format: "currency", align: "right" },
     { key: "registeredTotalTarget", label: "Cadastrado Total", value: (row) => row.registeredTotalTarget, format: "currency", align: "right" },
+    { key: "allocatedPeopleHunterTarget", label: "Pessoas Hunter", value: (row) => row.allocatedPeopleHunterTarget, format: "currency", align: "right" },
+    { key: "allocatedPeopleFarmerRenewalTarget", label: "Pessoas Renovação", value: (row) => row.allocatedPeopleFarmerRenewalTarget, format: "currency", align: "right" },
+    { key: "allocatedPeopleTotalTarget", label: "Pessoas Total", value: (row) => row.allocatedPeopleTotalTarget, format: "currency", align: "right" },
     { key: "comparedBaseline", label: "Baseline Comparado", value: (row) => row.comparedBaseline, format: "currency", align: "right" },
-    { key: "comparedRegistered", label: "Cadastrado Comparado", value: (row) => row.comparedRegistered, format: "currency", align: "right" },
-    { key: "comparedDelta", label: "Diferença Comparada", value: (row) => row.comparedDelta, format: "currency", align: "right" },
-    { key: "status", label: "Status", value: (row) => row.status },
+    { key: "comparedRegistered", label: "Cliente Comparado", value: (row) => row.comparedRegistered, format: "currency", align: "right" },
+    { key: "comparedAllocatedPeople", label: "Pessoas Comparado", value: (row) => row.comparedAllocatedPeople, format: "currency", align: "right" },
+    { key: "comparedDelta", label: "Diferença Cliente x Baseline", value: (row) => row.comparedDelta, format: "currency", align: "right" },
+    { key: "comparedPeopleDelta", label: "Diferença Pessoas x Baseline", value: (row) => row.comparedPeopleDelta, format: "currency", align: "right" },
+    { key: "status", label: "Status Cliente", value: (row) => row.status },
     { key: "year", label: "Ano", value: (row) => row.year, format: "number", align: "center" },
   ], []);
   const latestStudioSnapshot = useMemo(
@@ -356,7 +385,6 @@ export function BaselineComparison() {
           search={search}
           mode={mode}
           status={status}
-          baselineTotals={baselineTotals}
           registeredTotals={registeredTotals}
           focusedTotals={focusedTotals}
           filteredRows={filteredRows}
@@ -434,7 +462,6 @@ function BoardBaselineSection({
   search,
   mode,
   status,
-  baselineTotals,
   registeredTotals,
   focusedTotals,
   filteredRows,
@@ -453,10 +480,9 @@ function BoardBaselineSection({
   search: string;
   mode: BaselineComparisonMode;
   status: string;
-  baselineTotals: ReturnType<typeof getBoardTargetBaselineTotals>;
   registeredTotals: ReturnType<typeof getRegisteredTargetTotals>;
   focusedTotals: ReturnType<typeof getFocusedTotals>;
-  filteredRows: ComparisonRow[];
+  filteredRows: BoardComparisonRow[];
   updatingCustomerId: string;
   yearCustomers: Customer[];
   canUpdateCustomers: boolean;
@@ -469,12 +495,13 @@ function BoardBaselineSection({
 }) {
   return (
     <>
-      <section className="mb-5 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+      <section className="mb-5 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
         <KpiSummaryCard label={`Baseline Board · ${year}`} currencyValue={focusedTotals.baseline} />
-        <KpiSummaryCard label="Cadastrado" currencyValue={focusedTotals.registered} />
-        <KpiSummaryCard label="Diferença" currencyValue={focusedTotals.delta} tone={getDeltaTone(focusedTotals.delta)} />
+        <KpiSummaryCard label="Cadastrado no Cliente" currencyValue={focusedTotals.registered} />
+        <KpiSummaryCard label="Alocado em Pessoas" currencyValue={focusedTotals.allocatedPeople} tone="sky" />
+        <KpiSummaryCard label="Dif. Cliente x Baseline" currencyValue={focusedTotals.delta} tone={getDeltaTone(focusedTotals.delta)} />
+        <KpiSummaryCard label="Dif. Pessoas x Baseline" currencyValue={focusedTotals.peopleDelta} tone={getDeltaTone(focusedTotals.peopleDelta)} />
         <KpiSummaryCard label="Clientes comparados" value={filteredRows.length} />
-        <KpiSummaryCard label="Total Board 2026" currencyValue={baselineTotals.totalTarget} />
       </section>
 
       <Card className="mb-5 border-blue-100 bg-blue-50/60 p-4 text-sm text-blue-950">
@@ -488,6 +515,7 @@ function BoardBaselineSection({
                 : " Compare contra a meta anual do cliente e escolha na tabela qual cliente deseja atualizar."}
               {!hunterScopeEnabled && " Nenhum cliente é atualizado automaticamente: o botão da linha altera só a meta daquele cliente, não as metas cadastradas nas pessoas."}
               Total cadastrado atual: <span className="font-semibold">{formatCurrency(registeredTotals.totalTarget)}</span>.
+              A coluna <span className="font-semibold">Alocado em Pessoas</span> mostra a soma operacional das metas distribuídas nas pessoas, respeitando Studios contidos.
             </p>
           </div>
         </div>
@@ -514,15 +542,17 @@ function BoardBaselineSection({
 
       <Card className="overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <Table className="min-w-[1320px]">
+          <Table className="min-w-[1480px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Cliente</TableHead>
                 <TableHead>Baseline</TableHead>
-                <TableHead>Cadastrado</TableHead>
-                <TableHead>Diferença</TableHead>
+                <TableHead>Cadastro do Cliente</TableHead>
+                <TableHead>Alocado em Pessoas</TableHead>
+                <TableHead>Dif. Cliente</TableHead>
+                <TableHead>Dif. Pessoas</TableHead>
                 <TableHead>Breakdown cadastrado</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>Status Cliente</TableHead>
                 <TableHead className="text-right">Ação</TableHead>
               </TableRow>
             </TableHeader>
@@ -548,9 +578,24 @@ function BoardBaselineSection({
                     </TableCell>
                     <TableCell><MoneyStack main={focused.registered} /></TableCell>
                     <TableCell>
+                      <MoneyStack
+                        main={focused.allocatedPeople}
+                        lines={mode === "client" ? [
+                          ["Hunter", row.allocatedPeopleHunterTarget],
+                          ["Renov. + Ampl.", row.allocatedPeopleFarmerRenewalTarget],
+                        ] : []}
+                      />
+                    </TableCell>
+                    <TableCell>
                       <span className={cn("inline-flex items-center gap-1 font-bold", getDeltaClassName(focused.delta))}>
                         {focused.delta > 0.01 ? <ArrowUp className="h-4 w-4" /> : focused.delta < -0.01 ? <ArrowDown className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
                         {formatCurrency(focused.delta)}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <span className={cn("inline-flex items-center gap-1 font-bold", getDeltaClassName(focused.peopleDelta))}>
+                        {focused.peopleDelta > 0.01 ? <ArrowUp className="h-4 w-4" /> : focused.peopleDelta < -0.01 ? <ArrowDown className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+                        {formatCurrency(focused.peopleDelta)}
                       </span>
                     </TableCell>
                     <TableCell>
@@ -942,44 +987,55 @@ function getStudioComparisonTotals(rows: StudioBaselineComparisonRow[]) {
   });
 }
 
-function isVisibleForMode(row: ComparisonRow, mode: BaselineComparisonMode) {
-  if (mode === "hunter") return row.baselineHunterTarget > 0 || row.registeredHunterTarget > 0;
-  if (mode === "combined") return row.baselineTotalTarget > 0 || row.registeredHunterTarget + row.registeredFarmerRenewalTarget > 0;
+function isVisibleForMode(row: BoardComparisonRow, mode: BaselineComparisonMode) {
+  if (mode === "hunter") return row.baselineHunterTarget > 0 || row.registeredHunterTarget > 0 || row.allocatedPeopleHunterTarget > 0;
+  if (mode === "combined") return row.baselineTotalTarget > 0
+    || row.registeredHunterTarget + row.registeredFarmerRenewalTarget > 0
+    || row.allocatedPeopleHunterTarget + row.allocatedPeopleFarmerRenewalTarget > 0;
   return true;
 }
 
-function getFocusedValues(row: ComparisonRow, mode: BaselineComparisonMode) {
+function getFocusedValues(row: BoardComparisonRow, mode: BaselineComparisonMode) {
   if (mode === "hunter") {
     return {
       baseline: row.baselineHunterTarget,
       registered: row.registeredHunterTarget,
+      allocatedPeople: row.allocatedPeopleHunterTarget,
       delta: row.hunterDelta,
+      peopleDelta: row.allocatedPeopleHunterTarget - row.baselineHunterTarget,
     };
   }
   if (mode === "combined") {
     const registered = row.registeredHunterTarget + row.registeredFarmerRenewalTarget;
+    const allocatedPeople = row.allocatedPeopleHunterTarget + row.allocatedPeopleFarmerRenewalTarget;
     return {
       baseline: row.baselineTotalTarget,
       registered,
+      allocatedPeople,
       delta: registered - row.baselineTotalTarget,
+      peopleDelta: allocatedPeople - row.baselineTotalTarget,
     };
   }
   return {
     baseline: row.baselineTotalTarget,
     registered: row.registeredTotalTarget,
+    allocatedPeople: row.allocatedPeopleTotalTarget,
     delta: row.totalDelta,
+    peopleDelta: row.peopleDelta,
   };
 }
 
-function getFocusedTotals(rows: ComparisonRow[], mode: BaselineComparisonMode) {
+function getFocusedTotals(rows: BoardComparisonRow[], mode: BaselineComparisonMode) {
   return rows.reduce((totals, row) => {
     const focused = getFocusedValues(row, mode);
     return {
       baseline: totals.baseline + focused.baseline,
       registered: totals.registered + focused.registered,
+      allocatedPeople: totals.allocatedPeople + focused.allocatedPeople,
       delta: totals.delta + focused.delta,
+      peopleDelta: totals.peopleDelta + focused.peopleDelta,
     };
-  }, { baseline: 0, registered: 0, delta: 0 });
+  }, { baseline: 0, registered: 0, allocatedPeople: 0, delta: 0, peopleDelta: 0 });
 }
 
 function getModeLabel(mode: BaselineComparisonMode) {
@@ -1008,6 +1064,47 @@ function findRegisteredCustomer(row: ComparisonRow, customers: Customer[]) {
   }
   const baselineName = normalizeBusinessName(row.customerName);
   return customers.find((customer) => normalizeBusinessName(customer.name) === baselineName);
+}
+
+function enrichBoardComparisonRows(
+  rows: ComparisonRow[],
+  customers: Customer[],
+  people: Parameters<typeof getCustomerAllocationComposition>[1],
+  allocations: Parameters<typeof getCustomerAllocationComposition>[2],
+  studioAllocations: Parameters<typeof getCustomerAllocationComposition>[3],
+  areas: Parameters<typeof getCustomerAllocationComposition>[4],
+  year: number,
+): BoardComparisonRow[] {
+  return rows.map((row) => {
+    const customer = findRegisteredCustomer(row, customers);
+    if (!customer) {
+      return {
+        ...row,
+        allocatedPeopleHunterTarget: 0,
+        allocatedPeopleFarmerRenewalTarget: 0,
+        allocatedPeopleTotalTarget: 0,
+        peopleDelta: -row.baselineTotalTarget,
+      };
+    }
+
+    const composition = getCustomerAllocationComposition(
+      customer,
+      people,
+      allocations,
+      studioAllocations,
+      areas,
+      year,
+      getCustomerTargetBreakdown(customer),
+    );
+
+    return {
+      ...row,
+      allocatedPeopleHunterTarget: composition.allocatedHunter,
+      allocatedPeopleFarmerRenewalTarget: composition.allocatedFarmerRenewal,
+      allocatedPeopleTotalTarget: composition.allocatedTotal,
+      peopleDelta: composition.allocatedTotal - row.baselineTotalTarget,
+    };
+  });
 }
 
 function buildCustomerFromBaseline(customer: Customer, row: ComparisonRow): Customer {

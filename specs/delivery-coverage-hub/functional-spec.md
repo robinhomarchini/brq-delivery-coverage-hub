@@ -700,10 +700,13 @@ cadastrado deve oferecer uma ação explícita para atualizar somente a meta anu
 daquele cliente (`customer_target_years`), usando os valores da planilha ou do
 baseline, sem alterar as metas cadastradas nas pessoas em
 `revenue_target_allocations`. A tela permite alternar entre visão por Cliente,
-visão Hunter e visão Hunter + Farmer, exibindo baseline, cadastrado, diferença,
-status e exportação CSV/Excel. Diferença positiva significa cadastrado acima do
-baseline e deve ser tratada como upside; diferença negativa significa débito
-contra o baseline.
+visão Hunter e visão Hunter + Farmer, exibindo três referências financeiras:
+Baseline, Cadastro do Cliente e Alocado em Pessoas. O status principal continua
+comparando Cadastro do Cliente contra Baseline, pois essa é a ação de update
+disponível para editor/admin; a tela também deve exibir a diferença Pessoas x
+Baseline para reconciliação operacional. Diferença positiva significa valor
+acima do baseline e deve ser tratada como upside; diferença negativa significa
+débito contra o baseline.
 A tela deve apresentar, logo no início, uma escolha clara entre as áreas de
 trabalho "Board vs Cadastro" e "Baseline de Studios", sem exigir rolagem para
 descobrir uma funcionalidade principal. Cada área deve manter seus próprios
