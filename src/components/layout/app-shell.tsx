@@ -75,6 +75,7 @@ const hunterConsultRoutes = new Set([
   "/pessoas",
   "/metas-studios",
   "/relatorio-metas",
+  "/comparativo-baseline",
   "/ajuda",
 ]);
 

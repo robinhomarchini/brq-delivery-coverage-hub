@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, CheckCircle2, FileSearch, RefreshCw } from "lucide-react";
 import type { Customer } from "@/data/mockData";
+import type { BoardTargetBaselineRow } from "@/data/boardTargetBaseline";
 import { EmptyState } from "@/components/shared/empty-state";
 import { FilterBar } from "@/components/shared/filter-bar";
 import { KpiSummaryCard } from "@/components/shared/kpi-summary-card";
@@ -15,8 +16,10 @@ import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ErrorNotice, SuccessNotice } from "@/components/shared/success-notice";
 import { useDeliveryStore } from "@/store/delivery-store";
+import { useAccess } from "@/lib/access-context";
 import { getCustomerTotalTargetFromParts } from "@/lib/customer-target-total";
 import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears } from "@/lib/customer-targets";
+import { buildHunterAccessScope } from "@/lib/hunter-access-scope";
 import {
   buildBoardTargetComparisonRows,
   getBoardComparisonStatusLabel,
@@ -46,7 +49,19 @@ const sourceSpecificStudioBaselineSourceCodes = studioBaselineSources
   .map((source) => source.code);
 
 export function BaselineComparison() {
-  const { areas, customers, customerTargets, boardTargetBaselines, studioBaselineSnapshots, studioTargetAllocations, saveCustomers } = useDeliveryStore();
+  const { accessUser, canEdit } = useAccess();
+  const {
+    areas,
+    customers,
+    customerTargets,
+    people,
+    boardTargetBaselines,
+    studioBaselineSnapshots,
+    studioTargetAllocations,
+    specialistHunterStudioAssignments,
+    targetAllocations,
+    saveCustomers,
+  } = useDeliveryStore();
   const [workspace, setWorkspace] = useState<BaselineWorkspace>("board");
   const [year, setYear] = useState(defaultTargetYear);
   const [search, setSearch] = useState("");
@@ -62,10 +77,38 @@ export function BaselineComparison() {
 
   const years = useMemo(() => getAvailableTargetYears(customerTargets, defaultTargetYear), [customerTargets]);
   const yearCustomers = useMemo(() => applyCustomerTargetsForYear(customers, customerTargets, year), [customerTargets, customers, year]);
+  const hunterScope = useMemo(() => buildHunterAccessScope({
+    accessUser,
+    people,
+    customers: yearCustomers,
+    targetAllocations,
+    studioTargetAllocations,
+    specialistHunterStudioAssignments,
+  }), [accessUser, people, specialistHunterStudioAssignments, studioTargetAllocations, targetAllocations, yearCustomers]);
+  const scopedYearCustomers = useMemo(
+    () => hunterScope.enabled
+      ? yearCustomers.filter((customer) => hunterScope.customerIds.has(customer.id))
+      : yearCustomers,
+    [hunterScope, yearCustomers],
+  );
+  const scopedCustomerNames = useMemo(
+    () => new Set(scopedYearCustomers.map((customer) => normalizeBusinessName(customer.name))),
+    [scopedYearCustomers],
+  );
+  const scopedStudioTargetAllocations = useMemo(
+    () => hunterScope.enabled
+      ? studioTargetAllocations.filter((allocation) => hunterScope.customerIds.has(allocation.customerId))
+      : studioTargetAllocations,
+    [hunterScope, studioTargetAllocations],
+  );
   const activeBaselineRows = boardTargetBaselines;
-  const baselineTotals = useMemo(() => getBoardTargetBaselineTotals(year, activeBaselineRows), [activeBaselineRows, year]);
-  const registeredTotals = useMemo(() => getRegisteredTargetTotals(yearCustomers), [yearCustomers]);
-  const rows = useMemo(() => buildBoardTargetComparisonRows(yearCustomers, year, activeBaselineRows), [activeBaselineRows, year, yearCustomers]);
+  const scopedBoardBaselineRows = useMemo(
+    () => filterBoardBaselineRowsForScope(activeBaselineRows, scopedCustomerNames, hunterScope.enabled),
+    [activeBaselineRows, hunterScope.enabled, scopedCustomerNames],
+  );
+  const baselineTotals = useMemo(() => getBoardTargetBaselineTotals(year, scopedBoardBaselineRows), [scopedBoardBaselineRows, year]);
+  const registeredTotals = useMemo(() => getRegisteredTargetTotals(scopedYearCustomers), [scopedYearCustomers]);
+  const rows = useMemo(() => buildBoardTargetComparisonRows(scopedYearCustomers, year, scopedBoardBaselineRows), [scopedBoardBaselineRows, year, scopedYearCustomers]);
   const filteredRows = useMemo(() => rows.filter((row) => {
     const query = search.toLowerCase();
     return (!query || `${row.customerName} ${row.registeredCustomerName}`.toLowerCase().includes(query))
@@ -128,19 +171,37 @@ export function BaselineComparison() {
   );
   const latestCurveStudioSnapshotRows = useMemo(
     () => latestCurveStudioSnapshot
-      ? refreshStudioBaselineComparisonsFromCurrentData(restoreStudioBaselineComparisonRows(latestCurveStudioSnapshot.rows), yearCustomers, areas, studioTargetAllocations, year)
+      ? refreshStudioBaselineComparisonsFromCurrentData(
+        filterStudioComparisonRowsForScope(restoreStudioBaselineComparisonRows(latestCurveStudioSnapshot.rows), scopedCustomerNames, hunterScope.enabled),
+        scopedYearCustomers,
+        areas,
+        scopedStudioTargetAllocations,
+        year,
+      )
       : [],
-    [areas, latestCurveStudioSnapshot, studioTargetAllocations, year, yearCustomers],
+    [areas, hunterScope.enabled, latestCurveStudioSnapshot, scopedCustomerNames, scopedStudioTargetAllocations, scopedYearCustomers, year],
   );
   const latestStudioSnapshotRows = useMemo(() => {
     if (studioSourceCode === "studio_general") {
       const sourceSpecificRows = latestSourceSpecificStudioSnapshots.flatMap((snapshot) => (
         dismissedStudioSnapshotId === snapshot.id
           ? []
-          : refreshStudioBaselineComparisonsFromCurrentData(restoreStudioBaselineComparisonRows(snapshot.rows), yearCustomers, areas, studioTargetAllocations, year)
+          : refreshStudioBaselineComparisonsFromCurrentData(
+            filterStudioComparisonRowsForScope(restoreStudioBaselineComparisonRows(snapshot.rows), scopedCustomerNames, hunterScope.enabled),
+            scopedYearCustomers,
+            areas,
+            scopedStudioTargetAllocations,
+            year,
+          )
       ));
       const fallbackCurveRows = latestStudioSnapshot && dismissedStudioSnapshotId !== latestStudioSnapshot.id
-        ? refreshStudioBaselineComparisonsFromCurrentData(restoreStudioBaselineComparisonRows(latestStudioSnapshot.rows), yearCustomers, areas, studioTargetAllocations, year)
+        ? refreshStudioBaselineComparisonsFromCurrentData(
+          filterStudioComparisonRowsForScope(restoreStudioBaselineComparisonRows(latestStudioSnapshot.rows), scopedCustomerNames, hunterScope.enabled),
+          scopedYearCustomers,
+          areas,
+          scopedStudioTargetAllocations,
+          year,
+        )
         : [];
       return applyCurveBaselineToStudioComparisons(
         sourceSpecificRows.length ? sourceSpecificRows : fallbackCurveRows,
@@ -150,12 +211,18 @@ export function BaselineComparison() {
 
     return latestStudioSnapshot && dismissedStudioSnapshotId !== latestStudioSnapshot.id
       ? applyCurveBaselineToStudioComparisons(
-        refreshStudioBaselineComparisonsFromCurrentData(restoreStudioBaselineComparisonRows(latestStudioSnapshot.rows), yearCustomers, areas, studioTargetAllocations, year),
+        refreshStudioBaselineComparisonsFromCurrentData(
+          filterStudioComparisonRowsForScope(restoreStudioBaselineComparisonRows(latestStudioSnapshot.rows), scopedCustomerNames, hunterScope.enabled),
+          scopedYearCustomers,
+          areas,
+          scopedStudioTargetAllocations,
+          year,
+        ),
         latestCurveStudioSnapshotRows,
       )
       : [];
   },
-    [areas, dismissedStudioSnapshotId, latestCurveStudioSnapshotRows, latestSourceSpecificStudioSnapshots, latestStudioSnapshot, studioSourceCode, studioTargetAllocations, year, yearCustomers],
+    [areas, dismissedStudioSnapshotId, hunterScope.enabled, latestCurveStudioSnapshotRows, latestSourceSpecificStudioSnapshots, latestStudioSnapshot, scopedCustomerNames, scopedStudioTargetAllocations, scopedYearCustomers, studioSourceCode, year],
   );
   const isStudioSnapshotLoaded = latestStudioSnapshotRows.length > 0;
   const studioComparisonRows = latestStudioSnapshotRows;
@@ -201,7 +268,12 @@ export function BaselineComparison() {
   ], []);
 
   async function updateCustomerFromBaseline(row: ComparisonRow) {
-    const customer = findRegisteredCustomer(row, yearCustomers);
+    if (!canEdit) {
+      setErrorMessage("Seu perfil permite consultar o comparativo, mas não atualizar metas de clientes por esta tela.");
+      return;
+    }
+
+    const customer = findRegisteredCustomer(row, scopedYearCustomers);
     if (!customer) {
       setErrorMessage("Cliente não encontrado no cadastro para atualizar a meta.");
       return;
@@ -242,7 +314,9 @@ export function BaselineComparison() {
       <PageHeader
         eyebrow="Baseline do board"
         title="Comparativo Baseline vs Cadastro"
-        description="Compare o baseline oficial contra o cadastro operacional, incluindo a visão de batimento de Áreas / Studios."
+        description={hunterScope.enabled
+          ? "Compare o baseline oficial contra o cadastro operacional apenas dos clientes vinculados ao seu perfil."
+          : "Compare o baseline oficial contra o cadastro operacional, incluindo a visão de batimento de Áreas / Studios."}
         actions={(
           workspace === "board" ? (
             <ReportExportActions
@@ -287,7 +361,9 @@ export function BaselineComparison() {
           focusedTotals={focusedTotals}
           filteredRows={filteredRows}
           updatingCustomerId={updatingCustomerId}
-          yearCustomers={yearCustomers}
+          yearCustomers={scopedYearCustomers}
+          canUpdateCustomers={canEdit}
+          hunterScopeEnabled={hunterScope.enabled}
           onYearChange={setYear}
           onSearchChange={setSearch}
           onModeChange={setMode}
@@ -308,6 +384,7 @@ export function BaselineComparison() {
           status={studioStatus}
           studioFilter={studioFilter}
           studioOptions={studioOptions}
+          hunterScopeEnabled={hunterScope.enabled}
           onSourceChange={setStudioSourceCode}
           onStatusChange={setStudioStatus}
           onStudioFilterChange={setStudioFilter}
@@ -363,6 +440,8 @@ function BoardBaselineSection({
   filteredRows,
   updatingCustomerId,
   yearCustomers,
+  canUpdateCustomers,
+  hunterScopeEnabled,
   onYearChange,
   onSearchChange,
   onModeChange,
@@ -380,6 +459,8 @@ function BoardBaselineSection({
   filteredRows: ComparisonRow[];
   updatingCustomerId: string;
   yearCustomers: Customer[];
+  canUpdateCustomers: boolean;
+  hunterScopeEnabled: boolean;
   onYearChange: (year: number) => void;
   onSearchChange: (search: string) => void;
   onModeChange: (mode: BaselineComparisonMode) => void;
@@ -402,8 +483,10 @@ function BoardBaselineSection({
             <FileSearch className="mt-0.5 h-5 w-5 shrink-0" />
             <p>
               O baseline vem da foto aprovada do board.
-              Compare contra a meta anual do cliente e escolha na tabela qual cliente deseja atualizar.
-              Nenhum cliente é atualizado automaticamente: o botão da linha altera só a meta daquele cliente, não as metas cadastradas nas pessoas.
+              {hunterScopeEnabled
+                ? " Esta consulta está filtrada pelos clientes vinculados ao seu perfil."
+                : " Compare contra a meta anual do cliente e escolha na tabela qual cliente deseja atualizar."}
+              {!hunterScopeEnabled && " Nenhum cliente é atualizado automaticamente: o botão da linha altera só a meta daquele cliente, não as metas cadastradas nas pessoas."}
               Total cadastrado atual: <span className="font-semibold">{formatCurrency(registeredTotals.totalTarget)}</span>.
             </p>
           </div>
@@ -447,7 +530,7 @@ function BoardBaselineSection({
               {filteredRows.map((row) => {
                 const focused = getFocusedValues(row, mode);
                 const customer = findRegisteredCustomer(row, yearCustomers);
-                const canUpdate = Boolean(customer && row.status !== "missing_customer" && row.status !== "extra_customer");
+                const canUpdate = Boolean(canUpdateCustomers && customer && row.status !== "missing_customer" && row.status !== "extra_customer");
                 return (
                   <TableRow key={`${row.key}-${mode}`}>
                     <TableCell>
@@ -479,17 +562,21 @@ function BoardBaselineSection({
                     </TableCell>
                     <TableCell><StatusBadge status={row.status} /></TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        disabled={!canUpdate || updatingCustomerId === customer?.id}
-                        onClick={() => onUpdateCustomer(row)}
-                        title="Atualiza somente este cliente com os valores da planilha/baseline, sem alterar metas das pessoas."
-                      >
-                        {updatingCustomerId === customer?.id && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
-                        Atualizar este cliente
-                      </Button>
+                      {canUpdateCustomers ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={!canUpdate || updatingCustomerId === customer?.id}
+                          onClick={() => onUpdateCustomer(row)}
+                          title="Atualiza somente este cliente com os valores da planilha/baseline, sem alterar metas das pessoas."
+                        >
+                          {updatingCustomerId === customer?.id && <RefreshCw className="h-3.5 w-3.5 animate-spin" />}
+                          Atualizar este cliente
+                        </Button>
+                      ) : (
+                        <span className="text-xs font-semibold text-slate-400">Consulta</span>
+                      )}
                     </TableCell>
                   </TableRow>
                 );
@@ -516,6 +603,7 @@ function StudioBaselineSection({
   status,
   studioFilter,
   studioOptions,
+  hunterScopeEnabled,
   onSourceChange,
   onStatusChange,
   onStudioFilterChange,
@@ -533,6 +621,7 @@ function StudioBaselineSection({
   status: string;
   studioFilter: string;
   studioOptions: string[];
+  hunterScopeEnabled: boolean;
   onSourceChange: (sourceCode: StudioBaselineSourceCode) => void;
   onStatusChange: (status: string) => void;
   onStudioFilterChange: (studio: string) => void;
@@ -549,6 +638,7 @@ function StudioBaselineSection({
               <p className="mt-1">
                 Esta visão lê a última foto salva na central de Baselines para a origem selecionada.
                 Linhas Novo/Ampliação viram Studio Hunter; Manutenção/Renovação compara contra a manutenção alocada no cliente e no Studio.
+                {hunterScopeEnabled && " A consulta está filtrada pelos clientes vinculados ao seu perfil."}
               </p>
             </div>
           </div>
@@ -725,6 +815,24 @@ function getStudioSourceNotes(row: StudioBaselineComparisonRow) {
     notes.push(`Studio cadastrado: ${row.registeredStudioName}`);
   }
   return notes;
+}
+
+function filterBoardBaselineRowsForScope(
+  rows: BoardTargetBaselineRow[],
+  scopedCustomerNames: Set<string>,
+  scoped: boolean,
+) {
+  if (!scoped) return rows;
+  return rows.filter((row) => scopedCustomerNames.has(normalizeBusinessName(row.customerName)));
+}
+
+function filterStudioComparisonRowsForScope(
+  rows: StudioBaselineComparisonRow[],
+  scopedCustomerNames: Set<string>,
+  scoped: boolean,
+) {
+  if (!scoped) return rows;
+  return rows.filter((row) => scopedCustomerNames.has(normalizeBusinessName(row.registeredCustomerName || row.customerName)));
 }
 
 function MoneyStack({ main, lines = [] }: { main: number; lines?: Array<[string, number]> }) {

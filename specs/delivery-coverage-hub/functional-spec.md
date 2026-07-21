@@ -14,11 +14,14 @@ entre telas não devem reutilizar o mesmo estado de filtros da grade, exceto
 quando a tela deixar claro que o seletor é um filtro. Ao trocar entre visões de
 relatório, filtros ou seleções que não aparecem na nova visão devem ser limpos
 ou ignorados para não esconder resultados sem indicação visual.
-Usuários com perfil de acesso Consulta Hunter veem apenas Clientes, Relatório de
-Metas e Ajuda. Nesse perfil, Clientes fica em modo leitura e limitado aos
-clientes vinculados ao Hunter identificado pelo e-mail da Pessoa; Relatório de
-Metas abre diretamente no detalhe do próprio Hunter, incluindo Meta Squads/Times Hunter e
-Studio Hunter atribuído a ele, sem exibir demais visões ou demais hunters.
+Usuários com perfil de acesso Consulta Hunter veem Dashboard Executivo,
+Clientes, Pessoas, Metas por Área/Studio, Relatório de Metas, Comparativo
+Baseline e Ajuda dentro do escopo da pessoa identificada pelo e-mail. Nesse
+perfil, Clientes e Comparativo Baseline ficam limitados aos clientes vinculados
+ao Hunter; Relatório de Metas abre diretamente no detalhe do próprio Hunter,
+incluindo Meta Squads/Times Hunter e Studio Hunter atribuído a ele, sem exibir
+demais visões ou demais hunters. O Comparativo Baseline é consulta nesse perfil:
+não deve permitir aplicar baseline ou atualizar metas de cliente.
 
 Em telas de celular, a experiência deve ser restrita a consultas simples e
 relatórios básicos: Dashboard Executivo, Portfólio de Clientes, Relatório de
