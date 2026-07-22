@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useDeliveryStore } from "@/store/delivery-store";
-import { getCustomerTotalTarget } from "@/lib/customer-target-total";
+import { customerCountsTowardTarget, getCustomerTotalTarget } from "@/lib/customer-target-total";
 import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears } from "@/lib/customer-targets";
 import { formatCurrency, toFileSlug } from "@/lib/utils";
 import { isHunterRole, isSpecialistHunterRole, isTargetAssignableRole } from "@/lib/roles";
@@ -45,6 +45,7 @@ export function PersonTargetAssignment() {
   const [personId, setPersonId] = useState(initialParams.personId);
   const [year, setYear] = useState(initialParams.year ?? currentYear);
   const yearCustomers = useMemo(() => applyCustomerTargetsForYear(customers, customerTargets, year), [customerTargets, customers, year]);
+  const [includeNewLogos, setIncludeNewLogos] = useState(false);
   const [drafts, setDrafts] = useState<DraftAmounts>({});
   const [extraCustomerIds, setExtraCustomerIds] = useState<string[]>(initialParams.customerId ? [initialParams.customerId] : []);
   const [selectedCustomerId, setSelectedCustomerId] = useState(initialParams.customerId);
@@ -64,10 +65,14 @@ export function PersonTargetAssignment() {
     [effectivePersonId, extraCustomerIds, people, selectedPerson?.clientIds, studioTargetAllocations, targetAllocations, year],
   );
   const visibleCustomers = useMemo(
-    () => yearCustomers.filter((customer) => visibleCustomerIds.has(customer.id)),
-    [visibleCustomerIds, yearCustomers],
+    () => yearCustomers.filter((customer) => visibleCustomerIds.has(customer.id) && (includeNewLogos || customerCountsTowardTarget(customer))),
+    [includeNewLogos, visibleCustomerIds, yearCustomers],
   );
-  const effectiveSelectedCustomerId = visibleCustomerIds.has(selectedCustomerId) ? selectedCustomerId : "";
+  const visibleCustomerIdSet = useMemo(
+    () => new Set(visibleCustomers.map((customer) => customer.id)),
+    [visibleCustomers],
+  );
+  const effectiveSelectedCustomerId = visibleCustomerIdSet.has(selectedCustomerId) ? selectedCustomerId : "";
   const scopedVisibleCustomers = useMemo(
     () => effectiveSelectedCustomerId
       ? visibleCustomers.filter((customer) => customer.id === effectiveSelectedCustomerId)
@@ -75,8 +80,10 @@ export function PersonTargetAssignment() {
     [effectiveSelectedCustomerId, visibleCustomers],
   );
   const availableCustomersToAdd = useMemo(
-    () => effectivePersonId ? yearCustomers.filter((customer) => !visibleCustomerIds.has(customer.id)) : [],
-    [effectivePersonId, visibleCustomerIds, yearCustomers],
+    () => effectivePersonId
+      ? yearCustomers.filter((customer) => !visibleCustomerIds.has(customer.id) && (includeNewLogos || customerCountsTowardTarget(customer)))
+      : [],
+    [effectivePersonId, includeNewLogos, visibleCustomerIds, yearCustomers],
   );
   const effectiveCustomerToAdd = availableCustomersToAdd.some((customer) => customer.id === customerToAdd)
     ? customerToAdd
@@ -366,6 +373,26 @@ export function PersonTargetAssignment() {
       {successMessage && <SuccessNotice message={successMessage} floating />}
       {errorMessage && <ErrorNotice message={errorMessage} floating onClose={() => setErrorMessage("")} />}
 
+      <Card className="mb-5 p-4 shadow-sm">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-slate-900">New Logos</p>
+            <p className="text-xs text-slate-500">
+              New Logos ficam no controle e podem ajudar na realização do ano, mas não compõem a meta oficial planejada. Ative para incluí-los nesta tela e no relatório exportado.
+            </p>
+          </div>
+          <label className="inline-flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
+            <input
+              type="checkbox"
+              className="h-4 w-4 rounded border-slate-300 text-brq-purple focus:ring-brq-purple"
+              checked={includeNewLogos}
+              onChange={(event) => setIncludeNewLogos(event.target.checked)}
+            />
+            Incluir New Logos
+          </label>
+        </div>
+      </Card>
+
       <Card className="sticky top-0 z-20 mb-5 overflow-hidden border-slate-200 bg-white/95 shadow-sm backdrop-blur">
         <div className="border-b border-slate-100 p-4">
           <div className="grid gap-3 xl:grid-cols-[1.5fr_1.5fr_0.7fr]">
@@ -391,7 +418,9 @@ export function PersonTargetAssignment() {
                   <>
                     <option value="">Todos os clientes da pessoa</option>
                     {visibleCustomers.map((customer) => (
-                      <option key={customer.id} value={customer.id}>{customer.name}</option>
+                      <option key={customer.id} value={customer.id}>
+                        {customer.name}{customerCountsTowardTarget(customer) ? "" : " (New Logo)"}
+                      </option>
                     ))}
                   </>
                 )}
@@ -450,7 +479,9 @@ export function PersonTargetAssignment() {
                   <option value="">Selecione um cliente</option>
                 )}
                 {availableCustomersToAdd.map((customer) => (
-                  <option key={customer.id} value={customer.id}>{customer.name}</option>
+                  <option key={customer.id} value={customer.id}>
+                    {customer.name}{customerCountsTowardTarget(customer) ? "" : " (New Logo)"}
+                  </option>
                 ))}
               </Select>
             </label>

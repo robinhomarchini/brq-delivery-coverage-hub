@@ -601,13 +601,13 @@ function BoardBaselineSection({
                     </TableCell>
                     <TableCell className="w-[170px]">
                       <span className={cn("inline-flex items-center gap-1 whitespace-nowrap font-bold tabular-nums", getDeltaClassName(focused.delta))}>
-                        {focused.delta > 0.01 ? <ArrowUp className="h-4 w-4" /> : focused.delta < -0.01 ? <ArrowDown className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+                        {getDeltaIcon(focused.delta)}
                         {formatCurrency(focused.delta)}
                       </span>
                     </TableCell>
                     <TableCell className="w-[180px]">
                       <span className={cn("inline-flex items-center gap-1 whitespace-nowrap font-bold tabular-nums", getDeltaClassName(focused.peopleDelta))}>
-                        {focused.peopleDelta > 0.01 ? <ArrowUp className="h-4 w-4" /> : focused.peopleDelta < -0.01 ? <ArrowDown className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+                        {getDeltaIcon(focused.peopleDelta)}
                         {formatCurrency(focused.peopleDelta)}
                       </span>
                     </TableCell>
@@ -1120,15 +1120,21 @@ function getModeLabel(mode: BaselineComparisonMode) {
 }
 
 function getDeltaTone(value: number) {
-  if (value > 0.01) return "ok";
-  if (value < -0.01) return "danger";
+  if (value > 0.5) return "ok";
+  if (value < -0.5) return "danger";
   return "ok";
 }
 
 function getDeltaClassName(value: number) {
-  if (value > 0.01) return "text-emerald-700";
-  if (value < -0.01) return "text-red-700";
+  if (value > 0.5) return "text-emerald-700";
+  if (value < -0.5) return "text-red-700";
   return "text-emerald-700";
+}
+
+function getDeltaIcon(value: number) {
+  if (value > 0.5) return <ArrowUp className="h-4 w-4" />;
+  if (value < -0.5) return <ArrowDown className="h-4 w-4" />;
+  return <CheckCircle2 className="h-4 w-4" />;
 }
 
 function findRegisteredCustomer(row: ComparisonRow, customers: Customer[]) {

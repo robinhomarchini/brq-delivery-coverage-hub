@@ -444,6 +444,9 @@
   gera pendência de batimento de meta naquele ano.
 - Relatório de Metas e Dashboard Executivo iniciam sem New Logos nos totais,
   consultas e exportações, e oferecem uma opção explícita "Incluir New Logos".
+- A tela Metas por Pessoa também inicia sem New Logos na grade, no filtro
+  "Cliente em foco", no combo de inclusão e na exportação. New Logos só aparecem
+  nessa tela quando a opção "Incluir New Logos" estiver marcada.
 - As metas editáveis são persistidas em tabela normalizada
   `revenue_target_allocations` e não em campos duplicados de cliente ou pessoa.
 - O Dashboard Executivo exibe uma visão financeira resumida dos clientes

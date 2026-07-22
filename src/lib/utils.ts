@@ -6,11 +6,12 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatCurrency(value: number) {
+  const displayValue = Math.abs(value) < 0.5 ? 0 : value;
   return new Intl.NumberFormat("pt-BR", {
     style: "currency",
     currency: "BRL",
     maximumFractionDigits: 0,
-  }).format(value);
+  }).format(displayValue);
 }
 
 export function formatCompactCurrency(value: number) {
