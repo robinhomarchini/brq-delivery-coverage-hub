@@ -142,6 +142,9 @@
 - A pergunta/contexto da Análise de Desafio é enviado para IA generativa via
   backend, e a resposta mostra parecer da IA, critérios reconsiderados e eventual
   reavaliação/simulação sem alterar números oficiais.
+- A Análise de Desafio mostra a interação feita pelo usuário, o feedback da IA
+  para aquela interação e botões para abrir considerações, conceitos
+  incorporados à tese e números refletidos.
 - Se a IA generativa não responder, a Análise de Desafio sinaliza leitura
   determinística de fallback.
 - Quando o navegador suportar reconhecimento de voz, a Análise de Desafio

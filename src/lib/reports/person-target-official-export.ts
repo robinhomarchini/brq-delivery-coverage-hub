@@ -52,6 +52,7 @@ export type OfficialHunterDetailRow = {
 };
 
 export type OfficialDirectorDetailRow = {
+  personId: string;
   personName: string;
   customerName: string;
   segment: string;
@@ -184,6 +185,19 @@ export function buildOfficialRowsForView({
   }
 
   if (view === "directors") {
+    const directorPeopleRows = getOfficialPeopleRowsFromDirectorDetails(directorDetailRows);
+    if (directorPeopleRows.length && people.length && (allocations.length || studioAllocations.length)) {
+      return buildOfficialPeopleRowsFromSources({
+        peopleRows: directorPeopleRows,
+        people,
+        allocations,
+        studioAllocations,
+        customerNames,
+        areaNames,
+        year,
+      });
+    }
+
     return buildOfficialGroupedRows(directorDetailRows.map((row) => ({
       executive: row.personName,
       customerName: row.customerName,
@@ -246,6 +260,20 @@ export function buildOfficialRowsForView({
     areaNames,
     year,
   });
+}
+
+function getOfficialPeopleRowsFromDirectorDetails(rows: OfficialDirectorDetailRow[]) {
+  const peopleById = new Map<string, OfficialPeopleRow>();
+  rows.forEach((row) => {
+    if (!row.personId || peopleById.has(row.personId)) return;
+    peopleById.set(row.personId, {
+      personId: row.personId,
+      personName: row.personName,
+    });
+  });
+  return Array.from(peopleById.values()).sort((first, second) =>
+    first.personName.localeCompare(second.personName, "pt-BR")
+  );
 }
 
 function buildOfficialGroupedRows(items: OfficialTargetItem[]) {

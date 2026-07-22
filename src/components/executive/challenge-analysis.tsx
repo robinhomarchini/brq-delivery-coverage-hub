@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Bot, BrainCircuit, CheckCircle2, Gauge, Info, Mic, MicOff, RefreshCw, ShieldAlert, Target, TrendingDown, TrendingUp, UsersRound } from "lucide-react";
+import { Bot, BrainCircuit, CheckCircle2, Gauge, Info, MessageSquareText, Mic, MicOff, RefreshCw, ShieldAlert, Target, TrendingDown, TrendingUp, UsersRound } from "lucide-react";
 import type { ChallengeAiBaseline, ChallengeAiResult, ChallengeAnalysisRow, ChallengeMarketStatus, ChallengeStatus, ChallengeView } from "@/lib/challenge-analysis";
 import { buildChallengeRows, getChallengeBenchmark } from "@/lib/challenge-analysis";
 import { canManageCompensation } from "@/lib/compensation-access";
@@ -21,6 +21,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { cn, formatCurrency } from "@/lib/utils";
 
 const defaultYear = 2026;
+type AiPanelKey = "answer" | "considerations" | "concepts" | "numbers";
+type AiPanelItem =
+  | { key: AiPanelKey; title: string; kind: "list"; items: string[] }
+  | { key: AiPanelKey; title: string; kind: "metrics" };
+type ChallengeAiInteraction = {
+  prompt: string;
+  result: ChallengeAiResult;
+  createdAt: string;
+};
 
 export function ChallengeAnalysis() {
   const { accessUser } = useAccess();
@@ -31,6 +40,8 @@ export function ChallengeAnalysis() {
   const [aiResult, setAiResult] = useState<ChallengeAiResult | null>(null);
   const [aiBaselines, setAiBaselines] = useState<Record<string, ChallengeAiBaseline>>({});
   const [contextInput, setContextInput] = useState("");
+  const [lastInteraction, setLastInteraction] = useState<ChallengeAiInteraction | null>(null);
+  const [openAiPanel, setOpenAiPanel] = useState<AiPanelKey>("answer");
   const [loadingAi, setLoadingAi] = useState(false);
   const [listening, setListening] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -57,6 +68,7 @@ export function ChallengeAnalysis() {
   async function generateNarrative() {
     setLoadingAi(true);
     setErrorMessage("");
+    const submittedContext = contextInput.trim();
 
     try {
       const accessToken = authService ? await authService.getAccessToken() : null;
@@ -67,7 +79,7 @@ export function ChallengeAnalysis() {
       const response = await fetch("/api/challenge-analysis", {
         method: "POST",
         headers,
-        body: JSON.stringify({ view, year, rows, context: contextInput.trim() || undefined, baseline: activeBaseline ?? undefined }),
+        body: JSON.stringify({ view, year, rows, context: submittedContext || undefined, baseline: activeBaseline ?? undefined }),
       });
       const data = await response.json() as ChallengeAiResult & { error?: string };
 
@@ -80,6 +92,12 @@ export function ChallengeAnalysis() {
         ...current,
         [baselineKey]: data.baseline,
       }));
+      setLastInteraction({
+        prompt: submittedContext || "Gerar leitura executiva inicial com os números oficiais e a tese disponível.",
+        result: data,
+        createdAt: new Date().toISOString(),
+      });
+      setOpenAiPanel("answer");
       setContextInput("");
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Não foi possível gerar a análise.");
@@ -218,6 +236,14 @@ export function ChallengeAnalysis() {
         </div>
       </Card>
 
+      <ChallengeConversationResult
+        aiResult={aiResult}
+        narrative={narrative}
+        interaction={lastInteraction}
+        activePanel={openAiPanel}
+        onPanelChange={setOpenAiPanel}
+      />
+
       <section className="mb-5 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <KpiSummaryCard label="Pessoas avaliadas" value={rows.length} icon={UsersRound} />
         <KpiSummaryCard label="Meta analisada" currencyValue={totals.targetAmount} icon={Target} tone="purple" />
@@ -225,71 +251,6 @@ export function ChallengeAnalysis() {
         <KpiSummaryCard label="Em faixa mercado" value={totals.inMarketRange} icon={Gauge} tone={totals.inMarketRange ? "ok" : "neutral"} />
         <KpiSummaryCard label="Sem salário" value={totals.missing} icon={ShieldAlert} tone={totals.missing ? "warning" : "ok"} />
       </section>
-
-      <Card className="mb-5 border-slate-200 p-5 shadow-sm">
-        <div className="flex items-start gap-3">
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-purple-50 text-brq-purple">
-            <Bot className="h-5 w-5" />
-          </div>
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="text-sm font-bold text-slate-950">Leitura executiva</p>
-              {aiResult && (
-                <Badge className={cn(
-                  aiResult.source === "generative_ai"
-                    ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-100"
-                    : "bg-amber-100 text-amber-800 hover:bg-amber-100",
-                )}>
-                  {aiResult.source === "generative_ai" ? "Resposta generativa" : "Leitura determinística"}
-                </Badge>
-              )}
-            </div>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              {narrative || "Gere a leitura GEN AI para receber uma avaliação dos conceitos existentes/aprendidos contra os números oficiais cadastrados. A análise não cita nomes e deve ser usada como apoio gerencial, não como decisão automática de remuneração."}
-            </p>
-            {aiResult?.opinion && (
-              <div className="mt-4 rounded-xl border border-purple-100 bg-purple-50 px-3 py-2">
-                <p className="text-xs font-bold uppercase tracking-[0.12em] text-purple-800">O que a IA acha</p>
-                <p className="mt-1 text-sm leading-6 text-purple-950">{aiResult.opinion}</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </Card>
-
-      {aiResult && (
-        <section className="mb-5 grid gap-4 xl:grid-cols-[1fr_1fr]">
-          <Card className="p-5 shadow-sm">
-            <div className="flex items-center gap-2">
-              <Gauge className="h-4 w-4 text-brq-purple" />
-              <p className="text-sm font-bold text-slate-950">Números oficiais refletidos</p>
-            </div>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <MiniMetric label="Pessoas" value={aiResult.reflectedNumbers.peopleCount} />
-              <MiniMetric label="Meta analisada" value={formatCurrency(aiResult.reflectedNumbers.targetAmount)} />
-              <MiniMetric label="Múltiplo médio" value={`${formatMultiple(aiResult.reflectedNumbers.averageMultiple)}x`} />
-              <MiniMetric label="Faixa referência" value={`${formatMultiple(aiResult.reflectedNumbers.benchmarkLow)}x a ${formatMultiple(aiResult.reflectedNumbers.benchmarkHigh)}x`} />
-              <MiniMetric label="Adequados" value={aiResult.reflectedNumbers.adequateCount} />
-              <MiniMetric label="Sem salário" value={aiResult.reflectedNumbers.missingSalaryCount} />
-            </div>
-          </Card>
-
-          <Card className="p-5 shadow-sm">
-            <div className="flex items-center gap-2">
-              <BrainCircuit className="h-4 w-4 text-brq-purple" />
-              <p className="text-sm font-bold text-slate-950">Baseline conceitual GEN AI</p>
-            </div>
-            <p className="mt-2 text-xs leading-5 text-slate-500">
-              Aprendizado contextual usado como tese da análise. Não altera dados oficiais.
-            </p>
-            <InsightList title="Conceitos aprendidos / hipóteses" items={aiResult.assumptions} />
-            <InsightList title="Critérios reconsiderados" items={aiResult.reconsideredCriteria} />
-            <InsightList title="Reavaliação / simulação" items={aiResult.simulatedReassessment} />
-            <InsightList title="Recomendações" items={aiResult.recommendations} />
-            {aiResult.pendingQuestions.length > 0 && <InsightList title="Perguntas pendentes" items={aiResult.pendingQuestions} />}
-          </Card>
-        </section>
-      )}
 
       <Card className="overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
@@ -329,6 +290,117 @@ export function ChallengeAnalysis() {
         {!rows.length && <EmptyState />}
       </Card>
     </>
+  );
+}
+
+function ChallengeConversationResult({
+  aiResult,
+  narrative,
+  interaction,
+  activePanel,
+  onPanelChange,
+}: {
+  aiResult: ChallengeAiResult | null;
+  narrative: string;
+  interaction: ChallengeAiInteraction | null;
+  activePanel: AiPanelKey;
+  onPanelChange: (panel: AiPanelKey) => void;
+}) {
+  const result = interaction?.result ?? aiResult;
+  const panelItems = result ? getAiPanelItems(result) : [];
+  const activeItem = panelItems.find((item) => item.key === activePanel) ?? panelItems[0];
+
+  return (
+    <Card className="mb-5 border-purple-100 p-5 shadow-sm">
+      <div className="flex flex-col gap-4">
+        <div className="flex items-start gap-3">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-purple-50 text-brq-purple">
+            <MessageSquareText className="h-5 w-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm font-bold text-slate-950">Conversa com GEN AI</p>
+              {result && (
+                <Badge className={cn(
+                  result.source === "generative_ai"
+                    ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-100"
+                    : "bg-amber-100 text-amber-800 hover:bg-amber-100",
+                )}>
+                  {result.source === "generative_ai" ? "Resposta generativa" : "Leitura determinística"}
+                </Badge>
+              )}
+              {interaction && <span className="text-xs text-slate-400">{formatDateTime(interaction.createdAt)}</span>}
+            </div>
+            {interaction ? (
+              <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">Você pediu</p>
+                <p className="mt-1 text-sm leading-6 text-slate-700">{interaction.prompt}</p>
+              </div>
+            ) : (
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Gere uma leitura ou faça uma pergunta. A resposta aparecerá aqui como conversa, depois vira conceitos/tese para a próxima reavaliação.
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-purple-100 bg-purple-50/40 p-4">
+          <div className="flex items-start gap-3">
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white text-brq-purple">
+              <Bot className="h-4 w-4" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-bold uppercase tracking-[0.12em] text-purple-800">Resposta da IA</p>
+              <p className="mt-1 text-sm leading-6 text-purple-950">
+                {result?.opinion || narrative || "Aguardando uma interação para responder e aprimorar a tese."}
+              </p>
+              {result?.narrative && result.narrative !== result.opinion && (
+                <p className="mt-3 text-sm leading-6 text-slate-700">{result.narrative}</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {result && (
+          <div className="space-y-3">
+            <div className="flex flex-wrap gap-2">
+              {panelItems.map((item) => (
+                <button
+                  key={item.key}
+                  type="button"
+                  className={cn(
+                    "rounded-xl border px-3 py-2 text-sm font-bold transition",
+                    activeItem?.key === item.key
+                      ? "border-brq-purple bg-brq-purple text-white shadow-sm"
+                      : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-950",
+                  )}
+                  onClick={() => onPanelChange(item.key)}
+                >
+                  {item.title}
+                </button>
+              ))}
+            </div>
+            {activeItem && (
+              <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                <p className="text-sm font-bold text-slate-950">{activeItem.title}</p>
+                {activeItem.kind === "metrics" ? (
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    <MiniMetric label="Pessoas" value={result.reflectedNumbers.peopleCount} />
+                    <MiniMetric label="Meta analisada" value={formatCurrency(result.reflectedNumbers.targetAmount)} />
+                    <MiniMetric label="Múltiplo médio" value={`${formatMultiple(result.reflectedNumbers.averageMultiple)}x`} />
+                    <MiniMetric label="Faixa referência" value={`${formatMultiple(result.reflectedNumbers.benchmarkLow)}x a ${formatMultiple(result.reflectedNumbers.benchmarkHigh)}x`} />
+                    <MiniMetric label="Adequados" value={result.reflectedNumbers.adequateCount} />
+                    <MiniMetric label="Sem salário" value={result.reflectedNumbers.missingSalaryCount} />
+                  </div>
+                ) : (
+                  <InsightBulletList items={activeItem.items} />
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </Card>
   );
 }
 
@@ -407,18 +479,57 @@ function MiniMetric({ label, value }: { label: string; value: string | number })
   );
 }
 
-function InsightList({ title, items }: { title: string; items: string[] }) {
+function InsightBulletList({ items }: { items: string[] }) {
   if (!items.length) return null;
   return (
-    <div className="mt-4">
-      <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">{title}</p>
-      <ul className="mt-2 space-y-2 text-sm leading-5 text-slate-600">
-        {items.map((item) => (
-          <li key={item} className="rounded-lg bg-slate-50 px-3 py-2">{item}</li>
-        ))}
-      </ul>
-    </div>
+    <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-600">
+      {items.map((item) => (
+        <li key={item} className="flex gap-2">
+          <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brq-purple" />
+          <span>{item}</span>
+        </li>
+      ))}
+    </ul>
   );
+}
+
+function getAiPanelItems(result: ChallengeAiResult): AiPanelItem[] {
+  const items: AiPanelItem[] = [
+    {
+      key: "answer",
+      title: "Feedback da interação",
+      kind: "list",
+      items: [
+        result.opinion || result.narrative,
+        ...result.simulatedReassessment,
+      ].filter(Boolean),
+    },
+    {
+      key: "considerations",
+      title: "Considerações e recomendações",
+      kind: "list",
+      items: [
+        ...result.recommendations,
+        ...result.pendingQuestions.map((question) => `Pergunta pendente: ${question}`),
+      ],
+    },
+    {
+      key: "concepts",
+      title: "Conceitos incorporados à tese",
+      kind: "list",
+      items: [
+        ...result.assumptions,
+        ...result.reconsideredCriteria.map((criteria) => `Critério reconsiderado: ${criteria}`),
+      ],
+    },
+    {
+      key: "numbers",
+      title: "Números refletidos",
+      kind: "metrics",
+    },
+  ];
+
+  return items.filter((item) => item.kind === "metrics" || item.items.length > 0);
 }
 
 function getChallengeTotals(rows: ChallengeAnalysisRow[]) {

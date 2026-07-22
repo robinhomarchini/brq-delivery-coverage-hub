@@ -547,6 +547,156 @@ if (!generatedDirectorOfficialRows.some((row) => row.executive === "Director Per
   throw new Error("Director official rows must write Studio Hunter in Cliente Faturamento.");
 }
 
+const generatedDirectorCanonicalOfficialRows = buildOfficialRowsForView({
+  view: "directors",
+  peopleRows: [],
+  hunterRows: [],
+  hunterDetailRows: [],
+  directorDetailRows: [
+    {
+      id: "director-canonical-own-hunter-qa",
+      personId: "director-canonical-hunter-qa",
+      customerId: "customer-director-canonical-qa",
+      personName: "Director Canonical Hunter QA",
+      roleType: "Hunter",
+      customerName: "Cliente Director Canonical QA",
+      segment: "Meta Hunter",
+      areaName: "",
+      studioHunterName: "",
+      amount: 300,
+    },
+    {
+      id: "director-canonical-studio-hunter-qa",
+      personId: "director-canonical-hunter-qa",
+      customerId: "customer-director-canonical-qa",
+      personName: "Director Canonical Hunter QA",
+      roleType: "Hunter",
+      customerName: "Cliente Director Canonical QA",
+      segment: "Studio Hunter",
+      areaName: "Analytics",
+      studioHunterName: "Director Canonical Hunter QA",
+      amount: 100,
+    },
+  ],
+  areaRows: [],
+  areaDetailRows: [],
+  hunterClientRows: [],
+  selectedHunterNames: [],
+  selectedAreaNames: [],
+  people: [{
+    id: "director-canonical-hunter-qa",
+    name: "Director Canonical Hunter QA",
+    roleType: "Hunter",
+    active: true,
+    clientIds: ["customer-director-canonical-qa"],
+  }],
+  allocations: [{
+    id: "target-director-canonical-hunter-qa",
+    customerId: "customer-director-canonical-qa",
+    personId: "director-canonical-hunter-qa",
+    type: "hunter",
+    year: 2026,
+    amount: 300,
+    ownAmount: 300,
+  }],
+  studioAllocations: [{
+    id: "studio-director-canonical-hunter-qa",
+    customerId: "customer-director-canonical-qa",
+    areaId: "studio-director-canonical-analytics",
+    hunterPersonId: "director-canonical-hunter-qa",
+    year: 2026,
+    hunterAmount: 100,
+    maintenanceAmount: 0,
+  }],
+  customerNames: new Map([["customer-director-canonical-qa", "Cliente Director Canonical QA"]]),
+  areaNames: new Map([["studio-director-canonical-analytics", "Analytics"]]),
+  year: 2026,
+});
+if (!generatedDirectorCanonicalOfficialRows.some((row) => row.executive === "Director Canonical Hunter QA" && row.customerName === "Cliente Director Canonical QA" && row.billingCustomer === "" && row.hunter === 200)) {
+  throw new Error("Director official rows must compute Meta Squads/Times as current Hunter minus inherited Studio Hunter from canonical sources.");
+}
+if (!generatedDirectorCanonicalOfficialRows.some((row) => row.executive === "Director Canonical Hunter QA" && row.customerName === "Cliente Director Canonical QA" && row.billingCustomer === "Analytics" && row.hunter === 100)) {
+  throw new Error("Director official rows must keep inherited Studio Hunter as a separate Studio billing row from canonical sources.");
+}
+if (!generatedDirectorCanonicalOfficialRows.some((row) => row.executive === "Director Canonical Hunter QA" && row.customerName === "Subtotal (na meta)" && row.hunter === 200)) {
+  throw new Error("Director official subtotal must not add inherited Studio Hunter again.");
+}
+
+const generatedDirectorCanonicalFarmerOfficialRows = buildOfficialRowsForView({
+  view: "directors",
+  peopleRows: [],
+  hunterRows: [],
+  hunterDetailRows: [],
+  directorDetailRows: [
+    {
+      id: "director-canonical-own-farmer-qa",
+      personId: "director-canonical-farmer-qa",
+      customerId: "customer-director-canonical-farmer-qa",
+      personName: "Director Canonical Farmer QA",
+      roleType: "Delivery",
+      customerName: "Cliente Director Farmer QA",
+      segment: "Renovação + Ampliação",
+      areaName: "",
+      studioHunterName: "",
+      amount: 500,
+    },
+    {
+      id: "director-canonical-studio-maintenance-qa",
+      personId: "director-canonical-farmer-qa",
+      customerId: "customer-director-canonical-farmer-qa",
+      personName: "Director Canonical Farmer QA",
+      roleType: "Delivery",
+      customerName: "Cliente Director Farmer QA",
+      segment: "Studio Manutenção",
+      areaName: "Salesforce",
+      studioHunterName: "Director Canonical Farmer QA",
+      amount: 150,
+    },
+  ],
+  areaRows: [],
+  areaDetailRows: [],
+  hunterClientRows: [],
+  selectedHunterNames: [],
+  selectedAreaNames: [],
+  people: [{
+    id: "director-canonical-farmer-qa",
+    name: "Director Canonical Farmer QA",
+    roleType: "Delivery",
+    active: true,
+    clientIds: ["customer-director-canonical-farmer-qa"],
+  }],
+  allocations: [{
+    id: "target-director-canonical-farmer-qa",
+    customerId: "customer-director-canonical-farmer-qa",
+    personId: "director-canonical-farmer-qa",
+    type: "farmer_renewal",
+    year: 2026,
+    amount: 500,
+    ownAmount: 500,
+  }],
+  studioAllocations: [{
+    id: "studio-director-canonical-maintenance-qa",
+    customerId: "customer-director-canonical-farmer-qa",
+    areaId: "studio-director-canonical-salesforce",
+    maintenancePersonId: "director-canonical-farmer-qa",
+    year: 2026,
+    hunterAmount: 0,
+    maintenanceAmount: 150,
+  }],
+  customerNames: new Map([["customer-director-canonical-farmer-qa", "Cliente Director Farmer QA"]]),
+  areaNames: new Map([["studio-director-canonical-salesforce", "Salesforce"]]),
+  year: 2026,
+});
+if (!generatedDirectorCanonicalFarmerOfficialRows.some((row) => row.executive === "Director Canonical Farmer QA" && row.customerName === "Cliente Director Farmer QA" && row.billingCustomer === "" && row.farmerRenewal === 350)) {
+  throw new Error("Director official rows must compute Farmer/Delivery Squads/Times as current renewal minus inherited Studio maintenance from canonical sources.");
+}
+if (!generatedDirectorCanonicalFarmerOfficialRows.some((row) => row.executive === "Director Canonical Farmer QA" && row.customerName === "Cliente Director Farmer QA" && row.billingCustomer === "Salesforce" && row.farmerRenewal === 150)) {
+  throw new Error("Director official rows must keep inherited Studio maintenance as a separate Studio billing row from canonical sources.");
+}
+if (!generatedDirectorCanonicalFarmerOfficialRows.some((row) => row.executive === "Director Canonical Farmer QA" && row.customerName === "Subtotal (na meta)" && row.farmerRenewal === 350)) {
+  throw new Error("Director official subtotal must not add inherited Studio maintenance again.");
+}
+
 const generatedHunterClientOfficialRows = buildOfficialRowsForView({
   view: "hunterClients",
   peopleRows: [],
