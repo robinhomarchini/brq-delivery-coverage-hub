@@ -816,6 +816,12 @@ e os nomes cadastrados de Cliente/Studio devem ser recalculados contra o cadastr
 operacional atual ao abrir a tela. Assim, correções posteriores em Studios,
 aliases ou alocações passam a refletir no batimento sem exigir reimportar a
 planilha histórica.
+Na extração da Curva para baseline de Studios, a classificação por `Tipo Opp`
+é independente da pessoa responsável por Hunter/Farmer/Delivery: `Novo`,
+`Novo-ampliação`, `Hunter` e equivalentes compõem Hunter do Studio; `Renovação`,
+`Manutenção` e equivalentes compõem Manutenção/Renovação do Studio. Essa regra
+é somente de receita/studio e não deve usar o papel cadastral da pessoa para
+decidir a coluna.
 Após importar e calcular o batimento na central de Baselines, a tela deve permitir "Salvar foto do
 resultado". Essa foto é um snapshot imutável do resultado calculado naquele
 momento, com ano, nome do arquivo, totais e linhas exibidas/exportáveis. Salvar
@@ -1006,7 +1012,9 @@ Dashboards:
 - Meta Prevista por Manager.
 - A visão financeira por Cliente/Cluster compara o Baseline Board contra o total
   alocado em pessoas, usando a mesma regra contida de Hunter/Studio da tela
-  Clientes. Ela não deve usar `customer.revenue` como proxy de alocação.
+  Clientes. Ela não deve usar `customer.revenue` como proxy de alocação. Os KPIs
+  executivos de alocação e diferença também devem comparar Baseline Board contra
+  Alocado em Pessoas, mantendo coerência com o gráfico financeiro por Cliente.
 - As visões financeiras agregadas por Diretor e por Subordinado/Manager devem
   empilhar somente Hunter e Renovação + Ampliação. Áreas/Studios são aberturas
   contidas nessas metas e não podem somar como terceira parcela no gráfico.

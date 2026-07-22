@@ -56,6 +56,14 @@ const rows = [
     totalAmount: 150000,
   }),
   makeCurveRow({
+    customerName: "Cliente Analytics",
+    revenueStream: "Analytics",
+    studioName: "Analytics",
+    opportunityType: "Renovação + Ampliação",
+    totalAmount: 7123456,
+    businessUnit: "Financial",
+  }),
+  makeCurveRow({
     customerName: "Parceiro sem Studio",
     revenueStream: "Resell",
     studioName: "RESELL",
@@ -69,6 +77,7 @@ const googleAlliance = parsed.find((row) => row.customerName === "Votorantim" &&
 const managedServices = parsed.find((row) => row.customerName === "Votorantim" && row.studioName === "Managed Services");
 const googleResellAlliance = parsed.find((row) => row.customerName === "Cliente Google Resell" && row.studioName === "Alianças Google");
 const datadogResellAlliance = parsed.find((row) => row.customerName === "Cliente Datadog Resell" && row.studioName === "Datadog-Alianças");
+const analyticsRenewal = parsed.find((row) => row.customerName === "Cliente Analytics" && row.studioName === "Analytics");
 const unknownResell = parsed.find((row) => row.customerName === "Parceiro sem Studio");
 
 assert(googleAlliance, "Votorantim Cloud + Google LLC must become Alianças Google.");
@@ -80,8 +89,11 @@ assert(googleResellAlliance, "RESELL rows with Google in column C must become Al
 assert(googleResellAlliance.hunterAmount === 200000, "Google RESELL amount must follow Tipo Opp and enter Hunter.");
 assert(datadogResellAlliance, "RESELL rows with Data Dog in column C must become Datadog-Alianças while using column D as customer.");
 assert(datadogResellAlliance.maintenanceAmount === 150000, "Datadog RESELL amount must follow Tipo Opp and enter maintenance.");
+assert(analyticsRenewal, "Analytics renewal rows must enter the Studio Curve baseline.");
+assert(analyticsRenewal.hunterAmount === 0, "Analytics Renovação + Ampliação must not be classified as Hunter.");
+assert(analyticsRenewal.maintenanceAmount === 7123456, "Analytics Renovação + Ampliação must be captured as maintenance.");
 assert(!unknownResell, "Unrecognized RESELL rows must stay out of the Studio Curve baseline.");
-assert(parsed.length === 4, "Only Financial and recognized Studio Curve rows must enter the baseline.");
+assert(parsed.length === 5, "Only Financial and recognized Studio Curve rows must enter the baseline.");
 
 const awsAliasComparison = buildStudioBaselineComparisons(
   [makeStudioBaselineRow({ customerName: "Alelo", studioName: "Alianças AWS", hunterAmount: 400000 })],

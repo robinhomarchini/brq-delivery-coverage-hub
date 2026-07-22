@@ -432,12 +432,35 @@ function buildOfficialPeopleRowsFromSources({
     customerIds.forEach((customerId) => {
       customerIdsInScope.add(customerId);
       const customerName = customerNames.get(customerId) ?? customerId;
-      const studioHunterForCustomer = studioByHunterCustomer.get(`${personRow.personId}:${customerId}`) ?? 0;
+      const customerStudioHunterAllocations = personStudioHunterAllocations
+        .filter((allocation) => allocation.customerId === customerId)
+        .sort((first, second) =>
+          (areaNames.get(first.areaId) ?? first.areaId).localeCompare(areaNames.get(second.areaId) ?? second.areaId, "pt-BR")
+        );
+      const customerStudioRenewalAllocations = studioAllocations
+        .filter((allocation) => {
+          const maintenancePersonId = getStudioMaintenancePersonId(allocation);
+          return allocation.year === year
+            && allocation.customerId === customerId
+            && maintenancePersonId === personRow.personId
+            && allocation.maintenanceAmount > 0
+            && isStudioRenewalEligibleForFarmer(areaNames.get(allocation.areaId) ?? allocation.areaId, person, {
+              explicitMaintenancePerson: allocation.maintenancePersonId === personRow.personId,
+            });
+        })
+        .sort((first, second) =>
+          (areaNames.get(first.areaId) ?? first.areaId).localeCompare(areaNames.get(second.areaId) ?? second.areaId, "pt-BR")
+        );
+      const studioHunterForCustomer = customerStudioHunterAllocations.reduce((total, allocation) => total + allocation.hunterAmount, 0)
+        || studioByHunterCustomer.get(`${personRow.personId}:${customerId}`)
+        || 0;
       const directHunterOwn = getTargetOwnAmountFromAllocations(
         personAllocations.filter((allocation) => allocation.customerId === customerId && allocation.type === "hunter"),
         studioHunterForCustomer,
       );
-      const studioRenewalForCustomer = studioRenewalByPersonCustomer.get(`${personRow.personId}:${customerId}`) ?? 0;
+      const studioRenewalForCustomer = customerStudioRenewalAllocations.reduce((total, allocation) => total + allocation.maintenanceAmount, 0)
+        || studioRenewalByPersonCustomer.get(`${personRow.personId}:${customerId}`)
+        || 0;
       const farmerRenewalOwn = getTargetOwnAmountFromAllocations(
         personAllocations.filter((allocation) => allocation.customerId === customerId && allocation.type === "farmer_renewal"),
         studioRenewalForCustomer,
@@ -457,12 +480,7 @@ function buildOfficialPeopleRowsFromSources({
         personHunter += directHunterOwn;
       }
 
-      personStudioHunterAllocations
-        .filter((allocation) => allocation.customerId === customerId)
-        .sort((first, second) =>
-          (areaNames.get(first.areaId) ?? first.areaId).localeCompare(areaNames.get(second.areaId) ?? second.areaId, "pt-BR")
-        )
-        .forEach((allocation) => {
+      customerStudioHunterAllocations.forEach((allocation) => {
           const studioName = areaNames.get(allocation.areaId) ?? allocation.areaId;
           rows.push(makeOfficialRow({
             executive: personRow.personName,
@@ -475,21 +493,7 @@ function buildOfficialPeopleRowsFromSources({
           personHasRows = true;
         });
 
-      studioAllocations
-        .filter((allocation) => {
-          const maintenancePersonId = getStudioMaintenancePersonId(allocation);
-          return allocation.year === year
-            && allocation.customerId === customerId
-            && maintenancePersonId === personRow.personId
-            && allocation.maintenanceAmount > 0
-            && isStudioRenewalEligibleForFarmer(areaNames.get(allocation.areaId) ?? allocation.areaId, person, {
-              explicitMaintenancePerson: allocation.maintenancePersonId === personRow.personId,
-            });
-        })
-        .sort((first, second) =>
-          (areaNames.get(first.areaId) ?? first.areaId).localeCompare(areaNames.get(second.areaId) ?? second.areaId, "pt-BR")
-        )
-        .forEach((allocation) => {
+      customerStudioRenewalAllocations.forEach((allocation) => {
           const studioName = areaNames.get(allocation.areaId) ?? allocation.areaId;
           rows.push(makeOfficialRow({
             executive: personRow.personName,

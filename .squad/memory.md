@@ -387,6 +387,14 @@ Centralizar importação de baselines em uma nova rota, removendo uploads antigo
 
 Próximo passo: mover a view model de Clientes do Relatório de Metas (`buildClientCoverageRows` e colunas/totalizadores relacionados) para `src/lib/reports/`, reutilizando `person-target-rollups.ts` e mantendo `npm run test:reports` como gate obrigatório.
 
+## Current Decision Update - 2026-07-22
+
+- Dashboard Executivo: KPIs de alocação/diferença agora devem comparar Baseline Board contra Alocado em Pessoas, usando a mesma fonte do gráfico financeiro por Cliente (`getCustomerCoverageAllocatedTotal`). `Cadastro do Cliente` permanece relevante no Comparativo Baseline para a ação de update, mas não é mais o KPI financeiro executivo de alocação.
+- Planilha oficial Financial: para Pessoa + Cliente com uma ou mais linhas de Studio herdado, a linha sem Studio exibe Meta Squads/Times líquida (`Meta atual - Studio contido`). Linhas de Studio seguem separadas com o Studio em `Cliente Faturamento`. O subtotal da pessoa na planilha oficial usa a Meta Squads/Times líquida, evitando somar novamente Studios herdados. O teste `npm run test:reports` cobre múltiplos Studio Hunter no mesmo cliente para evitar regressão estilo Ricardo Bonfim/Banco Itaú.
+- Curva principal para baseline de Studios: `Tipo Opp` governa a classificação de receita independente do papel da pessoa. `Renovação`/`Manutenção` entram em Manutenção/Renovação do Studio mesmo quando a linha contém termos de ampliação; `Novo`/`Hunter` entram em Hunter do Studio. `BU Financial` e `Financial` são equivalentes na leitura da coluna de BU.
+- Análise de Desafio com IA: chamadas continuam centralizadas em `src/server/ai/`. Quando o contexto pede internet, referência externa, mercado ou benchmark, a rota tenta usar Responses API com Web Search; se o provider não retornar resposta válida, o fallback explicita que não buscou fontes externas e preserva os critérios oficiais, sem inventar referência.
+- UX de KPI: cards financeiros compartilhados não devem truncar valores; `KpiSummaryCard` reduz fonte monetária e permite quebra controlada. Manter esse componente como padrão antes de criar cards financeiros locais.
+
 ## Current Decision Update - 2026-07-20
 
 - Margem-alvo informativa dos clientes atualizada de 35,8% para 36,8%.

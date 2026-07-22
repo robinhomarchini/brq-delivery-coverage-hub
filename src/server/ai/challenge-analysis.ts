@@ -1,6 +1,6 @@
 import type { ChallengeAiBaseline, ChallengeAiNumbers, ChallengeAiResult, ChallengeAnalysisRow, ChallengeView } from "@/lib/challenge-analysis";
 import { getChallengeBenchmark } from "@/lib/challenge-analysis";
-import { generateAiText } from "./openai";
+import { generateAiText, generateAiTextWithWebSearch } from "./openai";
 
 export async function generateChallengeNarrative({
   rows,
@@ -30,10 +30,11 @@ export async function generateChallengeNarrative({
   }));
 
   const fallback = buildFallbackResult({ rows, view, year, context: normalizedContext, reflectedNumbers, previousBaseline });
-  const aiText = await generateAiText([
+  const wantsWebSearch = shouldUseWebSearch(normalizedContext);
+  const aiText = await (wantsWebSearch ? generateAiTextWithWebSearch : generateAiText)([
     {
       role: "system",
-      content: "Você é um advisor executivo de vendas e delivery. Responda em pt-BR, com prudência. Não faça decisão individual de remuneração. Avalie conceitos existentes e aprendidos no baseline GEN AI contra os números oficiais cadastrados/calculados. Use apenas dados agregados/anônimos enviados, baseline GEN AI anterior e contexto adicional. Diferencie fatos medidos, hipóteses/conceitos aprendidos e recomendações. Não cite nomes de pessoas. Não altere salário, meta ou status oficial. Retorne somente JSON válido.",
+      content: `Você é um advisor executivo de vendas e delivery. Responda em pt-BR, com prudência. Não faça decisão individual de remuneração. Avalie conceitos existentes e aprendidos no baseline GEN AI contra os números oficiais cadastrados/calculados. ${wantsWebSearch ? "O usuário pediu referência externa; use busca web pública apenas como contexto de mercado e indique que não altera números oficiais." : "Use apenas dados agregados/anônimos enviados, baseline GEN AI anterior e contexto adicional."} Diferencie fatos medidos, hipóteses/conceitos aprendidos e recomendações. Não cite nomes de pessoas. Não altere salário, meta ou status oficial. Retorne somente JSON válido.`,
     },
     {
       role: "user",
@@ -78,6 +79,24 @@ export async function generateChallengeNarrative({
   });
 }
 
+function shouldUseWebSearch(context?: string) {
+  if (!context) return false;
+  const normalized = context
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+  return [
+    "internet",
+    "referenc",
+    "mercado",
+    "benchmark",
+    "fonte",
+    "pesquis",
+    "extern",
+    "web",
+  ].some((term) => normalized.includes(term));
+}
+
 function buildReflectedNumbers(rows: ChallengeAnalysisRow[], benchmark: { low: number; high: number }): ChallengeAiNumbers {
   const rowsWithMultiple = rows.filter((row) => row.challengeMultiple !== null);
   return {
@@ -116,17 +135,23 @@ function buildFallbackResult({
   const adequate = rows.filter((row) => row.status === "adequate").length;
   const aggressive = rows.filter((row) => row.status === "aggressive").length;
   const label = getChallengeViewLabel(view);
+  const wantsWebSearch = shouldUseWebSearch(context);
   const narrative = `${label}: ${adequate} de ${total} pessoa(s) estão na faixa adequada, ${low} abaixo do desafio esperado, ${aggressive} com desafio agressivo e ${missing} sem salário cadastrado. ${context ? "O contexto informado foi incorporado como baseline GEN AI da análise, sem alterar salários, metas ou classificações oficiais." : "Este baseline GEN AI inicial usa apenas os dados calculados oficiais."} Use esta leitura como apoio gerencial.`;
-  const opinion = context
+  const opinion = wantsWebSearch
+    ? "Você pediu referências externas. Nesta execução, a integração generativa com busca web não retornou resposta válida; por segurança, mantive a leitura determinística nos dados oficiais e não inventei fontes."
+    : context
     ? "Minha leitura determinística é que o contexto pode mudar a interpretação executiva do desafio, mas ainda precisa ser validado contra evidências quantitativas antes de virar regra oficial."
     : "Minha leitura determinística é que a coerência do desafio deve ser avaliada primeiro pela distribuição dos múltiplos e pela completude dos salários cadastrados.";
   const reconsideredCriteria = [
+    ...(wantsWebSearch ? ["Referências externas solicitadas, mas não aplicadas porque o provedor generativo não retornou evidência validável nesta execução."] : []),
     ...(context ? ["Contexto informado pelo usuário tratado como critério temporário de reavaliação."] : ["Faixa interna padrão mantida como único critério objetivo."]),
     "Números oficiais preservados como referência principal.",
     "Salários ausentes limitam qualquer conclusão individual.",
   ];
   const simulatedReassessment = [
-    context
+    wantsWebSearch
+      ? "Sem resposta generativa/web válida, nenhuma regra foi recalculada por benchmark externo; a simulação preserva os critérios oficiais atuais."
+      : context
       ? "A simulação considera que o contexto pode justificar exceções, mas não recalcula metas nem status oficiais sem regra formal."
       : "Sem critério adicional, a simulação mantém a classificação calculada pela faixa padrão.",
     `Distribuição atual: ${adequate} adequado(s), ${low} abaixo, ${aggressive} agressivo(s) e ${missing} sem salário.`,

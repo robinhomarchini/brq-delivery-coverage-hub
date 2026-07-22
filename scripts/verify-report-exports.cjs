@@ -420,6 +420,85 @@ if (!generatedCurrentMinusStudioRows.some((row) => row.executive === "Stale Own 
   throw new Error("Generated official rows must compute own target as current amount minus contained Studio, ignoring stale own_amount caches.");
 }
 
+const generatedMultipleStudioHunterRows = buildOfficialRowsForView({
+  view: "people",
+  peopleRows: [{
+    personId: "multi-studio-hunter-qa",
+    personName: "Multi Studio Hunter QA",
+    email: "multi.studio.hunter.qa@brq.com",
+    roleType: "Hunter",
+    directorId: undefined,
+    customerCount: 1,
+    customerNames: ["Banco QA"],
+    hunter: 47998066,
+    farmerRenewal: 0,
+    total: 47998066,
+    customerBreakdown: [],
+  }],
+  hunterRows: [],
+  hunterDetailRows: [],
+  directorDetailRows: [],
+  areaRows: [],
+  areaDetailRows: [],
+  hunterClientRows: [],
+  selectedHunterNames: [],
+  selectedAreaNames: [],
+  people: [{
+    id: "multi-studio-hunter-qa",
+    name: "Multi Studio Hunter QA",
+    roleType: "Hunter",
+    active: true,
+    clientIds: ["customer-multi-studio-qa"],
+  }],
+  allocations: [{
+    id: "target-multi-studio-hunter-qa",
+    customerId: "customer-multi-studio-qa",
+    personId: "multi-studio-hunter-qa",
+    type: "hunter",
+    year: 2026,
+    amount: 47998066,
+    ownAmount: 47998066,
+  }],
+  studioAllocations: [
+    {
+      id: "studio-multi-analytics-qa",
+      customerId: "customer-multi-studio-qa",
+      areaId: "studio-multi-analytics",
+      hunterPersonId: "multi-studio-hunter-qa",
+      year: 2026,
+      hunterAmount: 4804429,
+      maintenanceAmount: 0,
+    },
+    {
+      id: "studio-multi-salesforce-qa",
+      customerId: "customer-multi-studio-qa",
+      areaId: "studio-multi-salesforce",
+      hunterPersonId: "multi-studio-hunter-qa",
+      year: 2026,
+      hunterAmount: 400000,
+      maintenanceAmount: 0,
+    },
+  ],
+  customerNames: new Map([["customer-multi-studio-qa", "Banco QA"]]),
+  areaNames: new Map([
+    ["studio-multi-analytics", "Analytics"],
+    ["studio-multi-salesforce", "Salesforce"],
+  ]),
+  year: 2026,
+});
+if (!generatedMultipleStudioHunterRows.some((row) => row.executive === "Multi Studio Hunter QA" && row.customerName === "Banco QA" && row.billingCustomer === "" && row.hunter === 42793637)) {
+  throw new Error("Generated official rows must subtract all inherited Studio Hunter lines from the person's own customer row.");
+}
+if (!generatedMultipleStudioHunterRows.some((row) => row.executive === "Multi Studio Hunter QA" && row.customerName === "Banco QA" && row.billingCustomer === "Analytics" && row.hunter === 4804429)) {
+  throw new Error("Generated official rows must keep Analytics inherited Studio Hunter as a separate billing row.");
+}
+if (!generatedMultipleStudioHunterRows.some((row) => row.executive === "Multi Studio Hunter QA" && row.customerName === "Banco QA" && row.billingCustomer === "Salesforce" && row.hunter === 400000)) {
+  throw new Error("Generated official rows must keep Salesforce inherited Studio Hunter as a separate billing row.");
+}
+if (!generatedMultipleStudioHunterRows.some((row) => row.executive === "Multi Studio Hunter QA" && row.customerName === "Subtotal (na meta)" && row.hunter === 42793637)) {
+  throw new Error("Generated official rows must subtotal the person's own Hunter target without adding inherited Studio Hunter again.");
+}
+
 const generatedOwnAndInheritedFarmerRows = buildOfficialRowsForView({
   view: "people",
   peopleRows: [{

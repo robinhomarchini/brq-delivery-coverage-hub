@@ -482,7 +482,8 @@ function parseAmount(value: unknown) {
 
 export function isStudioHunterOpportunity(value: string) {
   const normalized = normalizeHeader(value);
-  return normalized.includes("novo") || normalized.includes("ampliacao");
+  if (normalized.includes("renov")) return false;
+  return normalized.includes("novo") || normalized.includes("hunter") || normalized.includes("ampliacao");
 }
 
 function getStudioComparisonStatus(

@@ -32,7 +32,7 @@ import { exportDeliveryDataAsCsv, exportElementAsPdf } from "@/lib/export";
 import { cn, formatCompactCurrency, formatCurrency, normalizeBusinessName } from "@/lib/utils";
 import { translateRole } from "@/lib/roles";
 import { applyCustomerTargetsForYear, defaultTargetYear } from "@/lib/customer-targets";
-import { getBoardTargetBaselineRows, getBoardTargetBaselineTotals, getRegisteredTargetTotals } from "@/lib/board-target-baseline";
+import { getBoardTargetBaselineRows, getBoardTargetBaselineTotals } from "@/lib/board-target-baseline";
 import { customerCountsTowardTarget, getCustomerTotalTarget } from "@/lib/customer-target-total";
 import { getCustomerCoverageAllocatedTotal } from "@/lib/customers/customer-coverage-view-model";
 import { useAccess } from "@/lib/access-context";
@@ -78,9 +78,7 @@ export function ExecutiveDashboard() {
   const staff = activePeople.filter((person) => person.roleType === "Staff");
   const boardRows = getBoardTargetBaselineRows(defaultTargetYear, boardTargetBaselines);
   const boardTotals = getScopedBoardTotals(dashboardCustomers, boardRows, hunterScope.enabled);
-  const registeredTotals = getRegisteredTargetTotals(dashboardCustomers);
   const totalRevenue = boardTotals.totalTarget;
-  const registeredDelta = registeredTotals.totalTarget - boardTotals.totalTarget;
   const baselineByCustomer = new Map(
     boardRows
       .map((row) => [normalizeBusinessName(row.customerName), row.totalTarget]),
@@ -88,10 +86,16 @@ export function ExecutiveDashboard() {
   const dashboardCustomerIds = new Set(dashboardCustomers.map((customer) => customer.id));
   const dashboardTargetAllocations = targetAllocations.filter((allocation) => dashboardCustomerIds.has(allocation.customerId));
   const dashboardStudioTargetAllocations = studioTargetAllocations.filter((allocation) => dashboardCustomerIds.has(allocation.customerId));
+  const allocatedPeopleByCustomer = new Map(dashboardCustomers.map((customer) => [
+    customer.id,
+    getCustomerCoverageAllocatedTotal(customer, people, dashboardTargetAllocations, dashboardStudioTargetAllocations, areas, defaultTargetYear),
+  ]));
+  const allocatedPeopleTotal = roundCurrency(Array.from(allocatedPeopleByCustomer.values()).reduce((total, value) => total + value, 0));
+  const peopleDelta = roundCurrency(allocatedPeopleTotal - boardTotals.totalTarget);
   const financialByCustomer = dashboardCustomers
     .map((customer) => {
       const baselineTarget = baselineByCustomer.get(normalizeBusinessName(customer.name)) ?? getCustomerTarget(customer);
-      const allocatedPeople = getCustomerCoverageAllocatedTotal(customer, people, dashboardTargetAllocations, dashboardStudioTargetAllocations, areas, defaultTargetYear);
+      const allocatedPeople = allocatedPeopleByCustomer.get(customer.id) ?? 0;
       return {
         customerCluster: customer.name,
         revenueCurrent: allocatedPeople,
@@ -225,8 +229,8 @@ export function ExecutiveDashboard() {
           <FinancialKpi label="Meta Board 2026" currencyValue={boardTotals.totalTarget} icon={Target} />
           <FinancialKpi label="Board Hunter" currencyValue={boardTotals.hunterTarget} icon={UserCog} />
           <FinancialKpi label="Board Renov. + Ampl." currencyValue={boardTotals.farmerRenewalTarget} icon={BriefcaseBusiness} />
-          <FinancialKpi label="Cadastrado no sistema" currencyValue={registeredTotals.totalTarget} icon={Building2} />
-          <FinancialKpi label="Diferença cadastro vs board" currencyValue={registeredDelta} icon={TrendingUp} tone={registeredDelta < -0.01 ? "danger" : registeredDelta > 0.01 ? "ok" : "neutral"} />
+          <FinancialKpi label="Alocado em Pessoas" currencyValue={allocatedPeopleTotal} icon={Building2} />
+          <FinancialKpi label="Dif. Pessoas x Board" currencyValue={peopleDelta} icon={TrendingUp} tone={peopleDelta < -0.01 ? "danger" : peopleDelta > 0.01 ? "ok" : "neutral"} />
         </section>
 
         <ChartCard title="Visão Financeira por Cliente">

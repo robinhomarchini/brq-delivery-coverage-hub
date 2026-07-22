@@ -79,7 +79,7 @@ export function parseCurveStudioBaselineRows(rows: unknown[][]): StudioBaselineR
   rows.forEach((row, index) => {
     const salesUnit = String(row[curveSheetColumns.salesUnit] ?? "").trim();
     const businessUnit = String(row[curveSheetColumns.businessUnit] ?? "").trim();
-    if (normalizeBusinessName(businessUnit) !== "bu financial") return;
+    if (!isFinancialBusinessUnit(businessUnit)) return;
 
     const customerName = String(row[curveSheetColumns.customerName] ?? "").trim();
     const allianceLabel = String(row[curveSheetColumns.allianceLabel] ?? "").trim();
@@ -153,6 +153,11 @@ function getAllianceStudioName(customerName: string, allianceLabel: string, reve
 function isManagedServicesLabel(value: string) {
   const normalized = normalizeBusinessName(value);
   return normalized === "managed services / finops" || normalized === "managed services";
+}
+
+function isFinancialBusinessUnit(value: string) {
+  const normalized = normalizeBusinessName(value);
+  return normalized === "financial" || normalized === "bu financial";
 }
 
 function buildStudioCurveBaselineComparisonRows(
