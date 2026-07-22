@@ -230,8 +230,8 @@ if (!generatedEligibleStudioRenewalRows.some((row) => row.executive === "Farmer 
 if (!generatedEligibleStudioRenewalRows.some((row) => row.executive === "Farmer QA" && row.customerName === "Cliente QA" && row.billingCustomer === "Studio Renovação QA" && row.farmerRenewal === 20)) {
   throw new Error("Generated official rows did not keep eligible Studio renewal as a separate Studio billing row.");
 }
-if (!generatedEligibleStudioRenewalRows.some((row) => row.executive === "Farmer QA" && row.customerName === "Subtotal (na meta)" && row.farmerRenewal === 70)) {
-  throw new Error("Generated official rows did not subtotal Farmer/Delivery own and inherited Studio renewal.");
+if (!generatedEligibleStudioRenewalRows.some((row) => row.executive === "Farmer QA" && row.customerName === "Subtotal (na meta)" && row.farmerRenewal === 50)) {
+  throw new Error("Generated official rows must subtotal Farmer/Delivery own renewal without adding inherited Studio renewal again.");
 }
 if (generatedEligibleStudioRenewalRows.some((row) => row.executive === "Studio Renovação QA")) {
   throw new Error("Generated official rows duplicated eligible Studio renewal in the final Studio maintenance block.");
@@ -478,8 +478,8 @@ if (!generatedOwnAndInheritedFarmerRows.some((row) => row.executive === "Farmer 
 if (!generatedOwnAndInheritedFarmerRows.some((row) => row.executive === "Farmer Split QA" && row.customerName === "Cliente Split QA" && row.billingCustomer === "Salesforce" && row.farmerRenewal === 25)) {
   throw new Error("Generated official rows did not keep inherited Studio renewal as a separate Studio billing row.");
 }
-if (!generatedOwnAndInheritedFarmerRows.some((row) => row.executive === "Farmer Split QA" && row.customerName === "Subtotal (na meta)" && row.farmerRenewal === 125)) {
-  throw new Error("Generated official rows did not subtotal Farmer/Delivery own plus inherited Studio renewal.");
+if (!generatedOwnAndInheritedFarmerRows.some((row) => row.executive === "Farmer Split QA" && row.customerName === "Subtotal (na meta)" && row.farmerRenewal === 100)) {
+  throw new Error("Generated official rows must subtotal Farmer/Delivery own renewal without adding inherited Studio renewal again.");
 }
 
 const generatedDirectorOfficialRows = buildOfficialRowsForView({

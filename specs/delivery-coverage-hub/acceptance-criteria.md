@@ -412,6 +412,10 @@
   primeiro o Hunter associado ao Studio e, se vazio, o Hunter principal
   cadastrado no cliente. Clientes como SICOOB/SICREDI não podem sumir do
   relatório da pessoa apenas porque a linha de Studio está sem `hunterPersonId`.
+- Na Planilha oficial, o subtotal da pessoa considera apenas a Meta Squads/Times
+  líquida (`Meta atual - Studio herdado`). As linhas de Studio herdado continuam
+  separadas no arquivo, com `Cliente Faturamento` preenchido pelo Studio, mas não
+  são somadas novamente no subtotal da pessoa.
 - O Relatório de Metas possui visão Hunter x Clientes com seletor único de
   Hunter. Ao escolher um Hunter, a tela exibe cliente, área/studio ou pessoa,
   origem, Studio Hunter, Manutenção/Renovação e total da linha, incluindo Meta

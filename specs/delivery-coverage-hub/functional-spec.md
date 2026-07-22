@@ -973,7 +973,10 @@ Regras do cadastro de Metas:
   Hunter quanto para Studio Manutenção/Renovação. Em telas e relatórios, quando
   houver decomposição de Meta Squads/Times e Studio contido, a Meta Squads/Times deve ser
   calculada por `Meta atual - Studio contido`; caches técnicos como `own_amount`
-  não podem prevalecer sobre essa fórmula de apresentação. Ao criar ou alterar
+  não podem prevalecer sobre essa fórmula de apresentação. Na Planilha oficial,
+  o subtotal da pessoa deve usar somente a Meta Squads/Times líquida; linhas
+  herdadas de Studio permanecem visíveis para abertura, mas não somam novamente
+  no subtotal da pessoa. Ao criar ou alterar
   alocações de Studio, a sincronização da meta da pessoa deve manter o Studio
   contido no valor atual: se o Studio couber na meta atual, recalcula a própria
   para baixo; se o Studio sozinho superar a meta atual, o valor atual passa a

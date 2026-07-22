@@ -399,6 +399,7 @@ function buildOfficialPeopleRowsFromSources({
 
     let personFarmer = 0;
     let personHunter = 0;
+    let personHasRows = false;
 
     customerIds.forEach((customerId) => {
       customerIdsInScope.add(customerId);
@@ -423,6 +424,7 @@ function buildOfficialPeopleRowsFromSources({
           hunter: directHunterOwn,
           rowStyle: "regular",
         }));
+        personHasRows = true;
         personFarmer += farmerRenewalOwn;
         personHunter += directHunterOwn;
       }
@@ -442,7 +444,7 @@ function buildOfficialPeopleRowsFromSources({
             hunter: allocation.hunterAmount,
             rowStyle: "regular",
           }));
-          personHunter += allocation.hunterAmount;
+          personHasRows = true;
         });
 
       studioAllocations
@@ -469,11 +471,11 @@ function buildOfficialPeopleRowsFromSources({
             hunter: 0,
             rowStyle: "regular",
           }));
-          personFarmer += allocation.maintenanceAmount;
+          personHasRows = true;
         });
     });
 
-    if (personFarmer > 0.01 || personHunter > 0.01) {
+    if (personHasRows) {
       rows.push(makeOfficialRow({
         executive: personRow.personName,
         customerName: "Subtotal (na meta)",
