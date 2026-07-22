@@ -36,6 +36,10 @@ operacionais de cliente.
 - Smoke test de salvar Pessoa, Cliente e Metas.
 - Verificação de exportações.
 - Plano de rollback da Vercel identificado.
+- Para análise generativa de desafio: `OPENAI_API_KEY`, `AI_MODEL`,
+  `AI_MAX_TOKENS` e `AI_TEMPERATURE` configurados como variáveis server-side na
+  Vercel. Sem `OPENAI_API_KEY`, a tela usa fallback determinístico identificado
+  na interface.
 
 ## Deploy Vercel pelo Codex/Windows
 
@@ -58,3 +62,15 @@ precedência. Para verificar publicação, use `npm run deploy:inspect:prod` ou
 `npm run deploy:inspect -- <deployment-url>`. Para consultar checks remotos,
 use `npm run github:checks`; se o GitHub CLI retornar 404, não repetir variantes
 cruas do comando, validar permissões/Actions no GitHub UI.
+
+## Supabase Migration Drift no GitHub Actions
+
+O workflow agendado `Supabase Migration Drift` precisa do secret
+`SUPABASE_DB_URL` no repositório GitHub. Esse valor deve ser a connection string
+Postgres do Supabase usada apenas pelo Actions para ler o histórico remoto de
+migrations. Se o secret estiver ausente ou inválido, a falha não confirma drift:
+ela indica que o check não conseguiu autenticar no Supabase.
+
+Localmente, `npm run db:migrations:check` usa `SUPABASE_DB_URL` quando presente;
+sem ele, tenta o projeto linkado via Supabase CLI. Nesse segundo caminho, é
+necessário `supabase login` ou `SUPABASE_ACCESS_TOKEN`.

@@ -90,6 +90,16 @@ function runSupabaseMigrationListWithRetry(args, env) {
       const output = `${error?.stdout ?? ""}\n${error?.stderr ?? ""}`;
       const versions = parseRemoteMigrationVersions(output, false);
       if (versions.length) return output;
+      if (/LegacyPlatformAuthRequiredError|Access token not provided|SUPABASE_ACCESS_TOKEN/i.test(output)) {
+        console.error([
+          "Supabase migration history check is not authenticated.",
+          process.env.GITHUB_ACTIONS === "true"
+            ? "Configure repository secret SUPABASE_DB_URL with the Supabase Postgres connection string for this workflow."
+            : "Set SUPABASE_DB_URL for a direct database check or run `npx --cache .npm-cache --yes supabase login` / set SUPABASE_ACCESS_TOKEN for --linked checks.",
+          "No migration drift was confirmed by this failure.",
+        ].join("\n"));
+        process.exit(1);
+      }
       lastError = error;
       console.warn(`Supabase migration list attempt ${attempt} failed; ${attempt < 3 ? "retrying" : "giving up"}.`);
     }

@@ -26,6 +26,8 @@
     "deploy:prod": "npm run deploy:check && node scripts/vercel-prod-deploy.mjs",
     "deploy:inspect": "node scripts/vercel-inspect.mjs",
     "deploy:inspect:prod": "node scripts/vercel-inspect.mjs brq-delivery-coverage-hub.vercel.app",
+    "ai:env:check": "node scripts/vercel-ai-env.mjs check production",
+    "ai:env:sync": "node scripts/vercel-ai-env.mjs sync production",
     "github:checks": "node scripts/github-checks.mjs",
     "audit:background": "powershell -ExecutionPolicy Bypass -File scripts/audit-background.ps1",
     "maintenance:baseline-snapshots": "node scripts/cleanup-baseline-snapshots.mjs",

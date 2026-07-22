@@ -7,6 +7,7 @@ const packageSource = fs.readFileSync(path.join(root, "package.json"), "utf8");
 const prodDeploySource = fs.readFileSync(path.join(root, "scripts", "vercel-prod-deploy.mjs"), "utf8");
 const vercelCliSource = fs.readFileSync(path.join(root, "scripts", "vercel-cli.mjs"), "utf8");
 const inspectSource = fs.readFileSync(path.join(root, "scripts", "vercel-inspect.mjs"), "utf8");
+const aiEnvSource = fs.readFileSync(path.join(root, "scripts", "vercel-ai-env.mjs"), "utf8");
 const githubChecksSource = fs.readFileSync(path.join(root, "scripts", "github-checks.mjs"), "utf8");
 const checkAuthSource = fs.readFileSync(path.join(root, "scripts", "check-vercel-deploy-auth.mjs"), "utf8");
 
@@ -14,6 +15,8 @@ assertIncludes(packageSource, "\"deploy:check\": \"node scripts/check-vercel-dep
 assertIncludes(packageSource, "\"deploy:prod\": \"npm run deploy:check && node scripts/vercel-prod-deploy.mjs\"", "package.json must expose the approved production deploy script.");
 assertIncludes(packageSource, "\"deploy:inspect\": \"node scripts/vercel-inspect.mjs\"", "package.json must expose deploy:inspect.");
 assertIncludes(packageSource, "\"deploy:inspect:prod\": \"node scripts/vercel-inspect.mjs brq-delivery-coverage-hub.vercel.app\"", "package.json must expose deploy:inspect:prod.");
+assertIncludes(packageSource, "\"ai:env:check\": \"node scripts/vercel-ai-env.mjs check production\"", "package.json must expose AI env check.");
+assertIncludes(packageSource, "\"ai:env:sync\": \"node scripts/vercel-ai-env.mjs sync production\"", "package.json must expose AI env sync.");
 assertIncludes(packageSource, "\"github:checks\": \"node scripts/github-checks.mjs\"", "package.json must expose github:checks.");
 
 assertIncludes(vercelCliSource, "loadLocalEnv()", "Vercel wrapper must load local env files.");
@@ -29,6 +32,10 @@ assertNotIncludes(prodDeploySource, "\"npx\"", "Production deploy must not spawn
 assertNotIncludes(prodDeploySource, "shell: process.platform", "Production deploy must avoid shell:true warnings.");
 assertIncludes(inspectSource, "VERCEL_CLI_STDIO", "Deploy inspect must capture Vercel output for readiness polling.");
 assertNotIncludes(inspectSource, "shell: process.platform", "Deploy inspect must avoid shell:true warnings.");
+assertIncludes(aiEnvSource, "Value was not printed", "AI env sync must not print secret values.");
+assertIncludes(aiEnvSource, "\"OPENAI_API_KEY\"", "AI env sync must manage OPENAI_API_KEY.");
+assertIncludes(aiEnvSource, "scripts/vercel-cli.mjs", "AI env sync must use the approved Vercel wrapper.");
+assertNotIncludes(aiEnvSource, "shell: process.platform", "AI env sync must avoid shell:true warnings.");
 assertIncludes(githubChecksSource, "Avoid retrying raw gh run list variants", "GitHub checks wrapper must prevent repeated raw CLI retries.");
 assertIncludes(githubChecksSource, "gh.exe", "GitHub checks wrapper must call gh.exe directly on Windows instead of shelling out.");
 assertIncludes(checkAuthSource, "deploy:prod will run Vercel CLI through node@22", "Deploy preflight must document the Node 22 fallback.");
