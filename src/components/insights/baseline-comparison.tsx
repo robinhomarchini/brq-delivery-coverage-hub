@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { ArrowDown, ArrowUp, CheckCircle2, FileSearch, RefreshCw } from "lucide-react";
 import type { Customer } from "@/data/mockData";
 import type { BoardTargetBaselineRow } from "@/data/boardTargetBaseline";
@@ -9,6 +9,7 @@ import { FilterBar } from "@/components/shared/filter-bar";
 import { KpiSummaryCard } from "@/components/shared/kpi-summary-card";
 import { PageHeader } from "@/components/shared/page-header";
 import { ReportExportActions, type ReportColumn } from "@/components/shared/report-export-actions";
+import { SortableTableHead, type SortDirection, type SortState } from "@/components/shared/sortable-table-head";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -50,6 +51,7 @@ type BoardComparisonRow = ComparisonRow & {
   peopleDelta: number;
 };
 type BaselineWorkspace = "board" | "studios";
+type BoardComparisonSortKey = "customer" | "baseline" | "registered" | "allocated" | "delta" | "peopleDelta" | "breakdown" | "status";
 const sourceSpecificStudioBaselineSourceCodes = studioBaselineSources
   .filter((source) => source.code !== "studio_general")
   .map((source) => source.code);
@@ -73,6 +75,7 @@ export function BaselineComparison() {
   const [search, setSearch] = useState("");
   const [mode, setMode] = useState<BaselineComparisonMode>("client");
   const [status, setStatus] = useState("");
+  const [boardSortState, setBoardSortState] = useState<SortState<BoardComparisonSortKey>>({ key: "customer", direction: "asc" });
   const [studioSourceCode, setStudioSourceCode] = useState<StudioBaselineSourceCode>("studio_general");
   const [dismissedStudioSnapshotId, setDismissedStudioSnapshotId] = useState("");
   const [studioStatus, setStudioStatus] = useState("");
@@ -135,7 +138,11 @@ export function BaselineComparison() {
       && isVisibleForMode(row, mode);
   }), [mode, rows, search, status]);
   const focusedTotals = useMemo(() => getFocusedTotals(filteredRows, mode), [filteredRows, mode]);
-  const reportRows = useMemo(() => filteredRows.map((row) => {
+  const sortedBoardRows = useMemo(
+    () => sortBoardComparisonRows(filteredRows, boardSortState, mode),
+    [boardSortState, filteredRows, mode],
+  );
+  const reportRows = useMemo(() => sortedBoardRows.map((row) => {
     const focused = getFocusedValues(row, mode);
     return {
       customerName: row.customerName,
@@ -160,7 +167,7 @@ export function BaselineComparison() {
       status: getBoardComparisonStatusLabel(row.status),
       year,
     };
-  }), [filteredRows, mode, year]);
+  }), [mode, sortedBoardRows, year]);
   const reportColumns = useMemo<ReportColumn<(typeof reportRows)[number]>[]>(() => [
     { key: "customerName", label: "Cliente baseline", value: (row) => row.customerName },
     { key: "registeredCustomerName", label: "Cliente cadastrado", value: (row) => row.registeredCustomerName },
@@ -387,7 +394,8 @@ export function BaselineComparison() {
           status={status}
           registeredTotals={registeredTotals}
           focusedTotals={focusedTotals}
-          filteredRows={filteredRows}
+          filteredRows={sortedBoardRows}
+          sortState={boardSortState}
           updatingCustomerId={updatingCustomerId}
           yearCustomers={scopedYearCustomers}
           canUpdateCustomers={canEdit}
@@ -396,6 +404,7 @@ export function BaselineComparison() {
           onSearchChange={setSearch}
           onModeChange={setMode}
           onStatusChange={setStatus}
+          onSortChange={setBoardSortState}
           onUpdateCustomer={updateCustomerFromBaseline}
         />
       ) : (
@@ -465,6 +474,7 @@ function BoardBaselineSection({
   registeredTotals,
   focusedTotals,
   filteredRows,
+  sortState,
   updatingCustomerId,
   yearCustomers,
   canUpdateCustomers,
@@ -473,6 +483,7 @@ function BoardBaselineSection({
   onSearchChange,
   onModeChange,
   onStatusChange,
+  onSortChange,
   onUpdateCustomer,
 }: {
   year: number;
@@ -483,6 +494,7 @@ function BoardBaselineSection({
   registeredTotals: ReturnType<typeof getRegisteredTargetTotals>;
   focusedTotals: ReturnType<typeof getFocusedTotals>;
   filteredRows: BoardComparisonRow[];
+  sortState: SortState<BoardComparisonSortKey>;
   updatingCustomerId: string;
   yearCustomers: Customer[];
   canUpdateCustomers: boolean;
@@ -491,6 +503,7 @@ function BoardBaselineSection({
   onSearchChange: (search: string) => void;
   onModeChange: (mode: BaselineComparisonMode) => void;
   onStatusChange: (status: string) => void;
+  onSortChange: Dispatch<SetStateAction<SortState<BoardComparisonSortKey>>>;
   onUpdateCustomer: (row: ComparisonRow) => void;
 }) {
   return (
@@ -542,18 +555,18 @@ function BoardBaselineSection({
 
       <Card className="overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <Table className="min-w-[1480px]">
+          <Table className="min-w-[1680px] table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Baseline</TableHead>
-                <TableHead>Cadastro do Cliente</TableHead>
-                <TableHead>Alocado em Pessoas</TableHead>
-                <TableHead>Dif. Cliente</TableHead>
-                <TableHead>Dif. Pessoas</TableHead>
-                <TableHead>Breakdown cadastrado</TableHead>
-                <TableHead>Status Cliente</TableHead>
-                <TableHead className="text-right">Ação</TableHead>
+                <SortableTableHead label="Cliente" sortKey="customer" sortState={sortState} onSort={onSortChange} className="w-[230px]" />
+                <SortableTableHead label="Baseline" sortKey="baseline" sortState={sortState} onSort={onSortChange} className="w-[180px]" />
+                <SortableTableHead label="Cadastro do Cliente" sortKey="registered" sortState={sortState} onSort={onSortChange} className="w-[180px]" />
+                <SortableTableHead label="Alocado em Pessoas" sortKey="allocated" sortState={sortState} onSort={onSortChange} className="w-[190px]" />
+                <SortableTableHead label="Dif. Cliente" sortKey="delta" sortState={sortState} onSort={onSortChange} className="w-[170px]" />
+                <SortableTableHead label="Dif. Pessoas" sortKey="peopleDelta" sortState={sortState} onSort={onSortChange} className="w-[180px]" />
+                <SortableTableHead label="Breakdown cadastrado" sortKey="breakdown" sortState={sortState} onSort={onSortChange} className="w-[280px]" />
+                <SortableTableHead label="Status Cliente" sortKey="status" sortState={sortState} onSort={onSortChange} className="w-[150px]" />
+                <TableHead className="w-[220px] text-right">Ação</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -563,11 +576,11 @@ function BoardBaselineSection({
                 const canUpdate = Boolean(canUpdateCustomers && customer && row.status !== "missing_customer" && row.status !== "extra_customer");
                 return (
                   <TableRow key={`${row.key}-${mode}`}>
-                    <TableCell>
+                    <TableCell className="w-[230px]">
                       <p className="font-bold text-slate-950">{row.customerName}</p>
                       <p className="text-xs text-slate-400">{row.registeredCustomerName ? `Cadastro: ${row.registeredCustomerName}` : "Sem cliente cadastrado correspondente"}</p>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="w-[180px]">
                       <MoneyStack
                         main={focused.baseline}
                         lines={mode === "client" ? [
@@ -576,8 +589,8 @@ function BoardBaselineSection({
                         ] : []}
                       />
                     </TableCell>
-                    <TableCell><MoneyStack main={focused.registered} /></TableCell>
-                    <TableCell>
+                    <TableCell className="w-[180px]"><MoneyStack main={focused.registered} /></TableCell>
+                    <TableCell className="w-[190px]">
                       <MoneyStack
                         main={focused.allocatedPeople}
                         lines={mode === "client" ? [
@@ -586,27 +599,27 @@ function BoardBaselineSection({
                         ] : []}
                       />
                     </TableCell>
-                    <TableCell>
-                      <span className={cn("inline-flex items-center gap-1 font-bold", getDeltaClassName(focused.delta))}>
+                    <TableCell className="w-[170px]">
+                      <span className={cn("inline-flex items-center gap-1 whitespace-nowrap font-bold tabular-nums", getDeltaClassName(focused.delta))}>
                         {focused.delta > 0.01 ? <ArrowUp className="h-4 w-4" /> : focused.delta < -0.01 ? <ArrowDown className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
                         {formatCurrency(focused.delta)}
                       </span>
                     </TableCell>
-                    <TableCell>
-                      <span className={cn("inline-flex items-center gap-1 font-bold", getDeltaClassName(focused.peopleDelta))}>
+                    <TableCell className="w-[180px]">
+                      <span className={cn("inline-flex items-center gap-1 whitespace-nowrap font-bold tabular-nums", getDeltaClassName(focused.peopleDelta))}>
                         {focused.peopleDelta > 0.01 ? <ArrowUp className="h-4 w-4" /> : focused.peopleDelta < -0.01 ? <ArrowDown className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
                         {formatCurrency(focused.peopleDelta)}
                       </span>
                     </TableCell>
-                    <TableCell>
-                      <div className="grid max-w-md gap-1 text-xs text-slate-500 md:grid-cols-3">
-                        <span>Hunter: <strong className="text-slate-900">{formatCurrency(row.registeredHunterTarget)}</strong></span>
-                        <span>Renov.: <strong className="text-slate-900">{formatCurrency(row.registeredFarmerRenewalTarget)}</strong></span>
-                        <span>Studio Manut.: <strong className="text-slate-900">{formatCurrency(row.registeredStudioMaintenanceTarget)}</strong></span>
-                      </div>
+                    <TableCell className="w-[280px]">
+                      <RegisteredBreakdown
+                        hunter={row.registeredHunterTarget}
+                        farmerRenewal={row.registeredFarmerRenewalTarget}
+                        studioMaintenance={row.registeredStudioMaintenanceTarget}
+                      />
                     </TableCell>
-                    <TableCell><StatusBadge status={row.status} /></TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="w-[150px]"><StatusBadge status={row.status} /></TableCell>
+                    <TableCell className="w-[220px] text-right">
                       {canUpdateCustomers ? (
                         <Button
                           type="button"
@@ -882,10 +895,40 @@ function filterStudioComparisonRowsForScope(
 
 function MoneyStack({ main, lines = [] }: { main: number; lines?: Array<[string, number]> }) {
   return (
-    <div className="space-y-1">
-      <p className="font-bold text-slate-950">{formatCurrency(main)}</p>
+    <div className="min-w-0 space-y-1 tabular-nums">
+      <p className="whitespace-nowrap font-bold text-slate-950">{formatCurrency(main)}</p>
       {lines.map(([label, value]) => (
-        <p key={label} className="text-xs text-slate-400">{label}: {formatCurrency(value)}</p>
+        <p key={label} className="flex min-w-0 items-center justify-between gap-2 text-xs text-slate-400">
+          <span className="truncate">{label}:</span>
+          <span className="shrink-0 text-slate-500">{formatCurrency(value)}</span>
+        </p>
+      ))}
+    </div>
+  );
+}
+
+function RegisteredBreakdown({
+  hunter,
+  farmerRenewal,
+  studioMaintenance,
+}: {
+  hunter: number;
+  farmerRenewal: number;
+  studioMaintenance: number;
+}) {
+  const items = [
+    ["Hunter", hunter],
+    ["Renov.", farmerRenewal],
+    ["Studio Manut.", studioMaintenance],
+  ] as const;
+
+  return (
+    <div className="w-full space-y-1 text-xs tabular-nums text-slate-500">
+      {items.map(([label, value]) => (
+        <p key={label} className="grid grid-cols-[92px_minmax(0,1fr)] items-center gap-2">
+          <span className="truncate">{label}:</span>
+          <strong className="min-w-0 whitespace-nowrap text-right text-slate-900">{formatCurrency(value)}</strong>
+        </p>
       ))}
     </div>
   );
@@ -1036,6 +1079,38 @@ function getFocusedTotals(rows: BoardComparisonRow[], mode: BaselineComparisonMo
       peopleDelta: totals.peopleDelta + focused.peopleDelta,
     };
   }, { baseline: 0, registered: 0, allocatedPeople: 0, delta: 0, peopleDelta: 0 });
+}
+
+function sortBoardComparisonRows(
+  rows: BoardComparisonRow[],
+  sortState: SortState<BoardComparisonSortKey>,
+  mode: BaselineComparisonMode,
+) {
+  if (!sortState) return rows;
+  return sortRows(rows, sortState.direction, (first, second) => {
+    const firstFocused = getFocusedValues(first, mode);
+    const secondFocused = getFocusedValues(second, mode);
+    if (sortState.key === "customer") return compareText(first.customerName, second.customerName);
+    if (sortState.key === "baseline") return compareNumber(firstFocused.baseline, secondFocused.baseline);
+    if (sortState.key === "registered") return compareNumber(firstFocused.registered, secondFocused.registered);
+    if (sortState.key === "allocated") return compareNumber(firstFocused.allocatedPeople, secondFocused.allocatedPeople);
+    if (sortState.key === "delta") return compareNumber(firstFocused.delta, secondFocused.delta);
+    if (sortState.key === "peopleDelta") return compareNumber(firstFocused.peopleDelta, secondFocused.peopleDelta);
+    if (sortState.key === "breakdown") return compareNumber(first.registeredStudioMaintenanceTarget, second.registeredStudioMaintenanceTarget);
+    return compareText(getBoardComparisonStatusLabel(first.status), getBoardComparisonStatusLabel(second.status));
+  });
+}
+
+function sortRows<T>(rows: T[], direction: SortDirection, compare: (first: T, second: T) => number) {
+  return [...rows].sort((first, second) => (direction === "asc" ? 1 : -1) * compare(first, second));
+}
+
+function compareNumber(first: number, second: number) {
+  return first - second;
+}
+
+function compareText(first: string, second: string) {
+  return first.localeCompare(second, "pt-BR");
 }
 
 function getModeLabel(mode: BaselineComparisonMode) {

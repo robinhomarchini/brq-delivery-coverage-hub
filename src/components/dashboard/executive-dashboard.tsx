@@ -113,7 +113,6 @@ export function ExecutiveDashboard() {
       revenueTarget: plans.reduce((total, customer) => total + getCustomerTarget(customer), 0),
       hunterRevenue: plans.reduce((total, customer) => total + customer.hunterTarget, 0),
       deliveryFarmerRevenue: plans.reduce((total, customer) => total + customer.farmerRenewalTarget, 0),
-      studioRevenue: plans.reduce((total, customer) => total + customer.studioTarget, 0),
     };
   })
     .filter((item) => item.revenueTarget > 0)
@@ -126,7 +125,6 @@ export function ExecutiveDashboard() {
         revenueTarget: plans.reduce((total, customer) => total + getCustomerTarget(customer), 0),
         hunterRevenue: plans.reduce((total, customer) => total + customer.hunterTarget, 0),
         deliveryFarmerRevenue: plans.reduce((total, customer) => total + customer.farmerRenewalTarget, 0),
-        studioRevenue: plans.reduce((total, customer) => total + customer.studioTarget, 0),
       };
     })
     .filter((item) => item.revenueTarget > 0)
@@ -255,8 +253,7 @@ export function ExecutiveDashboard() {
                 <Tooltip cursor={{ fill: "#f1f5f9" }} formatter={(value) => formatCurrency(Number(value))} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Bar dataKey="hunterRevenue" name="Hunter" stackId="total" fill="#EE7C38" radius={[0, 0, 0, 0]} />
-                <Bar dataKey="deliveryFarmerRevenue" name="Delivery/Farmer" stackId="total" fill="#7F2EC9" radius={[0, 0, 0, 0]} />
-                <Bar dataKey="studioRevenue" name="Áreas / Studios" stackId="total" fill="#06B6D4" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="deliveryFarmerRevenue" name="Delivery/Farmer" stackId="total" fill="#7F2EC9" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer> : <ChartPlaceholder />}
           </ChartCard>
@@ -270,8 +267,7 @@ export function ExecutiveDashboard() {
                 <Tooltip cursor={{ fill: "#f1f5f9" }} formatter={(value) => formatCurrency(Number(value))} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Bar dataKey="hunterRevenue" name="Hunter" stackId="total" fill="#EE7C38" radius={[0, 0, 0, 0]} />
-                <Bar dataKey="deliveryFarmerRevenue" name="Delivery/Farmer" stackId="total" fill="#7F2EC9" radius={[0, 0, 0, 0]} />
-                <Bar dataKey="studioRevenue" name="Áreas / Studios" stackId="total" fill="#06B6D4" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="deliveryFarmerRevenue" name="Delivery/Farmer" stackId="total" fill="#7F2EC9" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer> : <ChartPlaceholder />}
           </ChartCard>

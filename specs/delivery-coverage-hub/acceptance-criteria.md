@@ -451,8 +451,10 @@
 - O Dashboard Executivo exibe a visão financeira por Diretor e por
   subordinado/manager.
 - O Dashboard Executivo deriva a visão financeira de Clientes/metas anuais e
-  mostra Hunter, Renovação + Ampliação e Áreas / Studios sem usar fonte
-  financeira paralela.
+  mostra Hunter e Renovação + Ampliação sem usar fonte financeira paralela.
+  Áreas / Studios pode aparecer como abertura informativa nas telas próprias,
+  mas não soma como terceira parcela nos totais agregados de cliente, diretor,
+  subordinado/manager, relatórios ou batimentos gerais.
 - O Dashboard Executivo exibe os totais do board para 2026 como baseline oficial:
   Hunter R$ 110.525.090, Renovação + Ampliação R$ 427.744.200 e Total
   R$ 538.269.290, além do total cadastrado no sistema e diferença.

@@ -1007,6 +1007,9 @@ Dashboards:
 - A visão financeira por Cliente/Cluster compara o Baseline Board contra o total
   alocado em pessoas, usando a mesma regra contida de Hunter/Studio da tela
   Clientes. Ela não deve usar `customer.revenue` como proxy de alocação.
+- As visões financeiras agregadas por Diretor e por Subordinado/Manager devem
+  empilhar somente Hunter e Renovação + Ampliação. Áreas/Studios são aberturas
+  contidas nessas metas e não podem somar como terceira parcela no gráfico.
 - Top clusters por Meta Prevista.
 - Tabela executiva por cluster de cliente.
 
