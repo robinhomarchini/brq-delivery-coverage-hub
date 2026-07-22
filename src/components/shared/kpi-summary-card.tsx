@@ -37,6 +37,9 @@ export function KpiSummaryCard({
   const displayValue = currencyValue === undefined ? String(value ?? "") : formatCompactCurrency(currencyValue);
   const accessibleValue = fullValue ?? (currencyValue === undefined ? displayValue : formatCurrency(currencyValue));
   const classes = toneClasses[tone];
+  const valueClassName = currencyValue === undefined
+    ? "text-2xl sm:text-[1.65rem]"
+    : "text-[1.35rem] sm:text-[1.45rem]";
 
   return (
     <Card className={cn("min-w-0 overflow-hidden shadow-sm", classes.card, className)}>
@@ -54,7 +57,7 @@ export function KpiSummaryCard({
             {label}
           </p>
           <p
-            className="mt-1.5 min-w-0 max-w-full overflow-hidden text-ellipsis whitespace-nowrap text-2xl font-black leading-none tracking-normal text-slate-950 tabular-nums sm:text-[1.65rem]"
+            className={cn("mt-1.5 min-w-0 max-w-full whitespace-nowrap font-black leading-none tracking-normal text-slate-950 tabular-nums", valueClassName)}
             title={accessibleValue}
             aria-label={`${label}: ${accessibleValue}`}
           >

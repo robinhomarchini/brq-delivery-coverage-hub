@@ -18,7 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ErrorNotice, SuccessNotice } from "@/components/shared/success-notice";
 import { useDeliveryStore } from "@/store/delivery-store";
 import { useAccess } from "@/lib/access-context";
-import { getCustomerTotalTargetFromParts } from "@/lib/customer-target-total";
+import { customerCountsTowardTarget, getCustomerTotalTargetFromParts } from "@/lib/customer-target-total";
 import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears } from "@/lib/customer-targets";
 import { buildHunterAccessScope } from "@/lib/hunter-access-scope";
 import { getCustomerAllocationComposition, getCustomerTargetBreakdown } from "@/lib/customers/customer-coverage-view-model";
@@ -75,6 +75,7 @@ export function BaselineComparison() {
   const [search, setSearch] = useState("");
   const [mode, setMode] = useState<BaselineComparisonMode>("client");
   const [status, setStatus] = useState("");
+  const [includeNewLogos, setIncludeNewLogos] = useState(false);
   const [boardSortState, setBoardSortState] = useState<SortState<BoardComparisonSortKey>>({ key: "customer", direction: "asc" });
   const [studioSourceCode, setStudioSourceCode] = useState<StudioBaselineSourceCode>("studio_general");
   const [dismissedStudioSnapshotId, setDismissedStudioSnapshotId] = useState("");
@@ -104,6 +105,14 @@ export function BaselineComparison() {
     () => new Set(scopedYearCustomers.map((customer) => normalizeBusinessName(customer.name))),
     [scopedYearCustomers],
   );
+  const boardComparisonCustomers = useMemo(
+    () => scopedYearCustomers.filter((customer) => includeNewLogos || customerCountsTowardTarget(customer)),
+    [includeNewLogos, scopedYearCustomers],
+  );
+  const boardComparisonCustomerNames = useMemo(
+    () => new Set(boardComparisonCustomers.map((customer) => normalizeBusinessName(customer.name))),
+    [boardComparisonCustomers],
+  );
   const scopedStudioTargetAllocations = useMemo(
     () => hunterScope.enabled
       ? studioTargetAllocations.filter((allocation) => hunterScope.customerIds.has(allocation.customerId))
@@ -118,19 +127,19 @@ export function BaselineComparison() {
   );
   const activeBaselineRows = boardTargetBaselines;
   const scopedBoardBaselineRows = useMemo(
-    () => filterBoardBaselineRowsForScope(activeBaselineRows, scopedCustomerNames, hunterScope.enabled),
-    [activeBaselineRows, hunterScope.enabled, scopedCustomerNames],
+    () => filterBoardBaselineRowsForScope(activeBaselineRows, boardComparisonCustomerNames, hunterScope.enabled),
+    [activeBaselineRows, boardComparisonCustomerNames, hunterScope.enabled],
   );
-  const registeredTotals = useMemo(() => getRegisteredTargetTotals(scopedYearCustomers), [scopedYearCustomers]);
+  const registeredTotals = useMemo(() => getRegisteredTargetTotals(boardComparisonCustomers), [boardComparisonCustomers]);
   const rows = useMemo(() => enrichBoardComparisonRows(
-    buildBoardTargetComparisonRows(scopedYearCustomers, year, scopedBoardBaselineRows),
-    scopedYearCustomers,
+    buildBoardTargetComparisonRows(boardComparisonCustomers, year, scopedBoardBaselineRows),
+    boardComparisonCustomers,
     people,
     scopedTargetAllocations,
     scopedStudioTargetAllocations,
     areas,
     year,
-  ), [areas, people, scopedBoardBaselineRows, scopedStudioTargetAllocations, scopedTargetAllocations, scopedYearCustomers, year]);
+  ), [areas, boardComparisonCustomers, people, scopedBoardBaselineRows, scopedStudioTargetAllocations, scopedTargetAllocations, year]);
   const filteredRows = useMemo(() => rows.filter((row) => {
     const query = search.toLowerCase();
     return (!query || `${row.customerName} ${row.registeredCustomerName}`.toLowerCase().includes(query))
@@ -392,6 +401,7 @@ export function BaselineComparison() {
           search={search}
           mode={mode}
           status={status}
+          includeNewLogos={includeNewLogos}
           registeredTotals={registeredTotals}
           focusedTotals={focusedTotals}
           filteredRows={sortedBoardRows}
@@ -404,6 +414,7 @@ export function BaselineComparison() {
           onSearchChange={setSearch}
           onModeChange={setMode}
           onStatusChange={setStatus}
+          onIncludeNewLogosChange={setIncludeNewLogos}
           onSortChange={setBoardSortState}
           onUpdateCustomer={updateCustomerFromBaseline}
         />
@@ -471,6 +482,7 @@ function BoardBaselineSection({
   search,
   mode,
   status,
+  includeNewLogos,
   registeredTotals,
   focusedTotals,
   filteredRows,
@@ -483,6 +495,7 @@ function BoardBaselineSection({
   onSearchChange,
   onModeChange,
   onStatusChange,
+  onIncludeNewLogosChange,
   onSortChange,
   onUpdateCustomer,
 }: {
@@ -491,6 +504,7 @@ function BoardBaselineSection({
   search: string;
   mode: BaselineComparisonMode;
   status: string;
+  includeNewLogos: boolean;
   registeredTotals: ReturnType<typeof getRegisteredTargetTotals>;
   focusedTotals: ReturnType<typeof getFocusedTotals>;
   filteredRows: BoardComparisonRow[];
@@ -503,6 +517,7 @@ function BoardBaselineSection({
   onSearchChange: (search: string) => void;
   onModeChange: (mode: BaselineComparisonMode) => void;
   onStatusChange: (status: string) => void;
+  onIncludeNewLogosChange: (include: boolean) => void;
   onSortChange: Dispatch<SetStateAction<SortState<BoardComparisonSortKey>>>;
   onUpdateCustomer: (row: ComparisonRow) => void;
 }) {
@@ -531,6 +546,26 @@ function BoardBaselineSection({
               A coluna <span className="font-semibold">Alocado em Pessoas</span> mostra a soma operacional das metas distribuídas nas pessoas, respeitando Studios contidos.
             </p>
           </div>
+        </div>
+      </Card>
+
+      <Card className="mb-5 p-4 shadow-sm">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-slate-900">New Logos</p>
+            <p className="text-xs text-slate-500">
+              New Logos ficam no controle e podem ajudar na realização do ano, mas não compõem a meta oficial planejada. Ative para incluí-los nos KPIs, tabela e exportação.
+            </p>
+          </div>
+          <label className="inline-flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
+            <input
+              type="checkbox"
+              className="h-4 w-4 rounded border-slate-300 text-brq-purple focus:ring-brq-purple"
+              checked={includeNewLogos}
+              onChange={(event) => onIncludeNewLogosChange(event.target.checked)}
+            />
+            Incluir New Logos
+          </label>
         </div>
       </Card>
 

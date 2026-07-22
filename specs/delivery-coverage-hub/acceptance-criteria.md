@@ -442,8 +442,9 @@
 - Na tela Clientes, cliente marcado como New Logo permanece visível no cadastro
   e nos controles, aparece com a indicação "(New Logo)" abaixo do nome e não
   gera pendência de batimento de meta naquele ano.
-- Relatório de Metas e Dashboard Executivo iniciam sem New Logos nos totais,
-  consultas e exportações, e oferecem uma opção explícita "Incluir New Logos".
+- Relatório de Metas, Dashboard Executivo e Comparativo Baseline iniciam sem
+  New Logos nos totais, consultas e exportações, e oferecem uma opção explícita
+  "Incluir New Logos".
 - A tela Metas por Pessoa também inicia sem New Logos na grade, no filtro
   "Cliente em foco", no combo de inclusão e na exportação. New Logos só aparecem
   nessa tela quando a opção "Incluir New Logos" estiver marcada.
