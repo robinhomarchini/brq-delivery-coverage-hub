@@ -198,7 +198,7 @@ export function buildOfficialRowsForView({
       });
     }
 
-    return buildOfficialGroupedRows(directorDetailRows.map((row) => ({
+    return buildOfficialGroupedRows(normalizeDirectorDetailRowsForContainedStudio(directorDetailRows).map((row) => ({
       executive: row.personName,
       customerName: row.customerName,
       billingCustomer: getOfficialBillingCustomerForSegment(row.segment, row.areaName),
@@ -260,6 +260,43 @@ export function buildOfficialRowsForView({
     areaNames,
     year,
   });
+}
+
+function normalizeDirectorDetailRowsForContainedStudio(rows: OfficialDirectorDetailRow[]) {
+  const studioHunterByPersonCustomer = new Map<string, number>();
+  const studioMaintenanceByPersonCustomer = new Map<string, number>();
+
+  rows.forEach((row) => {
+    const key = getDirectorDetailPersonCustomerKey(row);
+    if (row.segment === "Studio Hunter") {
+      studioHunterByPersonCustomer.set(key, (studioHunterByPersonCustomer.get(key) ?? 0) + row.amount);
+    }
+    if (row.segment === "Studio Manutenção") {
+      studioMaintenanceByPersonCustomer.set(key, (studioMaintenanceByPersonCustomer.get(key) ?? 0) + row.amount);
+    }
+  });
+
+  return rows
+    .map((row) => {
+      if (row.segment === "Meta Hunter") {
+        return {
+          ...row,
+          amount: Math.max(row.amount - (studioHunterByPersonCustomer.get(getDirectorDetailPersonCustomerKey(row)) ?? 0), 0),
+        };
+      }
+      if (row.segment === "Renovação + Ampliação") {
+        return {
+          ...row,
+          amount: Math.max(row.amount - (studioMaintenanceByPersonCustomer.get(getDirectorDetailPersonCustomerKey(row)) ?? 0), 0),
+        };
+      }
+      return row;
+    })
+    .filter((row) => row.amount > 0.01);
+}
+
+function getDirectorDetailPersonCustomerKey(row: OfficialDirectorDetailRow) {
+  return `${row.personId || row.personName}\u0000${row.customerName}`;
 }
 
 function getOfficialPeopleRowsFromDirectorDetails(rows: OfficialDirectorDetailRow[]) {

@@ -38,7 +38,7 @@ async function generateAiResponseText(messages: AiMessage[], options: { webSearc
         temperature: config.temperature,
         text: { format: { type: "json_object" } },
         store: false,
-        ...(options.webSearch ? { tools: [{ type: "web_search_preview", search_context_size: "low" }] } : {}),
+        ...(options.webSearch ? { tools: [{ type: "web_search", search_context_size: "low" }] } : {}),
       }),
       signal: controller.signal,
     });

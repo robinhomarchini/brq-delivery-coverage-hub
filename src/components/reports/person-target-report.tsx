@@ -1880,6 +1880,29 @@ function buildDirectorDetailRows({
   const directorPersonIds = new Set(directorPeople.map((person) => person.id));
   const studioByHunterCustomer = buildStudioHunterTotalsByHunterCustomer(studioAllocations, year, people, allocations);
   const studioRenewalByPersonCustomer = buildStudioRenewalTotalsByPersonCustomer(studioAllocations, year, people, areaNames);
+  const visibleStudioHunterByPersonCustomer = new Map<string, number>();
+  const visibleStudioRenewalByPersonCustomer = new Map<string, number>();
+  studioAllocations.forEach((allocation) => {
+    if (allocation.year !== year) return;
+
+    const hunterPersonId = getEffectiveStudioHunterPersonId(allocation, people, allocations);
+    if (hunterPersonId && directorPersonIds.has(hunterPersonId) && allocation.hunterAmount > 0) {
+      const person = peopleById.get(hunterPersonId);
+      if (person && isHunterRole(person.roleType)) {
+        const key = `${hunterPersonId}:${allocation.customerId}`;
+        visibleStudioHunterByPersonCustomer.set(key, (visibleStudioHunterByPersonCustomer.get(key) ?? 0) + allocation.hunterAmount);
+      }
+    }
+
+    const maintenancePersonId = getStudioMaintenancePersonId(allocation);
+    if (!maintenancePersonId || !directorPersonIds.has(maintenancePersonId) || allocation.maintenanceAmount <= 0) return;
+    const person = peopleById.get(maintenancePersonId);
+    if (!isStudioRenewalEligibleForFarmer(areaNames.get(allocation.areaId) ?? allocation.areaId, person, {
+      explicitMaintenancePerson: allocation.maintenancePersonId === maintenancePersonId,
+    })) return;
+    const key = `${maintenancePersonId}:${allocation.customerId}`;
+    visibleStudioRenewalByPersonCustomer.set(key, (visibleStudioRenewalByPersonCustomer.get(key) ?? 0) + allocation.maintenanceAmount);
+  });
   const directAllocations = allocations.filter((allocation) =>
     allocation.year === year
     && allocation.amount > 0
@@ -1894,8 +1917,12 @@ function buildDirectorDetailRows({
       if (!person) return;
       if (allocation.type === "hunter" && !isHunterRole(person.roleType)) return;
       const inheritedAmount = allocation.type === "hunter"
-        ? studioByHunterCustomer.get(`${allocation.personId}:${allocation.customerId}`) ?? 0
-        : studioRenewalByPersonCustomer.get(`${allocation.personId}:${allocation.customerId}`) ?? 0;
+        ? visibleStudioHunterByPersonCustomer.get(`${allocation.personId}:${allocation.customerId}`)
+          ?? studioByHunterCustomer.get(`${allocation.personId}:${allocation.customerId}`)
+          ?? 0
+        : visibleStudioRenewalByPersonCustomer.get(`${allocation.personId}:${allocation.customerId}`)
+          ?? studioRenewalByPersonCustomer.get(`${allocation.personId}:${allocation.customerId}`)
+          ?? 0;
       const ownAmount = allocation.type === "hunter"
         ? getHunterOwnAmount(allocation, inheritedAmount)
         : getContainedOwnAmount(allocation.amount, inheritedAmount);

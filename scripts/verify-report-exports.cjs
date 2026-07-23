@@ -577,7 +577,7 @@ const generatedDirectorOfficialRows = buildOfficialRowsForView({
       segment: "Renovação + Ampliação",
       areaName: "",
       studioHunterName: "",
-      amount: 100,
+      amount: 125,
     },
     {
       id: "director-studio-maintenance-qa",
