@@ -52,7 +52,7 @@ const navigation = [
   { href: "/relatorio-metas", label: "Relatório de Metas", icon: ClipboardList },
   { href: "/baselines", label: "Baselines", icon: Files },
   { href: "/comparativo-baseline", label: "Baseline vs Cadastro", icon: FileSearch },
-  { href: "/auditoria-duplicatas", label: "Duplicatas de Metas", icon: ListChecks, adminOnly: true },
+  { href: "/auditoria-duplicatas", label: "Auditoria de Metas", icon: ListChecks, adminOnly: true },
   { href: "/analise-desafio", label: "Análise de Desafio", icon: BrainCircuit, vpOnly: true },
   { href: "/assuntos", label: "Assuntos", icon: Target, disabled: true },
   { href: "/mapa-cobertura", label: "Mapa de Cobertura", icon: Map, disabled: true },

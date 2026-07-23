@@ -90,12 +90,10 @@ const groups = findTargetAllocationDuplicates({
 });
 
 assert(groups.some((group) => group.issueType === "duplicate_key" && group.items.length === 2), "Duplicate audit must find exact repeated Customer + Person + Type + Year keys.");
-assert(groups.some((group) =>
-  group.issueType === "contained_studio_review"
-  && group.customerName === "Cliente Auditoria QA"
+assert(groups.filter((group) =>
+  group.customerName === "Cliente Auditoria QA"
   && group.personName === "Pessoa Auditoria QA"
-  && group.containedStudioAmount === 25
-), "Duplicate audit must flag contained Studio review groups even when the duplicated key alone is not enough.");
+).every((group) => group.issueType === "duplicate_key"), "Contained Studio with an existing person target is normal decomposition, not a duplicate issue.");
 assert(groups.some((group) =>
   group.issueType === "studio_without_person_total"
   && group.customerName === "Cliente Auditoria QA"

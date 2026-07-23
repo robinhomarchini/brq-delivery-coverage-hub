@@ -1,12 +1,15 @@
 "use client";
 
-import { AlertTriangle, ShieldCheck } from "lucide-react";
-import { useMemo } from "react";
+import Link from "next/link";
+import { AlertTriangle, ExternalLink, ShieldCheck, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/shared/page-header";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useDeliveryStore } from "@/store/delivery-store";
 import { findTargetAllocationDuplicates } from "@/lib/target-allocation-duplicates";
+import { useAccess } from "@/lib/access-context";
 import { cn, formatCurrency } from "@/lib/utils";
 
 const targetTypeLabels = {
@@ -16,7 +19,10 @@ const targetTypeLabels = {
 };
 
 export default function DuplicateTargetAuditPage() {
-  const { areas, targetAllocations, studioTargetAllocations, customers, people } = useDeliveryStore();
+  const { areas, targetAllocations, studioTargetAllocations, customers, people, deleteTargetAllocation } = useDeliveryStore();
+  const { isAdmin } = useAccess();
+  const [deletingId, setDeletingId] = useState("");
+  const [notice, setNotice] = useState<{ tone: "success" | "danger"; text: string } | null>(null);
   const duplicateGroups = useMemo(
     () => findTargetAllocationDuplicates({
       allocations: targetAllocations,
@@ -28,19 +34,65 @@ export default function DuplicateTargetAuditPage() {
     [areas, customers, people, studioTargetAllocations, targetAllocations],
   );
   const duplicateKeyGroups = duplicateGroups.filter((group) => group.issueType === "duplicate_key");
-  const containedStudioGroups = duplicateGroups.filter((group) => group.issueType === "contained_studio_review");
   const missingPersonTargetGroups = duplicateGroups.filter((group) => group.issueType === "studio_without_person_total");
-  const duplicateRows = duplicateKeyGroups.reduce((total, group) => total + Math.max(group.items.length - 1, 0), 0)
-    + containedStudioGroups.length
-    + missingPersonTargetGroups.length;
+  const duplicateRows = duplicateKeyGroups.reduce((total, group) => total + Math.max(group.items.length - 1, 0), 0);
   const duplicateAmount = duplicateGroups.reduce((total, group) => total + group.duplicateAmount, 0);
+
+  if (!isAdmin) {
+    return (
+      <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        <PageHeader
+          eyebrow="Acesso restrito"
+          title="Auditoria de Metas"
+          description="Esta auditoria pode excluir registros físicos e fica disponível somente para administradores."
+        />
+        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm font-semibold text-amber-800">
+          Você não tem permissão para acessar esta rotina.
+        </section>
+      </main>
+    );
+  }
+
+  async function handleDeleteTargetAllocation({
+    id,
+    customerName,
+    personName,
+    amount,
+  }: {
+    id: string;
+    customerName: string;
+    personName: string;
+    amount: number;
+  }) {
+    const confirmed = window.confirm([
+      "Excluir este registro físico de meta?",
+      "",
+      `Cliente: ${customerName}`,
+      `Pessoa: ${personName}`,
+      `Valor: ${formatCurrency(amount)}`,
+      `ID: ${id}`,
+      "",
+      "A ação remove apenas esta linha física. Studios contidos e outros registros da mesma chave serão preservados.",
+    ].join("\n"));
+    if (!confirmed) return;
+    setDeletingId(id);
+    setNotice(null);
+    try {
+      await deleteTargetAllocation(id);
+      setNotice({ tone: "success", text: "Registro físico excluído. A auditoria foi recalculada com os dados atuais." });
+    } catch (error) {
+      setNotice({ tone: "danger", text: error instanceof Error ? error.message : "Não foi possível excluir o registro físico." });
+    } finally {
+      setDeletingId("");
+    }
+  }
 
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       <PageHeader
         eyebrow="Auditoria temporária"
-        title="Duplicatas de Metas"
-        description="Revise metas repetidas e suspeitas de Studio contido inflando Meta Squads/Times. Esta tela apenas recomenda o que revisar; nenhuma exclusão é feita automaticamente."
+        title="Auditoria de Metas"
+        description="Revise registros físicos repetidos no grão Cliente + Pessoa + Tipo + Ano e Studios com valor sem meta total correspondente. Nada é removido automaticamente."
       />
 
       <section className="mb-6 rounded-2xl border border-sky-100 bg-sky-50/60 p-5 text-sm text-slate-700">
@@ -48,13 +100,23 @@ export default function DuplicateTargetAuditPage() {
         <p className="mt-2">
           Em Metas por Pessoa, o valor cadastrado é a meta total atual da pessoa no cliente. Studio Hunter e Studio Manutenção
           são heranças contidas nesse total. Portanto, para relatório e saneamento, a Meta Squads/Times calculada é:
-          <strong> meta total cadastrada - Studio herdado</strong>.
+          <strong> meta total cadastrada - Studio herdado</strong>. Essa decomposição normal não é duplicata e não aparece como item a remover.
         </p>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-3">
+      {notice && (
+        <section className={cn(
+          "mb-6 rounded-2xl border p-4 text-sm font-semibold",
+          notice.tone === "success" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-red-200 bg-red-50 text-red-700",
+        )}>
+          {notice.text}
+        </section>
+      )}
+
+      <section className="grid gap-4 md:grid-cols-4">
         <AuditCard label="Chaves duplicadas" value={duplicateKeyGroups.length.toString()} tone={duplicateKeyGroups.length ? "danger" : "ok"} />
-        <AuditCard label="Registros a revisar" value={duplicateRows.toString()} tone={duplicateRows ? "danger" : "ok"} />
+        <AuditCard label="Registros físicos repetidos" value={duplicateRows.toString()} tone={duplicateRows ? "danger" : "ok"} />
+        <AuditCard label="Studios sem meta total" value={missingPersonTargetGroups.length.toString()} tone={missingPersonTargetGroups.length ? "danger" : "ok"} />
         <AuditCard label="Valor a revisar" value={formatCurrency(duplicateAmount)} tone={duplicateAmount > 0.01 ? "danger" : "ok"} />
       </section>
 
@@ -63,8 +125,8 @@ export default function DuplicateTargetAuditPage() {
           <div>
             <h2 className="text-lg font-bold text-slate-950">Sugestão de saneamento</h2>
             <p className="mt-1 text-sm text-slate-500">
-              Duplicata literal mantém a maior linha da chave. Studio contido mostra quando a Meta Squads/Times pode já conter o Studio separado.
-              Studio sem meta total mostra valores de Studio que não têm linha correspondente em Metas por Pessoa.
+              Duplicata literal mantém a maior linha da chave como sugestão inicial, mas você pode escolher qual registro físico excluir.
+              Studio sem meta total é tratado como pendência de cadastro, não como duplicata.
             </p>
           </div>
           <Badge variant={duplicateGroups.length ? "warning" : "success"}>
@@ -75,11 +137,11 @@ export default function DuplicateTargetAuditPage() {
         {duplicateGroups.length === 0 ? (
           <div className="flex items-start gap-3 p-6 text-sm text-emerald-700">
             <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" />
-            <p>Nenhuma duplicata ou suspeita de Studio contido encontrada nos dados carregados pelo app.</p>
+            <p>Nenhuma duplicata física ou Studio sem meta total encontrada nos dados carregados pelo app.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <Table className="min-w-[1180px]">
+            <Table className="min-w-[1320px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Cliente</TableHead>
@@ -91,6 +153,7 @@ export default function DuplicateTargetAuditPage() {
                   <TableHead className="text-right">Studio herdado / excesso</TableHead>
                   <TableHead className="text-right">Squads/Times calculado</TableHead>
                   <TableHead>Registros</TableHead>
+                  <TableHead className="text-right">Atuar</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -152,6 +215,42 @@ export default function DuplicateTargetAuditPage() {
                         ))}
                       </div>
                     </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex flex-col items-end gap-2">
+                        <Button asChild variant="outline" size="sm">
+                          <Link href={`/metas-pessoas?personId=${encodeURIComponent(group.personId)}&customerId=${encodeURIComponent(group.customerId)}&year=${group.year}`}>
+                            <ExternalLink className="h-4 w-4" />
+                            Abrir metas
+                          </Link>
+                        </Button>
+                        {group.issueType === "studio_without_person_total" && (
+                          <Button asChild variant="outline" size="sm">
+                            <Link href={`/metas-studios?customerId=${encodeURIComponent(group.customerId)}&year=${group.year}`}>
+                              <ExternalLink className="h-4 w-4" />
+                              Abrir studios
+                            </Link>
+                          </Button>
+                        )}
+                        {group.issueType === "duplicate_key" && group.items.map((item) => (
+                          <Button
+                            key={`delete:${item.id}`}
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            disabled={deletingId === item.id}
+                            onClick={() => void handleDeleteTargetAllocation({
+                              id: item.id,
+                              customerName: group.customerName,
+                              personName: group.personName,
+                              amount: item.amount,
+                            })}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            {deletingId === item.id ? "Excluindo..." : "Excluir registro"}
+                          </Button>
+                        ))}
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -165,7 +264,7 @@ export default function DuplicateTargetAuditPage() {
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
           <p>
             Confirme visualmente estes grupos antes da limpeza. A proteção contra novas duplicatas deve ficar no banco;
-            a exclusão dos registros suspeitos será feita em uma etapa separada e auditável.
+            use os botões apenas quando tiver certeza de qual registro físico deve sair.
           </p>
         </div>
       )}
@@ -185,10 +284,9 @@ function AuditCard({ label, value, tone }: { label: string; value: string; tone:
   );
 }
 
-function getIssueTypeLabel(issueType: "duplicate_key" | "contained_studio_review" | "studio_without_person_total") {
+function getIssueTypeLabel(issueType: "duplicate_key" | "studio_without_person_total") {
   if (issueType === "duplicate_key") return "Chave repetida";
-  if (issueType === "studio_without_person_total") return "Studio sem meta total";
-  return "Studio contido";
+  return "Studio sem meta total";
 }
 
 function getRecommendedActionLabel(action: "keep" | "review_remove" | "review_create") {

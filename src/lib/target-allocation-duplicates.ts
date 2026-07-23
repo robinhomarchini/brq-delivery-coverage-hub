@@ -1,5 +1,5 @@
 import type { Area, Customer, Person, StudioTargetAllocation, TargetAllocation } from "@/data/mockData";
-import { getStudioMaintenancePersonId, isStudioRenewalEligibleForFarmer } from "@/lib/studio-renewal-rollup";
+import { getStudioMaintenancePersonId } from "@/lib/studio-renewal-rollup";
 
 export type TargetAllocationDuplicateItem = {
   id: string;
@@ -20,7 +20,7 @@ export type TargetAllocationContainedStudioItem = {
 };
 
 export type TargetAllocationDuplicateGroup = {
-  issueType: "duplicate_key" | "contained_studio_review" | "studio_without_person_total";
+  issueType: "duplicate_key" | "studio_without_person_total";
   key: string;
   customerId: string;
   customerName: string;
@@ -32,8 +32,6 @@ export type TargetAllocationDuplicateGroup = {
   suggestedAmount: number;
   duplicateAmount: number;
   containedStudioAmount?: number;
-  currentAmount?: number;
-  currentOwnAmount?: number;
   items: TargetAllocationDuplicateItem[];
   containedStudioItems?: TargetAllocationContainedStudioItem[];
 };
@@ -66,15 +64,6 @@ export function findTargetAllocationDuplicates({
   const duplicateGroups = Array.from(groups.entries())
     .filter(([, groupAllocations]) => groupAllocations.length > 1)
     .map(([key, groupAllocations]) => buildDuplicateGroup(key, groupAllocations, customersById, peopleById));
-  const containedStudioReviewGroups = Array.from(groups.values())
-    .map((groupAllocations) => buildContainedStudioReviewGroup({
-      allocation: selectContainedStudioReviewAllocation(groupAllocations),
-      customersById,
-      peopleById,
-      areasById,
-      studioAllocations,
-    }))
-    .filter((group): group is TargetAllocationDuplicateGroup => Boolean(group));
   const studioWithoutPersonTotalGroups = buildStudioWithoutPersonTotalGroups({
     studioAllocations,
     groups,
@@ -83,7 +72,7 @@ export function findTargetAllocationDuplicates({
     areasById,
   });
 
-  return [...duplicateGroups, ...containedStudioReviewGroups, ...studioWithoutPersonTotalGroups]
+  return [...duplicateGroups, ...studioWithoutPersonTotalGroups]
     .sort((first, second) =>
       first.customerName.localeCompare(second.customerName, "pt-BR")
       || first.personName.localeCompare(second.personName, "pt-BR")
@@ -190,8 +179,6 @@ function buildMissingTargetForStudioGroup({
     suggestedAmount: amount,
     duplicateAmount: amount,
     containedStudioAmount: amount,
-    currentAmount: 0,
-    currentOwnAmount: 0,
     containedStudioItems: [containedStudioItem],
     items: [{
       id: `sem-meta-total:${studio.id ?? studio.areaId}`,
@@ -243,108 +230,6 @@ function buildDuplicateGroup(
         : "Mesmo cliente, pessoa, tipo e ano; provável duplicata a remover após confirmação.",
     })),
   };
-}
-
-function buildContainedStudioReviewGroup({
-  allocation,
-  customersById,
-  peopleById,
-  areasById,
-  studioAllocations,
-}: {
-  allocation: TargetAllocation;
-  customersById: Map<string, Customer>;
-  peopleById: Map<string, Person>;
-  areasById: Map<string, Area>;
-  studioAllocations: StudioTargetAllocation[];
-}): TargetAllocationDuplicateGroup | null {
-  const person = peopleById.get(allocation.personId);
-  const containedStudioItems = getContainedStudioItemsForAllocation({
-    allocation,
-    person,
-    areasById,
-    studioAllocations,
-  });
-  const containedStudioAmount = containedStudioItems.reduce((total, item) => total + item.amount, 0);
-  const currentOwnAmount = allocation.ownAmount ?? Math.max(allocation.amount - containedStudioAmount, 0);
-  if (containedStudioAmount <= 0.01 || currentOwnAmount <= containedStudioAmount + 0.01) return null;
-
-  const customer = customersById.get(allocation.customerId);
-  const suggestedAmount = Math.max(currentOwnAmount - containedStudioAmount, 0);
-  return {
-    issueType: "contained_studio_review" as const,
-    key: `${getTargetAllocationDuplicateKey(allocation)}::contained-studio-review`,
-    customerId: allocation.customerId,
-    customerName: customer?.name ?? allocation.customerId,
-    personId: allocation.personId,
-    personName: person?.name ?? allocation.personId,
-    targetType: allocation.type,
-    year: allocation.year,
-    totalAmount: allocation.amount,
-    suggestedAmount,
-    duplicateAmount: containedStudioAmount,
-    containedStudioAmount,
-    currentAmount: allocation.amount,
-    currentOwnAmount,
-    containedStudioItems,
-    items: [{
-      id: allocation.id,
-      amount: allocation.amount,
-      ownAmount: allocation.ownAmount,
-      notes: allocation.notes,
-      recommendedAction: "review_remove",
-      reason: "Há Studio contido para a mesma pessoa/cliente. Revise se a Meta Squads/Times já inclui esse Studio.",
-    }],
-  };
-}
-
-function selectContainedStudioReviewAllocation(allocations: TargetAllocation[]) {
-  return [...allocations].sort((first, second) =>
-    second.amount - first.amount
-    || getOwnAmountOrZero(second) - getOwnAmountOrZero(first)
-    || first.id.localeCompare(second.id, "pt-BR")
-  )[0] as TargetAllocation;
-}
-
-function getContainedStudioItemsForAllocation({
-  allocation,
-  person,
-  areasById,
-  studioAllocations,
-}: {
-  allocation: TargetAllocation;
-  person?: Person;
-  areasById: Map<string, Area>;
-  studioAllocations: StudioTargetAllocation[];
-}) {
-  if (allocation.type === "hunter") {
-    return studioAllocations
-      .filter((studio) =>
-        studio.customerId === allocation.customerId
-        && studio.year === allocation.year
-        && studio.hunterPersonId === allocation.personId
-        && studio.hunterAmount > 0.01
-      )
-      .map((studio) => makeContainedStudioItem(studio, areasById, studio.hunterAmount));
-  }
-
-  if (allocation.type === "farmer_renewal") {
-    return studioAllocations
-      .filter((studio) => {
-        const maintenancePersonId = getStudioMaintenancePersonId(studio);
-        const areaName = areasById.get(studio.areaId)?.name ?? studio.areaId;
-        return studio.customerId === allocation.customerId
-          && studio.year === allocation.year
-          && maintenancePersonId === allocation.personId
-          && isStudioRenewalEligibleForFarmer(areaName, person, {
-            explicitMaintenancePerson: studio.maintenancePersonId === allocation.personId,
-          });
-      })
-      .filter((studio) => studio.maintenanceAmount > 0.01)
-      .map((studio) => makeContainedStudioItem(studio, areasById, studio.maintenanceAmount));
-  }
-
-  return [];
 }
 
 function makeContainedStudioItem(
