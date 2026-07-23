@@ -5,7 +5,6 @@ import {
   buildStudioHunterTotalsByHunterCustomer,
   buildStudioRenewalTotalsByPersonCustomer,
   getEffectiveStudioHunterPersonId,
-  getTargetOwnAmountFromAllocations,
 } from "@/lib/reports/person-target-rollups";
 
 export type ReportView = "people" | "peopleClients" | "clients" | "areas" | "hunters" | "hunterClients" | "specialistHunters" | "directors";
@@ -123,6 +122,7 @@ export type OfficialStudioAllocation = {
 const hunterOwnTotalLabel = "Meta Hunter atual";
 export const officialBusinessUnitArea = "Financial";
 export const officialDefaultBillingCustomer = "";
+export const officialSquadsTeamsBillingCustomer = "Squads/Times";
 export const officialDefaultBusinessUnit = "Financial";
 
 export function buildOfficialRowsForView({
@@ -357,7 +357,7 @@ function buildOfficialGroupedRows(items: OfficialTargetItem[]) {
           if (amounts.forceInclude || amounts.farmerRenewal + amounts.hunter > 0) rows.push(makeOfficialRow({
             executive,
             customerName: amounts.customerName,
-            billingCustomer: amounts.billingCustomer ?? officialDefaultBillingCustomer,
+            billingCustomer: amounts.billingCustomer ?? officialSquadsTeamsBillingCustomer,
             businessUnit: amounts.businessUnit ?? officialDefaultBusinessUnit,
             farmerRenewal: amounts.farmerRenewal,
             hunter: amounts.hunter,
@@ -402,15 +402,24 @@ function buildOfficialHunterItemsFromDetails(rows: OfficialHunterDetailRow[]) {
 }
 
 function getOfficialBillingCustomerForSegment(segment: string, studioName: string) {
-  return segment.includes("Studio") ? studioName : officialDefaultBillingCustomer;
+  return segment.includes("Studio") ? studioName : officialSquadsTeamsBillingCustomer;
 }
 
 function getSubtotalBillingCustomer(customerMap: Map<string, OfficialTargetItem>) {
   const billingCustomers = Array.from(customerMap.values())
     .map((item) => item.billingCustomer ?? officialDefaultBillingCustomer)
-    .filter((billingCustomer) => billingCustomer.length > 0);
+    .filter((billingCustomer) => billingCustomer.length > 0 && billingCustomer !== officialSquadsTeamsBillingCustomer);
   const uniqueBillingCustomers = new Set(billingCustomers);
   return uniqueBillingCustomers.size === 1 ? billingCustomers[0] ?? officialDefaultBillingCustomer : officialDefaultBillingCustomer;
+}
+
+function getOfficialOwnAmountFromAllocations(
+  allocations: OfficialTargetAllocation[],
+  containedAmount: number,
+) {
+  if (!allocations.length) return 0;
+  const currentAmount = Math.max(...allocations.map((allocation) => allocation.amount));
+  return Math.max(currentAmount - containedAmount, 0);
 }
 
 function buildOfficialPeopleRowsFromSources({
@@ -491,14 +500,14 @@ function buildOfficialPeopleRowsFromSources({
       const studioHunterForCustomer = customerStudioHunterAllocations.reduce((total, allocation) => total + allocation.hunterAmount, 0)
         || studioByHunterCustomer.get(`${personRow.personId}:${customerId}`)
         || 0;
-      const directHunterOwn = getTargetOwnAmountFromAllocations(
+      const directHunterOwn = getOfficialOwnAmountFromAllocations(
         personAllocations.filter((allocation) => allocation.customerId === customerId && allocation.type === "hunter"),
         studioHunterForCustomer,
       );
       const studioRenewalForCustomer = customerStudioRenewalAllocations.reduce((total, allocation) => total + allocation.maintenanceAmount, 0)
         || studioRenewalByPersonCustomer.get(`${personRow.personId}:${customerId}`)
         || 0;
-      const farmerRenewalOwn = getTargetOwnAmountFromAllocations(
+      const farmerRenewalOwn = getOfficialOwnAmountFromAllocations(
         personAllocations.filter((allocation) => allocation.customerId === customerId && allocation.type === "farmer_renewal"),
         studioRenewalForCustomer,
       );
@@ -507,7 +516,7 @@ function buildOfficialPeopleRowsFromSources({
         rows.push(makeOfficialRow({
           executive: personRow.personName,
           customerName,
-          billingCustomer: officialDefaultBillingCustomer,
+          billingCustomer: officialSquadsTeamsBillingCustomer,
           farmerRenewal: farmerRenewalOwn,
           hunter: directHunterOwn,
           rowStyle: "regular",

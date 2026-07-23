@@ -75,8 +75,8 @@ if (missingSpecialistHunterReportTokens.length) {
   throw new Error(`Specialist Hunter report is missing relationship handling: ${missingSpecialistHunterReportTokens.join(", ")}`);
 }
 
-if (!officialExportSource.includes('export const officialDefaultBillingCustomer = ""')) {
-  throw new Error("Planilha oficial must keep Cliente Faturamento blank by default for non-Studio rows.");
+if (!officialExportSource.includes('export const officialSquadsTeamsBillingCustomer = "Squads/Times"')) {
+  throw new Error("Planilha oficial must identify own Squads/Times rows in Cliente Faturamento.");
 }
 
 if (!officialExportSource.includes('export const officialDefaultBusinessUnit = "Financial"')) {
@@ -224,7 +224,7 @@ const generatedEligibleStudioRenewalRows = buildOfficialRowsForView({
   areaNames: new Map([["studio-renewal", "Studio Renovação QA"]]),
   year: 2026,
 });
-if (!generatedEligibleStudioRenewalRows.some((row) => row.executive === "Farmer QA" && row.customerName === "Cliente QA" && row.billingCustomer === "" && row.farmerRenewal === 50)) {
+if (!generatedEligibleStudioRenewalRows.some((row) => row.executive === "Farmer QA" && row.customerName === "Cliente QA" && row.billingCustomer === "Squads/Times" && row.farmerRenewal === 50)) {
   throw new Error("Generated official rows did not keep Farmer/Delivery own renewal as a separate row.");
 }
 if (!generatedEligibleStudioRenewalRows.some((row) => row.executive === "Farmer QA" && row.customerName === "Cliente QA" && row.billingCustomer === "Studio Renovação QA" && row.farmerRenewal === 20)) {
@@ -416,7 +416,7 @@ const generatedCurrentMinusStudioRows = buildOfficialRowsForView({
   ]),
   year: 2026,
 });
-if (!generatedCurrentMinusStudioRows.some((row) => row.executive === "Stale Own QA" && row.customerName === "Cliente Stale QA" && row.billingCustomer === "" && row.hunter === 200 && row.farmerRenewal === 100)) {
+if (!generatedCurrentMinusStudioRows.some((row) => row.executive === "Stale Own QA" && row.customerName === "Cliente Stale QA" && row.billingCustomer === "Squads/Times" && row.hunter === 200 && row.farmerRenewal === 100)) {
   throw new Error("Generated official rows must compute own target as current amount minus contained Studio, ignoring stale own_amount caches.");
 }
 
@@ -458,6 +458,14 @@ const generatedMultipleStudioHunterRows = buildOfficialRowsForView({
     year: 2026,
     amount: 47998066,
     ownAmount: 47998066,
+  }, {
+    id: "target-multi-studio-hunter-duplicate-qa",
+    customerId: "customer-multi-studio-qa",
+    personId: "multi-studio-hunter-qa",
+    type: "hunter",
+    year: 2026,
+    amount: 5204429,
+    ownAmount: 0,
   }],
   studioAllocations: [
     {
@@ -486,7 +494,7 @@ const generatedMultipleStudioHunterRows = buildOfficialRowsForView({
   ]),
   year: 2026,
 });
-if (!generatedMultipleStudioHunterRows.some((row) => row.executive === "Multi Studio Hunter QA" && row.customerName === "Banco QA" && row.billingCustomer === "" && row.hunter === 42793637)) {
+if (!generatedMultipleStudioHunterRows.some((row) => row.executive === "Multi Studio Hunter QA" && row.customerName === "Banco QA" && row.billingCustomer === "Squads/Times" && row.hunter === 42793637)) {
   throw new Error("Generated official rows must subtract all inherited Studio Hunter lines from the person's own customer row.");
 }
 if (!generatedMultipleStudioHunterRows.some((row) => row.executive === "Multi Studio Hunter QA" && row.customerName === "Banco QA" && row.billingCustomer === "Analytics" && row.hunter === 4804429)) {
@@ -551,7 +559,7 @@ const generatedOwnAndInheritedFarmerRows = buildOfficialRowsForView({
   areaNames: new Map([["studio-salesforce-split", "Salesforce"]]),
   year: 2026,
 });
-if (!generatedOwnAndInheritedFarmerRows.some((row) => row.executive === "Farmer Split QA" && row.customerName === "Cliente Split QA" && row.billingCustomer === "" && row.farmerRenewal === 100)) {
+if (!generatedOwnAndInheritedFarmerRows.some((row) => row.executive === "Farmer Split QA" && row.customerName === "Cliente Split QA" && row.billingCustomer === "Squads/Times" && row.farmerRenewal === 100)) {
   throw new Error("Generated official rows did not keep Farmer/Delivery own renewal as a separate row.");
 }
 if (!generatedOwnAndInheritedFarmerRows.some((row) => row.executive === "Farmer Split QA" && row.customerName === "Cliente Split QA" && row.billingCustomer === "Salesforce" && row.farmerRenewal === 25)) {
@@ -616,7 +624,7 @@ const generatedDirectorOfficialRows = buildOfficialRowsForView({
   areaNames: new Map(),
   year: 2026,
 });
-if (!generatedDirectorOfficialRows.some((row) => row.executive === "Director Person QA" && row.customerName === "Cliente Director QA" && row.billingCustomer === "" && row.farmerRenewal === 100)) {
+if (!generatedDirectorOfficialRows.some((row) => row.executive === "Director Person QA" && row.customerName === "Cliente Director QA" && row.billingCustomer === "Squads/Times" && row.farmerRenewal === 100)) {
   throw new Error("Director official rows must keep own renewal separate from inherited Studio rows.");
 }
 if (!generatedDirectorOfficialRows.some((row) => row.executive === "Director Person QA" && row.customerName === "Cliente Director QA" && row.billingCustomer === "Salesforce" && row.farmerRenewal === 25)) {
@@ -691,7 +699,7 @@ const generatedDirectorCanonicalOfficialRows = buildOfficialRowsForView({
   areaNames: new Map([["studio-director-canonical-analytics", "Analytics"]]),
   year: 2026,
 });
-if (!generatedDirectorCanonicalOfficialRows.some((row) => row.executive === "Director Canonical Hunter QA" && row.customerName === "Cliente Director Canonical QA" && row.billingCustomer === "" && row.hunter === 200)) {
+if (!generatedDirectorCanonicalOfficialRows.some((row) => row.executive === "Director Canonical Hunter QA" && row.customerName === "Cliente Director Canonical QA" && row.billingCustomer === "Squads/Times" && row.hunter === 200)) {
   throw new Error("Director official rows must compute Meta Squads/Times as current Hunter minus inherited Studio Hunter from canonical sources.");
 }
 if (!generatedDirectorCanonicalOfficialRows.some((row) => row.executive === "Director Canonical Hunter QA" && row.customerName === "Cliente Director Canonical QA" && row.billingCustomer === "Analytics" && row.hunter === 100)) {
@@ -766,7 +774,7 @@ const generatedDirectorCanonicalFarmerOfficialRows = buildOfficialRowsForView({
   areaNames: new Map([["studio-director-canonical-salesforce", "Salesforce"]]),
   year: 2026,
 });
-if (!generatedDirectorCanonicalFarmerOfficialRows.some((row) => row.executive === "Director Canonical Farmer QA" && row.customerName === "Cliente Director Farmer QA" && row.billingCustomer === "" && row.farmerRenewal === 350)) {
+if (!generatedDirectorCanonicalFarmerOfficialRows.some((row) => row.executive === "Director Canonical Farmer QA" && row.customerName === "Cliente Director Farmer QA" && row.billingCustomer === "Squads/Times" && row.farmerRenewal === 350)) {
   throw new Error("Director official rows must compute Farmer/Delivery Squads/Times as current renewal minus inherited Studio maintenance from canonical sources.");
 }
 if (!generatedDirectorCanonicalFarmerOfficialRows.some((row) => row.executive === "Director Canonical Farmer QA" && row.customerName === "Cliente Director Farmer QA" && row.billingCustomer === "Salesforce" && row.farmerRenewal === 150)) {
@@ -834,7 +842,7 @@ const generatedHunterClientOfficialRows = buildOfficialRowsForView({
   areaNames: new Map(),
   year: 2026,
 });
-if (!generatedHunterClientOfficialRows.some((row) => row.executive === "Hunter Client QA" && row.billingCustomer === "" && row.hunter === 100)) {
+if (!generatedHunterClientOfficialRows.some((row) => row.executive === "Hunter Client QA" && row.billingCustomer === "Squads/Times" && row.hunter === 100)) {
   throw new Error("Hunter x Clientes official rows must keep own Hunter target without billing Studio.");
 }
 if (!generatedHunterClientOfficialRows.some((row) => row.executive === "Hunter Client QA" && row.billingCustomer === "Google - Alianças" && row.hunter === 30)) {
@@ -1018,7 +1026,7 @@ if (generatedAutoFilter !== "A3:I9") {
 if (JSON.stringify(generatedHeaders) !== JSON.stringify(requiredOfficialColumns)) {
   throw new Error(`Generated official workbook headers mismatch: ${generatedHeaders.join(" | ")}`);
 }
-if (generatedBillingCustomer !== "" || generatedBusinessUnit !== "Financial") {
+if (generatedBillingCustomer !== "Squads/Times" || generatedBusinessUnit !== "Financial") {
   throw new Error(`Generated official workbook did not match D4/E4 defaults: D4=${generatedBillingCustomer}, E4=${generatedBusinessUnit}`);
 }
 if (generatedOwnExecutive !== "Hunter QA" || generatedOwnCustomer !== "Cliente QA" || generatedOwnFarmer !== "50" || generatedOwnHunter !== "200") {

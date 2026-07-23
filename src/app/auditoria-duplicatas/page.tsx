@@ -1,0 +1,144 @@
+"use client";
+
+import { AlertTriangle, ShieldCheck } from "lucide-react";
+import { useMemo } from "react";
+import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/shared/page-header";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useDeliveryStore } from "@/store/delivery-store";
+import { findTargetAllocationDuplicates } from "@/lib/target-allocation-duplicates";
+import { cn, formatCurrency } from "@/lib/utils";
+
+const targetTypeLabels = {
+  hunter: "Hunter",
+  farmer_renewal: "Renovação + Ampliação",
+  studio: "Studio",
+};
+
+export default function DuplicateTargetAuditPage() {
+  const { targetAllocations, customers, people } = useDeliveryStore();
+  const duplicateGroups = useMemo(
+    () => findTargetAllocationDuplicates({ allocations: targetAllocations, customers, people }),
+    [customers, people, targetAllocations],
+  );
+  const duplicateRows = duplicateGroups.reduce((total, group) => total + Math.max(group.items.length - 1, 0), 0);
+  const duplicateAmount = duplicateGroups.reduce((total, group) => total + group.duplicateAmount, 0);
+
+  return (
+    <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <PageHeader
+        eyebrow="Auditoria temporária"
+        title="Duplicatas de Metas"
+        description="Revise metas repetidas no grão Cliente + Pessoa + Tipo + Ano. Esta tela apenas recomenda o que manter e o que revisar; nenhuma exclusão é feita automaticamente."
+      />
+
+      <section className="grid gap-4 md:grid-cols-3">
+        <AuditCard label="Chaves duplicadas" value={duplicateGroups.length.toString()} tone={duplicateGroups.length ? "danger" : "ok"} />
+        <AuditCard label="Registros a revisar" value={duplicateRows.toString()} tone={duplicateRows ? "danger" : "ok"} />
+        <AuditCard label="Valor suspeito" value={formatCurrency(duplicateAmount)} tone={duplicateAmount > 0.01 ? "danger" : "ok"} />
+      </section>
+
+      <section className="mt-6 rounded-2xl border bg-white shadow-sm">
+        <div className="flex flex-col gap-3 border-b p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-slate-950">Sugestão de saneamento</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Critério temporário: manter o maior valor atual da chave e revisar os demais registros.
+            </p>
+          </div>
+          <Badge variant={duplicateGroups.length ? "warning" : "success"}>
+            {duplicateGroups.length ? "Aguardando confirmação" : "Sem duplicatas"}
+          </Badge>
+        </div>
+
+        {duplicateGroups.length === 0 ? (
+          <div className="flex items-start gap-3 p-6 text-sm text-emerald-700">
+            <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" />
+            <p>Nenhuma duplicata encontrada nos dados carregados pelo app.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table className="min-w-[1180px]">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Pessoa</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Ano</TableHead>
+                  <TableHead className="text-right">Soma atual</TableHead>
+                  <TableHead className="text-right">Sugerido</TableHead>
+                  <TableHead className="text-right">Suspeito</TableHead>
+                  <TableHead>Registros</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {duplicateGroups.map((group) => (
+                  <TableRow key={group.key} className="align-top">
+                    <TableCell>
+                      <p className="font-bold text-slate-950">{group.customerName}</p>
+                      <p className="mt-1 text-xs text-slate-400">{group.customerId}</p>
+                    </TableCell>
+                    <TableCell>
+                      <p className="font-semibold text-slate-800">{group.personName}</p>
+                      <p className="mt-1 text-xs text-slate-400">{group.personId}</p>
+                    </TableCell>
+                    <TableCell>{targetTypeLabels[group.targetType]}</TableCell>
+                    <TableCell>{group.year}</TableCell>
+                    <TableCell className="text-right font-semibold tabular-nums">{formatCurrency(group.totalAmount)}</TableCell>
+                    <TableCell className="text-right font-semibold tabular-nums text-emerald-700">{formatCurrency(group.suggestedAmount)}</TableCell>
+                    <TableCell className="text-right font-semibold tabular-nums text-red-700">{formatCurrency(group.duplicateAmount)}</TableCell>
+                    <TableCell>
+                      <div className="space-y-2">
+                        {group.items.map((item) => (
+                          <div key={item.id} className={cn(
+                            "rounded-xl border p-3",
+                            item.recommendedAction === "keep" ? "border-emerald-100 bg-emerald-50/70" : "border-amber-100 bg-amber-50/70",
+                          )}>
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <span className="break-all font-mono text-xs text-slate-600">{item.id}</span>
+                              <Badge variant={item.recommendedAction === "keep" ? "success" : "warning"}>
+                                {item.recommendedAction === "keep" ? "Manter" : "Revisar remoção"}
+                              </Badge>
+                            </div>
+                            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
+                              <span>Atual: <strong>{formatCurrency(item.amount)}</strong></span>
+                              <span>Squads/Times: <strong>{formatCurrency(item.ownAmount ?? item.amount)}</strong></span>
+                            </div>
+                            <p className="mt-2 text-xs text-slate-500">{item.reason}</p>
+                            {item.notes && <p className="mt-1 text-xs text-slate-400">{item.notes}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </section>
+
+      {duplicateGroups.length > 0 && (
+        <div className="mt-5 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" />
+          <p>
+            Confirme visualmente estes grupos antes da limpeza. A proteção contra novas duplicatas deve ficar no banco;
+            a exclusão dos registros suspeitos será feita em uma etapa separada e auditável.
+          </p>
+        </div>
+      )}
+    </main>
+  );
+}
+
+function AuditCard({ label, value, tone }: { label: string; value: string; tone: "ok" | "danger" }) {
+  return (
+    <div className={cn(
+      "rounded-2xl border bg-white p-5 shadow-sm",
+      tone === "danger" ? "border-red-100 bg-red-50/40" : "border-emerald-100 bg-emerald-50/30",
+    )}>
+      <p className="text-xs font-bold uppercase tracking-wide text-slate-400">{label}</p>
+      <p className="mt-3 break-words text-3xl font-black tracking-normal text-slate-950">{value}</p>
+    </div>
+  );
+}

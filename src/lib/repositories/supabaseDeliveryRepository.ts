@@ -313,14 +313,35 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
 
   async saveTargetAllocation(allocation: TargetAllocation) {
     const validated = validateTargetAllocation(allocation);
-    const { error } = await this.client.from("revenue_target_allocations").upsert(toTargetAllocationRow(validated));
+    const existing = await this.findCanonicalTargetAllocation(validated.customerId, validated.personId, validated.type, validated.year);
+    const row = toTargetAllocationRow({
+      ...validated,
+      id: existing?.id ?? validated.id,
+    });
+    const { error } = await this.client.from("revenue_target_allocations").upsert(row);
     if (error) throw error;
-    return validated;
+    return fromTargetAllocationRow(row);
   }
 
   async deleteTargetAllocation(id: string) {
     const { error } = await this.client.from("revenue_target_allocations").delete().eq("id", id);
     if (error) throw error;
+  }
+
+  private async findCanonicalTargetAllocation(customerId: string, personId: string, type: TargetAllocationType, year: number) {
+    const { data, error } = await this.client
+      .from("revenue_target_allocations")
+      .select("*")
+      .eq("customer_id", customerId)
+      .eq("person_id", personId)
+      .eq("target_type", type)
+      .eq("target_year", year)
+      .order("amount", { ascending: false })
+      .order("id", { ascending: true })
+      .limit(1);
+    if (error) throw error;
+    const [row] = (data ?? []) as TargetAllocationRow[];
+    return row ? fromTargetAllocationRow(row) : null;
   }
 
   async saveStudioTargetAllocation(allocation: StudioTargetAllocation) {
@@ -912,18 +933,19 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
     allocations: TargetAllocation[],
     ownAmount?: number,
   ) {
-    const existing = allocations.find((allocation) =>
+    const matchingAllocations = allocations.filter((allocation) =>
       allocation.customerId === input.customerId
       && allocation.personId === input.personId
       && allocation.type === type
       && allocation.year === input.year
     );
+    const existing = getCanonicalTargetAllocation(matchingAllocations);
 
     if (amount <= 0) {
-      if (existing) {
-        const { error } = await this.client.from("revenue_target_allocations").delete().eq("id", existing.id);
+      await Promise.all(matchingAllocations.map(async (allocation) => {
+        const { error } = await this.client.from("revenue_target_allocations").delete().eq("id", allocation.id);
         if (error) throw error;
-      }
+      }));
       return;
     }
 
@@ -949,20 +971,11 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
 
   private async syncHunterTargetTotalForStudio(customerId: string, hunterPersonId: string | undefined, year: number) {
     if (!hunterPersonId) return;
-    const [{ data: existingData, error: existingError }, studioHunterAmount] = await Promise.all([
-      this.client
-        .from("revenue_target_allocations")
-        .select("*")
-        .eq("customer_id", customerId)
-        .eq("person_id", hunterPersonId)
-        .eq("target_type", "hunter")
-        .eq("target_year", year)
-        .maybeSingle(),
+    const [existing, studioHunterAmount] = await Promise.all([
+      this.findCanonicalTargetAllocation(customerId, hunterPersonId, "hunter", year),
       this.getStudioHunterAmount(customerId, hunterPersonId, year),
     ]);
-    if (existingError) throw existingError;
 
-    const existing = existingData ? fromTargetAllocationRow(existingData as TargetAllocationRow) : null;
     const ownAmount = roundCurrency(Math.max((existing?.amount ?? 0) - studioHunterAmount, 0));
     const totalAmount = roundCurrency(ownAmount + studioHunterAmount);
 
@@ -1002,20 +1015,11 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
 
   private async syncFarmerRenewalTargetTotalForStudio(customerId: string, personId: string | undefined, year: number) {
     if (!personId) return;
-    const [{ data: existingData, error: existingError }, studioRenewalAmount] = await Promise.all([
-      this.client
-        .from("revenue_target_allocations")
-        .select("*")
-        .eq("customer_id", customerId)
-        .eq("person_id", personId)
-        .eq("target_type", "farmer_renewal")
-        .eq("target_year", year)
-        .maybeSingle(),
+    const [existing, studioRenewalAmount] = await Promise.all([
+      this.findCanonicalTargetAllocation(customerId, personId, "farmer_renewal", year),
       this.getEligibleStudioRenewalAmount(customerId, personId, year),
     ]);
-    if (existingError) throw existingError;
 
-    const existing = existingData ? fromTargetAllocationRow(existingData as TargetAllocationRow) : null;
     const ownAmount = getTargetOwnAmount(existing ?? undefined, studioRenewalAmount);
     const totalAmount = roundCurrency(ownAmount + studioRenewalAmount);
 
@@ -1350,6 +1354,14 @@ function fromTargetAllocationRow(row: TargetAllocationRow): TargetAllocation {
     ownAmount: row.own_amount == null ? undefined : Number(row.own_amount),
     notes: row.notes ?? undefined,
   };
+}
+
+function getCanonicalTargetAllocation(allocations: TargetAllocation[]) {
+  return [...allocations].sort((first, second) =>
+    second.amount - first.amount
+    || (second.ownAmount ?? 0) - (first.ownAmount ?? 0)
+    || first.id.localeCompare(second.id, "pt-BR")
+  )[0] ?? null;
 }
 
 function toStudioTargetAllocationRow(allocation: StudioTargetAllocation): StudioTargetAllocationRow {

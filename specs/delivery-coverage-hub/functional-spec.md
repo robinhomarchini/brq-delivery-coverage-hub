@@ -1135,6 +1135,12 @@ em `people`, `customers` ou `revenue_plans`; essas telas devem somar os valores
 a partir da tabela normalizada quando precisarem de visão por cliente, pessoa,
 tipo ou ano.
 
+Cada meta direta deve existir no grão único Cliente + Pessoa + Tipo + Ano. A
+aplicação deve reutilizar a linha existente quando salvar esse mesmo grão, e o
+banco deve impedir novas duplicatas. Enquanto houver suspeita de dados legados
+duplicados, uma tela temporária de auditoria pode listar as chaves repetidas e
+sugerir o registro canônico, sem exclusão automática.
+
 O app deriva:
 
 - `person.clientIds` a partir de `person_customer_assignments`;

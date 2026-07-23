@@ -395,17 +395,17 @@ export class LocalDeliveryRepository implements DeliveryRepository {
   }
 
   private replaceTargetAmount(input: PersonCustomerTargetsInput, type: "hunter" | "farmer_renewal" | "studio", amount: number, ownAmount?: number) {
-    const existing = this.data.targetAllocations.find((item) =>
+    const matchingAllocations = this.data.targetAllocations.filter((item) =>
       item.customerId === input.customerId
       && item.personId === input.personId
       && item.type === type
       && item.year === input.year
     );
+    const existing = getCanonicalTargetAllocation(matchingAllocations);
 
     if (amount <= 0) {
-      if (existing) {
-        this.data.targetAllocations = this.data.targetAllocations.filter((item) => item.id !== existing.id);
-      }
+      const matchingIds = new Set(matchingAllocations.map((item) => item.id));
+      this.data.targetAllocations = this.data.targetAllocations.filter((item) => !matchingIds.has(item.id));
       return;
     }
 
@@ -532,6 +532,14 @@ function ensureUniqueTargetAllocation(items: TargetAllocation[], allocation: Tar
   if (duplicate) {
     throw new Error("Já existe uma meta para este cliente, pessoa, tipo e ano.");
   }
+}
+
+function getCanonicalTargetAllocation(allocations: TargetAllocation[]) {
+  return [...allocations].sort((first, second) =>
+    second.amount - first.amount
+    || (second.ownAmount ?? 0) - (first.ownAmount ?? 0)
+    || first.id.localeCompare(second.id, "pt-BR")
+  )[0] ?? null;
 }
 
 function getCustomerTarget(customer: Customer) {
