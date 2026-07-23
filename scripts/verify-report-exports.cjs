@@ -90,10 +90,11 @@ if (!officialExportSource.includes("billingCustomer: studioName") || !officialEx
 const requiredOfficialPeopleFlowTokens = [
   "buildOfficialPeopleRowsFromSources",
   'personAliasIds.has(getEffectiveStudioHunterPersonId(allocation, people, allocations) ?? "")',
+  "buildOfficialStudioRenewalTotalsByPersonCustomer",
   "executive: personRow.personName",
   "hunter: allocation.hunterAmount",
   "buildOfficialStudioMaintenanceRows",
-  "isStudioRenewalEligibleForFarmer",
+  "personAliasIds.has(maintenancePersonId ?? \"\")",
   "customerIdsInScope",
   "executive: item.studioName",
   "farmerRenewal: item.maintenanceAmount",
@@ -230,8 +231,8 @@ if (!generatedEligibleStudioRenewalRows.some((row) => row.executive === "Farmer 
 if (!generatedEligibleStudioRenewalRows.some((row) => row.executive === "Farmer QA" && row.customerName === "Cliente QA" && row.billingCustomer === "Studio Renovação QA" && row.farmerRenewal === 20)) {
   throw new Error("Generated official rows did not keep eligible Studio renewal as a separate Studio billing row.");
 }
-if (!generatedEligibleStudioRenewalRows.some((row) => row.executive === "Farmer QA" && row.customerName === "Subtotal (na meta)" && row.farmerRenewal === 50)) {
-  throw new Error("Generated official rows must subtotal Farmer/Delivery own renewal without adding inherited Studio renewal again.");
+if (!generatedEligibleStudioRenewalRows.some((row) => row.executive === "Farmer QA" && row.customerName === "Subtotal (na meta)" && row.farmerRenewal === 70)) {
+  throw new Error("Generated official rows must subtotal Farmer/Delivery total renewal, including separated inherited Studio renewal rows.");
 }
 if (generatedEligibleStudioRenewalRows.some((row) => row.executive === "Studio Renovação QA")) {
   throw new Error("Generated official rows duplicated eligible Studio renewal in the final Studio maintenance block.");
@@ -511,8 +512,8 @@ if (!generatedMultipleStudioHunterRows.some((row) => row.executive === "Multi St
 if (!generatedMultipleStudioHunterRows.some((row) => row.executive === "Multi Studio Hunter QA" && row.customerName === "Banco QA" && row.billingCustomer === "Salesforce" && row.hunter === 400000)) {
   throw new Error("Generated official rows must keep Salesforce inherited Studio Hunter as a separate billing row.");
 }
-if (!generatedMultipleStudioHunterRows.some((row) => row.executive === "Multi Studio Hunter QA" && row.customerName === "Subtotal (na meta)" && row.hunter === 42793637)) {
-  throw new Error("Generated official rows must subtotal the person's own Hunter target without adding inherited Studio Hunter again.");
+if (!generatedMultipleStudioHunterRows.some((row) => row.executive === "Multi Studio Hunter QA" && row.customerName === "Subtotal (na meta)" && row.hunter === 47998066)) {
+  throw new Error("Generated official rows must subtotal the person's total Hunter target, including separated inherited Studio Hunter rows.");
 }
 
 const generatedAliasRenewalStudioRows = buildOfficialRowsForView({
@@ -547,7 +548,7 @@ const generatedAliasRenewalStudioRows = buildOfficialRowsForView({
   }, {
     id: "ricardo-bonfim-studio-alias-qa",
     name: "Ricardo Lucio do Bonfim QA",
-    roleType: "Delivery",
+    roleType: "Hunter",
     active: true,
     clientIds: ["customer-itau-alias-qa"],
   }],
@@ -588,7 +589,7 @@ const generatedAliasRenewalStudioRows = buildOfficialRowsForView({
   year: 2026,
 });
 if (!generatedAliasRenewalStudioRows.some((row) => row.executive === "Ricardo Lucio do Bonfim QA" && row.customerName === "BANCO ITAÚ QA" && row.billingCustomer === "Squads/Times" && row.farmerRenewal === 42793637)) {
-  throw new Error("Generated official rows must subtract inherited Studio renewal even when legacy person IDs differ but name/profile match.");
+  throw new Error("Generated official rows must subtract inherited Studio renewal even when legacy person IDs or roles differ but normalized name matches.");
 }
 if (!generatedAliasRenewalStudioRows.some((row) => row.executive === "Ricardo Lucio do Bonfim QA" && row.customerName === "BANCO ITAÚ QA" && row.billingCustomer === "Analytics" && row.farmerRenewal === 4804429)) {
   throw new Error("Generated official rows must keep alias Analytics Studio renewal as a separate billing row.");
@@ -596,8 +597,8 @@ if (!generatedAliasRenewalStudioRows.some((row) => row.executive === "Ricardo Lu
 if (!generatedAliasRenewalStudioRows.some((row) => row.executive === "Ricardo Lucio do Bonfim QA" && row.customerName === "BANCO ITAÚ QA" && row.billingCustomer === "Salesforce" && row.farmerRenewal === 400000)) {
   throw new Error("Generated official rows must keep alias Salesforce Studio renewal as a separate billing row.");
 }
-if (!generatedAliasRenewalStudioRows.some((row) => row.executive === "Ricardo Lucio do Bonfim QA" && row.customerName === "Subtotal (na meta)" && row.farmerRenewal === 42793637)) {
-  throw new Error("Generated official rows must subtotal alias renewal without inherited Studio renewal.");
+if (!generatedAliasRenewalStudioRows.some((row) => row.executive === "Ricardo Lucio do Bonfim QA" && row.customerName === "Subtotal (na meta)" && row.farmerRenewal === 47998066)) {
+  throw new Error("Generated official rows must subtotal the person's total renewal target, including separated inherited Studio renewal rows.");
 }
 
 const generatedOwnAndInheritedFarmerRows = buildOfficialRowsForView({
@@ -666,8 +667,104 @@ if (!generatedOwnAndInheritedFarmerRows.some((row) => row.executive === "Farmer 
 if (!generatedOwnAndInheritedFarmerRows.some((row) => row.executive === "Farmer Split QA" && row.customerName === "Cliente Split QA" && row.billingCustomer === "Salesforce" && row.farmerRenewal === 25)) {
   throw new Error("Generated official rows did not keep inherited Studio renewal as a separate Studio billing row.");
 }
-if (!generatedOwnAndInheritedFarmerRows.some((row) => row.executive === "Farmer Split QA" && row.customerName === "Subtotal (na meta)" && row.farmerRenewal === 100)) {
-  throw new Error("Generated official rows must subtotal Farmer/Delivery own renewal without adding inherited Studio renewal again.");
+if (!generatedOwnAndInheritedFarmerRows.some((row) => row.executive === "Farmer Split QA" && row.customerName === "Subtotal (na meta)" && row.farmerRenewal === 125)) {
+  throw new Error("Generated official rows must subtotal Farmer/Delivery total renewal, including separated inherited Studio renewal rows.");
+}
+
+const generatedMultiCustomerSubtotalRows = buildOfficialRowsForView({
+  view: "people",
+  peopleRows: [{
+    personId: "multi-customer-person-qa",
+    personName: "Multi Customer Person QA",
+    email: "multi.customer.person.qa@brq.com",
+    roleType: "Hunter + Farmer",
+    directorId: undefined,
+    customerCount: 3,
+    customerNames: ["Cliente A QA", "Cliente B QA", "Cliente C QA"],
+    hunter: 440,
+    farmerRenewal: 250,
+    total: 690,
+    customerBreakdown: [],
+  }],
+  hunterRows: [],
+  hunterDetailRows: [],
+  directorDetailRows: [],
+  areaRows: [],
+  areaDetailRows: [],
+  hunterClientRows: [],
+  selectedHunterNames: [],
+  selectedAreaNames: [],
+  people: [{
+    id: "multi-customer-person-qa",
+    name: "Multi Customer Person QA",
+    roleType: "Hunter + Farmer",
+    active: true,
+    clientIds: ["customer-a-qa", "customer-b-qa", "customer-c-qa"],
+  }],
+  allocations: [
+    {
+      id: "target-multi-customer-a-hunter-qa",
+      customerId: "customer-a-qa",
+      personId: "multi-customer-person-qa",
+      type: "hunter",
+      year: 2026,
+      amount: 100,
+      ownAmount: 100,
+    },
+    {
+      id: "target-multi-customer-a-renewal-qa",
+      customerId: "customer-a-qa",
+      personId: "multi-customer-person-qa",
+      type: "farmer_renewal",
+      year: 2026,
+      amount: 200,
+      ownAmount: 200,
+    },
+    {
+      id: "target-multi-customer-b-hunter-qa",
+      customerId: "customer-b-qa",
+      personId: "multi-customer-person-qa",
+      type: "hunter",
+      year: 2026,
+      amount: 300,
+      ownAmount: 300,
+    },
+  ],
+  studioAllocations: [
+    {
+      id: "studio-multi-customer-a-qa",
+      customerId: "customer-a-qa",
+      areaId: "studio-a-qa",
+      hunterPersonId: "multi-customer-person-qa",
+      maintenancePersonId: "multi-customer-person-qa",
+      year: 2026,
+      hunterAmount: 10,
+      maintenanceAmount: 20,
+    },
+    {
+      id: "studio-multi-customer-c-qa",
+      customerId: "customer-c-qa",
+      areaId: "studio-c-qa",
+      hunterPersonId: "multi-customer-person-qa",
+      maintenancePersonId: "multi-customer-person-qa",
+      year: 2026,
+      hunterAmount: 40,
+      maintenanceAmount: 50,
+    },
+  ],
+  customerNames: new Map([
+    ["customer-a-qa", "Cliente A QA"],
+    ["customer-b-qa", "Cliente B QA"],
+    ["customer-c-qa", "Cliente C QA"],
+  ]),
+  areaNames: new Map([
+    ["studio-a-qa", "Studio A QA"],
+    ["studio-c-qa", "Studio C QA"],
+  ]),
+  year: 2026,
+});
+if (!generatedMultiCustomerSubtotalRows.some((row) => row.executive === "Multi Customer Person QA" && row.customerName === "Subtotal (na meta)" && row.hunter === 440 && row.farmerRenewal === 250)) {
+  throw new Error("Generated official rows must subtotal all customers and all inherited Studios for the person, not only the first customer block.");
 }
 
 const generatedDirectorOfficialRows = buildOfficialRowsForView({
@@ -806,8 +903,8 @@ if (!generatedDirectorCanonicalOfficialRows.some((row) => row.executive === "Dir
 if (!generatedDirectorCanonicalOfficialRows.some((row) => row.executive === "Director Canonical Hunter QA" && row.customerName === "Cliente Director Canonical QA" && row.billingCustomer === "Analytics" && row.hunter === 100)) {
   throw new Error("Director official rows must keep inherited Studio Hunter as a separate Studio billing row from canonical sources.");
 }
-if (!generatedDirectorCanonicalOfficialRows.some((row) => row.executive === "Director Canonical Hunter QA" && row.customerName === "Subtotal (na meta)" && row.hunter === 200)) {
-  throw new Error("Director official subtotal must not add inherited Studio Hunter again.");
+if (!generatedDirectorCanonicalOfficialRows.some((row) => row.executive === "Director Canonical Hunter QA" && row.customerName === "Subtotal (na meta)" && row.hunter === 300)) {
+  throw new Error("Director official subtotal must include the person's total Hunter target after showing Studio Hunter separately.");
 }
 
 const generatedDirectorCanonicalFarmerOfficialRows = buildOfficialRowsForView({
@@ -881,8 +978,8 @@ if (!generatedDirectorCanonicalFarmerOfficialRows.some((row) => row.executive ==
 if (!generatedDirectorCanonicalFarmerOfficialRows.some((row) => row.executive === "Director Canonical Farmer QA" && row.customerName === "Cliente Director Farmer QA" && row.billingCustomer === "Salesforce" && row.farmerRenewal === 150)) {
   throw new Error("Director official rows must keep inherited Studio maintenance as a separate Studio billing row from canonical sources.");
 }
-if (!generatedDirectorCanonicalFarmerOfficialRows.some((row) => row.executive === "Director Canonical Farmer QA" && row.customerName === "Subtotal (na meta)" && row.farmerRenewal === 350)) {
-  throw new Error("Director official subtotal must not add inherited Studio maintenance again.");
+if (!generatedDirectorCanonicalFarmerOfficialRows.some((row) => row.executive === "Director Canonical Farmer QA" && row.customerName === "Subtotal (na meta)" && row.farmerRenewal === 500)) {
+  throw new Error("Director official subtotal must include the person's total renewal target after showing Studio maintenance separately.");
 }
 
 const generatedHunterClientOfficialRows = buildOfficialRowsForView({

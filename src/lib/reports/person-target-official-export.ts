@@ -1,9 +1,8 @@
 import type { RoleType } from "@/data/mockData";
-import { getStudioMaintenancePersonId, isStudioRenewalEligibleForFarmer } from "@/lib/studio-renewal-rollup";
+import { getStudioMaintenancePersonId } from "@/lib/studio-renewal-rollup";
 import { normalizeBusinessName, toFileSlug } from "@/lib/utils";
 import {
   buildStudioHunterTotalsByHunterCustomer,
-  buildStudioRenewalTotalsByPersonCustomer,
   getEffectiveStudioHunterPersonId,
 } from "@/lib/reports/person-target-rollups";
 
@@ -448,7 +447,7 @@ function buildOfficialPeopleRowsFromSources({
   const personIdentityIds = buildPersonIdentityIds(people);
   const processedPersonIdentityKeys = new Set<string>();
   const studioByHunterCustomer = buildStudioHunterTotalsByHunterCustomer(studioAllocations, year, people, allocations);
-  const studioRenewalByPersonCustomer = buildStudioRenewalTotalsByPersonCustomer(studioAllocations, year, people, areaNames);
+  const studioRenewalByPersonCustomer = buildOfficialStudioRenewalTotalsByPersonCustomer(studioAllocations, year);
   const customerIdsInScope = new Set<string>();
   const rows: OfficialTargetRow[] = [];
 
@@ -501,10 +500,7 @@ function buildOfficialPeopleRowsFromSources({
           return allocation.year === year
             && allocation.customerId === customerId
             && personAliasIds.has(maintenancePersonId ?? "")
-            && allocation.maintenanceAmount > 0
-            && isStudioRenewalEligibleForFarmer(areaNames.get(allocation.areaId) ?? allocation.areaId, person, {
-              explicitMaintenancePerson: personAliasIds.has(allocation.maintenancePersonId ?? ""),
-            });
+            && allocation.maintenanceAmount > 0;
         })
         .sort((first, second) =>
           (areaNames.get(first.areaId) ?? first.areaId).localeCompare(areaNames.get(second.areaId) ?? second.areaId, "pt-BR")
@@ -549,6 +545,7 @@ function buildOfficialPeopleRowsFromSources({
             rowStyle: "regular",
           }));
           personHasRows = true;
+          personHunter += allocation.hunterAmount;
         });
 
       customerStudioRenewalAllocations.forEach((allocation) => {
@@ -562,6 +559,7 @@ function buildOfficialPeopleRowsFromSources({
             rowStyle: "regular",
           }));
           personHasRows = true;
+          personFarmer += allocation.maintenanceAmount;
         });
     });
 
@@ -622,14 +620,14 @@ function buildOfficialStudioMaintenanceRows({
   const peopleById = new Map(people.map((person) => [person.id, person]));
   const rows: OfficialTargetRow[] = [];
   const maintenanceItems = studioAllocations
-    .filter((allocation) =>
-      allocation.year === year
-      && allocation.maintenanceAmount > 0
-      && (!customerIdsInScope.size || customerIdsInScope.has(allocation.customerId))
-      && !isStudioRenewalEligibleForFarmer(areaNames.get(allocation.areaId) ?? allocation.areaId, getStudioMaintenancePersonId(allocation) ? peopleById.get(getStudioMaintenancePersonId(allocation) as string) : undefined, {
-        explicitMaintenancePerson: Boolean(allocation.maintenancePersonId),
-      })
-    )
+    .filter((allocation) => {
+      const maintenancePersonId = getStudioMaintenancePersonId(allocation);
+      const maintenancePerson = maintenancePersonId ? peopleById.get(maintenancePersonId) : undefined;
+      return allocation.year === year
+        && allocation.maintenanceAmount > 0
+        && (!customerIdsInScope.size || customerIdsInScope.has(allocation.customerId))
+        && (!maintenancePersonId || !maintenancePerson?.active);
+    })
     .map((allocation) => ({
       studioName: areaNames.get(allocation.areaId) ?? allocation.areaId,
       customerName: customerNames.get(allocation.customerId) ?? allocation.customerId,
@@ -708,8 +706,24 @@ function buildPersonIdentityIds(people: OfficialPerson[]) {
   return ids;
 }
 
-function getOfficialPersonIdentityKey(person: Pick<OfficialPerson, "name" | "roleType">) {
-  return `${normalizeBusinessName(person.name)}::${person.roleType}`;
+function buildOfficialStudioRenewalTotalsByPersonCustomer(
+  studioAllocations: OfficialStudioAllocation[],
+  year: number,
+) {
+  const totals = new Map<string, number>();
+  studioAllocations
+    .filter((allocation) => allocation.year === year && allocation.maintenanceAmount > 0)
+    .forEach((allocation) => {
+      const maintenancePersonId = getStudioMaintenancePersonId(allocation);
+      if (!maintenancePersonId) return;
+      const key = `${maintenancePersonId}:${allocation.customerId}`;
+      totals.set(key, (totals.get(key) ?? 0) + allocation.maintenanceAmount);
+    });
+  return totals;
+}
+
+function getOfficialPersonIdentityKey(person: Pick<OfficialPerson, "name">) {
+  return normalizeBusinessName(person.name);
 }
 
 function splitPersonCustomerKey(key: string) {

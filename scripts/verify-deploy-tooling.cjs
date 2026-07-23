@@ -10,6 +10,7 @@ const inspectSource = fs.readFileSync(path.join(root, "scripts", "vercel-inspect
 const aiEnvSource = fs.readFileSync(path.join(root, "scripts", "vercel-ai-env.mjs"), "utf8");
 const githubChecksSource = fs.readFileSync(path.join(root, "scripts", "github-checks.mjs"), "utf8");
 const checkAuthSource = fs.readFileSync(path.join(root, "scripts", "check-vercel-deploy-auth.mjs"), "utf8");
+const vercelConfig = JSON.parse(fs.readFileSync(path.join(root, "vercel.json"), "utf8"));
 
 assertIncludes(packageSource, "\"deploy:check\": \"node scripts/check-vercel-deploy-auth.mjs && npm run test:deploy-tooling\"", "package.json must expose deploy:check with deploy tooling validation.");
 assertIncludes(packageSource, "\"deploy:prod\": \"npm run deploy:check && node scripts/vercel-prod-deploy.mjs\"", "package.json must expose the approved production deploy script.");
@@ -18,6 +19,22 @@ assertIncludes(packageSource, "\"deploy:inspect:prod\": \"node scripts/vercel-in
 assertIncludes(packageSource, "\"ai:env:check\": \"node scripts/vercel-ai-env.mjs check production\"", "package.json must expose AI env check.");
 assertIncludes(packageSource, "\"ai:env:sync\": \"node scripts/vercel-ai-env.mjs sync production\"", "package.json must expose AI env sync.");
 assertIncludes(packageSource, "\"github:checks\": \"node scripts/github-checks.mjs\"", "package.json must expose github:checks.");
+
+if (vercelConfig.version !== 2) {
+  throw new Error("vercel.json version must be 2; Vercel rejects other platform versions.");
+}
+if (vercelConfig.framework !== "nextjs") {
+  throw new Error("vercel.json must pin the Next.js framework preset.");
+}
+if (vercelConfig.installCommand !== "npm ci") {
+  throw new Error("vercel.json must keep installCommand at the top level.");
+}
+if (vercelConfig.buildCommand !== "npm run build") {
+  throw new Error("vercel.json must keep buildCommand at the top level.");
+}
+if (vercelConfig.build) {
+  throw new Error("vercel.json must not nest installCommand/buildCommand under build; Vercel ignores that shape.");
+}
 
 assertIncludes(vercelCliSource, "loadLocalEnv()", "Vercel wrapper must load local env files.");
 assertIncludes(vercelCliSource, "\"node@22\"", "Vercel wrapper must run through Node 22.");

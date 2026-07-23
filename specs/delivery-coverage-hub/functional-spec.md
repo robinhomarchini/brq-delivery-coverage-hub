@@ -980,13 +980,17 @@ Regras do cadastro de Metas:
   houver decomposição de Meta Squads/Times e Studio contido, a Meta Squads/Times deve ser
   calculada por `Meta atual - Studio contido`; caches técnicos como `own_amount`
   não podem prevalecer sobre essa fórmula de apresentação. Na Planilha oficial,
-  o subtotal da pessoa deve usar somente a Meta Squads/Times líquida; linhas
-  herdadas de Studio permanecem visíveis para abertura, mas não somam novamente
-  no subtotal da pessoa. Para legados em que a mesma pessoa operacional ficou
+  o subtotal da pessoa deve representar a Meta atual total da pessoa, somando as
+  linhas abertas de Meta Squads/Times líquida e Studio herdado. A regra é a
+  mesma para Hunter e Renovação/Manutenção, independentemente do cargo/perfil da
+  pessoa responsável no cadastro. As linhas de Studio permanecem visíveis para
+  abertura sem inflar novamente o total, pois a linha Squads/Times já vem
+  líquida. Para legados em que a mesma pessoa operacional ficou
   gravada com IDs físicos diferentes, a Planilha oficial pode agrupar por nome
-  normalizado e perfil apenas na leitura/exportação, garantindo que Studio
+  normalizado apenas na leitura/exportação, garantindo que Studio
   contido seja descontado da Meta Squads/Times mesmo quando a meta direta e a
-  alocação de Studio apontarem para personIds diferentes. Esse fallback não
+  alocação de Studio apontarem para personIds diferentes ou para cadastros com
+  perfil/cargo legado diferente. Esse fallback não
   altera a fonte de verdade nem substitui saneamento/auditoria de cadastro. Ao criar ou alterar
   alocações de Studio, a sincronização da meta da pessoa deve manter o Studio
   contido no valor atual: se o Studio couber na meta atual, recalcula a própria
