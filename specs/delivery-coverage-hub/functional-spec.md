@@ -982,7 +982,12 @@ Regras do cadastro de Metas:
   não podem prevalecer sobre essa fórmula de apresentação. Na Planilha oficial,
   o subtotal da pessoa deve usar somente a Meta Squads/Times líquida; linhas
   herdadas de Studio permanecem visíveis para abertura, mas não somam novamente
-  no subtotal da pessoa. Ao criar ou alterar
+  no subtotal da pessoa. Para legados em que a mesma pessoa operacional ficou
+  gravada com IDs físicos diferentes, a Planilha oficial pode agrupar por nome
+  normalizado e perfil apenas na leitura/exportação, garantindo que Studio
+  contido seja descontado da Meta Squads/Times mesmo quando a meta direta e a
+  alocação de Studio apontarem para personIds diferentes. Esse fallback não
+  altera a fonte de verdade nem substitui saneamento/auditoria de cadastro. Ao criar ou alterar
   alocações de Studio, a sincronização da meta da pessoa deve manter o Studio
   contido no valor atual: se o Studio couber na meta atual, recalcula a própria
   para baixo; se o Studio sozinho superar a meta atual, o valor atual passa a

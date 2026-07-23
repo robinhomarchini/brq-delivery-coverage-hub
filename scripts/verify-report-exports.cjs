@@ -89,7 +89,7 @@ if (!officialExportSource.includes("billingCustomer: studioName") || !officialEx
 
 const requiredOfficialPeopleFlowTokens = [
   "buildOfficialPeopleRowsFromSources",
-  "getEffectiveStudioHunterPersonId(allocation, people, allocations) === personRow.personId",
+  'personAliasIds.has(getEffectiveStudioHunterPersonId(allocation, people, allocations) ?? "")',
   "executive: personRow.personName",
   "hunter: allocation.hunterAmount",
   "buildOfficialStudioMaintenanceRows",
@@ -513,6 +513,91 @@ if (!generatedMultipleStudioHunterRows.some((row) => row.executive === "Multi St
 }
 if (!generatedMultipleStudioHunterRows.some((row) => row.executive === "Multi Studio Hunter QA" && row.customerName === "Subtotal (na meta)" && row.hunter === 42793637)) {
   throw new Error("Generated official rows must subtotal the person's own Hunter target without adding inherited Studio Hunter again.");
+}
+
+const generatedAliasRenewalStudioRows = buildOfficialRowsForView({
+  view: "people",
+  peopleRows: [{
+    personId: "ricardo-bonfim-main-qa",
+    personName: "Ricardo Lucio do Bonfim QA",
+    email: "ricardo.bonfim.qa@brq.com",
+    roleType: "Delivery",
+    directorId: undefined,
+    customerCount: 1,
+    customerNames: ["BANCO ITAÚ QA"],
+    hunter: 0,
+    farmerRenewal: 47998066,
+    total: 47998066,
+    customerBreakdown: [],
+  }],
+  hunterRows: [],
+  hunterDetailRows: [],
+  directorDetailRows: [],
+  areaRows: [],
+  areaDetailRows: [],
+  hunterClientRows: [],
+  selectedHunterNames: [],
+  selectedAreaNames: [],
+  people: [{
+    id: "ricardo-bonfim-main-qa",
+    name: "Ricardo Lucio do Bonfim QA",
+    roleType: "Delivery",
+    active: true,
+    clientIds: ["customer-itau-alias-qa"],
+  }, {
+    id: "ricardo-bonfim-studio-alias-qa",
+    name: "Ricardo Lucio do Bonfim QA",
+    roleType: "Delivery",
+    active: true,
+    clientIds: ["customer-itau-alias-qa"],
+  }],
+  allocations: [{
+    id: "target-ricardo-bonfim-main-qa",
+    customerId: "customer-itau-alias-qa",
+    personId: "ricardo-bonfim-main-qa",
+    type: "farmer_renewal",
+    year: 2026,
+    amount: 47998066,
+    ownAmount: 47998066,
+  }],
+  studioAllocations: [
+    {
+      id: "studio-ricardo-bonfim-analytics-alias-qa",
+      customerId: "customer-itau-alias-qa",
+      areaId: "studio-ricardo-bonfim-analytics-alias",
+      maintenancePersonId: "ricardo-bonfim-studio-alias-qa",
+      year: 2026,
+      hunterAmount: 0,
+      maintenanceAmount: 4804429,
+    },
+    {
+      id: "studio-ricardo-bonfim-salesforce-alias-qa",
+      customerId: "customer-itau-alias-qa",
+      areaId: "studio-ricardo-bonfim-salesforce-alias",
+      maintenancePersonId: "ricardo-bonfim-studio-alias-qa",
+      year: 2026,
+      hunterAmount: 0,
+      maintenanceAmount: 400000,
+    },
+  ],
+  customerNames: new Map([["customer-itau-alias-qa", "BANCO ITAÚ QA"]]),
+  areaNames: new Map([
+    ["studio-ricardo-bonfim-analytics-alias", "Analytics"],
+    ["studio-ricardo-bonfim-salesforce-alias", "Salesforce"],
+  ]),
+  year: 2026,
+});
+if (!generatedAliasRenewalStudioRows.some((row) => row.executive === "Ricardo Lucio do Bonfim QA" && row.customerName === "BANCO ITAÚ QA" && row.billingCustomer === "Squads/Times" && row.farmerRenewal === 42793637)) {
+  throw new Error("Generated official rows must subtract inherited Studio renewal even when legacy person IDs differ but name/profile match.");
+}
+if (!generatedAliasRenewalStudioRows.some((row) => row.executive === "Ricardo Lucio do Bonfim QA" && row.customerName === "BANCO ITAÚ QA" && row.billingCustomer === "Analytics" && row.farmerRenewal === 4804429)) {
+  throw new Error("Generated official rows must keep alias Analytics Studio renewal as a separate billing row.");
+}
+if (!generatedAliasRenewalStudioRows.some((row) => row.executive === "Ricardo Lucio do Bonfim QA" && row.customerName === "BANCO ITAÚ QA" && row.billingCustomer === "Salesforce" && row.farmerRenewal === 400000)) {
+  throw new Error("Generated official rows must keep alias Salesforce Studio renewal as a separate billing row.");
+}
+if (!generatedAliasRenewalStudioRows.some((row) => row.executive === "Ricardo Lucio do Bonfim QA" && row.customerName === "Subtotal (na meta)" && row.farmerRenewal === 42793637)) {
+  throw new Error("Generated official rows must subtotal alias renewal without inherited Studio renewal.");
 }
 
 const generatedOwnAndInheritedFarmerRows = buildOfficialRowsForView({

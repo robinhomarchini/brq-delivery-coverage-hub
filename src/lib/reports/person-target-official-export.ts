@@ -1,6 +1,6 @@
 import type { RoleType } from "@/data/mockData";
 import { getStudioMaintenancePersonId, isStudioRenewalEligibleForFarmer } from "@/lib/studio-renewal-rollup";
-import { toFileSlug } from "@/lib/utils";
+import { normalizeBusinessName, toFileSlug } from "@/lib/utils";
 import {
   buildStudioHunterTotalsByHunterCustomer,
   buildStudioRenewalTotalsByPersonCustomer,
@@ -445,6 +445,8 @@ function buildOfficialPeopleRowsFromSources({
   year: number;
 }) {
   const peopleById = new Map(people.map((person) => [person.id, person]));
+  const personIdentityIds = buildPersonIdentityIds(people);
+  const processedPersonIdentityKeys = new Set<string>();
   const studioByHunterCustomer = buildStudioHunterTotalsByHunterCustomer(studioAllocations, year, people, allocations);
   const studioRenewalByPersonCustomer = buildStudioRenewalTotalsByPersonCustomer(studioAllocations, year, people, areaNames);
   const customerIdsInScope = new Set<string>();
@@ -453,21 +455,26 @@ function buildOfficialPeopleRowsFromSources({
   peopleRows.forEach((personRow) => {
     const person = peopleById.get(personRow.personId);
     if (!person) return;
+    const personIdentityKey = getOfficialPersonIdentityKey(person);
+    if (processedPersonIdentityKeys.has(personIdentityKey)) return;
+    processedPersonIdentityKeys.add(personIdentityKey);
+    const personAliasIds = personIdentityIds.get(personIdentityKey) ?? new Set([personRow.personId]);
 
     const personAllocations = allocations.filter((allocation) =>
       allocation.year === year
-      && allocation.personId === personRow.personId
+      && personAliasIds.has(allocation.personId)
       && allocation.type !== "studio"
       && allocation.amount > 0
     );
     const personStudioHunterAllocations = studioAllocations.filter((allocation) =>
       allocation.year === year
       && allocation.hunterAmount > 0
-      && getEffectiveStudioHunterPersonId(allocation, people, allocations) === personRow.personId
+      && personAliasIds.has(getEffectiveStudioHunterPersonId(allocation, people, allocations) ?? "")
     );
     const personStudioRenewalCustomerIds = Array.from(studioRenewalByPersonCustomer.keys())
-      .filter((key) => key.startsWith(`${personRow.personId}:`))
-      .map((key) => key.slice(personRow.personId.length + 1));
+      .map((key) => splitPersonCustomerKey(key))
+      .filter((key) => key && personAliasIds.has(key.personId))
+      .map((key) => key?.customerId ?? "");
     const customerIds = Array.from(new Set([
       ...personAllocations.map((allocation) => allocation.customerId),
       ...personStudioHunterAllocations.map((allocation) => allocation.customerId),
@@ -493,24 +500,24 @@ function buildOfficialPeopleRowsFromSources({
           const maintenancePersonId = getStudioMaintenancePersonId(allocation);
           return allocation.year === year
             && allocation.customerId === customerId
-            && maintenancePersonId === personRow.personId
+            && personAliasIds.has(maintenancePersonId ?? "")
             && allocation.maintenanceAmount > 0
             && isStudioRenewalEligibleForFarmer(areaNames.get(allocation.areaId) ?? allocation.areaId, person, {
-              explicitMaintenancePerson: allocation.maintenancePersonId === personRow.personId,
+              explicitMaintenancePerson: personAliasIds.has(allocation.maintenancePersonId ?? ""),
             });
         })
         .sort((first, second) =>
           (areaNames.get(first.areaId) ?? first.areaId).localeCompare(areaNames.get(second.areaId) ?? second.areaId, "pt-BR")
         );
       const studioHunterForCustomer = customerStudioHunterAllocations.reduce((total, allocation) => total + allocation.hunterAmount, 0)
-        || studioByHunterCustomer.get(`${personRow.personId}:${customerId}`)
+        || getPersonAliasCustomerTotal(studioByHunterCustomer, personAliasIds, customerId)
         || 0;
       const directHunterOwn = getOfficialOwnAmountFromAllocations(
         personAllocations.filter((allocation) => allocation.customerId === customerId && allocation.type === "hunter"),
         studioHunterForCustomer,
       );
       const studioRenewalForCustomer = customerStudioRenewalAllocations.reduce((total, allocation) => total + allocation.maintenanceAmount, 0)
-        || studioRenewalByPersonCustomer.get(`${personRow.personId}:${customerId}`)
+        || getPersonAliasCustomerTotal(studioRenewalByPersonCustomer, personAliasIds, customerId)
         || 0;
       const farmerRenewalOwn = getOfficialOwnAmountFromAllocations(
         personAllocations.filter((allocation) => allocation.customerId === customerId && allocation.type === "farmer_renewal"),
@@ -690,6 +697,37 @@ function makeOfficialRow({
     hunterShare: totalTarget > 0 ? hunter / totalTarget : 0,
     rowStyle,
   };
+}
+
+function buildPersonIdentityIds(people: OfficialPerson[]) {
+  const ids = new Map<string, Set<string>>();
+  people.forEach((person) => {
+    const key = getOfficialPersonIdentityKey(person);
+    ids.set(key, (ids.get(key) ?? new Set()).add(person.id));
+  });
+  return ids;
+}
+
+function getOfficialPersonIdentityKey(person: Pick<OfficialPerson, "name" | "roleType">) {
+  return `${normalizeBusinessName(person.name)}::${person.roleType}`;
+}
+
+function splitPersonCustomerKey(key: string) {
+  const separatorIndex = key.indexOf(":");
+  if (separatorIndex < 0) return null;
+  return {
+    personId: key.slice(0, separatorIndex),
+    customerId: key.slice(separatorIndex + 1),
+  };
+}
+
+function getPersonAliasCustomerTotal(
+  totalsByPersonCustomer: Map<string, number>,
+  personAliasIds: Set<string>,
+  customerId: string,
+) {
+  return Array.from(personAliasIds).reduce((total, personId) =>
+    total + (totalsByPersonCustomer.get(`${personId}:${customerId}`) ?? 0), 0);
 }
 
 export function getOfficialFilenameSuffix({

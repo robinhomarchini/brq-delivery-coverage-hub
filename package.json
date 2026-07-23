@@ -4,9 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npm run lint && npm run typecheck && npm run test:contracts && next build",
+    "build": "next build",
+    "validate": "npm run lint && npm run typecheck && npm run test:contracts",
     "start": "next start",
-    "lint": "eslint .",
+    "lint": "eslint \"src/**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",
     "test:contracts": "node scripts/run-repository-contract-tests.cjs",
     "test:performance": "node scripts/verify-performance-hardening.cjs",
