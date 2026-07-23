@@ -15,7 +15,7 @@ Module._resolveFilename = function resolveProjectAlias(request, parent, isMain, 
   return originalResolveFilename.call(this, request, parent, isMain, options);
 };
 
-const { getCustomerCoverageStatus } = require("../src/lib/customers/customer-coverage-view-model.ts");
+const { getCustomerCoverageAllocatedTotal, getCustomerCoverageStatus } = require("../src/lib/customers/customer-coverage-view-model.ts");
 
 const year = 2026;
 const specialist = makePerson("specialist", "Marco Aurelio De Lima Guedea", "Hunter Especializado", ["csu", "professional-services"]);
@@ -50,6 +50,32 @@ assert.equal(
   ).status,
   "specialist",
   "Professional Services must be specialist when the matched allocation is only Hunter Especializado.",
+);
+
+assert.equal(
+  getCustomerCoverageAllocatedTotal(
+    makeCustomer("professional-services", { hunterTarget: 1750000, farmerRenewalTarget: 0 }),
+    people,
+    [makeAllocation("professional-specialist", "professional-services", "specialist", "hunter", 1750000)],
+    [],
+    [],
+    year,
+  ),
+  0,
+  "Hunter Especializado values must not inflate official Alocado em Pessoas totals.",
+);
+
+assert.equal(
+  getCustomerCoverageAllocatedTotal(
+    makeCustomer("csu", { hunterTarget: 400000, farmerRenewalTarget: 0 }),
+    people,
+    [],
+    [makeStudioAllocation("csu-studio-specialist", "csu", "specialist", 400000)],
+    [],
+    year,
+  ),
+  0,
+  "Studio Hunter assigned only to Hunter Especializado must not inflate official Alocado em Pessoas totals.",
 );
 
 assert.equal(
@@ -123,5 +149,18 @@ function makeAllocation(id, customerId, personId, type, amount) {
     year,
     amount,
     ownAmount: amount,
+  };
+}
+
+function makeStudioAllocation(id, customerId, hunterPersonId, hunterAmount) {
+  return {
+    id,
+    customerId,
+    areaId: "studio",
+    hunterPersonId,
+    maintenancePersonId: undefined,
+    year,
+    hunterAmount,
+    maintenanceAmount: 0,
   };
 }

@@ -1055,6 +1055,10 @@ Mapeamento de origem:
   Hunter Especializado; quando vazio, a visão usa o valor do Studio selecionado.
   O ajuste não cria `revenue_target_allocations`, não altera metas oficiais do
   cliente, da pessoa, de Studios, dashboards ou comparativos de baseline.
+- KPIs oficiais como Dashboard Executivo `Alocado em Pessoas`, Comparativo
+  Baseline e Planilha oficial não somam valores de Hunter Especializado. Esses
+  valores permanecem em visão gerencial própria e na sinalização de cobertura
+  especialista, sem inflar a meta oficial de pessoas.
 - Quando o mesmo Hunter Especializado tiver seleção de Studio e também for
   Hunter principal do cliente, a seleção de Studio é a linha única do relatório;
   o status de Hunter principal aparece como rótulo nessa linha, sem duplicar o

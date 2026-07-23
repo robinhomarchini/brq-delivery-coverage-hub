@@ -369,6 +369,7 @@ export function getCustomerAllocationComposition(
     .filter((allocation) => allocation.customerId === customer.id && allocation.year === year && allocation.type !== "studio")
     .forEach((allocation) => {
       const person = peopleById.get(allocation.personId);
+      if (!isOfficialTargetPerson(person)) return;
       const current = rowsByPerson.get(allocation.personId) ?? {
         personId: allocation.personId,
         personName: person?.name ?? allocation.personId,
@@ -398,6 +399,7 @@ export function getCustomerAllocationComposition(
     .forEach((allocation) => {
       const personId = getEffectiveStudioHunterPersonId(allocation, people, allocations);
       if (!personId) return;
+      if (!isOfficialTargetPerson(peopleById.get(personId))) return;
       studioHunterByPerson.set(
         personId,
         roundCurrency((studioHunterByPerson.get(personId) ?? 0) + allocation.hunterAmount),
@@ -572,12 +574,14 @@ function getContainedHunterAllocationForCustomer(
   studioTargetAllocations: StudioTargetAllocation[],
   year: number,
 ) {
+  const peopleById = new Map(people.map((person) => [person.id, person]));
   const directByPerson = new Map<string, number>();
   const studioByPerson = new Map<string, number>();
 
   targetAllocations
     .filter((allocation) => allocation.customerId === customerId && allocation.year === year && allocation.type === "hunter")
     .forEach((allocation) => {
+      if (!isOfficialTargetPerson(peopleById.get(allocation.personId))) return;
       directByPerson.set(allocation.personId, roundCurrency((directByPerson.get(allocation.personId) ?? 0) + allocation.amount));
     });
 
@@ -586,6 +590,7 @@ function getContainedHunterAllocationForCustomer(
     .forEach((allocation) => {
       const personId = getEffectiveStudioHunterPersonId(allocation, people, targetAllocations);
       if (!personId) return;
+      if (!isOfficialTargetPerson(peopleById.get(personId))) return;
       studioByPerson.set(personId, roundCurrency((studioByPerson.get(personId) ?? 0) + allocation.hunterAmount));
     });
 
@@ -800,6 +805,7 @@ function getCustomerTargetPeopleByType(
     .filter((allocation) => allocation.customerId === customer.id && allocation.year === year && allocation.type === type)
     .forEach((allocation) => {
       const person = peopleById.get(allocation.personId);
+      if (!isOfficialTargetPerson(person)) return;
       const current = totalsByPerson.get(allocation.personId) ?? {
         personId: allocation.personId,
         name: person?.name ?? allocation.personId,
@@ -829,6 +835,7 @@ function getCustomerTargetPeopleByType(
 
     studioHunterByPerson.forEach((studioHunterAmount, personId) => {
       const person = peopleById.get(personId);
+      if (!isOfficialTargetPerson(person)) return;
       const current = totalsByPerson.get(personId) ?? {
         personId,
         name: person?.name ?? personId,
@@ -865,6 +872,10 @@ function getEffectiveStudioHunterPersonId(
     .sort((first, second) => second.amount - first.amount)[0]?.personId;
 
   return hunterFromDirectTarget || getPrimaryHunterIdForCustomer(allocation.customerId, people);
+}
+
+function isOfficialTargetPerson(person: Person | undefined) {
+  return Boolean(person?.active && isTargetAssignableRole(person.roleType));
 }
 
 function getStudioMaintenancePersonId(allocation: Pick<StudioTargetAllocation, "hunterPersonId" | "maintenancePersonId">) {
