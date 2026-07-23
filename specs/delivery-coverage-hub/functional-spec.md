@@ -1139,8 +1139,8 @@ Cada meta direta deve existir no grão único Cliente + Pessoa + Tipo + Ano. A
 aplicação deve reutilizar a linha existente quando salvar esse mesmo grão, e o
 banco deve impedir novas duplicatas. Enquanto houver suspeita de dados legados
 duplicados, uma tela temporária de auditoria pode listar as chaves repetidas e
-também suspeitas de Studio contido inflando Meta Squads/Times, sem exclusão
-automática.
+também suspeitas de Studio contido inflando Meta Squads/Times ou Studio com
+valor sem meta total correspondente em Metas por Pessoa, sem exclusão automática.
 
 O app deriva:
 

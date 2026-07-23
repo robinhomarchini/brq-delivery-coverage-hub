@@ -27,6 +27,16 @@ const people: Person[] = [{
   lifecycleStatus: "active",
   isManager: false,
   hierarchyLevel: 3,
+}, {
+  id: "person-orphan-studio-qa",
+  name: "Pessoa Studio Órfão QA",
+  jobTitle: "Manager de Delivery",
+  roleType: "Delivery",
+  clientIds: ["customer-audit-qa"],
+  active: true,
+  lifecycleStatus: "active",
+  isManager: false,
+  hierarchyLevel: 3,
 }];
 
 const areas: Area[] = [{
@@ -61,6 +71,14 @@ const studioAllocations: StudioTargetAllocation[] = [{
   year: 2026,
   hunterAmount: 0,
   maintenanceAmount: 25,
+}, {
+  id: "studio-orphan-maintenance-qa",
+  customerId: "customer-audit-qa",
+  areaId: "area-salesforce-qa",
+  maintenancePersonId: "person-orphan-studio-qa",
+  year: 2026,
+  hunterAmount: 0,
+  maintenanceAmount: 440756,
 }];
 
 const groups = findTargetAllocationDuplicates({
@@ -78,6 +96,12 @@ assert(groups.some((group) =>
   && group.personName === "Pessoa Auditoria QA"
   && group.containedStudioAmount === 25
 ), "Duplicate audit must flag contained Studio review groups even when the duplicated key alone is not enough.");
+assert(groups.some((group) =>
+  group.issueType === "studio_without_person_total"
+  && group.customerName === "Cliente Auditoria QA"
+  && group.personName === "Pessoa Studio Órfão QA"
+  && group.containedStudioAmount === 440756
+), "Duplicate audit must flag Studio rows with value when the corresponding person target total is missing.");
 
 console.log("Target allocation duplicate audit QA checks passed.");
 

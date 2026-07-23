@@ -29,8 +29,10 @@ export default function DuplicateTargetAuditPage() {
   );
   const duplicateKeyGroups = duplicateGroups.filter((group) => group.issueType === "duplicate_key");
   const containedStudioGroups = duplicateGroups.filter((group) => group.issueType === "contained_studio_review");
+  const missingPersonTargetGroups = duplicateGroups.filter((group) => group.issueType === "studio_without_person_total");
   const duplicateRows = duplicateKeyGroups.reduce((total, group) => total + Math.max(group.items.length - 1, 0), 0)
-    + containedStudioGroups.length;
+    + containedStudioGroups.length
+    + missingPersonTargetGroups.length;
   const duplicateAmount = duplicateGroups.reduce((total, group) => total + group.duplicateAmount, 0);
 
   return (
@@ -40,6 +42,15 @@ export default function DuplicateTargetAuditPage() {
         title="Duplicatas de Metas"
         description="Revise metas repetidas e suspeitas de Studio contido inflando Meta Squads/Times. Esta tela apenas recomenda o que revisar; nenhuma exclusão é feita automaticamente."
       />
+
+      <section className="mb-6 rounded-2xl border border-sky-100 bg-sky-50/60 p-5 text-sm text-slate-700">
+        <h2 className="text-base font-bold text-slate-950">Regra usada nesta auditoria</h2>
+        <p className="mt-2">
+          Em Metas por Pessoa, o valor cadastrado é a meta total atual da pessoa no cliente. Studio Hunter e Studio Manutenção
+          são heranças contidas nesse total. Portanto, para relatório e saneamento, a Meta Squads/Times calculada é:
+          <strong> meta total cadastrada - Studio herdado</strong>.
+        </p>
+      </section>
 
       <section className="grid gap-4 md:grid-cols-3">
         <AuditCard label="Chaves duplicadas" value={duplicateKeyGroups.length.toString()} tone={duplicateKeyGroups.length ? "danger" : "ok"} />
@@ -52,7 +63,8 @@ export default function DuplicateTargetAuditPage() {
           <div>
             <h2 className="text-lg font-bold text-slate-950">Sugestão de saneamento</h2>
             <p className="mt-1 text-sm text-slate-500">
-              Duplicata literal mantém a maior linha da chave. Suspeita de Studio mostra quando a Meta Squads/Times pode já conter o Studio separado.
+              Duplicata literal mantém a maior linha da chave. Studio contido mostra quando a Meta Squads/Times pode já conter o Studio separado.
+              Studio sem meta total mostra valores de Studio que não têm linha correspondente em Metas por Pessoa.
             </p>
           </div>
           <Badge variant={duplicateGroups.length ? "warning" : "success"}>
@@ -75,9 +87,9 @@ export default function DuplicateTargetAuditPage() {
                   <TableHead>Problema</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Ano</TableHead>
-                  <TableHead className="text-right">Atual</TableHead>
-                  <TableHead className="text-right">Sugerido</TableHead>
-                  <TableHead className="text-right">Studio/Excesso</TableHead>
+                  <TableHead className="text-right">Meta total cadastrada</TableHead>
+                  <TableHead className="text-right">Studio herdado / excesso</TableHead>
+                  <TableHead className="text-right">Squads/Times calculado</TableHead>
                   <TableHead>Registros</TableHead>
                 </TableRow>
               </TableHeader>
@@ -94,14 +106,14 @@ export default function DuplicateTargetAuditPage() {
                     </TableCell>
                     <TableCell>
                       <Badge variant={group.issueType === "duplicate_key" ? "warning" : "destructive"}>
-                        {group.issueType === "duplicate_key" ? "Chave repetida" : "Studio contido"}
+                        {getIssueTypeLabel(group.issueType)}
                       </Badge>
                     </TableCell>
                     <TableCell>{targetTypeLabels[group.targetType]}</TableCell>
                     <TableCell>{group.year}</TableCell>
                     <TableCell className="text-right font-semibold tabular-nums">{formatCurrency(group.totalAmount)}</TableCell>
-                    <TableCell className="text-right font-semibold tabular-nums text-emerald-700">{formatCurrency(group.suggestedAmount)}</TableCell>
                     <TableCell className="text-right font-semibold tabular-nums text-red-700">{formatCurrency(group.duplicateAmount)}</TableCell>
+                    <TableCell className="text-right font-semibold tabular-nums text-emerald-700">{formatCurrency(group.suggestedAmount)}</TableCell>
                     <TableCell>
                       <div className="space-y-2">
                         {group.items.map((item) => (
@@ -112,7 +124,7 @@ export default function DuplicateTargetAuditPage() {
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <span className="break-all font-mono text-xs text-slate-600">{item.id}</span>
                               <Badge variant={item.recommendedAction === "keep" ? "success" : "warning"}>
-                                {item.recommendedAction === "keep" ? "Manter" : "Revisar remoção"}
+                                {getRecommendedActionLabel(item.recommendedAction)}
                               </Badge>
                             </div>
                             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
@@ -122,6 +134,20 @@ export default function DuplicateTargetAuditPage() {
                             </div>
                             <p className="mt-2 text-xs text-slate-500">{item.reason}</p>
                             {item.notes && <p className="mt-1 text-xs text-slate-400">{item.notes}</p>}
+                          </div>
+                        ))}
+                        {group.containedStudioItems?.map((item) => (
+                          <div key={`${group.key}:${item.id ?? item.areaId}`} className="rounded-xl border border-sky-100 bg-sky-50/70 p-3">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <span className="font-semibold text-slate-800">{item.areaName}</span>
+                              <Badge variant="secondary">Registro de Studio</Badge>
+                            </div>
+                            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
+                              <span>ID: <strong className="font-mono">{item.id ?? item.areaId}</strong></span>
+                              <span>Valor herdado: <strong>{formatCurrency(item.amount)}</strong></span>
+                              <span>Hunter: <strong>{formatCurrency(item.hunterAmount)}</strong></span>
+                              <span>Manutenção: <strong>{formatCurrency(item.maintenanceAmount)}</strong></span>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -157,4 +183,16 @@ function AuditCard({ label, value, tone }: { label: string; value: string; tone:
       <p className="mt-3 break-words text-3xl font-black tracking-normal text-slate-950">{value}</p>
     </div>
   );
+}
+
+function getIssueTypeLabel(issueType: "duplicate_key" | "contained_studio_review" | "studio_without_person_total") {
+  if (issueType === "duplicate_key") return "Chave repetida";
+  if (issueType === "studio_without_person_total") return "Studio sem meta total";
+  return "Studio contido";
+}
+
+function getRecommendedActionLabel(action: "keep" | "review_remove" | "review_create") {
+  if (action === "keep") return "Manter";
+  if (action === "review_create") return "Revisar criação";
+  return "Revisar remoção";
 }

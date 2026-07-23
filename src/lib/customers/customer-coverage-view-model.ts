@@ -71,6 +71,7 @@ export interface CustomerStudioAllocationRow {
   id: string;
   areaName: string;
   hunterPersonName: string;
+  maintenancePersonName: string;
   hunterAmount: number;
   maintenanceAmount: number;
   total: number;
@@ -494,6 +495,9 @@ export function getCustomerStudioComposition(
       hunterPersonName: getEffectiveStudioHunterPersonId(allocation, people, [])
         ? peopleNamesById.get(getEffectiveStudioHunterPersonId(allocation, people, [])) ?? getEffectiveStudioHunterPersonId(allocation, people, [])
         : "Hunter não informado",
+      maintenancePersonName: getStudioMaintenancePersonId(allocation)
+        ? peopleNamesById.get(getStudioMaintenancePersonId(allocation) as string) ?? getStudioMaintenancePersonId(allocation) as string
+        : "Responsável não informado",
       hunterAmount: roundCurrency(allocation.hunterAmount),
       maintenanceAmount: roundCurrency(allocation.maintenanceAmount),
       total: roundCurrency(allocation.hunterAmount + allocation.maintenanceAmount),
@@ -861,6 +865,10 @@ function getEffectiveStudioHunterPersonId(
     .sort((first, second) => second.amount - first.amount)[0]?.personId;
 
   return hunterFromDirectTarget || getPrimaryHunterIdForCustomer(allocation.customerId, people);
+}
+
+function getStudioMaintenancePersonId(allocation: Pick<StudioTargetAllocation, "hunterPersonId" | "maintenancePersonId">) {
+  return allocation.maintenancePersonId ?? allocation.hunterPersonId;
 }
 
 function getAllocationPeopleTitleRows(

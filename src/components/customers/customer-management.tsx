@@ -1000,11 +1000,12 @@ function CustomerStudioCompositionView({ composition }: { composition: CustomerS
         </Button>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[760px] text-left text-sm">
+        <table className="w-full min-w-[900px] text-left text-sm">
           <thead className="bg-cyan-50/60 text-xs uppercase tracking-wider text-slate-400">
             <tr>
               <th className="px-4 py-2 font-semibold">Área / Studio</th>
               <th className="px-4 py-2 font-semibold">Hunter</th>
+              <th className="px-4 py-2 font-semibold">Resp. Manutenção</th>
               <th className="px-4 py-2 text-right font-semibold">Hunter</th>
               <th className="px-4 py-2 text-right font-semibold">Manutenção</th>
               <th className="px-4 py-2 text-right font-semibold">Total</th>
@@ -1016,6 +1017,7 @@ function CustomerStudioCompositionView({ composition }: { composition: CustomerS
               <tr key={row.id}>
                 <td className="px-4 py-3 font-semibold text-slate-900">{row.areaName}</td>
                 <td className="px-4 py-3 text-slate-600">{row.hunterPersonName}</td>
+                <td className="px-4 py-3 text-slate-600">{row.maintenancePersonName}</td>
                 <td className="px-4 py-3 text-right">{formatCurrency(row.hunterAmount)}</td>
                 <td className="px-4 py-3 text-right">{formatCurrency(row.maintenanceAmount)}</td>
                 <td className="px-4 py-3 text-right font-bold text-slate-950">{formatCurrency(row.total)}</td>
@@ -1028,7 +1030,7 @@ function CustomerStudioCompositionView({ composition }: { composition: CustomerS
             ))}
             {!composition.rows.length && (
               <tr>
-                <td className="px-4 py-4 text-slate-500" colSpan={6}>
+                <td className="px-4 py-4 text-slate-500" colSpan={7}>
                   Ainda não há meta associada a áreas/studios para este cliente no ano selecionado.
                 </td>
               </tr>
@@ -1036,6 +1038,7 @@ function CustomerStudioCompositionView({ composition }: { composition: CustomerS
             {hasOpenAmount && (
               <tr className="bg-red-50/70">
                 <td className="px-4 py-3 font-semibold text-red-900">Abaixo da meta sem Área/Studio alocada</td>
+                <td className="px-4 py-3 text-red-800">-</td>
                 <td className="px-4 py-3 text-red-800">-</td>
                 <td className="px-4 py-3 text-right font-semibold text-red-800">{formatCurrency(composition.openHunter)}</td>
                 <td className="px-4 py-3 text-right font-semibold text-red-800">{formatCurrency(composition.openMaintenance)}</td>
@@ -1050,6 +1053,7 @@ function CustomerStudioCompositionView({ composition }: { composition: CustomerS
             {hasOverAmount && (
               <tr className="bg-emerald-50/70">
                 <td className="px-4 py-3 font-semibold text-emerald-900">Acima da meta de Área/Studio</td>
+                <td className="px-4 py-3 text-emerald-800">-</td>
                 <td className="px-4 py-3 text-emerald-800">-</td>
                 <td className="px-4 py-3 text-right font-semibold text-emerald-800">{formatCurrency(composition.overHunter)}</td>
                 <td className="px-4 py-3 text-right font-semibold text-emerald-800">{formatCurrency(composition.overMaintenance)}</td>

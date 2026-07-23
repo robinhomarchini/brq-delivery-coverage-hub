@@ -6,12 +6,21 @@ export type TargetAllocationDuplicateItem = {
   amount: number;
   ownAmount?: number;
   notes?: string;
-  recommendedAction: "keep" | "review_remove";
+  recommendedAction: "keep" | "review_remove" | "review_create";
   reason: string;
 };
 
+export type TargetAllocationContainedStudioItem = {
+  id?: string;
+  areaId: string;
+  areaName: string;
+  amount: number;
+  hunterAmount: number;
+  maintenanceAmount: number;
+};
+
 export type TargetAllocationDuplicateGroup = {
-  issueType: "duplicate_key" | "contained_studio_review";
+  issueType: "duplicate_key" | "contained_studio_review" | "studio_without_person_total";
   key: string;
   customerId: string;
   customerName: string;
@@ -26,6 +35,7 @@ export type TargetAllocationDuplicateGroup = {
   currentAmount?: number;
   currentOwnAmount?: number;
   items: TargetAllocationDuplicateItem[];
+  containedStudioItems?: TargetAllocationContainedStudioItem[];
 };
 
 export function findTargetAllocationDuplicates({
@@ -65,14 +75,132 @@ export function findTargetAllocationDuplicates({
       studioAllocations,
     }))
     .filter((group): group is TargetAllocationDuplicateGroup => Boolean(group));
+  const studioWithoutPersonTotalGroups = buildStudioWithoutPersonTotalGroups({
+    studioAllocations,
+    groups,
+    customersById,
+    peopleById,
+    areasById,
+  });
 
-  return [...duplicateGroups, ...containedStudioReviewGroups]
+  return [...duplicateGroups, ...containedStudioReviewGroups, ...studioWithoutPersonTotalGroups]
     .sort((first, second) =>
       first.customerName.localeCompare(second.customerName, "pt-BR")
       || first.personName.localeCompare(second.personName, "pt-BR")
       || first.targetType.localeCompare(second.targetType, "pt-BR")
       || first.year - second.year
     );
+}
+
+function buildStudioWithoutPersonTotalGroups({
+  studioAllocations,
+  groups,
+  customersById,
+  peopleById,
+  areasById,
+}: {
+  studioAllocations: StudioTargetAllocation[];
+  groups: Map<string, TargetAllocation[]>;
+  customersById: Map<string, Customer>;
+  peopleById: Map<string, Person>;
+  areasById: Map<string, Area>;
+}) {
+  return studioAllocations.flatMap((studio) => {
+    const rows: TargetAllocationDuplicateGroup[] = [];
+    const areaName = areasById.get(studio.areaId)?.name ?? studio.areaId;
+    if (studio.hunterPersonId && studio.hunterAmount > 0.01) {
+      const key = getTargetAllocationKey({
+        customerId: studio.customerId,
+        personId: studio.hunterPersonId,
+        type: "hunter",
+        year: studio.year,
+      });
+      if (!groups.has(key)) {
+        rows.push(buildMissingTargetForStudioGroup({
+          studio,
+          personId: studio.hunterPersonId,
+          targetType: "hunter",
+          amount: studio.hunterAmount,
+          areaName,
+          customersById,
+          peopleById,
+        }));
+      }
+    }
+
+    const maintenancePersonId = getStudioMaintenancePersonId(studio);
+    if (maintenancePersonId && studio.maintenanceAmount > 0.01) {
+      const key = getTargetAllocationKey({
+        customerId: studio.customerId,
+        personId: maintenancePersonId,
+        type: "farmer_renewal",
+        year: studio.year,
+      });
+      if (!groups.has(key)) {
+        rows.push(buildMissingTargetForStudioGroup({
+          studio,
+          personId: maintenancePersonId,
+          targetType: "farmer_renewal",
+          amount: studio.maintenanceAmount,
+          areaName,
+          customersById,
+          peopleById,
+        }));
+      }
+    }
+    return rows;
+  });
+}
+
+function buildMissingTargetForStudioGroup({
+  studio,
+  personId,
+  targetType,
+  amount,
+  areaName,
+  customersById,
+  peopleById,
+}: {
+  studio: StudioTargetAllocation;
+  personId: string;
+  targetType: TargetAllocation["type"];
+  amount: number;
+  areaName: string;
+  customersById: Map<string, Customer>;
+  peopleById: Map<string, Person>;
+}): TargetAllocationDuplicateGroup {
+  const customer = customersById.get(studio.customerId);
+  const person = peopleById.get(personId);
+  const containedStudioItem = makeContainedStudioItem(studio, new Map([[studio.areaId, { id: studio.areaId, name: areaName, description: "" }]]), amount);
+  return {
+    issueType: "studio_without_person_total",
+    key: `${getTargetAllocationKey({
+      customerId: studio.customerId,
+      personId,
+      type: targetType,
+      year: studio.year,
+    })}::studio-without-person-total::${studio.id ?? studio.areaId}`,
+    customerId: studio.customerId,
+    customerName: customer?.name ?? studio.customerId,
+    personId,
+    personName: person?.name ?? personId,
+    targetType,
+    year: studio.year,
+    totalAmount: 0,
+    suggestedAmount: amount,
+    duplicateAmount: amount,
+    containedStudioAmount: amount,
+    currentAmount: 0,
+    currentOwnAmount: 0,
+    containedStudioItems: [containedStudioItem],
+    items: [{
+      id: `sem-meta-total:${studio.id ?? studio.areaId}`,
+      amount: 0,
+      ownAmount: 0,
+      recommendedAction: "review_create",
+      reason: "Existe registro de Studio com valor para esta pessoa, mas não há meta total correspondente em Metas por Pessoa.",
+    }],
+  };
 }
 
 function buildDuplicateGroup(
@@ -131,12 +259,13 @@ function buildContainedStudioReviewGroup({
   studioAllocations: StudioTargetAllocation[];
 }): TargetAllocationDuplicateGroup | null {
   const person = peopleById.get(allocation.personId);
-  const containedStudioAmount = getContainedStudioAmountForAllocation({
+  const containedStudioItems = getContainedStudioItemsForAllocation({
     allocation,
     person,
     areasById,
     studioAllocations,
   });
+  const containedStudioAmount = containedStudioItems.reduce((total, item) => total + item.amount, 0);
   const currentOwnAmount = allocation.ownAmount ?? Math.max(allocation.amount - containedStudioAmount, 0);
   if (containedStudioAmount <= 0.01 || currentOwnAmount <= containedStudioAmount + 0.01) return null;
 
@@ -157,6 +286,7 @@ function buildContainedStudioReviewGroup({
     containedStudioAmount,
     currentAmount: allocation.amount,
     currentOwnAmount,
+    containedStudioItems,
     items: [{
       id: allocation.id,
       amount: allocation.amount,
@@ -176,7 +306,7 @@ function selectContainedStudioReviewAllocation(allocations: TargetAllocation[]) 
   )[0] as TargetAllocation;
 }
 
-function getContainedStudioAmountForAllocation({
+function getContainedStudioItemsForAllocation({
   allocation,
   person,
   areasById,
@@ -193,8 +323,9 @@ function getContainedStudioAmountForAllocation({
         studio.customerId === allocation.customerId
         && studio.year === allocation.year
         && studio.hunterPersonId === allocation.personId
+        && studio.hunterAmount > 0.01
       )
-      .reduce((total, studio) => total + studio.hunterAmount, 0);
+      .map((studio) => makeContainedStudioItem(studio, areasById, studio.hunterAmount));
   }
 
   if (allocation.type === "farmer_renewal") {
@@ -209,13 +340,33 @@ function getContainedStudioAmountForAllocation({
             explicitMaintenancePerson: studio.maintenancePersonId === allocation.personId,
           });
       })
-      .reduce((total, studio) => total + studio.maintenanceAmount, 0);
+      .filter((studio) => studio.maintenanceAmount > 0.01)
+      .map((studio) => makeContainedStudioItem(studio, areasById, studio.maintenanceAmount));
   }
 
-  return 0;
+  return [];
+}
+
+function makeContainedStudioItem(
+  studio: StudioTargetAllocation,
+  areasById: Map<string, Area>,
+  amount: number,
+): TargetAllocationContainedStudioItem {
+  return {
+    id: studio.id,
+    areaId: studio.areaId,
+    areaName: areasById.get(studio.areaId)?.name ?? studio.areaId,
+    amount,
+    hunterAmount: studio.hunterAmount,
+    maintenanceAmount: studio.maintenanceAmount,
+  };
 }
 
 function getTargetAllocationDuplicateKey(allocation: TargetAllocation) {
+  return getTargetAllocationKey(allocation);
+}
+
+function getTargetAllocationKey(allocation: Pick<TargetAllocation, "customerId" | "personId" | "type" | "year">) {
   return [
     allocation.customerId,
     allocation.personId,
