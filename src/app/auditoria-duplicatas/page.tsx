@@ -16,12 +16,21 @@ const targetTypeLabels = {
 };
 
 export default function DuplicateTargetAuditPage() {
-  const { targetAllocations, customers, people } = useDeliveryStore();
+  const { areas, targetAllocations, studioTargetAllocations, customers, people } = useDeliveryStore();
   const duplicateGroups = useMemo(
-    () => findTargetAllocationDuplicates({ allocations: targetAllocations, customers, people }),
-    [customers, people, targetAllocations],
+    () => findTargetAllocationDuplicates({
+      allocations: targetAllocations,
+      customers,
+      people,
+      studioAllocations: studioTargetAllocations,
+      areas,
+    }),
+    [areas, customers, people, studioTargetAllocations, targetAllocations],
   );
-  const duplicateRows = duplicateGroups.reduce((total, group) => total + Math.max(group.items.length - 1, 0), 0);
+  const duplicateKeyGroups = duplicateGroups.filter((group) => group.issueType === "duplicate_key");
+  const containedStudioGroups = duplicateGroups.filter((group) => group.issueType === "contained_studio_review");
+  const duplicateRows = duplicateKeyGroups.reduce((total, group) => total + Math.max(group.items.length - 1, 0), 0)
+    + containedStudioGroups.length;
   const duplicateAmount = duplicateGroups.reduce((total, group) => total + group.duplicateAmount, 0);
 
   return (
@@ -29,13 +38,13 @@ export default function DuplicateTargetAuditPage() {
       <PageHeader
         eyebrow="Auditoria temporária"
         title="Duplicatas de Metas"
-        description="Revise metas repetidas no grão Cliente + Pessoa + Tipo + Ano. Esta tela apenas recomenda o que manter e o que revisar; nenhuma exclusão é feita automaticamente."
+        description="Revise metas repetidas e suspeitas de Studio contido inflando Meta Squads/Times. Esta tela apenas recomenda o que revisar; nenhuma exclusão é feita automaticamente."
       />
 
       <section className="grid gap-4 md:grid-cols-3">
-        <AuditCard label="Chaves duplicadas" value={duplicateGroups.length.toString()} tone={duplicateGroups.length ? "danger" : "ok"} />
+        <AuditCard label="Chaves duplicadas" value={duplicateKeyGroups.length.toString()} tone={duplicateKeyGroups.length ? "danger" : "ok"} />
         <AuditCard label="Registros a revisar" value={duplicateRows.toString()} tone={duplicateRows ? "danger" : "ok"} />
-        <AuditCard label="Valor suspeito" value={formatCurrency(duplicateAmount)} tone={duplicateAmount > 0.01 ? "danger" : "ok"} />
+        <AuditCard label="Valor a revisar" value={formatCurrency(duplicateAmount)} tone={duplicateAmount > 0.01 ? "danger" : "ok"} />
       </section>
 
       <section className="mt-6 rounded-2xl border bg-white shadow-sm">
@@ -43,7 +52,7 @@ export default function DuplicateTargetAuditPage() {
           <div>
             <h2 className="text-lg font-bold text-slate-950">Sugestão de saneamento</h2>
             <p className="mt-1 text-sm text-slate-500">
-              Critério temporário: manter o maior valor atual da chave e revisar os demais registros.
+              Duplicata literal mantém a maior linha da chave. Suspeita de Studio mostra quando a Meta Squads/Times pode já conter o Studio separado.
             </p>
           </div>
           <Badge variant={duplicateGroups.length ? "warning" : "success"}>
@@ -54,7 +63,7 @@ export default function DuplicateTargetAuditPage() {
         {duplicateGroups.length === 0 ? (
           <div className="flex items-start gap-3 p-6 text-sm text-emerald-700">
             <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" />
-            <p>Nenhuma duplicata encontrada nos dados carregados pelo app.</p>
+            <p>Nenhuma duplicata ou suspeita de Studio contido encontrada nos dados carregados pelo app.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -63,11 +72,12 @@ export default function DuplicateTargetAuditPage() {
                 <TableRow>
                   <TableHead>Cliente</TableHead>
                   <TableHead>Pessoa</TableHead>
+                  <TableHead>Problema</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Ano</TableHead>
-                  <TableHead className="text-right">Soma atual</TableHead>
+                  <TableHead className="text-right">Atual</TableHead>
                   <TableHead className="text-right">Sugerido</TableHead>
-                  <TableHead className="text-right">Suspeito</TableHead>
+                  <TableHead className="text-right">Studio/Excesso</TableHead>
                   <TableHead>Registros</TableHead>
                 </TableRow>
               </TableHeader>
@@ -81,6 +91,11 @@ export default function DuplicateTargetAuditPage() {
                     <TableCell>
                       <p className="font-semibold text-slate-800">{group.personName}</p>
                       <p className="mt-1 text-xs text-slate-400">{group.personId}</p>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={group.issueType === "duplicate_key" ? "warning" : "destructive"}>
+                        {group.issueType === "duplicate_key" ? "Chave repetida" : "Studio contido"}
+                      </Badge>
                     </TableCell>
                     <TableCell>{targetTypeLabels[group.targetType]}</TableCell>
                     <TableCell>{group.year}</TableCell>
@@ -103,6 +118,7 @@ export default function DuplicateTargetAuditPage() {
                             <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
                               <span>Atual: <strong>{formatCurrency(item.amount)}</strong></span>
                               <span>Squads/Times: <strong>{formatCurrency(item.ownAmount ?? item.amount)}</strong></span>
+                              {group.containedStudioAmount !== undefined && <span>Studio contido: <strong>{formatCurrency(group.containedStudioAmount)}</strong></span>}
                             </div>
                             <p className="mt-2 text-xs text-slate-500">{item.reason}</p>
                             {item.notes && <p className="mt-1 text-xs text-slate-400">{item.notes}</p>}

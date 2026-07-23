@@ -418,7 +418,12 @@ function getOfficialOwnAmountFromAllocations(
   containedAmount: number,
 ) {
   if (!allocations.length) return 0;
-  const currentAmount = Math.max(...allocations.map((allocation) => allocation.amount));
+  const currentAmountCandidates = allocations
+    .map((allocation) => allocation.amount)
+    .filter((amount) => amount > containedAmount + 0.01)
+    .sort((first, second) => first - second);
+  const currentAmount = currentAmountCandidates[0]
+    ?? Math.max(...allocations.map((allocation) => allocation.amount));
   return Math.max(currentAmount - containedAmount, 0);
 }
 

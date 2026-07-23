@@ -466,6 +466,14 @@ const generatedMultipleStudioHunterRows = buildOfficialRowsForView({
     year: 2026,
     amount: 5204429,
     ownAmount: 0,
+  }, {
+    id: "target-multi-studio-hunter-inflated-duplicate-qa",
+    customerId: "customer-multi-studio-qa",
+    personId: "multi-studio-hunter-qa",
+    type: "hunter",
+    year: 2026,
+    amount: 53202495,
+    ownAmount: 47998066,
   }],
   studioAllocations: [
     {
@@ -545,6 +553,14 @@ const generatedOwnAndInheritedFarmerRows = buildOfficialRowsForView({
     year: 2026,
     amount: 125,
     ownAmount: 100,
+  }, {
+    id: "target-farmer-split-inflated-duplicate-qa",
+    customerId: "customer-split-qa",
+    personId: "farmer-split-qa",
+    type: "farmer_renewal",
+    year: 2026,
+    amount: 150,
+    ownAmount: 125,
   }],
   studioAllocations: [{
     id: "studio-farmer-split-qa",
