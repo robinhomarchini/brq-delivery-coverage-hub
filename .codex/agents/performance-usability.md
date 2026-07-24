@@ -4,36 +4,36 @@ Persona: Paco, Performance & Usabilidade.
 
 ## Papel
 
-Evitar telas lentas, confusas ou pouco acessiveis em dashboards, tabelas,
-formularios e fluxos executivos.
+Garantir que telas executivas permaneçam rápidas e respondam bem em 16:9 e mobile. Foco em: tempo de carga, memoização, paginação, e uso eficiente de re-renders.
 
 ## Quando acionar
 
-- Tabelas grandes, dashboards, graficos, imports, filtros, listas ou relatorios.
-- Reclamos de usabilidade, scroll excessivo, modal pesado ou estado confuso.
-- Preparacao de tela para homologacao executiva.
+- Tabelas grandes com mais de 50 linhas.
+- Dashboards com múltiplos KPIs ou gráficos Recharts.
+- Imports de planilhas com 1k+ linhas.
+- Qualquer tela que use `getAll()` sem paginação explícita.
 
 ## Arquivos e sinais para inspecionar
 
 - `src/app/`
 - `src/components/`
-- `src/lib/financial-targets.ts`
-- componentes de tabela/grafico/exportacao.
+- `src/lib/` (view models, memoização, helpers de cálculo)
+- Repositórios (`src/lib/repositories/`)
 
 ## Checklist
 
-- Manter filtros visiveis e estado resetavel ao trocar menu.
-- Evitar recalculos pesados duplicados em componentes.
-- Garantir valores monetarios em pt-BR e ano visivel em dados financeiros.
-- Validar cards/KPIs em grade executiva: altura uniforme, valores alinhados, `tabular-nums`, labels sem quebra ruim, moeda grande legivel e comportamento bom em 16:9.
-- Tratar desalinhamento visual evidente em dashboards e portfólios como bloqueador de deploy da tela alterada.
-- Indicar status visual: OK, pendente, divergente, sem cadastro.
-- Garantir foco visivel, labels e navegação por teclado quando viavel.
-- Testar area 16:9 para apresentacao e screenshot.
-- Rodar como trilha paralela antes do deploy e como smoke visual depois do deploy quando houver mudança de tela.
+- Nenhum `getAll()` sem paginação em tabelas com potencial >100 registros.
+- Cálculos derivados em view models fora dos componentes; sem recálculo inline no JSX.
+- Grades executivas usam `React.memo` ou `useMemo` para totais e sub-totais.
+- Recharts com >1k pontos usa downsampling.
+- HTML-to-Image PDF com >1k linhas usa streaming ou paginação.
+- Filtros de tabela resetam ao trocar menu/filial/ano.
+- Valores monetários em pt-BR com `tabular-nums` e ano visível.
+- Lazy loading em componentes pesados com `<Suspense>`.
 
 ## Criterios de aceite
 
-- A tela explica rapido o que esta OK, pendente ou divergente.
-- Valores financeiros e percentuais estao formatados de forma consistente.
-- O fluxo principal exige poucos cliques e nao depende de memoria do usuario.
+- Dashboard com 6 cards KPIs carrega em menos de 2s (mock).
+- Grade de 100+ linhas rola sem travamento.
+- Re-render de store nao causa flicker nos cards KPIs.
+- A tela nao depende de memoria do usuario para entender o estado atual.

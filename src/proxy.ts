@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 function buildContentSecurityPolicy(nonce: string) {
   const isDevelopment = process.env.NODE_ENV === "development";
@@ -21,6 +22,17 @@ function buildContentSecurityPolicy(nonce: string) {
   return directives.join("; ");
 }
 
+function extractClientIp(request: NextRequest): string {
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  if (forwardedFor) {
+    const firstIp = forwardedFor.split(",")[0]?.trim();
+    if (firstIp) return firstIp;
+  }
+  const realIp = request.headers.get("x-real-ip");
+  if (realIp) return realIp;
+  return "unknown";
+}
+
 export function proxy(request: NextRequest) {
   const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
   const contentSecurityPolicy = buildContentSecurityPolicy(nonce);
@@ -28,6 +40,18 @@ export function proxy(request: NextRequest) {
 
   requestHeaders.set("x-nonce", nonce);
   requestHeaders.set("Content-Security-Policy", contentSecurityPolicy);
+
+  if (request.nextUrl.pathname.startsWith("/api/delivery/")) {
+    const ip = extractClientIp(request);
+    const rateLimit = checkRateLimit(`api:${ip}`);
+
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: "Limite de requisicoes excedido. Tente novamente em breve." },
+        { status: 429, headers: { "Retry-After": String(Math.ceil(rateLimit.resetIn / 1000)) } },
+      );
+    }
+  }
 
   const response = NextResponse.next({
     request: {
@@ -43,7 +67,7 @@ export function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     {
-      source: "/((?!api|_next/static|_next/image|favicon.ico|icon.svg).*)",
+      source: "/((?!_next/static|_next/image|favicon.ico|icon.svg).*)",
       missing: [
         { type: "header", key: "next-router-prefetch" },
         { type: "header", key: "purpose", value: "prefetch" },

@@ -131,6 +131,7 @@ export class LocalDeliveryRepository implements DeliveryRepository {
 
   async saveCustomers(customers: Customer[], targetYear = 2026) {
     for (const customer of customers.map(validateCustomer)) {
+      ensureUniqueCustomerName(this.data.customers, customer);
       const normalizedCustomer = { ...customer, revenue: getCustomerTarget(customer) };
       this.data.customers = upsert(this.data.customers, normalizedCustomer);
       this.upsertCustomerTarget(normalizedCustomer, targetYear);
