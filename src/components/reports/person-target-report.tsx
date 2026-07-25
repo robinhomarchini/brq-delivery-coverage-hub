@@ -9,7 +9,7 @@ import { KpiSummaryCard } from "@/components/shared/kpi-summary-card";
 import { PageHeader } from "@/components/shared/page-header";
 import { ReportExportActions, type ReportColumn } from "@/components/shared/report-export-actions";
 import { SortableTableHead, type SortDirection, type SortState } from "@/components/shared/sortable-table-head";
-import { useSetSelection } from "@/hooks/use-set-selection";
+import { usePersonTargetReportController } from "@/hooks/use-person-target-report-controller";
 import { PeopleView, type PeopleReportRow } from "@/components/reports/views/person-target-people-view";
 import { AreasView } from "@/components/reports/views/person-target-areas-view";
 import { Badge } from "@/components/ui/badge";
@@ -41,7 +41,6 @@ import {
   getEffectiveStudioHunterPersonId,
   getHunterOwnAmount,
   getTargetCurrentAmountFromAllocations,
-  getTargetOwnAmountFromAllocations,
 } from "@/lib/reports/person-target-rollups";
 import {
   buildClientCoverageRows,
@@ -54,6 +53,7 @@ import {
   type ClientCoverageRow,
 } from "@/lib/reports/client-coverage";
 import { buildDeliveryIndexes } from "@/lib/reports/person-target-indexes";
+import type { PeopleRow } from "@/lib/reports/person-target-rows";
 
 const currentYear = 2026;
 const hunterOwnTotalLabel = "Meta Hunter atual";
@@ -65,7 +65,7 @@ const renewalSquadsTeamsSegmentLabel = "Renovação Squads/Times";
 const squadsTeamsRelationshipHunterLabel = "Meta Hunter Squads/Times";
 const squadsTeamsRelationshipRenewalLabel = "Meta Renovação Squads/Times";
 
-import type { PeopleSortKey, AreaSortKey } from "@/components/reports/views/person-target-view-types";
+import type { AreaSortKey } from "@/components/reports/views/person-target-view-types";
 type PeopleClientSortKey = "person" | "role" | "customer" | "relationship" | "hunter" | "renewal" | "total";
 type HunterSortKey = "hunter" | "role" | "ownHunter" | "studioHunter" | "totalHunter" | "studios";
 
@@ -74,20 +74,7 @@ export { buildOfficialRowsForView };
 export function PersonTargetReport() {
   const { accessUser, canEdit } = useAccess();
   const { areas, people, customers, targetAllocations, studioTargetAllocations, specialistHunterStudioAssignments } = useDeliveryStore();
-  const [search, setSearch] = useState("");
-  const [year, setYear] = useState(String(currentYear));
-  const [roleType, setRoleType] = useState("");
-  const [view, setView] = useState<ReportView>("people");
-  const [selectedDirectorId, setSelectedDirectorId] = useState("");
-  const [selectedHunterClientId, setSelectedHunterClientId] = useState("");
-  const [selectedPeopleClientPersonId, setSelectedPeopleClientPersonId] = useState("");
-  const selectedHunterIds = useSetSelection();
-  const selectedAreaIds = useSetSelection();
-  const selectedPersonIds = useSetSelection();
-  const [peopleSort, setPeopleSort] = useState<SortState<PeopleSortKey>>({ key: "total", direction: "desc" });
-  const [peopleClientSort, setPeopleClientSort] = useState<SortState<PeopleClientSortKey>>({ key: "customer", direction: "asc" });
-  const [areaSort, setAreaSort] = useState<SortState<AreaSortKey>>({ key: "total", direction: "desc" });
-  const [hunterSort, setHunterSort] = useState<SortState<HunterSortKey>>({ key: "totalHunter", direction: "desc" });
+  const { filteredPeopleRows, search, setSearch, year, setYear, roleType, setRoleType, view, setView, selectedDirectorId, setSelectedDirectorId, selectedHunterClientId, setSelectedHunterClientId, selectedPeopleClientPersonId, setSelectedPeopleClientPersonId, selectedHunterIds, selectedAreaIds, selectedPersonIds, peopleSort, setPeopleSort, peopleClientSort, setPeopleClientSort, areaSort, setAreaSort, hunterSort, setHunterSort } = usePersonTargetReportController({ people, customers, targetAllocations, studioTargetAllocations, areas });
   const [showClientCoverageValues, setShowClientCoverageValues] = useState(true);
   const [includeNewLogos, setIncludeNewLogos] = useState(false);
 
@@ -156,10 +143,6 @@ export function PersonTargetReport() {
       .sort((first, second) => first.name.localeCompare(second.name, "pt-BR")),
     [people],
   );
-  const peopleRows = useMemo(
-    () => buildPeopleRows(assignablePeople, reportTargetAllocations, reportStudioTargetAllocations, customerNames, areaNames, selectedYear),
-    [areaNames, assignablePeople, customerNames, selectedYear, reportStudioTargetAllocations, reportTargetAllocations],
-  );
   const peopleClientRows = useMemo(
     () => buildPeopleClientRows({
       people: assignablePeople,
@@ -203,13 +186,6 @@ export function PersonTargetReport() {
     }),
     [areaNames, customerNames, people, selectedHunterClientId, selectedYear, reportStudioTargetAllocations, reportTargetAllocations],
   );
-  const filteredPeopleRows = useMemo(() => {
-    const query = search.toLowerCase();
-    return sortPeopleRows(peopleRows.filter((row) =>
-      (!query || `${row.personName} ${row.roleType} ${row.customerNames.join(" ")}`.toLowerCase().includes(query))
-      && (!roleType || row.roleType === roleType)
-    ), peopleSort);
-  }, [peopleRows, peopleSort, roleType, search]);
   const filteredPeopleClientRows = useMemo(() => {
     const query = search.toLowerCase();
     return sortPeopleClientRows(peopleClientRows.filter((row) =>
@@ -1279,85 +1255,6 @@ function canConsolidateDirectorReport(
   people: Array<{ id: string; directorId?: string }>,
 ) {
   return person.roleType === "Director" || people.some((candidate) => candidate.id !== person.id && candidate.directorId === person.id);
-}
-
-function buildPeopleRows(
-  people: Array<{ id: string; name: string; email?: string; roleType: RoleType; directorId?: string; active: boolean; clientIds: string[] }>,
-  allocations: Array<{ customerId: string; personId: string; type: string; year: number; amount: number; ownAmount?: number }>,
-  studioAllocations: Array<{ customerId: string; areaId: string; hunterPersonId?: string; maintenancePersonId?: string; year: number; hunterAmount: number; maintenanceAmount: number }>,
-  customerNames: Map<string, string>,
-  areaNames: Map<string, string>,
-  year: number,
-) {
-  const studioByHunterCustomer = buildStudioHunterTotalsByHunterCustomer(studioAllocations, year, people, allocations);
-  const studioRenewalByPersonCustomer = buildStudioRenewalTotalsByPersonCustomer(studioAllocations, year, people, areaNames);
-  return people.map((person) => {
-    const personAllocations = allocations.filter((allocation) =>
-      allocation.personId === person.id
-      && allocation.year === year
-      && allocation.type !== "studio"
-    );
-    const directHunter = personAllocations
-      .filter((allocation) => allocation.type === "hunter")
-      .reduce((total, allocation) => total + allocation.amount, 0);
-    const studioCustomerIds = Array.from(studioByHunterCustomer.keys())
-      .filter((key) => key.startsWith(`${person.id}:`))
-      .map((key) => key.slice(person.id.length + 1));
-    const studioRenewalCustomerIds = Array.from(studioRenewalByPersonCustomer.keys())
-      .filter((key) => key.startsWith(`${person.id}:`))
-      .map((key) => key.slice(person.id.length + 1));
-    const customerIds = Array.from(new Set([
-      ...personAllocations.map((allocation) => allocation.customerId),
-      ...studioCustomerIds,
-      ...studioRenewalCustomerIds,
-    ]));
-    const customerBreakdown = customerIds
-      .map((customerId) => {
-        const customerAllocations = personAllocations.filter((allocation) => allocation.customerId === customerId);
-        const directCustomerHunter = customerAllocations
-          .filter((allocation) => allocation.type === "hunter")
-          .reduce((total, allocation) => total + allocation.amount, 0);
-        const studioRenewal = studioRenewalByPersonCustomer.get(`${person.id}:${customerId}`) ?? 0;
-        const customerFarmerRenewal = getTargetOwnAmountFromAllocations(
-          customerAllocations.filter((allocation) => allocation.type === "farmer_renewal"),
-          studioRenewal,
-        ) + studioRenewal;
-        const studioHunter = studioByHunterCustomer.get(`${person.id}:${customerId}`) ?? 0;
-        const customerHunter = Math.max(directCustomerHunter, studioHunter);
-
-        return {
-          customerId,
-          customerName: customerNames.get(customerId) ?? customerId,
-          hunter: customerHunter,
-          farmerRenewal: customerFarmerRenewal,
-          total: customerHunter + customerFarmerRenewal,
-        };
-      })
-      .sort((a, b) => b.total - a.total || a.customerName.localeCompare(b.customerName, "pt-BR"));
-    const names = customerBreakdown
-      .filter((item) => item.total > 0)
-      .map((item) => item.customerName)
-      .sort((a, b) => a.localeCompare(b, "pt-BR"));
-    const hunter = Math.max(
-      directHunter,
-      customerBreakdown.reduce((total, item) => total + item.hunter, 0),
-    );
-    const farmerRenewal = customerBreakdown.reduce((total, item) => total + item.farmerRenewal, 0);
-
-    return {
-      personId: person.id,
-      personName: person.name,
-      email: person.email,
-      roleType: person.roleType,
-      directorId: person.directorId,
-      customerCount: names.length,
-      customerNames: names,
-      hunter,
-      farmerRenewal,
-      total: hunter + farmerRenewal,
-      customerBreakdown,
-    };
-  });
 }
 
 function buildPeopleClientRows({
@@ -2602,19 +2499,6 @@ function getSpecialistHunterSourceLabel(hunterAmount: number, maintenanceAmount:
   return "Studio Manutenção";
 }
 
-function sortPeopleRows(rows: PeopleRow[], sortState: SortState<PeopleSortKey>) {
-  if (!sortState) return rows;
-  return sortRows(rows, sortState.direction, (first, second) => {
-    if (sortState.key === "person") return compareText(first.personName, second.personName);
-    if (sortState.key === "role") return compareText(first.roleType, second.roleType);
-    if (sortState.key === "clients") return compareNumber(first.customerCount, second.customerCount);
-    if (sortState.key === "hunter") return compareNumber(first.hunter, second.hunter);
-    if (sortState.key === "renewal") return compareNumber(first.farmerRenewal, second.farmerRenewal);
-    if (sortState.key === "status") return compareNumber(first.total > 0 ? 1 : 0, second.total > 0 ? 1 : 0);
-    return compareNumber(first.total, second.total);
-  });
-}
-
 function sortPeopleClientRows(rows: PeopleClientRow[], sortState: SortState<PeopleClientSortKey>) {
   if (!sortState) return rows;
   return sortRows(rows, sortState.direction, (first, second) => {
@@ -2666,14 +2550,13 @@ function compareNumber(first: number, second: number) {
   return first - second;
 }
 
-type PeopleRow = ReturnType<typeof buildPeopleRows>[number];
-type PeopleClientStudioItem = {
+export type PeopleClientStudioItem = {
   areaName: string;
   kind: "Studio Hunter" | "Studio Manutenção";
   amount: number;
 };
-type PeopleClientLineType = typeof hunterSquadsTeamsSegmentLabel | typeof renewalSquadsTeamsSegmentLabel | "Studio Hunter" | "Studio Manutenção" | "Sem valor";
-type PeopleClientRow = {
+export type PeopleClientLineType = typeof hunterSquadsTeamsSegmentLabel | typeof renewalSquadsTeamsSegmentLabel | "Studio Hunter" | "Studio Manutenção" | "Sem valor";
+export type PeopleClientRow = {
   id: string;
   personId: string;
   personName: string;
@@ -2692,7 +2575,7 @@ type PeopleClientRow = {
   total: number;
   isFirstCustomerLine: boolean;
 };
-type AreaStudioRow = {
+export type AreaStudioRow = {
   areaId: string;
   areaName: string;
   hunter: number;
@@ -2706,7 +2589,7 @@ type AreaStudioRow = {
     total: number;
   }>;
 };
-type AreaStudioDetailRow = {
+export type AreaStudioDetailRow = {
   id: string;
   areaId: string;
   areaName: string;
@@ -2716,7 +2599,7 @@ type AreaStudioDetailRow = {
   hunterName: string;
   amount: number;
 };
-type HunterRow = {
+export type HunterRow = {
   hunterId: string;
   hunterName: string;
   roleType: RoleType | "Hunter";
@@ -2727,7 +2610,7 @@ type HunterRow = {
   customerCount: number;
   studioBreakdown: Array<{ areaId: string; areaName: string; amount: number }>;
 };
-type HunterDetailRow = {
+export type HunterDetailRow = {
   id: string;
   hunterId: string;
   hunterName: string;
@@ -2737,7 +2620,7 @@ type HunterDetailRow = {
   areaName: string;
   amount: number;
 };
-type HunterDetailGroup = {
+export type HunterDetailGroup = {
   hunterName: string;
   customerName: string;
   rows: HunterDetailRow[];
@@ -2745,7 +2628,7 @@ type HunterDetailGroup = {
   studioHunterTotal: number;
   total: number;
 };
-type HunterClientRow = {
+export type HunterClientRow = {
   id: string;
   hunterId: string;
   hunterName: string;
@@ -2758,7 +2641,7 @@ type HunterClientRow = {
   total: number;
   observations: string;
 };
-type HunterClientGroup = {
+export type HunterClientGroup = {
   hunterId: string;
   hunterName: string;
   customerId: string;
@@ -2768,7 +2651,7 @@ type HunterClientGroup = {
   maintenanceAmount: number;
   total: number;
 };
-type SpecialistHunterRow = {
+export type SpecialistHunterRow = {
   id: string;
   personId: string;
   personName: string;
@@ -2783,8 +2666,8 @@ type SpecialistHunterRow = {
   amount: number;
   year: number;
 };
-type SpecialistHunterRelationshipType = "selection" | "principal" | "associated";
-type DirectorDetailRow = {
+export type SpecialistHunterRelationshipType = "selection" | "principal" | "associated";
+export type DirectorDetailRow = {
   id: string;
   personId: string;
   customerId: string;
@@ -2796,13 +2679,13 @@ type DirectorDetailRow = {
   studioHunterName: string;
   amount: number;
 };
-type DirectorDetailClientGroup = {
+export type DirectorDetailClientGroup = {
   customerId: string;
   customerName: string;
   rows: DirectorDetailRow[];
   total: number;
 };
-type DirectorDetailPersonGroup = {
+export type DirectorDetailPersonGroup = {
   personId: string;
   personName: string;
   roleType: RoleType;
