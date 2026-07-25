@@ -2,7 +2,7 @@
 
 import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowUpRight, Target, UserRound } from "lucide-react";
+import { ArrowUpRight, Target } from "lucide-react";
 import { EmptyState } from "@/components/shared/empty-state";
 import { FilterBar } from "@/components/shared/filter-bar";
 import { KpiSummaryCard } from "@/components/shared/kpi-summary-card";
@@ -22,7 +22,7 @@ import { isHunterConsultAccess } from "@/lib/access-control";
 import { customerCountsTowardTarget, getCustomerTotalTarget } from "@/lib/customer-target-total";
 import { buildHunterAccessScope } from "@/lib/hunter-access-scope";
 import { formatCurrency, toFileSlug } from "@/lib/utils";
-import { isCustomerFarmerResponsibleProfile, isHunterRole, isSpecialistHunterRole, isTargetAssignableRole } from "@/lib/roles";
+import { isHunterRole, isSpecialistHunterRole, isTargetAssignableRole } from "@/lib/roles";
 import { getStudioMaintenancePersonId, isStudioRenewalEligibleForFarmer } from "@/lib/studio-renewal-rollup";
 import type { RoleType } from "@/data/mockData";
 import { isOtherDirectorId } from "@/lib/director-governance";
@@ -42,6 +42,16 @@ import {
   getTargetCurrentAmountFromAllocations,
   getTargetOwnAmountFromAllocations,
 } from "@/lib/reports/person-target-rollups";
+import {
+  buildClientCoverageRows,
+  getClientCoverageReportColumns,
+  getContainedHunterTotal,
+  sumClientCoverageCustomerTarget,
+  sumClientCoverageDelta,
+  sumClientCoverageTarget,
+  type ClientCoveragePerson,
+  type ClientCoverageRow,
+} from "@/lib/reports/client-coverage";
 import { buildDeliveryIndexes } from "@/lib/reports/person-target-indexes";
 
 const currentYear = 2026;
@@ -54,7 +64,7 @@ const renewalSquadsTeamsSegmentLabel = "Renovação Squads/Times";
 const squadsTeamsRelationshipHunterLabel = "Meta Hunter Squads/Times";
 const squadsTeamsRelationshipRenewalLabel = "Meta Renovação Squads/Times";
 
-export type PeopleSortKey = "person" | "role" | "clients" | "hunter" | "renewal" | "total" | "status";
+import type { PeopleSortKey } from "@/components/reports/views/person-target-view-types";
 type PeopleClientSortKey = "person" | "role" | "customer" | "relationship" | "hunter" | "renewal" | "total";
 type AreaSortKey = "area" | "clients" | "hunter" | "maintenance" | "total";
 type HunterSortKey = "hunter" | "role" | "ownHunter" | "studioHunter" | "totalHunter" | "studios";
@@ -322,6 +332,10 @@ export function PersonTargetReport() {
     [filteredPeopleRows, selectedPersonIds],
   );
   const peopleExportRows = selectedPeopleRows.length ? selectedPeopleRows : filteredPeopleRows;
+  const peopleExportFilename = useMemo(() => {
+    const singlePersonName = peopleExportRows.length === 1 ? peopleExportRows[0].personName : "";
+    return `relatorio-pessoas-metas-${year}${singlePersonName ? `-${toFileSlug(singlePersonName)}` : selectedPeopleRows.length ? "-selecao" : ""}`;
+  }, [peopleExportRows, selectedPeopleRows.length, year]);
   const selectedAreaRows = useMemo(
     () => areaRows.filter((row) => selectedAreaIds.has(row.areaId)),
     [areaRows, selectedAreaIds],
@@ -377,7 +391,6 @@ export function PersonTargetReport() {
     officialFilenameSuffix,
     officialReportColumns: officialReportColumns as ReportColumn<unknown>[],
   })];
-  const allVisiblePeopleSelected = filteredPeopleRows.length > 0 && selectedPeopleRows.length === filteredPeopleRows.length;
   const allVisibleAreasSelected = filteredAreaRows.length > 0 && filteredAreaRows.every((row) => selectedAreaIds.has(row.areaId));
   const allVisibleHuntersSelected = filteredHunterRows.length > 0 && filteredHunterRows.every((row) => selectedHunterIds.has(row.hunterId));
   const activeRows = effectiveView === "people"
@@ -442,14 +455,12 @@ export function PersonTargetReport() {
         actions={(
           <div className="flex flex-wrap gap-2">
             {effectiveView === "people" && (
-              <PeopleView
-                rows={filteredPeopleRows as PeopleReportRow[]}
-                selectedRows={selectedPeopleRows as PeopleReportRow[]}
-                sort={peopleSort}
-                onSortChange={setPeopleSort}
-                selectedIds={selectedPersonIds}
-                canEdit={canEdit}
-                year={selectedYear}
+              <ReportExportActions
+                title={`Relatório de Pessoas e Metas · ${year}${selectedPeopleRows.length ? " · Seleção" : ""}`}
+                filename={peopleExportFilename}
+                rows={peopleExportRows}
+                columns={peopleReportColumns}
+                customExports={officialCustomExports}
               />
             )}
 
@@ -653,31 +664,6 @@ export function PersonTargetReport() {
         </Card>
       )}
 
-      {effectiveView === "people" && (
-        <Card className="mb-5 p-4 shadow-sm">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <p className="text-sm font-semibold text-slate-900">
-                {selectedPeopleRows.length
-                  ? `${selectedPeopleRows.length} pessoa(s) selecionada(s) para exportação.`
-                  : "Sem seleção ativa: a exportação usa a lista filtrada."}
-              </p>
-              <p className="text-xs text-slate-500">
-                Marque pessoas na grade para exportar apenas uma seleção.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" onClick={() => selectedPersonIds.selectAll(filteredPeopleRows.map((row) => row.personId))} disabled={!filteredPeopleRows.length}>
-                Selecionar visíveis
-              </Button>
-              <Button type="button" variant="outline" onClick={selectedPersonIds.clear} disabled={!selectedPersonIds.size}>
-                Limpar seleção
-              </Button>
-            </div>
-          </div>
-        </Card>
-      )}
-
       {effectiveView === "areas" && !hunterConsultOnly && (
         <Card className="mb-5 p-4 shadow-sm">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -729,93 +715,15 @@ export function PersonTargetReport() {
       )}
 
       {effectiveView === "people" && (
-        <Card className="overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
-            <Table className="min-w-[1520px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 rounded border-slate-300 accent-brq-purple"
-                      aria-label="Selecionar pessoas visíveis para exportação"
-                       checked={allVisiblePeopleSelected}
-                       onChange={(event) => {
-                         if (event.target.checked) {
-                           selectedPersonIds.selectAll(filteredPeopleRows.map((row) => row.personId));
-                         } else {
-                           selectedPersonIds.clear();
-                         }
-                       }}
-                    />
-                  </TableHead>
-                  <SortableTableHead label="Pessoa" sortKey="person" sortState={peopleSort} onSort={setPeopleSort} />
-                  <SortableTableHead label="Perfil" sortKey="role" sortState={peopleSort} onSort={setPeopleSort} />
-                  <SortableTableHead label="Clientes" sortKey="clients" sortState={peopleSort} onSort={setPeopleSort} />
-                  <SortableTableHead label="Meta Hunter" sortKey="hunter" sortState={peopleSort} onSort={setPeopleSort} />
-                  <SortableTableHead label="Renovação + Ampliação" sortKey="renewal" sortState={peopleSort} onSort={setPeopleSort} />
-                  <SortableTableHead label="Meta Total" sortKey="total" sortState={peopleSort} onSort={setPeopleSort} />
-                  <SortableTableHead label="Status" sortKey="status" sortState={peopleSort} onSort={setPeopleSort} />
-                  <TableHead className="text-right">Ação</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredPeopleRows.map((row) => (
-                  <TableRow
-                    key={row.personId}
-                    className="cursor-pointer"
-                    title="Dê duplo clique para ajustar as metas da pessoa"
-                    onDoubleClick={() => {
-                      window.location.href = `/metas-pessoas?personId=${encodeURIComponent(row.personId)}&year=${encodeURIComponent(year)}`;
-                    }}
-                  >
-                    <TableCell onClick={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()}>
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 rounded border-slate-300 accent-brq-purple"
-                        aria-label={`Selecionar ${row.personName} para exportação`}
-                         checked={selectedPersonIds.has(row.personId)}
-                         onChange={() => selectedPersonIds.toggle(row.personId)}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <div className="grid h-9 w-9 place-items-center rounded-full bg-purple-50 text-brq-purple">
-                          <UserRound className="h-4 w-4" />
-                        </div>
-                        <div>
-                          <p className="font-semibold text-slate-900">{row.personName}</p>
-                          <p className="text-xs text-slate-400">{row.email || "E-mail não informado"}</p>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell><Badge variant="secondary">{row.roleType}</Badge></TableCell>
-                    <TableCell>
-                      <p className="font-semibold text-slate-900">{row.customerCount}</p>
-                      <p className="max-w-md truncate text-xs text-slate-500">{row.customerNames.join(", ") || "Sem clientes com meta"}</p>
-                    </TableCell>
-                    <TableCell>{formatCurrency(row.hunter)}</TableCell>
-                    <TableCell>{formatCurrency(row.farmerRenewal)}</TableCell>
-                    <TableCell className="font-bold text-slate-950">{formatCurrency(row.total)}</TableCell>
-                    <TableCell>{row.total > 0 ? <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">Com meta</Badge> : <Badge className="bg-slate-100 text-slate-600 hover:bg-slate-100">Sem meta</Badge>}</TableCell>
-                    <TableCell>
-                      <div className="flex justify-end">
-                        {canEdit && (
-                          <Button asChild variant="outline" size="sm">
-                            <Link href={`/metas-pessoas?personId=${encodeURIComponent(row.personId)}&year=${encodeURIComponent(year)}`}>
-                              Ajustar <ArrowUpRight className="h-3.5 w-3.5" />
-                            </Link>
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-          {!activeRows.length && <EmptyState />}
-        </Card>
+        <PeopleView
+          rows={filteredPeopleRows as PeopleReportRow[]}
+          selectedRows={selectedPeopleRows as PeopleReportRow[]}
+          sort={peopleSort}
+          onSortChange={setPeopleSort}
+          selectedIds={selectedPersonIds}
+          canEdit={canEdit}
+          year={selectedYear}
+        />
       )}
 
       {effectiveView === "peopleClients" && (
@@ -2186,183 +2094,7 @@ function buildHunterRows(
   }));
 }
 
-function buildClientCoverageRows({
-  customers,
-  people,
-  allocations,
-  studioAllocations,
-  specialistAssignments,
-  areaNames,
-  year,
-}: {
-  customers: Array<{
-    id: string;
-    name: string;
-    managerResponsibleIds: string[];
-    hunterTarget: number;
-    farmerRenewalTarget: number;
-    studioTarget: number;
-    revenue: number;
-  }>;
-  people: Array<{ id: string; name: string; roleType: RoleType; active: boolean; clientIds: string[]; isManager: boolean }>;
-  allocations: Array<{ id: string; customerId: string; personId: string; type: string; year: number; amount: number; ownAmount?: number }>;
-  studioAllocations: Array<{ id: string; customerId: string; areaId: string; hunterPersonId?: string; maintenancePersonId?: string; year: number; hunterAmount: number; maintenanceAmount: number }>;
-  specialistAssignments: Array<{ personId: string; studioTargetAllocationId: string; year: number; assignedAmount?: number }>;
-  areaNames: Map<string, string>;
-  year: number;
-}) {
-  const peopleById = new Map(people.map((person) => [person.id, person]));
-  const studioById = new Map(studioAllocations.map((allocation) => [allocation.id, allocation]));
-  const studioByHunterCustomer = buildStudioHunterTotalsByHunterCustomer(studioAllocations, year, people, allocations);
-  const studioRenewalByPersonCustomer = buildStudioRenewalTotalsByPersonCustomer(studioAllocations, year, people, areaNames);
-  const specialistRowsByCustomer = new Map<string, ClientCoveragePerson[]>();
 
-  specialistAssignments
-    .filter((assignment) => assignment.year === year)
-    .forEach((assignment) => {
-      const person = peopleById.get(assignment.personId);
-      const allocation = studioById.get(assignment.studioTargetAllocationId);
-      if (!person?.active || !isSpecialistHunterRole(person.roleType) || !allocation || allocation.year !== year) return;
-      const amount = assignment.assignedAmount ?? allocation.hunterAmount + allocation.maintenanceAmount;
-      if (amount <= 0.01) return;
-      addClientCoveragePerson(specialistRowsByCustomer, allocation.customerId, {
-        personId: person.id,
-        personName: person.name,
-        roleType: person.roleType,
-        amount,
-      });
-    });
-
-  return customers
-    .map((customer) => {
-      const customerAllocations = allocations.filter((allocation) => allocation.customerId === customer.id && allocation.year === year && allocation.type !== "studio");
-      const customerStudioAllocations = studioAllocations.filter((allocation) => allocation.customerId === customer.id && allocation.year === year);
-      const hunterPersonIds = new Set<string>();
-      const deliveryPersonIds = new Set<string>(customer.managerResponsibleIds);
-      const studioNames = new Set<string>();
-
-      people.forEach((person) => {
-        if (person.clientIds.includes(customer.id)) {
-          if (isHunterRole(person.roleType)) hunterPersonIds.add(person.id);
-          if (isCustomerFarmerResponsibleProfile(person.roleType, person.isManager)) deliveryPersonIds.add(person.id);
-        }
-      });
-
-      customerAllocations.forEach((allocation) => {
-        const person = peopleById.get(allocation.personId);
-        if (allocation.type === "hunter" || person && isHunterRole(person.roleType)) hunterPersonIds.add(allocation.personId);
-        if (allocation.type === "farmer_renewal" || person && isCustomerFarmerResponsibleProfile(person.roleType, person.isManager)) deliveryPersonIds.add(allocation.personId);
-      });
-
-      customerStudioAllocations.forEach((allocation) => {
-        studioNames.add(areaNames.get(allocation.areaId) ?? allocation.areaId);
-        const effectiveHunterId = getEffectiveStudioHunterPersonId(allocation, people, allocations);
-        if (effectiveHunterId) hunterPersonIds.add(effectiveHunterId);
-        const maintenancePersonId = getStudioMaintenancePersonId(allocation);
-        if (maintenancePersonId) deliveryPersonIds.add(maintenancePersonId);
-      });
-
-      const primaryHunterId = getPrimaryClientCoverageHunterId(customer.id, people);
-      const hunterCandidates = Array.from(hunterPersonIds).map((personId) => {
-        const person = peopleById.get(personId);
-        const directHunter = customerAllocations
-          .filter((allocation) => allocation.personId === personId && allocation.type === "hunter")
-          .reduce((total, allocation) => total + allocation.amount, 0);
-        const studioHunter = studioByHunterCustomer.get(`${personId}:${customer.id}`) ?? 0;
-        return {
-          personId,
-          personName: person?.name ?? personId,
-          roleType: person?.roleType ?? "Hunter",
-          amount: Math.max(directHunter, studioHunter),
-        };
-      });
-      const hasHunterWithValue = hunterCandidates.some((person) => person.amount > 0.01);
-      const hunters = hunterCandidates.filter((person) =>
-        person.amount > 0.01 || (!hasHunterWithValue && person.personId === primaryHunterId)
-      );
-
-      const deliveryManagers = Array.from(deliveryPersonIds).map((personId) => {
-        const person = peopleById.get(personId);
-        const renewalAllocations = customerAllocations.filter((allocation) => allocation.personId === personId && allocation.type === "farmer_renewal");
-        const studioRenewal = studioRenewalByPersonCustomer.get(`${personId}:${customer.id}`) ?? 0;
-        const ownRenewal = getTargetOwnAmountFromAllocations(renewalAllocations, studioRenewal);
-        return {
-          personId,
-          personName: person?.name ?? personId,
-          roleType: person?.roleType ?? "Farmer + Delivery",
-          amount: ownRenewal + studioRenewal,
-        };
-      }).filter((person) => person.amount > 0.01 || customer.managerResponsibleIds.includes(person.personId));
-
-      const specialistHunters = specialistRowsByCustomer.get(customer.id) ?? [];
-      const customerTargetTotal = getCustomerTotalTarget(customer);
-      const totalLinkedTarget = hunters.reduce((total, person) => total + person.amount, 0)
-        + deliveryManagers.reduce((total, person) => total + person.amount, 0);
-      const participantIds = new Set([
-        ...hunters.map((person) => person.personId),
-        ...deliveryManagers.map((person) => person.personId),
-        ...specialistHunters.map((person) => person.personId),
-      ]);
-
-      return {
-        customerId: customer.id,
-        customerName: customer.name,
-        hunters: sortClientCoveragePeople(hunters),
-        deliveryManagers: sortClientCoveragePeople(deliveryManagers),
-        specialistHunters: sortClientCoveragePeople(specialistHunters),
-        studios: Array.from(studioNames).sort((first, second) => first.localeCompare(second, "pt-BR")),
-        participantCount: participantIds.size,
-        customerTargetTotal,
-        totalLinkedTarget,
-        coverageDelta: totalLinkedTarget - customerTargetTotal,
-        huntersText: formatClientCoveragePeopleNames(sortClientCoveragePeople(hunters)),
-        deliveryManagersText: formatClientCoveragePeopleNames(sortClientCoveragePeople(deliveryManagers)),
-        specialistHuntersText: formatClientCoveragePeopleNames(sortClientCoveragePeople(specialistHunters)),
-        studiosText: Array.from(studioNames).sort((first, second) => first.localeCompare(second, "pt-BR")).join(", "),
-      };
-    })
-    .filter((row) =>
-      row.hunters.length
-      || row.deliveryManagers.length
-      || row.specialistHunters.length
-      || row.studios.length
-    )
-    .sort((first, second) => first.customerName.localeCompare(second.customerName, "pt-BR"));
-}
-
-function addClientCoveragePerson(
-  rowsByCustomer: Map<string, ClientCoveragePerson[]>,
-  customerId: string,
-  person: ClientCoveragePerson,
-) {
-  const rows = rowsByCustomer.get(customerId) ?? [];
-  const existing = rows.find((row) => row.personId === person.personId);
-  if (existing) {
-    existing.amount += person.amount;
-  } else {
-    rows.push({ ...person });
-  }
-  rowsByCustomer.set(customerId, rows);
-}
-
-function sortClientCoveragePeople(people: ClientCoveragePerson[]) {
-  return [...people].sort((first, second) =>
-    second.amount - first.amount || first.personName.localeCompare(second.personName, "pt-BR")
-  );
-}
-
-function formatClientCoveragePeopleNames(people: ClientCoveragePerson[]) {
-  return people.map((person) => person.personName).join(", ");
-}
-
-function getPrimaryClientCoverageHunterId(
-  customerId: string,
-  people: Array<{ id: string; name: string; roleType: RoleType; active: boolean; clientIds: string[] }>,
-) {
-  return people
-    .filter((person) => person.active && isHunterRole(person.roleType) && person.clientIds.includes(customerId))
-    .sort((first, second) => first.name.localeCompare(second.name, "pt-BR"))[0]?.id ?? "";
-}
 
 function buildHunterDetailRows({
   people,
@@ -2821,9 +2553,6 @@ function emptyTotals(countLabel: string, firstLabel: string, secondLabel: string
   return { countLabel, count: 0, firstLabel, first: 0, secondLabel, second: 0, totalLabel, total: 0 };
 }
 
-function getContainedHunterTotal(ownTotal: number, studioHunterTotal: number) {
-  return ownTotal + studioHunterTotal;
-}
 
 function getHunterBaseWithoutStudio(row: HunterRow) {
   return Math.max(row.totalHunter - row.studioHunter, 0);
@@ -2867,17 +2596,6 @@ function summarizeHunterClientRows(rows: HunterClientRow[]) {
   }), { hunterAmount: 0, maintenanceAmount: 0, total: 0 });
 }
 
-function sumClientCoverageTarget(rows: ClientCoverageRow[]) {
-  return rows.reduce((total, row) => total + row.totalLinkedTarget, 0);
-}
-
-function sumClientCoverageCustomerTarget(rows: ClientCoverageRow[]) {
-  return rows.reduce((total, row) => total + row.customerTargetTotal, 0);
-}
-
-function sumClientCoverageDelta(rows: ClientCoverageRow[]) {
-  return rows.reduce((total, row) => total + row.coverageDelta, 0);
-}
 
 function sumAmount(rows: Array<{ amount: number }>) {
   return rows.reduce((total, row) => total + row.amount, 0);
@@ -2894,6 +2612,17 @@ function sumPeopleClientRenewal(rows: PeopleClientRow[]) {
 function sumPeopleClientTotal(rows: PeopleClientRow[]) {
   return rows.reduce((total, row) => total + row.total, 0);
 }
+
+const peopleReportColumns: ReportColumn<PeopleRow>[] = [
+  { key: "personName", label: "Pessoa", value: (row) => row.personName },
+  { key: "email", label: "E-mail", value: (row) => row.email ?? "" },
+  { key: "roleType", label: "Perfil", value: (row) => row.roleType },
+  { key: "customerCount", label: "Qtd. clientes", value: (row) => row.customerCount, format: "number", align: "right" },
+  { key: "customerNames", label: "Clientes", value: (row) => row.customerNames.join(", ") },
+  { key: "hunter", label: "Meta Hunter", value: (row) => row.hunter, format: "currency", align: "right" },
+  { key: "farmerRenewal", label: "Renovação + Ampliação", value: (row) => row.farmerRenewal, format: "currency", align: "right" },
+  { key: "total", label: "Meta Total", value: (row) => row.total, format: "currency", align: "right" },
+];
 
 const peopleClientReportColumns: ReportColumn<PeopleClientRow>[] = [
   { key: "customerName", label: "Cliente", value: (row) => row.customerName },
@@ -2952,26 +2681,6 @@ const hunterClientReportColumns: ReportColumn<HunterClientRow>[] = [
   { key: "total", label: "Total da linha", value: (row) => row.total, format: "currency", align: "right" },
   { key: "observations", label: "Observações", value: (row) => row.observations },
 ];
-
-function getClientCoverageReportColumns(showValues: boolean): ReportColumn<ClientCoverageRow>[] {
-  const columns: ReportColumn<ClientCoverageRow>[] = [
-    { key: "customerName", label: "Cliente", value: (row) => row.customerName },
-    { key: "huntersText", label: "Hunters", value: (row) => row.huntersText },
-    { key: "deliveryManagersText", label: "Delivery / Farmers", value: (row) => row.deliveryManagersText },
-    { key: "specialistHuntersText", label: "Hunters Especializados", value: (row) => row.specialistHuntersText },
-    { key: "studiosText", label: "Studios", value: (row) => row.studiosText },
-    { key: "participantCount", label: "Participantes", value: (row) => row.participantCount, format: "number", align: "right" },
-  ];
-
-  if (!showValues) return columns;
-
-  return [
-    ...columns,
-    { key: "customerTargetTotal", label: "Meta do cliente", value: (row) => row.customerTargetTotal, format: "currency", align: "right" },
-    { key: "totalLinkedTarget", label: "Meta ligada", value: (row) => row.totalLinkedTarget, format: "currency", align: "right" },
-    { key: "coverageDelta", label: "Diferença", value: (row) => row.coverageDelta, format: "currency", align: "right" },
-  ];
-}
 
 const specialistHunterReportColumns: ReportColumn<SpecialistHunterRow>[] = [
   { key: "personName", label: "Hunter Especializado", value: (row) => row.personName },
@@ -3182,28 +2891,6 @@ type HunterClientGroup = {
   hunterAmount: number;
   maintenanceAmount: number;
   total: number;
-};
-type ClientCoveragePerson = {
-  personId: string;
-  personName: string;
-  roleType: RoleType | string;
-  amount: number;
-};
-type ClientCoverageRow = {
-  customerId: string;
-  customerName: string;
-  hunters: ClientCoveragePerson[];
-  deliveryManagers: ClientCoveragePerson[];
-  specialistHunters: ClientCoveragePerson[];
-  studios: string[];
-  participantCount: number;
-  customerTargetTotal: number;
-  totalLinkedTarget: number;
-  coverageDelta: number;
-  huntersText: string;
-  deliveryManagersText: string;
-  specialistHuntersText: string;
-  studiosText: string;
 };
 type SpecialistHunterRow = {
   id: string;

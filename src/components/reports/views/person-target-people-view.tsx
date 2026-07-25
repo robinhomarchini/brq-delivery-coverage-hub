@@ -10,7 +10,7 @@ import { EmptyState } from "@/components/shared/empty-state";
 import { SortableTableHead, type SortState } from "@/components/shared/sortable-table-head";
 import { useSetSelection } from "@/hooks/use-set-selection";
 import { formatCurrency } from "@/lib/utils";
-import type { PeopleSortKey } from "@/components/reports/person-target-report";
+import type { PeopleSortKey } from "./person-target-view-types";
 
 export interface PeopleReportRow {
   personId: string;

@@ -10,7 +10,9 @@ const officialExportPath = path.join(process.cwd(), "src", "lib", "reports", "pe
 const officialExportConfigPath = path.join(process.cwd(), "src", "lib", "reports", "person-target-export-config.ts");
 const reportExportActionsPath = path.join(process.cwd(), "src", "components", "shared", "report-export-actions.tsx");
 const reportExportServicePath = path.join(process.cwd(), "src", "lib", "report-export.ts");
+const clientCoveragePath = path.join(process.cwd(), "src", "lib", "reports", "client-coverage.ts");
 const source = fs.readFileSync(reportPath, "utf8");
+const clientCoverageSource = fs.readFileSync(clientCoveragePath, "utf8");
 const officialExportSource = fs.readFileSync(officialExportPath, "utf8");
 const officialExportConfigSource = fs.readFileSync(officialExportConfigPath, "utf8");
 const reportExportActionsSource = fs.readFileSync(reportExportActionsPath, "utf8");
@@ -137,7 +139,8 @@ const requiredClientCoverageTokens = [
   "reportTargetAllocations",
   "reportStudioTargetAllocations",
 ];
-const missingClientCoverageTokens = requiredClientCoverageTokens.filter((token) => !source.includes(token));
+const requiredClientCoverageSources = [source, clientCoverageSource];
+const missingClientCoverageTokens = requiredClientCoverageTokens.filter((token) => !requiredClientCoverageSources.some((fileSource) => fileSource.includes(token)));
 if (missingClientCoverageTokens.length) {
   throw new Error(`Client coverage report is missing tokens: ${missingClientCoverageTokens.join(", ")}`);
 }
@@ -149,7 +152,7 @@ const forbiddenClientCoverageValueTokens = [
   "showValues ? row.specialistHuntersText",
   "person.amount > 0.01 ? ` · ${formatCurrency(person.amount)}`",
 ];
-const foundForbiddenClientCoverageValueTokens = forbiddenClientCoverageValueTokens.filter((token) => source.includes(token));
+const foundForbiddenClientCoverageValueTokens = forbiddenClientCoverageValueTokens.filter((token) => requiredClientCoverageSources.some((fileSource) => fileSource.includes(token)));
 if (foundForbiddenClientCoverageValueTokens.length) {
   throw new Error(`Client coverage report must keep person labels value-free: ${foundForbiddenClientCoverageValueTokens.join(", ")}`);
 }
@@ -162,7 +165,7 @@ const requiredValueFreeClientCoverageTokens = [
   '{ key: "deliveryManagersText", label: "Delivery / Farmers", value: (row) => row.deliveryManagersText }',
   '{ key: "specialistHuntersText", label: "Hunters Especializados", value: (row) => row.specialistHuntersText }',
 ];
-const missingValueFreeClientCoverageTokens = requiredValueFreeClientCoverageTokens.filter((token) => !source.includes(token));
+const missingValueFreeClientCoverageTokens = requiredValueFreeClientCoverageTokens.filter((token) => !requiredClientCoverageSources.some((fileSource) => fileSource.includes(token)));
 if (missingValueFreeClientCoverageTokens.length) {
   throw new Error(`Client coverage report must export person names without allocated values: ${missingValueFreeClientCoverageTokens.join(", ")}`);
 }
