@@ -10,7 +10,13 @@ import { AccessContextProvider } from "@/lib/access-context";
 import { createAuthServiceSelection, normalizeLoginEmail, validateCorporateEmail, type AuthenticatedUser } from "@/lib/auth/auth-service";
 
 type AuthMode = "password" | "first_access" | "reset_password";
+
 const accessSimulationStorageKey = "brq-access-simulation";
+
+// Security note: access simulation is intentionally UI-only. It is stored in localStorage
+// as a convenience for admin testing, but it must never be treated as an authoritative
+// source of truth for backend authorization. Backend BFF routes must continue validating
+// the real session and role. This simulation can be tampered with in the browser.
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
   const authSelection = useMemo(() => createAuthServiceSelection(), []);
@@ -59,6 +65,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         } catch (accessError) {
           console.error("Failed to load access profile", accessError);
           await service.signOut();
+          clearAccessSimulation();
           if (!mounted) return;
           setUser(null);
           setAccessUser(null);
@@ -69,6 +76,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         if (!mounted) return;
         if (!profile?.active) {
           await service.signOut();
+          clearAccessSimulation();
           if (!mounted) return;
           setUser(null);
           setAccessUser(null);
@@ -79,12 +87,13 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         }
         if (profile.role !== "admin") {
           setSimulatedAccessUser(null);
-          if (typeof window !== "undefined") window.localStorage.removeItem(accessSimulationStorageKey);
+          clearAccessSimulation();
         }
         setAccessUser(profile);
       } else {
         setAccessUser(null);
         setSimulatedAccessUser(null);
+        clearAccessSimulation();
       }
       setUser(nextUser);
       setLoading(false);
@@ -242,6 +251,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     setAuthMode("password");
     setMessage("Senha redefinida. Entre com e-mail e a nova senha.");
     await authService.signOut();
+    clearAccessSimulation();
     setUser(null);
     setAccessUser(null);
   }
@@ -344,6 +354,18 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   if (user) {
     return (
       <AccessContextProvider value={accessContextValue}>
+        {accessContextValue.accessSimulationActive ? (
+          <div className="sticky top-0 z-50 border-b border-amber-200 bg-amber-50 px-4 py-2 text-amber-900">
+            <div className="mx-auto flex max-w-5xl items-center gap-2 text-sm font-semibold">
+              <ShieldCheck className="h-4 w-4" />
+              <span>
+                Simulação de acesso ativa: {simulatedAccessUser?.email ?? "usuário simulado"} (
+                {simulatedAccessUser?.role ?? "papel desconhecido"}). Esta visualização pode não refletir
+                as permissões reais do usuário autenticado.
+              </span>
+            </div>
+          </div>
+        ) : null}
         {children}
       </AccessContextProvider>
     );

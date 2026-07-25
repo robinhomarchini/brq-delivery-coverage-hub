@@ -454,7 +454,7 @@ function buildOfficialPeopleRowsFromSources({
 
   peopleRows.forEach((personRow) => {
     const person = peopleById.get(personRow.personId);
-    if (!person || !isTargetAssignableRole(person.roleType)) return;
+    if (!person || !isTargetAssignableRole(person.roleType) || person.active !== true) return;
     const personIdentityKey = getOfficialPersonIdentityKey(person);
     if (processedPersonIdentityKeys.has(personIdentityKey)) return;
     processedPersonIdentityKeys.add(personIdentityKey);

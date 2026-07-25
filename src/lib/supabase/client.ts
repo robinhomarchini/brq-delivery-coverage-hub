@@ -21,5 +21,13 @@ export function getSupabaseBrowserClient() {
       },
     );
   }
+
+  if (process.env.NODE_ENV === "production") {
+    console.warn(
+      "[security] Browser Supabase client is in use. This client relies on RLS being enforced server-side. " +
+        "Do not treat client-side authorization as authoritative."
+    );
+  }
+
   return browserClient;
 }
