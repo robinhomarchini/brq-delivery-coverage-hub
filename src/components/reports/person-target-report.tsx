@@ -9,6 +9,7 @@ import { KpiSummaryCard } from "@/components/shared/kpi-summary-card";
 import { PageHeader } from "@/components/shared/page-header";
 import { ReportExportActions, type ReportColumn } from "@/components/shared/report-export-actions";
 import { SortableTableHead, type SortDirection, type SortState } from "@/components/shared/sortable-table-head";
+import { useSetSelection } from "@/hooks/use-set-selection";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -67,15 +68,15 @@ export function PersonTargetReport() {
   const [selectedDirectorId, setSelectedDirectorId] = useState("");
   const [selectedHunterClientId, setSelectedHunterClientId] = useState("");
   const [selectedPeopleClientPersonId, setSelectedPeopleClientPersonId] = useState("");
-  const [selectedHunterIds, setSelectedHunterIds] = useState<Set<string>>(new Set());
-  const [selectedAreaIds, setSelectedAreaIds] = useState<Set<string>>(new Set());
+  const selectedHunterIds = useSetSelection();
+  const selectedAreaIds = useSetSelection();
+  const selectedPersonIds = useSetSelection();
   const [peopleSort, setPeopleSort] = useState<SortState<PeopleSortKey>>({ key: "total", direction: "desc" });
   const [peopleClientSort, setPeopleClientSort] = useState<SortState<PeopleClientSortKey>>({ key: "customer", direction: "asc" });
   const [areaSort, setAreaSort] = useState<SortState<AreaSortKey>>({ key: "total", direction: "desc" });
   const [hunterSort, setHunterSort] = useState<SortState<HunterSortKey>>({ key: "totalHunter", direction: "desc" });
   const [showClientCoverageValues, setShowClientCoverageValues] = useState(true);
   const [includeNewLogos, setIncludeNewLogos] = useState(false);
-  const [selectedPersonIds, setSelectedPersonIds] = useState<Set<string>>(new Set());
 
   const selectedYear = Number(year) || currentYear;
   const hunterConsultOnly = isHunterConsultAccess(accessUser);
@@ -95,7 +96,7 @@ export function PersonTargetReport() {
   const effectiveView: ReportView = hunterConsultOnly ? "hunters" : view;
   const scopedHunterId = hunterConsultOnly ? scopedHunterPerson?.id ?? "" : "";
   const detailHunterIds = useMemo(
-    () => hunterConsultOnly && scopedHunterId ? new Set([scopedHunterId]) : selectedHunterIds,
+    () => hunterConsultOnly && scopedHunterId ? new Set([scopedHunterId]) : selectedHunterIds.selected,
     [hunterConsultOnly, scopedHunterId, selectedHunterIds],
   );
   const assignablePeople = useMemo(
@@ -215,7 +216,7 @@ export function PersonTargetReport() {
       customerNames,
       areaNames,
       peopleNames,
-      areaIds: selectedAreaIds,
+      areaIds: selectedAreaIds.selected,
       year: selectedYear,
     }),
     [areaNames, customerNames, peopleNames, selectedAreaIds, selectedYear, reportStudioTargetAllocations],
@@ -431,69 +432,9 @@ export function PersonTargetReport() {
     setSelectedDirectorId("");
     setSelectedHunterClientId("");
     setSelectedPeopleClientPersonId("");
-    setSelectedHunterIds(new Set());
-    setSelectedAreaIds(new Set());
-    setSelectedPersonIds(new Set());
-  }
-
-  function togglePersonSelection(personId: string) {
-    setSelectedPersonIds((current) => {
-      const next = new Set(current);
-      if (next.has(personId)) {
-        next.delete(personId);
-      } else {
-        next.add(personId);
-      }
-      return next;
-    });
-  }
-
-  function selectVisiblePeople() {
-    setSelectedPersonIds(new Set(filteredPeopleRows.map((row) => row.personId)));
-  }
-
-  function clearSelectedPeople() {
-    setSelectedPersonIds(new Set());
-  }
-
-  function toggleAreaSelection(areaId: string) {
-    setSelectedAreaIds((current) => {
-      const next = new Set(current);
-      if (next.has(areaId)) {
-        next.delete(areaId);
-      } else {
-        next.add(areaId);
-      }
-      return next;
-    });
-  }
-
-  function selectVisibleAreas() {
-    setSelectedAreaIds(new Set(filteredAreaRows.map((row) => row.areaId)));
-  }
-
-  function clearSelectedAreas() {
-    setSelectedAreaIds(new Set());
-  }
-
-  function toggleHunterSelection(hunterId: string) {
-    setSelectedHunterIds((current) => {
-      const next = new Set(current);
-      if (next.has(hunterId)) {
-        next.delete(hunterId);
-      } else {
-        next.add(hunterId);
-      }
-      return next;
-    });
-  }
-
-  function selectVisibleHunters() {
-    setSelectedHunterIds(new Set(filteredHunterRows.map((row) => row.hunterId)));
-  }
-
-  function clearSelectedHunters() {
-    setSelectedHunterIds(new Set());
+    selectedHunterIds.clear();
+    selectedAreaIds.clear();
+    selectedPersonIds.clear();
   }
 
   return (
@@ -727,10 +668,10 @@ export function PersonTargetReport() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" onClick={selectVisiblePeople} disabled={!filteredPeopleRows.length}>
+              <Button type="button" variant="outline" onClick={() => selectedPersonIds.selectAll(filteredPeopleRows.map((row) => row.personId))} disabled={!filteredPeopleRows.length}>
                 Selecionar visíveis
               </Button>
-              <Button type="button" variant="outline" onClick={clearSelectedPeople} disabled={!selectedPersonIds.size}>
+              <Button type="button" variant="outline" onClick={selectedPersonIds.clear} disabled={!selectedPersonIds.size}>
                 Limpar seleção
               </Button>
             </div>
@@ -752,10 +693,10 @@ export function PersonTargetReport() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" onClick={selectVisibleAreas} disabled={!filteredAreaRows.length}>
+              <Button type="button" variant="outline" onClick={() => selectedAreaIds.selectAll(filteredAreaRows.map((row) => row.areaId))} disabled={!filteredAreaRows.length}>
                 Selecionar visíveis
               </Button>
-              <Button type="button" variant="outline" onClick={clearSelectedAreas} disabled={!selectedAreaIds.size}>
+              <Button type="button" variant="outline" onClick={selectedAreaIds.clear} disabled={!selectedAreaIds.size}>
                 Limpar seleção
               </Button>
             </div>
@@ -777,10 +718,10 @@ export function PersonTargetReport() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" onClick={selectVisibleHunters} disabled={!filteredHunterRows.length}>
+              <Button type="button" variant="outline" onClick={() => selectedHunterIds.selectAll(filteredHunterRows.map((row) => row.hunterId))} disabled={!filteredHunterRows.length}>
                 Selecionar visíveis
               </Button>
-              <Button type="button" variant="outline" onClick={clearSelectedHunters} disabled={!selectedHunterIds.size}>
+              <Button type="button" variant="outline" onClick={selectedHunterIds.clear} disabled={!selectedHunterIds.size}>
                 Limpar seleção
               </Button>
             </div>
@@ -799,14 +740,14 @@ export function PersonTargetReport() {
                       type="checkbox"
                       className="h-4 w-4 rounded border-slate-300 accent-brq-purple"
                       aria-label="Selecionar pessoas visíveis para exportação"
-                      checked={allVisiblePeopleSelected}
-                      onChange={(event) => {
-                        if (event.target.checked) {
-                          selectVisiblePeople();
-                        } else {
-                          clearSelectedPeople();
-                        }
-                      }}
+                       checked={allVisiblePeopleSelected}
+                       onChange={(event) => {
+                         if (event.target.checked) {
+                           selectedPersonIds.selectAll(filteredPeopleRows.map((row) => row.personId));
+                         } else {
+                           selectedPersonIds.clear();
+                         }
+                       }}
                     />
                   </TableHead>
                   <SortableTableHead label="Pessoa" sortKey="person" sortState={peopleSort} onSort={setPeopleSort} />
@@ -834,8 +775,8 @@ export function PersonTargetReport() {
                         type="checkbox"
                         className="h-4 w-4 rounded border-slate-300 accent-brq-purple"
                         aria-label={`Selecionar ${row.personName} para exportação`}
-                        checked={selectedPersonIds.has(row.personId)}
-                        onChange={() => togglePersonSelection(row.personId)}
+                         checked={selectedPersonIds.has(row.personId)}
+                         onChange={() => selectedPersonIds.toggle(row.personId)}
                       />
                     </TableCell>
                     <TableCell>
@@ -957,14 +898,14 @@ export function PersonTargetReport() {
                       type="checkbox"
                       className="h-4 w-4 rounded border-slate-300 accent-brq-purple"
                       aria-label="Selecionar áreas/studios visíveis para exportação detalhada"
-                      checked={allVisibleAreasSelected}
-                      onChange={(event) => {
-                        if (event.target.checked) {
-                          selectVisibleAreas();
-                        } else {
-                          clearSelectedAreas();
-                        }
-                      }}
+                       checked={allVisibleAreasSelected}
+                       onChange={(event) => {
+                         if (event.target.checked) {
+                           selectedAreaIds.selectAll(filteredAreaRows.map((row) => row.areaId));
+                         } else {
+                           selectedAreaIds.clear();
+                         }
+                       }}
                     />
                   </TableHead>
                   <SortableTableHead label="Área / Studio" sortKey="area" sortState={areaSort} onSort={setAreaSort} />
@@ -982,8 +923,8 @@ export function PersonTargetReport() {
                         type="checkbox"
                         className="h-4 w-4 rounded border-slate-300 accent-brq-purple"
                         aria-label={`Selecionar ${row.areaName} para exportação detalhada`}
-                        checked={selectedAreaIds.has(row.areaId)}
-                        onChange={() => toggleAreaSelection(row.areaId)}
+                         checked={selectedAreaIds.has(row.areaId)}
+                         onChange={() => selectedAreaIds.toggle(row.areaId)}
                       />
                     </TableCell>
                     <TableCell>
@@ -1069,14 +1010,14 @@ export function PersonTargetReport() {
                         type="checkbox"
                         className="h-4 w-4 rounded border-slate-300 accent-brq-purple"
                         aria-label="Selecionar Hunters visíveis para exportação detalhada"
-                        checked={allVisibleHuntersSelected}
-                        onChange={(event) => {
-                          if (event.target.checked) {
-                            selectVisibleHunters();
-                          } else {
-                            clearSelectedHunters();
-                          }
-                        }}
+                         checked={allVisibleHuntersSelected}
+                         onChange={(event) => {
+                           if (event.target.checked) {
+                             selectedHunterIds.selectAll(filteredHunterRows.map((row) => row.hunterId));
+                           } else {
+                             selectedHunterIds.clear();
+                           }
+                         }}
                       />
                     </TableHead>
                     <SortableTableHead label="Hunter" sortKey="hunter" sortState={hunterSort} onSort={setHunterSort} />
@@ -1095,8 +1036,8 @@ export function PersonTargetReport() {
                           type="checkbox"
                           className="h-4 w-4 rounded border-slate-300 accent-brq-purple"
                           aria-label={`Selecionar ${row.hunterName} para exportação detalhada`}
-                          checked={selectedHunterIds.has(row.hunterId)}
-                          onChange={() => toggleHunterSelection(row.hunterId)}
+                           checked={selectedHunterIds.has(row.hunterId)}
+                           onChange={() => selectedHunterIds.toggle(row.hunterId)}
                         />
                       </TableCell>
                       <TableCell>
