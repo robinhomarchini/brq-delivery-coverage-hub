@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
@@ -11,6 +11,7 @@ import { ReportExportActions, type ReportColumn } from "@/components/shared/repo
 import { SortableTableHead, type SortDirection, type SortState } from "@/components/shared/sortable-table-head";
 import { useSetSelection } from "@/hooks/use-set-selection";
 import { PeopleView, type PeopleReportRow } from "@/components/reports/views/person-target-people-view";
+import { AreasView } from "@/components/reports/views/person-target-areas-view";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -64,9 +65,8 @@ const renewalSquadsTeamsSegmentLabel = "Renovação Squads/Times";
 const squadsTeamsRelationshipHunterLabel = "Meta Hunter Squads/Times";
 const squadsTeamsRelationshipRenewalLabel = "Meta Renovação Squads/Times";
 
-import type { PeopleSortKey } from "@/components/reports/views/person-target-view-types";
+import type { PeopleSortKey, AreaSortKey } from "@/components/reports/views/person-target-view-types";
 type PeopleClientSortKey = "person" | "role" | "customer" | "relationship" | "hunter" | "renewal" | "total";
-type AreaSortKey = "area" | "clients" | "hunter" | "maintenance" | "total";
 type HunterSortKey = "hunter" | "role" | "ownHunter" | "studioHunter" | "totalHunter" | "studios";
 
 export { buildOfficialRowsForView };
@@ -391,7 +391,6 @@ export function PersonTargetReport() {
     officialFilenameSuffix,
     officialReportColumns: officialReportColumns as ReportColumn<unknown>[],
   })];
-  const allVisibleAreasSelected = filteredAreaRows.length > 0 && filteredAreaRows.every((row) => selectedAreaIds.has(row.areaId));
   const allVisibleHuntersSelected = filteredHunterRows.length > 0 && filteredHunterRows.every((row) => selectedHunterIds.has(row.hunterId));
   const activeRows = effectiveView === "people"
     ? filteredPeopleRows
@@ -664,30 +663,6 @@ export function PersonTargetReport() {
         </Card>
       )}
 
-      {effectiveView === "areas" && !hunterConsultOnly && (
-        <Card className="mb-5 p-4 shadow-sm">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <p className="text-sm font-semibold text-slate-900">
-                {selectedAreaIds.size
-                  ? `${selectedAreaIds.size} área/studio(s) selecionado(s). Exportação e prévia usam o detalhe explodido.`
-                  : "Sem seleção ativa: a exportação usa o consolidado filtrado."}
-              </p>
-              <p className="text-xs text-slate-500">
-                Marque áreas/studios na grade para exportar cliente, segmento, Hunter Studio e valor alocado.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" onClick={() => selectedAreaIds.selectAll(filteredAreaRows.map((row) => row.areaId))} disabled={!filteredAreaRows.length}>
-                Selecionar visíveis
-              </Button>
-              <Button type="button" variant="outline" onClick={selectedAreaIds.clear} disabled={!selectedAreaIds.size}>
-                Limpar seleção
-              </Button>
-            </div>
-          </div>
-        </Card>
-      )}
 
       {effectiveView === "hunters" && !hunterConsultOnly && (
         <Card className="mb-5 p-4 shadow-sm">
@@ -795,114 +770,15 @@ export function PersonTargetReport() {
       )}
 
       {effectiveView === "areas" && (
-        <Card className="overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
-            <Table className="min-w-[1160px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-12">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 rounded border-slate-300 accent-brq-purple"
-                      aria-label="Selecionar áreas/studios visíveis para exportação detalhada"
-                       checked={allVisibleAreasSelected}
-                       onChange={(event) => {
-                         if (event.target.checked) {
-                           selectedAreaIds.selectAll(filteredAreaRows.map((row) => row.areaId));
-                         } else {
-                           selectedAreaIds.clear();
-                         }
-                       }}
-                    />
-                  </TableHead>
-                  <SortableTableHead label="Área / Studio" sortKey="area" sortState={areaSort} onSort={setAreaSort} />
-                  <SortableTableHead label="Clientes" sortKey="clients" sortState={areaSort} onSort={setAreaSort} />
-                  <SortableTableHead label="Studio Hunter" sortKey="hunter" sortState={areaSort} onSort={setAreaSort} />
-                  <SortableTableHead label="Studio Manutenção" sortKey="maintenance" sortState={areaSort} onSort={setAreaSort} />
-                  <SortableTableHead label="Total" sortKey="total" sortState={areaSort} onSort={setAreaSort} />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredAreaRows.map((row) => (
-                  <TableRow key={row.areaId}>
-                    <TableCell>
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 rounded border-slate-300 accent-brq-purple"
-                        aria-label={`Selecionar ${row.areaName} para exportação detalhada`}
-                         checked={selectedAreaIds.has(row.areaId)}
-                         onChange={() => selectedAreaIds.toggle(row.areaId)}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <p className="font-bold text-slate-950">{row.areaName}</p>
-                      <p className="text-xs text-slate-400">{row.clients.length} cliente(s)</p>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex max-w-2xl flex-wrap gap-2">
-                        {row.clients.slice(0, 10).map((client) => (
-                          <Badge key={client.customerId} variant="secondary" title={`Hunter: ${formatCurrency(client.hunter)} · Manutenção: ${formatCurrency(client.maintenance)}`}>
-                            {client.customerName} · {formatCurrency(client.total)}
-                          </Badge>
-                        ))}
-                        {row.clients.length > 10 && <Badge variant="secondary">+{row.clients.length - 10}</Badge>}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-sky-700">{formatCurrency(row.hunter)}</TableCell>
-                    <TableCell>{formatCurrency(row.maintenance)}</TableCell>
-                    <TableCell className="font-bold text-slate-950">{formatCurrency(row.total)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-          {!filteredAreaRows.length && <EmptyState message="Nenhuma meta de área/studio foi encontrada para o ano selecionado." />}
-          {hasSelectedAreas && (
-            <div className="border-t border-slate-200">
-              <div className="px-5 py-4">
-                <p className="text-sm font-bold text-slate-900">Detalhe explodido da seleção</p>
-                <p className="text-xs text-slate-500">Esta é a mesma composição usada na prévia e na exportação.</p>
-              </div>
-              <div className="overflow-x-auto">
-                <Table className="min-w-[1180px]">
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Área / Studio</TableHead>
-                      <TableHead>Cliente</TableHead>
-                      <TableHead>Segmento</TableHead>
-                      <TableHead>Hunter Studio</TableHead>
-                      <TableHead className="text-right">Valor alocado</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredAreaDetailRows.map((row) => (
-                      <TableRow key={row.id}>
-                        <TableCell>
-                          <p className="font-bold text-slate-950">{row.areaName}</p>
-                        </TableCell>
-                        <TableCell>{row.customerName}</TableCell>
-                        <TableCell>
-                          <Badge className={row.segment === "Studio Hunter" ? "bg-sky-100 text-sky-800 hover:bg-sky-100" : "bg-slate-100 text-slate-700 hover:bg-slate-100"}>
-                            {row.segment}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{row.hunterName || "—"}</TableCell>
-                        <TableCell className="text-right font-semibold tabular-nums text-slate-950">{formatCurrency(row.amount)}</TableCell>
-                      </TableRow>
-                    ))}
-                    {filteredAreaDetailRows.length > 0 && (
-                      <TableRow className="bg-slate-900 text-white hover:bg-slate-900">
-                        <TableCell colSpan={4} className="font-bold">Total selecionado</TableCell>
-                        <TableCell className="text-right font-bold tabular-nums">{formatCurrency(areaDetailTotal)}</TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-              {!filteredAreaDetailRows.length && <EmptyState message="Nenhuma quebra foi encontrada para a seleção atual." />}
-            </div>
-          )}
-        </Card>
+        <AreasView
+          rows={filteredAreaRows}
+          detailRows={filteredAreaDetailRows}
+          selectedIds={selectedAreaIds}
+          sort={areaSort}
+          onSortChange={setAreaSort}
+          detailTotal={areaDetailTotal}
+          hunterConsultOnly={hunterConsultOnly}
+        />
       )}
 
       {effectiveView === "hunters" && (
