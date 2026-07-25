@@ -7,10 +7,12 @@ const { unzipSync, strFromU8 } = require("fflate");
 
 const reportPath = path.join(process.cwd(), "src", "components", "reports", "person-target-report.tsx");
 const officialExportPath = path.join(process.cwd(), "src", "lib", "reports", "person-target-official-export.ts");
+const officialExportConfigPath = path.join(process.cwd(), "src", "lib", "reports", "person-target-export-config.ts");
 const reportExportActionsPath = path.join(process.cwd(), "src", "components", "shared", "report-export-actions.tsx");
 const reportExportServicePath = path.join(process.cwd(), "src", "lib", "report-export.ts");
 const source = fs.readFileSync(reportPath, "utf8");
 const officialExportSource = fs.readFileSync(officialExportPath, "utf8");
+const officialExportConfigSource = fs.readFileSync(officialExportConfigPath, "utf8");
 const reportExportActionsSource = fs.readFileSync(reportExportActionsPath, "utf8");
 const reportExportServiceSource = fs.readFileSync(reportExportServicePath, "utf8");
 const root = process.cwd();
@@ -37,12 +39,15 @@ const requiredOfficialColumns = [
   "% Novo",
 ];
 
-const missingColumns = requiredOfficialColumns.filter((label) => !source.includes(`label: "${label}"`));
+const missingColumns = requiredOfficialColumns.filter((label) => !source.includes(`label: "${label}"`) && !officialExportConfigSource.includes(`label: "${label}"`));
 if (missingColumns.length) {
   throw new Error(`Official report export is missing columns: ${missingColumns.join(", ")}`);
 }
 
-if (!source.includes("columns: officialReportColumns as ReportColumn<unknown>[]")) {
+const officialExportWired = source.includes("columns: officialReportColumns as ReportColumn<unknown>[]")
+  || source.includes('columns: officialReportColumns as { key: string; label: string; value: (row: unknown) => unknown }[]')
+  || officialExportConfigSource.includes("columns: officialReportColumns");
+if (!officialExportWired) {
   throw new Error("Planilha oficial is not wired to officialReportColumns.");
 }
 
@@ -58,12 +63,15 @@ if (!reportExportServiceSource.includes("export function buildXlsxWorkbook") || 
   throw new Error("Report export service must expose workbook and CSV generation.");
 }
 
-if (!source.includes("officialLayout: true")) {
+if (!source.includes("officialLayout: true") && !officialExportConfigSource.includes("officialLayout: true")) {
   throw new Error("Planilha oficial is not using the official workbook layout.");
 }
 
-if (!source.includes("FINANCIAL-Hunters-Especializados") || !source.includes("FINANCIAL-Rateio-Metas-AEs")) {
+if (!source.includes("FINANCIAL-Hunters-Especializados") && !officialExportConfigSource.includes("FINANCIAL-Hunters-Especializados")) {
   throw new Error("Specialist Hunter official export must use a distinct filename from the standard official spreadsheet.");
+}
+if (!source.includes("FINANCIAL-Rateio-Metas-AEs") && !officialExportConfigSource.includes("FINANCIAL-Rateio-Metas-AEs")) {
+  throw new Error("Standard official export filename token is missing.");
 }
 
 const requiredSpecialistHunterReportTokens = [

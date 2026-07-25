@@ -31,6 +31,7 @@ import {
   type OfficialTargetRow,
   type ReportView,
 } from "@/lib/reports/person-target-official-export";
+import { buildOfficialExportConfig } from "@/lib/reports/person-target-export-config";
 import {
   buildStudioHunterTotalsByHunterCustomer,
   buildStudioRenewalTotalsByPersonCustomer,
@@ -372,18 +373,13 @@ export function PersonTargetReport() {
     selectedHunterClientName: selectedHunterClientId ? peopleNames.get(selectedHunterClientId) ?? "" : "",
     selectedDirectorName: selectedDirectorId ? peopleNames.get(selectedDirectorId) ?? "" : "",
   });
-  const officialCustomExports = [{
-    label: "Planilha oficial",
-    title: effectiveView === "specialistHunters" ? "Hunter Especializado (R$) - FINANCIAL" : "Executivo e Cliente (R$) - FINANCIAL",
-    filename: effectiveView === "specialistHunters"
-      ? `FINANCIAL-Hunters-Especializados-${year}${officialFilenameSuffix}`
-      : `FINANCIAL-Rateio-Metas-AEs-${year}${officialFilenameSuffix}`,
-    worksheetName: "Resumo_Cliente",
-    rows: currentOfficialRows as unknown[],
-    columns: officialReportColumns as ReportColumn<unknown>[],
-    rowStyle: (row: unknown) => (row as OfficialTargetRow).rowStyle,
-    officialLayout: true,
-  }];
+  const officialCustomExports = [buildOfficialExportConfig({
+    view: effectiveView,
+    year: selectedYear,
+    officialRows: currentOfficialRows,
+    officialFilenameSuffix,
+    officialReportColumns: officialReportColumns as ReportColumn<unknown>[],
+  })];
   const allVisiblePeopleSelected = filteredPeopleRows.length > 0 && selectedPeopleRows.length === filteredPeopleRows.length;
   const allVisibleAreasSelected = filteredAreaRows.length > 0 && filteredAreaRows.every((row) => selectedAreaIds.has(row.areaId));
   const allVisibleHuntersSelected = filteredHunterRows.length > 0 && filteredHunterRows.every((row) => selectedHunterIds.has(row.hunterId));
