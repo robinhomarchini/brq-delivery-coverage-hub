@@ -40,6 +40,7 @@ import {
   getTargetCurrentAmountFromAllocations,
   getTargetOwnAmountFromAllocations,
 } from "@/lib/reports/person-target-rollups";
+import { buildDeliveryIndexes } from "@/lib/reports/person-target-indexes";
 
 const currentYear = 2026;
 const hunterOwnTotalLabel = "Meta Hunter atual";
@@ -115,26 +116,28 @@ export function PersonTargetReport() {
     () => hunterScope.enabled ? baseReportCustomers.filter((customer) => hunterScope.customerIds.has(customer.id)) : baseReportCustomers,
     [baseReportCustomers, hunterScope],
   );
-  const reportCustomerIds = useMemo(() => new Set(reportCustomers.map((customer) => customer.id)), [reportCustomers]);
   const reportTargetAllocations = useMemo(
-    () => targetAllocations.filter((allocation) => reportCustomerIds.has(allocation.customerId)),
-    [reportCustomerIds, targetAllocations],
+    () => targetAllocations.filter((allocation) => reportCustomers.some((customer) => customer.id === allocation.customerId)),
+    [reportCustomers, targetAllocations],
   );
   const reportStudioTargetAllocations = useMemo(
-    () => studioTargetAllocations.filter((allocation) => reportCustomerIds.has(allocation.customerId)),
-    [reportCustomerIds, studioTargetAllocations],
+    () => studioTargetAllocations.filter((allocation) => reportCustomers.some((customer) => customer.id === allocation.customerId)),
+    [reportCustomers, studioTargetAllocations],
   );
-  const reportStudioTargetAllocationIds = useMemo(
-    () => new Set(reportStudioTargetAllocations.map((allocation) => allocation.id)),
-    [reportStudioTargetAllocations],
-  );
+  const deliveryIndexes = useMemo(() => buildDeliveryIndexes({
+    customers: reportCustomers,
+    areas,
+    people,
+    studioTargetAllocations: reportStudioTargetAllocations,
+  }), [areas, people, reportCustomers, reportStudioTargetAllocations]);
+  const reportStudioTargetAllocationIds = deliveryIndexes.studioTargetAllocationIds;
+  const customerNames = deliveryIndexes.customerNames;
+  const areaNames = deliveryIndexes.areaNames;
+  const peopleNames = deliveryIndexes.peopleNames;
   const reportSpecialistHunterStudioAssignments = useMemo(
     () => specialistHunterStudioAssignments.filter((assignment) => reportStudioTargetAllocationIds.has(assignment.studioTargetAllocationId)),
     [reportStudioTargetAllocationIds, specialistHunterStudioAssignments],
   );
-  const customerNames = useMemo(() => new Map(reportCustomers.map((customer) => [customer.id, customer.name])), [reportCustomers]);
-  const areaNames = useMemo(() => new Map(areas.map((area) => [area.id, area.name])), [areas]);
-  const peopleNames = useMemo(() => new Map(people.map((person) => [person.id, person.name])), [people]);
   const directorOptions = useMemo(
     () => people
       .filter((person) => person.active && !isOtherDirectorId(person.id) && canConsolidateDirectorReport(person, people))
