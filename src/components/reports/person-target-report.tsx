@@ -4,13 +4,13 @@ import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight, Target } from "lucide-react";
 import { EmptyState } from "@/components/shared/empty-state";
-import { KpiSummaryCard } from "@/components/shared/kpi-summary-card";
 import { PageHeader } from "@/components/shared/page-header";
 import { ReportExportActions, type ReportColumn } from "@/components/shared/report-export-actions";
 import { SortableTableHead, type SortDirection, type SortState } from "@/components/shared/sortable-table-head";
 import { usePersonTargetReportController } from "@/hooks/use-person-target-report-controller";
 import { PersonTargetReportFilters } from "@/components/reports/person-target-report-filters";
 import { PersonTargetReportTable } from "@/components/reports/person-target-report-table";
+import { PersonTargetSummaryCards } from "@/components/reports/person-target-summary-cards";
 import type { PeopleReportRow } from "@/components/reports/views/person-target-people-view";
 import { AreasView } from "@/components/reports/views/person-target-areas-view";
 import { HunterClientsView } from "@/components/reports/views/person-target-hunter-clients-view";
@@ -553,12 +553,17 @@ export function PersonTargetReport() {
         getViewDescription={getViewDescription}
       />
 
-      <section className="mb-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <KpiSummaryCard label={totals.countLabel} value={totals.count} />
-        <KpiSummaryCard label={totals.firstLabel} {...(effectiveView === "specialistHunters" || effectiveView === "clients" ? { value: totals.first } : { currencyValue: totals.first })} />
-        <KpiSummaryCard label={totals.secondLabel} {...(effectiveView === "specialistHunters" || effectiveView === "clients" ? { value: totals.second } : { currencyValue: totals.second })} />
-        <KpiSummaryCard label={totals.totalLabel} currencyValue={totals.total} />
-      </section>
+      <PersonTargetSummaryCards
+        countLabel={totals.countLabel}
+        count={totals.count}
+        firstLabel={totals.firstLabel}
+        first={totals.first}
+        secondLabel={totals.secondLabel}
+        second={totals.second}
+        totalLabel={totals.totalLabel}
+        total={totals.total}
+        effectiveView={effectiveView}
+      />
 
       {hunterConsultOnly && !scopedHunterPerson && (
         <Card className="mb-5 p-4 shadow-sm">
