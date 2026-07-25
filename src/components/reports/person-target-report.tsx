@@ -1,8 +1,8 @@
 "use client";
 
+import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight, Target, UserRound } from "lucide-react";
-import { Fragment, useMemo, useState } from "react";
 import { EmptyState } from "@/components/shared/empty-state";
 import { FilterBar } from "@/components/shared/filter-bar";
 import { KpiSummaryCard } from "@/components/shared/kpi-summary-card";
@@ -10,6 +10,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { ReportExportActions, type ReportColumn } from "@/components/shared/report-export-actions";
 import { SortableTableHead, type SortDirection, type SortState } from "@/components/shared/sortable-table-head";
 import { useSetSelection } from "@/hooks/use-set-selection";
+import { PeopleView, type PeopleReportRow } from "@/components/reports/views/person-target-people-view";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -53,7 +54,7 @@ const renewalSquadsTeamsSegmentLabel = "Renovação Squads/Times";
 const squadsTeamsRelationshipHunterLabel = "Meta Hunter Squads/Times";
 const squadsTeamsRelationshipRenewalLabel = "Meta Renovação Squads/Times";
 
-type PeopleSortKey = "person" | "role" | "clients" | "hunter" | "renewal" | "total" | "status";
+export type PeopleSortKey = "person" | "role" | "clients" | "hunter" | "renewal" | "total" | "status";
 type PeopleClientSortKey = "person" | "role" | "customer" | "relationship" | "hunter" | "renewal" | "total";
 type AreaSortKey = "area" | "clients" | "hunter" | "maintenance" | "total";
 type HunterSortKey = "hunter" | "role" | "ownHunter" | "studioHunter" | "totalHunter" | "studios";
@@ -339,10 +340,6 @@ export function PersonTargetReport() {
     () => hunterConsultOnly ? [] : filteredHunterRows,
     [filteredHunterRows, hunterConsultOnly],
   );
-  const peopleExportFilename = useMemo(() => {
-    const singlePersonName = peopleExportRows.length === 1 ? peopleExportRows[0].personName : "";
-    return `relatorio-pessoas-metas-${year}${singlePersonName ? `-${toFileSlug(singlePersonName)}` : selectedPeopleRows.length ? "-selecao" : ""}`;
-  }, [peopleExportRows, selectedPeopleRows.length, year]);
   const currentOfficialRows = useMemo(
     () => buildOfficialRowsForView({
       view: effectiveView,
@@ -445,14 +442,17 @@ export function PersonTargetReport() {
         actions={(
           <div className="flex flex-wrap gap-2">
             {effectiveView === "people" && (
-              <ReportExportActions
-                title={`Relatório de Pessoas e Metas · ${year}${selectedPeopleRows.length ? " · Seleção" : ""}`}
-                filename={peopleExportFilename}
-                rows={peopleExportRows}
-                columns={peopleReportColumns}
-                customExports={officialCustomExports}
+              <PeopleView
+                rows={filteredPeopleRows as PeopleReportRow[]}
+                selectedRows={selectedPeopleRows as PeopleReportRow[]}
+                sort={peopleSort}
+                onSortChange={setPeopleSort}
+                selectedIds={selectedPersonIds}
+                canEdit={canEdit}
+                year={selectedYear}
               />
             )}
+
             {effectiveView === "peopleClients" && (
               <ReportExportActions
                 title={`Relatório Pessoas x Clientes · ${selectedPeopleClientPersonName || "Pessoa"} · ${year}`}
@@ -2894,17 +2894,6 @@ function sumPeopleClientRenewal(rows: PeopleClientRow[]) {
 function sumPeopleClientTotal(rows: PeopleClientRow[]) {
   return rows.reduce((total, row) => total + row.total, 0);
 }
-
-const peopleReportColumns: ReportColumn<PeopleRow>[] = [
-  { key: "personName", label: "Pessoa", value: (row) => row.personName },
-  { key: "email", label: "E-mail", value: (row) => row.email ?? "" },
-  { key: "roleType", label: "Perfil", value: (row) => row.roleType },
-  { key: "customerCount", label: "Qtd. clientes", value: (row) => row.customerCount, format: "number", align: "right" },
-  { key: "customerNames", label: "Clientes", value: (row) => row.customerNames.join(", ") },
-  { key: "hunter", label: "Meta Hunter", value: (row) => row.hunter, format: "currency", align: "right" },
-  { key: "farmerRenewal", label: "Renovação + Ampliação", value: (row) => row.farmerRenewal, format: "currency", align: "right" },
-  { key: "total", label: "Meta Total", value: (row) => row.total, format: "currency", align: "right" },
-];
 
 const peopleClientReportColumns: ReportColumn<PeopleClientRow>[] = [
   { key: "customerName", label: "Cliente", value: (row) => row.customerName },
