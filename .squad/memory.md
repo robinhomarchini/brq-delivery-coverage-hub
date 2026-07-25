@@ -432,6 +432,30 @@ Próximo passo: mover a view model de Clientes do Relatório de Metas (`buildCli
 - `npm run github:checks`: caminho aprovado para consultar GitHub Actions; se retornar 404, nao repetir variantes cruas de `gh run list`, validar permissao/Actions pelo GitHub UI.
 - `npm install fflate`: declara o leitor ZIP usado pelo parser de `.xlsx` de Studios.
 
+## Accepted Dependency Risks and Safety Policy
+
+### Transitive vulnerabilities accepted temporarily
+
+- `sharp <0.35.0` via Next.js optional dependency: CVEs CVE-2026-33327, CVE-2026-33328, CVE-2026-35590, CVE-2026-35591. Fix would require `npm audit fix --force`, which would downgrade Next.js to 14.x. This is unacceptable. Track upstream Next.js release that bumps `sharp` to `0.35.x`.
+- `brace-expansion <=5.0.7` via ESLint tooling chain: GHSA-mh99-v99m-4gvg. Fix would require `npm audit fix --force`, which would upgrade ESLint to 10.x. This is unacceptable. Track next ESLint patch release.
+
+### Dependency safety rules
+
+- Never run `npm audit fix --force`, `npm install --force`, `npm install --legacy-peer-deps`, or equivalent bypass commands.
+- Never delete `package-lock.json` as a first-line solution.
+- Never upgrade major framework versions automatically to satisfy audit warnings.
+- Keep `next` and `eslint-config-next` aligned.
+- Keep `react` and `react-dom` aligned.
+- Validate Node.js compatibility before dependency changes.
+- Document accepted risks in this file when upstream fixes require breaking changes.
+
+### Git safety rules
+
+- Never discard uncommitted work automatically.
+- Never use destructive reset or clean commands without explicit user approval.
+- Inspect `git status`, `git diff`, and recent commits before repository-wide changes.
+- Preserve minimal, reviewable diffs.
+
 ## Ports, Paths, Environment Variables and Project Conventions
 
 - Raiz canonica: `C:\Users\rmarchini\projetos\OrgBRQDelivery`.
@@ -486,6 +510,7 @@ Próximo passo: mover a view model de Clientes do Relatório de Metas (`buildCli
 - Para Hunter Especializado na tela Metas por Pessoa, a linha e somente consulta e deve herdar apenas as alocacoes de Studio selecionadas para a pessoa em `specialist_hunter_studio_assignments`, usando a parcela `hunterAmount`. Nao usar todos os Studios do cliente nem somar `maintenanceAmount`; isso dobra casos como Professional Services/Guedelha.
 - No Relatorio de Metas, a visao `Pessoas x Clientes` deve ser exportavel em linhas: Meta Squads/Times Hunter, Studio Hunter, Meta Squads/Times Renovacao, Studio Manutencao e Sem valor. Na tela, como a pessoa ja e escolhida no combo, nao repetir Pessoa/Perfil na grade; no CSV/Excel manter Pessoa/E-mail/Perfil para auditoria. Studios devem aparecer como linhas com origem, studio, tipo e valores, nao como badges concatenados.
 - Conceito de negocio atualizado: o que antes era chamado na UI/export como "Meta propria" passa a ser "Meta Squads/Times". `ownAmount`/`own_amount` continuam como nomes tecnicos internos para compatibilidade, mas textos, relatorios e exportacoes devem usar Meta Squads/Times.
+- Na central de Baselines, a Curva principal pode carregar um benchmark opcional por cliente a partir da `Sheet1`: `Squad`/`Times` na coluna Studio/Habilitador vira bucket Times/Squads; Studios/Habilitadores reconhecidos viram Oferta Digital. O benchmark mostra valor e percentual sobre o Total RL 2026, mas nao altera metas, baseline do board, baseline de Studios, dashboard oficial nem status de batimento.
 - Na visao `Pessoas x Clientes`, nao exibir coluna "Relacionamento" nem badge "Cliente associado"; isso polui a leitura. A grade/export devem focar em Cliente, Origem, Studio, Tipo, Hunter, Renovacao e Total da linha.
 - Metas Hunter Especializado nao e somente inclusao: a tela dedicada deve permitir carregar cliente salvo para editar a selecao de Studios e excluir o cliente da meta gerencial salvando a selecao vazia. No Relatorio de Metas, marcar "Hunter principal" quando o Hunter Especializado tambem tiver meta Hunter direta no cliente/ano; na Planilha oficial dessa visao, colocar essas contas em bloco final diferenciado.
 - No Relatorio de Metas > Hunters Especializados, nao existe meta sem Studio. A grade/export deve mostrar somente selecoes gerenciais de Studio; cliente associado ou Hunter principal sem Studio e relacionamento, nao meta. Se a mesma pessoa+cliente tiver selecao de Studio e tambem Hunter principal, a selecao de Studio vence como linha unica e recebe o rotulo "Hunter principal"; nao criar linha extra de Meta Squads/Times, pois isso duplica casos como Professional Services/Guedelha. A Planilha oficial desta visao deve usar arquivo `FINANCIAL-Hunters-Especializados-*` para nao sobrescrever `FINANCIAL-Rateio-Metas-AEs-*`.

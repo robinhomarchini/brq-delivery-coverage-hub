@@ -120,6 +120,59 @@ export function parseCurveStudioBaselineRows(rows: unknown[][]): StudioBaselineR
   );
 }
 
+export interface CurveCustomerBenchmarkRow {
+  customerName: string;
+  timesTarget: number;
+  digitalOfferTarget: number;
+  totalTarget: number;
+}
+
+export function parseCurveCustomerBenchmarkRows(rows: unknown[][]): CurveCustomerBenchmarkRow[] {
+  const grouped = new Map<string, CurveCustomerBenchmarkRow>();
+
+  rows.forEach((row) => {
+    const salesUnit = String(row[curveSheetColumns.salesUnit] ?? "").trim();
+    const businessUnit = String(row[curveSheetColumns.businessUnit] ?? "").trim();
+    if (!isFinancialBusinessUnit(businessUnit)) return;
+
+    const customerName = String(row[curveSheetColumns.customerName] ?? "").trim();
+    const allianceLabel = String(row[curveSheetColumns.allianceLabel] ?? "").trim();
+    const revenueStream = String(row[curveSheetColumns.revenueStream] ?? "").trim();
+    const rawStudioName = String(row[curveSheetColumns.studioName] ?? "").trim();
+    const amount = parseMoney(row[curveSheetColumns.totalAmount]);
+    if (!customerName || amount <= 0) return;
+
+    const benchmarkBucket = getCurveBenchmarkBucket(rawStudioName, revenueStream, customerName, allianceLabel, salesUnit);
+    if (!benchmarkBucket) return;
+
+    const key = normalizeBusinessName(customerName);
+    const current = grouped.get(key) ?? {
+      customerName,
+      timesTarget: 0,
+      digitalOfferTarget: 0,
+      totalTarget: 0,
+    };
+
+    if (benchmarkBucket === "times") {
+      current.timesTarget = roundCurrency(current.timesTarget + amount);
+    } else {
+      current.digitalOfferTarget = roundCurrency(current.digitalOfferTarget + amount);
+    }
+    current.totalTarget = roundCurrency(current.timesTarget + current.digitalOfferTarget);
+    grouped.set(key, current);
+  });
+
+  return Array.from(grouped.values()).sort((first, second) =>
+    first.customerName.localeCompare(second.customerName, "pt-BR", { sensitivity: "base", numeric: true })
+  );
+}
+
+function getCurveBenchmarkBucket(studioName: string, revenueStream: string, customerName: string, allianceLabel: string, salesUnit: string) {
+  const normalizedStudio = normalizeBusinessName(studioName);
+  if (normalizedStudio === "squad" || normalizedStudio === "times") return "times";
+  return getEligibleCurveStudioName(studioName, revenueStream, customerName, allianceLabel, salesUnit) ? "digital_offer" : "";
+}
+
 function getEligibleCurveStudioName(studioName: string, revenueStream: string, customerName: string, allianceLabel: string, salesUnit: string) {
   const normalizedStudio = normalizeBusinessName(studioName);
   if (!normalizedStudio || normalizedStudio === "squad" || normalizedStudio === "times") {

@@ -127,6 +127,7 @@ architecture:
     - reuse_repository_contracts_and_existing_patterns
     - no_mock_or_local_fallback_as_production_solution
     - frontend_may_hide_controls_but_backend_database_must_enforce_security
+    - follow_.github/copilot-instructions.md_for_engineering_constitution
 
 authentication:
   model: Supabase Auth with nominal BRQ users
@@ -193,6 +194,50 @@ git_workflow:
     - inspect_diff_before_completion
     - suggest_conventional_commit
     - avoid_destructive_commands_without_explicit_request
+  safety:
+    forbidden_commands_without_explicit_approval:
+      - git reset --hard
+      - git clean -fd
+      - git clean -fdx
+      - git checkout -- .
+      - git restore .
+      - git push --force
+      - git push --force-with-lease
+      - Remove-Item -Recurse -Force on project files
+    required_before_repository_wide_changes:
+      - git status --short
+      - git diff --stat
+      - git diff
+      - git log --oneline --decorate -5
+
+dependency_safety:
+  forbidden_commands:
+    - npm audit fix --force
+    - npm install --force
+    - npm install --legacy-peer-deps
+    - npm update
+    - npm update --force
+    - npm dedupe --force
+    - npx npm-check-updates -u
+    - pnpm update --latest
+    - yarn upgrade --latest
+  forbidden_actions:
+    - delete package-lock.json as first-line solution
+    - replace compatible dependency with newer major version solely to reduce audit warnings
+    - bypass peer dependencies
+  required_before_dependency_changes:
+    - compatibility matrix for next, react, react-dom, eslint, eslint-config-next, typescript, @types/react, @types/react-dom
+    - documented rollback procedure
+    - validation plan
+  alignment_rules:
+    - keep next and eslint-config-next aligned
+    - keep react and react-dom aligned
+    - validate node compatibility against next peer range
+    - separate security remediation from framework migration
+  accepted_risk_policy:
+    - document transient audit warnings in .squad/memory.md when upstream fix requires breaking change
+    - never upgrade major framework version implicitly for security fixes
+    - prefer waiting for upstream patch over forced remediation
 
 specialist_review_lenses:
   product_domain_model:

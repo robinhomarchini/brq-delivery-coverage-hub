@@ -681,6 +681,15 @@ o responsável informado na planilha para análise, mas não reclassifica
 automaticamente valores entre os componentes. Se a coluna Total vier com texto
 não numérico em uma linha, o sistema deve usar Hunter + Renovação + Ampliação
 como total efetivo daquela linha.
+Além da comparação financeira oficial, a importação da Curva principal pode
+expor um benchmark de mix por cliente a partir da aba `Sheet1`: linhas Financial
+cujo `Studio/Habilitador` seja `Squad` ou `Times` compõem o bucket
+`Times/Squads`; linhas Financial reconhecidas como Studio/Habilitador ou
+Oferta Digital compõem o bucket `Oferta Digital`. Esse benchmark deve mostrar
+valor e percentual sobre o `Total RL 2026` do cliente, mas não altera meta do
+cliente, meta de pessoa, baseline do board, baseline de Studios nem status de
+batimento. O dado é persistido apenas como atributo opcional da foto de Curva
+para reabrir a visão sem importar a mesma planilha novamente.
 Na Curva principal oficial, a aba `Resumo RL 2026` possui mais de um quadro; o
 baseline de clientes deve usar somente o segundo quadro Financial, procurando o
 cabeçalho a partir da linha 125. Quadros anteriores da mesma aba são ignorados

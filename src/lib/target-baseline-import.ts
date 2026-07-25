@@ -1,6 +1,7 @@
 import type { Customer, Person, StudioTargetAllocation, TargetAllocation } from "@/data/mockData";
 import { isHunterRole } from "@/lib/roles";
 import { getContainedHunterAllocation } from "@/lib/customer-hunter-reconciliation";
+import type { CurveCustomerBenchmarkRow } from "@/lib/studio-curve-baseline-snapshot";
 
 export type SpreadsheetCell = unknown;
 
@@ -13,6 +14,14 @@ export interface TargetBaselineRow {
   studioTarget: number;
   totalTarget: number;
   responsibleCode: string;
+  benchmark?: TargetBaselineBenchmark;
+}
+
+export interface TargetBaselineBenchmark {
+  timesTarget: number;
+  digitalOfferTarget: number;
+  timesPercent: number;
+  digitalOfferPercent: number;
 }
 
 export interface TargetBaselineSnapshot {
@@ -167,6 +176,28 @@ export function buildTargetBaselineSnapshotInput(
       totalTarget: 0,
     }),
   };
+}
+
+export function applyTargetBaselineBenchmarks(
+  rows: TargetBaselineRow[],
+  benchmarkRows: CurveCustomerBenchmarkRow[],
+): TargetBaselineRow[] {
+  const benchmarksByCustomer = new Map(benchmarkRows.map((row) => [normalizeName(row.customerName), row]));
+  return rows.map((row) => {
+    const benchmark = benchmarksByCustomer.get(normalizeName(row.customerName));
+    if (!benchmark) return row;
+
+    const benchmarkBase = row.totalTarget > zeroMoneyTolerance ? row.totalTarget : benchmark.totalTarget;
+    return {
+      ...row,
+      benchmark: {
+        timesTarget: roundCurrency(benchmark.timesTarget),
+        digitalOfferTarget: roundCurrency(benchmark.digitalOfferTarget),
+        timesPercent: getPercent(benchmark.timesTarget, benchmarkBase),
+        digitalOfferPercent: getPercent(benchmark.digitalOfferTarget, benchmarkBase),
+      },
+    };
+  });
 }
 
 function findTargetHeaderRowIndex(rows: SpreadsheetCell[][]) {
@@ -449,6 +480,11 @@ function formatCurrency(value: number) {
 
 function roundCurrency(value: number) {
   return Math.round(value * 100) / 100;
+}
+
+function getPercent(value: number, total: number) {
+  if (Math.abs(total) <= zeroMoneyTolerance) return 0;
+  return Math.round((value / total) * 10000) / 10000;
 }
 
 function isSameDisplayedCurrency(left: number, right: number) {

@@ -1,5 +1,5 @@
 import type { Customer, Person, TargetAllocation } from "../src/data/mockData";
-import { buildTargetBaselineComparisons, parseTargetBaselineRows, type SpreadsheetCell } from "../src/lib/target-baseline-import";
+import { applyTargetBaselineBenchmarks, buildTargetBaselineComparisons, buildTargetBaselineSnapshotInput, parseTargetBaselineRows, type SpreadsheetCell } from "../src/lib/target-baseline-import";
 
 function assert(condition: boolean, message: string) {
   if (!condition) throw new Error(message);
@@ -23,11 +23,25 @@ const rows: SpreadsheetCell[][] = [
 ];
 
 const parsedRows = parseTargetBaselineRows(rows);
+const parsedRowsWithBenchmark = applyTargetBaselineBenchmarks(parsedRows, [{
+  customerName: "AGIBANK",
+  timesTarget: 60_000,
+  digitalOfferTarget: 40_000,
+  totalTarget: 100_000,
+}]);
 
 assert(parsedRows.length === 1, "A Curva principal deve ignorar o primeiro quadro e importar apenas clientes Financial do quadro oficial.");
 assert(parsedRows[0]?.customerName === "AGIBANK", "A linha oficial do cliente AGIBANK deve ser mantida.");
 assert(parsedRows[0]?.hunterTarget === 100_000, "A linha do primeiro quadro não deve sobrescrever o valor oficial da linha 125+.");
 assert(parsedRows[0]?.rowNumber === 126, "O número da linha importada deve apontar para a linha real da planilha.");
+assert(parsedRowsWithBenchmark[0]?.benchmark?.timesTarget === 60_000, "A linha da Curva principal deve receber benchmark Times/Squads da Sheet1.");
+assert(parsedRowsWithBenchmark[0]?.benchmark?.digitalOfferTarget === 40_000, "A linha da Curva principal deve receber benchmark Oferta Digital da Sheet1.");
+assert(parsedRowsWithBenchmark[0]?.benchmark?.timesPercent === 0.6, "Percentual Times/Squads deve usar Total RL 2026 como base.");
+assert(parsedRowsWithBenchmark[0]?.benchmark?.digitalOfferPercent === 0.4, "Percentual Oferta Digital deve usar Total RL 2026 como base.");
+
+const snapshotWithBenchmark = buildTargetBaselineSnapshotInput(parsedRowsWithBenchmark, 2026, "curva.xlsx");
+assert(snapshotWithBenchmark.rows[0]?.benchmark?.digitalOfferTarget === 40_000, "A foto salva da Curva deve preservar o benchmark para reabertura sem novo upload.");
+assert(snapshotWithBenchmark.totals.totalTarget === 100_000, "Benchmark não pode alterar os totais oficiais do snapshot.");
 
 const officialFinancialOnlyRows: SpreadsheetCell[][] = [
   firstTableHeader,

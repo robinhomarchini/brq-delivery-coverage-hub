@@ -1,4 +1,5 @@
 import type { RoleType } from "@/data/mockData";
+import { isTargetAssignableRole } from "@/lib/roles";
 import { getStudioMaintenancePersonId } from "@/lib/studio-renewal-rollup";
 import { normalizeBusinessName, toFileSlug } from "@/lib/utils";
 import {
@@ -453,7 +454,7 @@ function buildOfficialPeopleRowsFromSources({
 
   peopleRows.forEach((personRow) => {
     const person = peopleById.get(personRow.personId);
-    if (!person) return;
+    if (!person || !isTargetAssignableRole(person.roleType)) return;
     const personIdentityKey = getOfficialPersonIdentityKey(person);
     if (processedPersonIdentityKeys.has(personIdentityKey)) return;
     processedPersonIdentityKeys.add(personIdentityKey);

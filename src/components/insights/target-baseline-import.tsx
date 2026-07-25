@@ -15,13 +15,15 @@ import { useDeliveryStore } from "@/store/delivery-store";
 import { getCustomerTotalTarget } from "@/lib/customer-target-total";
 import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears } from "@/lib/customer-targets";
 import {
+  applyTargetBaselineBenchmarks,
   buildTargetBaselineSnapshotInput,
   buildTargetBaselineComparisons,
   parseTargetBaselineRows,
   type TargetBaselineComparison,
+  type TargetBaselineBenchmark,
   type TargetBaselineRow,
 } from "@/lib/target-baseline-import";
-import { buildStudioCurveBaselineSnapshotInput, parseCurveStudioBaselineRows } from "@/lib/studio-curve-baseline-snapshot";
+import { buildStudioCurveBaselineSnapshotInput, parseCurveCustomerBenchmarkRows, parseCurveStudioBaselineRows } from "@/lib/studio-curve-baseline-snapshot";
 import { readXlsxSheetRows } from "@/lib/xlsx-reader";
 import { cn, formatCurrency } from "@/lib/utils";
 
@@ -44,6 +46,8 @@ type TargetBaselineSortKey =
   | "renewalImported"
   | "totalCurrent"
   | "totalImported"
+  | "timesBenchmark"
+  | "digitalOfferBenchmark"
   | "hunterCheck";
 
 export function TargetBaselineImport() {
@@ -120,9 +124,12 @@ export function TargetBaselineImport() {
       const fileBuffer = await file.arrayBuffer();
       const spreadsheetRows = readTargetBaselineSheet(fileBuffer);
       await updateImportProgress(setImportProgress, 2, "Interpretando clientes", "Normalizando clientes, Hunter, Farmer e Total RL 2026.");
-      const parsedRows = parseTargetBaselineRows(spreadsheetRows);
+      const parsedRowsWithoutBenchmark = parseTargetBaselineRows(spreadsheetRows);
       await updateImportProgress(setImportProgress, 3, "Lendo abertura de Studios", "Abrindo a aba Sheet1 para extrair BU Financial por Studio/Habilitador.");
-      const curveStudioRows = readCurveStudioRows(fileBuffer);
+      const curveSheetRows = readCurveSheetRows(fileBuffer);
+      const curveStudioRows = parseCurveStudioBaselineRows(curveSheetRows);
+      const benchmarkRows = parseCurveCustomerBenchmarkRows(curveSheetRows);
+      const parsedRows = applyTargetBaselineBenchmarks(parsedRowsWithoutBenchmark, benchmarkRows);
       await updateImportProgress(setImportProgress, 4, "Comparando com cadastro", "Calculando diferenças contra clientes, metas e alocações atuais.");
       const parsedComparisons = buildTargetBaselineComparisons(
         parsedRows,
@@ -218,6 +225,7 @@ export function TargetBaselineImport() {
               Faça upload da planilha com Cliente, Target RL Hunter, Target RL Farmer e Total RL 2026.
               Apenas linhas com BU Financial entram no baseline de clientes.
               A coluna resp é opcional.
+              A abertura da aba Sheet1 alimenta o benchmark Times/Squads x Oferta Digital por cliente.
               O batimento de Studios é gerado em foto própria e fica na visão detalhada de Baseline de Studios.
               A tela compara contra o Supabase e só atualiza os clientes marcados por você.
             </p>
@@ -296,7 +304,7 @@ export function TargetBaselineImport() {
           )}
 
           <div className="overflow-x-auto">
-            <Table className="min-w-[1240px]">
+            <Table className="min-w-[1540px]">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-16">Usar</TableHead>
@@ -308,6 +316,8 @@ export function TargetBaselineImport() {
                   <SortableTableHead label="Renov. planilha" sortKey="renewalImported" sortState={sortState} onSort={setSortState} />
                   <SortableTableHead label="Total atual" sortKey="totalCurrent" sortState={sortState} onSort={setSortState} />
                   <SortableTableHead label="Total planilha" sortKey="totalImported" sortState={sortState} onSort={setSortState} />
+                  <SortableTableHead label="Bench Times/Squads" sortKey="timesBenchmark" sortState={sortState} onSort={setSortState} />
+                  <SortableTableHead label="Bench Oferta Digital" sortKey="digitalOfferBenchmark" sortState={sortState} onSort={setSortState} />
                   <SortableTableHead label="Hunter cadastrado" sortKey="hunterCheck" sortState={sortState} onSort={setSortState} />
                 </TableRow>
               </TableHeader>
@@ -347,6 +357,8 @@ export function TargetBaselineImport() {
                           </p>
                         )}
                       </TableCell>
+                      <BenchmarkCell benchmark={comparison.row.benchmark} field="times" />
+                      <BenchmarkCell benchmark={comparison.row.benchmark} field="digitalOffer" />
                       <HunterDetailsCell comparison={comparison} />
                     </TableRow>
                   );
@@ -413,6 +425,27 @@ function MoneyCell({ value, highlight = false }: { value: number; highlight?: bo
       <p className={cn("font-semibold", highlight ? "text-brq-purple" : "text-slate-900")}>{formatCurrency(value)}</p>
     </TableCell>
   );
+}
+
+function BenchmarkCell({ benchmark, field }: { benchmark?: TargetBaselineBenchmark; field: "times" | "digitalOffer" }) {
+  const value = field === "times" ? benchmark?.timesTarget : benchmark?.digitalOfferTarget;
+  const percent = field === "times" ? benchmark?.timesPercent : benchmark?.digitalOfferPercent;
+  return (
+    <TableCell>
+      {value === undefined ? (
+        <span className="text-sm font-semibold text-slate-300">-</span>
+      ) : (
+        <div className="min-w-[130px] tabular-nums">
+          <p className="whitespace-nowrap font-semibold text-slate-900">{formatCurrency(value)}</p>
+          <p className="mt-1 text-xs font-semibold text-slate-400">{formatPercent(percent ?? 0)}</p>
+        </div>
+      )}
+    </TableCell>
+  );
+}
+
+function formatPercent(value: number) {
+  return new Intl.NumberFormat("pt-BR", { style: "percent", minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(value);
 }
 
 function HunterDetailsCell({ comparison }: { comparison: TargetBaselineComparison }) {
@@ -506,6 +539,8 @@ function sortTargetBaselineComparisons(
     if (sortState.key === "renewalImported") return compareNumber(first.effectiveFarmerRenewalTarget, second.effectiveFarmerRenewalTarget);
     if (sortState.key === "totalCurrent") return compareNumber(first.customer ? getCustomerTarget(first.customer) : 0, second.customer ? getCustomerTarget(second.customer) : 0);
     if (sortState.key === "totalImported") return compareNumber(first.effectiveRevenue, second.effectiveRevenue);
+    if (sortState.key === "timesBenchmark") return compareNumber(first.row.benchmark?.timesTarget ?? 0, second.row.benchmark?.timesTarget ?? 0);
+    if (sortState.key === "digitalOfferBenchmark") return compareNumber(first.row.benchmark?.digitalOfferTarget ?? 0, second.row.benchmark?.digitalOfferTarget ?? 0);
     return compareText(getHunterMessageSummary(first), getHunterMessageSummary(second));
   });
 }
@@ -545,10 +580,9 @@ function getImportErrorMessage(error: unknown) {
   return "Não foi possível importar a planilha. Verifique o formato do arquivo.";
 }
 
-function readCurveStudioRows(buffer: ArrayBuffer) {
+function readCurveSheetRows(buffer: ArrayBuffer) {
   try {
-    const sheetRows = readXlsxSheetRows(buffer, "Sheet1");
-    return parseCurveStudioBaselineRows(sheetRows);
+    return readXlsxSheetRows(buffer, "Sheet1");
   } catch {
     return [];
   }

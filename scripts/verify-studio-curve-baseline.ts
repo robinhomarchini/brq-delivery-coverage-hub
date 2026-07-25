@@ -1,6 +1,6 @@
 import type { Area, Customer, StudioTargetAllocation } from "../src/data/mockData";
 import { applyCurveBaselineToStudioComparisons, buildStudioBaselineComparisons, refreshStudioBaselineComparisonsFromCurrentData, type StudioBaselineComparisonRow, type StudioBaselineRow } from "../src/lib/studio-baseline-import";
-import { parseCurveStudioBaselineRows } from "../src/lib/studio-curve-baseline-snapshot";
+import { parseCurveCustomerBenchmarkRows, parseCurveStudioBaselineRows } from "../src/lib/studio-curve-baseline-snapshot";
 
 const curveSheetColumns = {
   salesUnit: 0,
@@ -38,6 +38,20 @@ const rows = [
     opportunityType: "Renovação",
     totalAmount: 1000,
     businessUnit: "BU Non Financial",
+  }),
+  makeCurveRow({
+    customerName: "Votorantim",
+    revenueStream: "Times",
+    studioName: "Times",
+    opportunityType: "Renovação",
+    totalAmount: 500000,
+  }),
+  makeCurveRow({
+    customerName: "Votorantim",
+    revenueStream: "Squad",
+    studioName: "Squad",
+    opportunityType: "Novo Projeto / Hunter",
+    totalAmount: 250000,
   }),
   makeCurveRow({
     customerName: "Cliente Google Resell",
@@ -94,6 +108,14 @@ assert(analyticsRenewal.hunterAmount === 0, "Analytics Renovação + Ampliação
 assert(analyticsRenewal.maintenanceAmount === 7123456, "Analytics Renovação + Ampliação must be captured as maintenance.");
 assert(!unknownResell, "Unrecognized RESELL rows must stay out of the Studio Curve baseline.");
 assert(parsed.length === 5, "Only Financial and recognized Studio Curve rows must enter the baseline.");
+
+const benchmarkRows = parseCurveCustomerBenchmarkRows(rows);
+const votorantimBenchmark = benchmarkRows.find((row) => row.customerName === "Votorantim");
+
+assert(votorantimBenchmark, "Votorantim must have a customer benchmark split from Sheet1.");
+assert(votorantimBenchmark.timesTarget === 750000, "Times/Squad buckets must enter the customer benchmark as Times/Squads.");
+assert(votorantimBenchmark.digitalOfferTarget === 985394, "Recognized Studio/Habilitador rows must enter the customer benchmark as Oferta Digital.");
+assert(votorantimBenchmark.totalTarget === 1735394, "Customer benchmark total must sum Times/Squads and Oferta Digital.");
 
 const awsAliasComparison = buildStudioBaselineComparisons(
   [makeStudioBaselineRow({ customerName: "Alelo", studioName: "Alianças AWS", hunterAmount: 400000 })],
