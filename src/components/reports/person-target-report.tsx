@@ -4,18 +4,19 @@ import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight, Target } from "lucide-react";
 import { EmptyState } from "@/components/shared/empty-state";
-import { FilterBar } from "@/components/shared/filter-bar";
 import { KpiSummaryCard } from "@/components/shared/kpi-summary-card";
 import { PageHeader } from "@/components/shared/page-header";
 import { ReportExportActions, type ReportColumn } from "@/components/shared/report-export-actions";
 import { SortableTableHead, type SortDirection, type SortState } from "@/components/shared/sortable-table-head";
 import { usePersonTargetReportController } from "@/hooks/use-person-target-report-controller";
-import { PeopleView, type PeopleReportRow } from "@/components/reports/views/person-target-people-view";
+import { PersonTargetReportFilters } from "@/components/reports/person-target-report-filters";
+import { PersonTargetReportTable } from "@/components/reports/person-target-report-table";
+import type { PeopleReportRow } from "@/components/reports/views/person-target-people-view";
 import { AreasView } from "@/components/reports/views/person-target-areas-view";
+import { HunterClientsView } from "@/components/reports/views/person-target-hunter-clients-view";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useDeliveryStore } from "@/store/delivery-store";
 import { useAccess } from "@/lib/access-context";
@@ -523,25 +524,34 @@ export function PersonTargetReport() {
         )}
       />
 
-      <Card className="mb-5 p-4 shadow-sm">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <p className="text-sm font-semibold text-slate-900">New Logos</p>
-            <p className="text-xs text-slate-500">
-              New Logos ficam no controle e podem ajudar na realização do ano, mas não compõem a meta oficial planejada. Ative para incluí-los na consulta e nas exportações.
-            </p>
-          </div>
-          <label className="inline-flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
-            <input
-              type="checkbox"
-              className="h-4 w-4 rounded border-slate-300 text-brq-purple focus:ring-brq-purple"
-              checked={includeNewLogos}
-              onChange={(event) => setIncludeNewLogos(event.target.checked)}
-            />
-            Incluir New Logos
-          </label>
-        </div>
-      </Card>
+      <PersonTargetReportFilters
+        view={view}
+        effectiveView={effectiveView}
+        hunterConsultOnly={hunterConsultOnly}
+        year={year}
+        years={years}
+        onYearChange={setYear}
+        search={search}
+        onSearchChange={setSearch}
+        roleType={roleType}
+        onRoleTypeChange={setRoleType}
+        roleTypes={roleTypes}
+        selectedDirectorId={selectedDirectorId}
+        onSelectedDirectorIdChange={setSelectedDirectorId}
+        directorOptions={directorOptions}
+        selectedHunterClientId={selectedHunterClientId}
+        onSelectedHunterClientIdChange={setSelectedHunterClientId}
+        hunterRows={hunterRows}
+        selectedPeopleClientPersonId={selectedPeopleClientPersonId}
+        onSelectedPeopleClientPersonIdChange={setSelectedPeopleClientPersonId}
+        peopleClientPersonOptions={peopleClientPersonOptions}
+        includeNewLogos={includeNewLogos}
+        onIncludeNewLogosChange={setIncludeNewLogos}
+        showClientCoverageValues={showClientCoverageValues}
+        onShowClientCoverageValuesChange={setShowClientCoverageValues}
+        onViewChange={changeView}
+        getViewDescription={getViewDescription}
+      />
 
       <section className="mb-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <KpiSummaryCard label={totals.countLabel} value={totals.count} />
@@ -550,96 +560,11 @@ export function PersonTargetReport() {
         <KpiSummaryCard label={totals.totalLabel} currencyValue={totals.total} />
       </section>
 
-      {!hunterConsultOnly && <Card className="mb-5 p-3 shadow-sm">
-        <div className="space-y-3">
-          <div className="-mx-1 overflow-x-auto px-1">
-            <div className="inline-flex min-w-max gap-2">
-              {[
-                { key: "people", label: "Pessoas" },
-                { key: "peopleClients", label: "Pessoas x Clientes" },
-                { key: "clients", label: "Clientes" },
-                { key: "areas", label: "Áreas / Studios" },
-                { key: "hunters", label: "Hunters" },
-                { key: "hunterClients", label: "Hunter x Clientes" },
-                { key: "specialistHunters", label: "Hunters Especializados" },
-                { key: "directors", label: "Diretoria Delivery" },
-              ].map((item) => (
-                <button
-                  key={item.key}
-                  type="button"
-                  className={`shrink-0 rounded-xl px-4 py-2 text-sm font-bold transition ${
-                    view === item.key
-                      ? "bg-brq-purple text-white shadow-sm"
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                  }`}
-                  onClick={() => changeView(item.key as ReportView)}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <p className="text-sm text-slate-500">{getViewDescription(effectiveView)}</p>
-        </div>
-      </Card>}
-
-      {effectiveView === "peopleClients" ? (
-        <Card className="mb-5 p-4 shadow-sm">
-          <div className="grid gap-4 lg:grid-cols-[minmax(320px,1fr)_160px] lg:items-end">
-            <label>
-              <span className="mb-1.5 block text-sm font-semibold text-slate-700">Pessoa</span>
-              <Select value={selectedPeopleClientPersonId} onChange={(event) => setSelectedPeopleClientPersonId(event.target.value)}>
-                <option value="">Escolha uma pessoa para montar a visão</option>
-                {peopleClientPersonOptions.map((person) => (
-                  <option key={person.personId} value={person.personId}>
-                    {person.personName} · {person.roleType}
-                  </option>
-                ))}
-              </Select>
-            </label>
-            <label>
-              <span className="mb-1.5 block text-sm font-semibold text-slate-700">Ano</span>
-              <Select value={year} onChange={(event) => setYear(event.target.value)}>
-                {years.map((item) => <option key={item} value={item}>{item}</option>)}
-              </Select>
-            </label>
-          </div>
-        </Card>
-      ) : (
-        <FilterBar search={search} onSearchChange={setSearch}>
-          <Select value={year} onChange={(event) => setYear(event.target.value)}>
-            {years.map((item) => <option key={item} value={item}>{item}</option>)}
-          </Select>
-          {effectiveView !== "areas" && effectiveView !== "specialistHunters" && effectiveView !== "clients" && !hunterConsultOnly && (
-            effectiveView === "directors" ? (
-              <Select value={selectedDirectorId} onChange={(event) => setSelectedDirectorId(event.target.value)}>
-                <option value="">Escolha a diretoria</option>
-                {directorOptions.map((director) => <option key={director.id} value={director.id}>{director.name}</option>)}
-              </Select>
-            ) : effectiveView === "hunterClients" ? (
-              <Select value={selectedHunterClientId} onChange={(event) => setSelectedHunterClientId(event.target.value)}>
-                <option value="">Escolha o Hunter</option>
-                {[...hunterRows]
-                  .sort((first, second) => first.hunterName.localeCompare(second.hunterName, "pt-BR"))
-                  .map((hunter) => <option key={hunter.hunterId} value={hunter.hunterId}>{hunter.hunterName}</option>)}
-              </Select>
-            ) : (
-              <Select value={roleType} onChange={(event) => setRoleType(event.target.value)}>
-                <option value="">Todos os perfis</option>
-                {roleTypes.map((item) => <option key={item} value={item}>{item}</option>)}
-              </Select>
-            )
-          )}
-        </FilterBar>
-      )}
-
       {hunterConsultOnly && !scopedHunterPerson && (
         <Card className="mb-5 p-4 shadow-sm">
           <EmptyState message="Seu e-mail de acesso ainda não está vinculado a uma pessoa Hunter ativa." />
         </Card>
       )}
-
-
       {effectiveView === "hunters" && !hunterConsultOnly && (
         <Card className="mb-5 p-4 shadow-sm">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -666,15 +591,41 @@ export function PersonTargetReport() {
       )}
 
       {effectiveView === "people" && (
-        <PeopleView
-          rows={filteredPeopleRows as PeopleReportRow[]}
-          selectedRows={selectedPeopleRows as PeopleReportRow[]}
-          sort={peopleSort}
-          onSortChange={setPeopleSort}
-          selectedIds={selectedPersonIds}
-          canEdit={canEdit}
-          year={selectedYear}
-        />
+        <>
+          <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-slate-900">
+                {selectedPersonIds.size
+                  ? `${selectedPersonIds.size} pessoa(s) selecionada(s) para exportação.`
+                  : "Sem seleção ativa: a exportação usa a lista filtrada."}
+              </p>
+              <p className="text-xs text-slate-500">Marque pessoas na grade para exportar apenas uma seleção.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" onClick={() => selectedPersonIds.selectAll(filteredPeopleRows.map((row) => row.personId))} disabled={!filteredPeopleRows.length}>
+                Selecionar visíveis
+              </Button>
+              <Button type="button" variant="outline" onClick={selectedPersonIds.clear} disabled={!selectedPersonIds.size}>
+                Limpar seleção
+              </Button>
+            </div>
+          </div>
+          <PersonTargetReportTable
+            rows={filteredPeopleRows as PeopleReportRow[]}
+            selectedPersonIds={selectedPersonIds}
+            allVisibleSelected={filteredPeopleRows.length > 0 && selectedPersonIds.size === filteredPeopleRows.length}
+            sort={peopleSort}
+            onSortChange={setPeopleSort}
+            onSelectAll={() => selectedPersonIds.selectAll(filteredPeopleRows.map((row) => row.personId))}
+            onClearSelection={selectedPersonIds.clear}
+            onTogglePerson={(personId) => selectedPersonIds.toggle(personId)}
+            onRowDoubleClick={(personId) => {
+              window.location.href = `/metas-pessoas?personId=${encodeURIComponent(personId)}&year=${encodeURIComponent(String(selectedYear))}`;
+            }}
+            canEdit={canEdit}
+            year={selectedYear}
+          />
+        </>
       )}
 
       {effectiveView === "peopleClients" && (
@@ -898,114 +849,11 @@ export function PersonTargetReport() {
       )}
 
       {effectiveView === "hunterClients" && (
-        <Card className="overflow-hidden shadow-sm">
-          <div className="border-b border-slate-200 px-5 py-4">
-            <p className="text-sm font-bold text-slate-900">Hunter x Clientes</p>
-            <p className="text-xs text-slate-500">
-              Escolha um Hunter para ver Meta Squads/Times, Studio Hunter, Studio Manutenção e Renovação + Ampliação por cliente. Manutenção/Renovação aparece para leitura operacional e não soma na meta Hunter.
-            </p>
-          </div>
-          <div className="overflow-x-auto">
-            <Table className="min-w-[1280px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Área / Studio / Pessoa</TableHead>
-                  <TableHead>Origem</TableHead>
-                  <TableHead>Hunter efetivo</TableHead>
-                  <TableHead className="text-right">Studio Hunter</TableHead>
-                  <TableHead className="text-right">Manutenção / Renovação</TableHead>
-                  <TableHead className="text-right">Total da linha</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {hunterClientGroups.map((group) => (
-                  <Fragment key={`${group.hunterId}-${group.customerName}`}>
-                    <TableRow className="bg-slate-50">
-                      <TableCell colSpan={4}>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="min-w-0 break-words font-bold text-slate-950">{group.customerName}</span>
-                          <Badge variant="secondary">{group.rows.length} quebra(s)</Badge>
-                          <Badge className="bg-sky-100 text-sky-800 hover:bg-sky-100">
-                            Studio Hunter {formatCurrency(group.hunterAmount)}
-                          </Badge>
-                          {group.maintenanceAmount > 0 && (
-                            <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-100">
-                              Manut./Renov. {formatCurrency(group.maintenanceAmount)}
-                            </Badge>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right font-bold tabular-nums text-sky-700">{formatCurrency(group.hunterAmount)}</TableCell>
-                      <TableCell className="text-right font-bold tabular-nums text-slate-700">{formatCurrency(group.maintenanceAmount)}</TableCell>
-                      <TableCell className="text-right font-bold tabular-nums text-slate-950">{formatCurrency(group.total)}</TableCell>
-                    </TableRow>
-                    {group.rows.map((row) => (
-                      <TableRow key={row.id}>
-                        <TableCell />
-                        <TableCell>
-                          <p className="font-semibold text-slate-900">{row.detailName}</p>
-                          {row.observations && <p className="max-w-xl text-xs text-slate-500">{row.observations}</p>}
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={row.segment === hunterSquadsTeamsSegmentLabel ? "bg-violet-100 text-violet-800 hover:bg-violet-100" : row.hunterAmount > 0 ? "bg-sky-100 text-sky-800 hover:bg-sky-100" : "bg-slate-100 text-slate-700 hover:bg-slate-100"}>
-                            {row.segment}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{row.hunterName}</TableCell>
-                        <TableCell className="text-right font-semibold tabular-nums text-sky-700">{formatCurrency(row.hunterAmount)}</TableCell>
-                        <TableCell className="text-right tabular-nums">{formatCurrency(row.maintenanceAmount)}</TableCell>
-                        <TableCell className="text-right font-bold tabular-nums text-slate-950">{formatCurrency(row.total)}</TableCell>
-                      </TableRow>
-                    ))}
-                  </Fragment>
-                ))}
-                {filteredHunterClientRows.length > 0 && (
-                  <TableRow className="bg-slate-900 text-white hover:bg-slate-900">
-                    <TableCell colSpan={4} className="font-bold">Total do Hunter nos clientes filtrados</TableCell>
-                    <TableCell className="text-right font-bold tabular-nums">{formatCurrency(hunterClientTotals.hunterAmount)}</TableCell>
-                    <TableCell className="text-right font-bold tabular-nums">{formatCurrency(hunterClientTotals.maintenanceAmount)}</TableCell>
-                    <TableCell className="text-right font-bold tabular-nums">{formatCurrency(hunterClientTotals.total)}</TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-          {!selectedHunterClientId && <EmptyState message="Escolha um Hunter para abrir os clientes, Studios e manutenções associados." />}
-          {selectedHunterClientId && !filteredHunterClientRows.length && <EmptyState message="Nenhuma quebra foi encontrada para o Hunter e filtros selecionados." />}
-        </Card>
+        <HunterClientsView groups={hunterClientGroups} selectedHunterClientId={selectedHunterClientId} />
       )}
 
       {effectiveView === "clients" && (
         <Card className="overflow-hidden shadow-sm">
-          <div className="flex flex-col gap-3 border-b border-slate-200 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <p className="text-sm font-bold text-slate-900">Clientes x Hunters x Delivery</p>
-              <p className="text-xs text-slate-500">
-                Visão por cliente com participantes derivados das metas diretas, governança Delivery, Studios e seleção de Hunter Especializado.
-              </p>
-            </div>
-            <div className="flex w-full rounded-lg border border-slate-200 bg-slate-50 p-1 sm:w-auto">
-              <button
-                type="button"
-                className={`flex-1 rounded-md px-3 py-1.5 text-sm font-bold transition sm:flex-none ${
-                  showClientCoverageValues ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-900"
-                }`}
-                onClick={() => setShowClientCoverageValues(true)}
-              >
-                Com valores
-              </button>
-              <button
-                type="button"
-                className={`flex-1 rounded-md px-3 py-1.5 text-sm font-bold transition sm:flex-none ${
-                  !showClientCoverageValues ? "bg-white text-slate-950 shadow-sm" : "text-slate-500 hover:text-slate-900"
-                }`}
-                onClick={() => setShowClientCoverageValues(false)}
-              >
-                Sem valores
-              </button>
-            </div>
-          </div>
           <div className="overflow-x-auto">
             <Table className={showClientCoverageValues ? "min-w-[1520px]" : "min-w-[1120px]"}>
               <TableHeader>
