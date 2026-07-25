@@ -2,10 +2,10 @@
 
 import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
-import { Target } from "lucide-react";
 import { EmptyState } from "@/components/shared/empty-state";
 import { PageHeader } from "@/components/shared/page-header";
-import { ReportExportActions, type ReportColumn } from "@/components/shared/report-export-actions";
+import { PersonTargetReportToolbar } from "@/components/reports/person-target-report-toolbar";
+import { type ReportColumn } from "@/components/shared/report-export-actions";
 import { SortableTableHead, type SortDirection, type SortState } from "@/components/shared/sortable-table-head";
 import { usePersonTargetReportController } from "@/hooks/use-person-target-report-controller";
 import { PersonTargetReportFilters } from "@/components/reports/person-target-report-filters";
@@ -397,10 +397,6 @@ export function PersonTargetReport() {
     () => summarizeHunterDetailTotals(filteredHunterDetailRows),
     [filteredHunterDetailRows],
   );
-  const hunterClientTotals = useMemo(
-    () => summarizeHunterClientRows(filteredHunterClientRows),
-    [filteredHunterClientRows],
-  );
   const specialistHunterTotal = useMemo(
     () => sumAmount(filteredSpecialistHunterRows),
     [filteredSpecialistHunterRows],
@@ -437,100 +433,44 @@ export function PersonTargetReport() {
         eyebrow="BU Financial"
         title="Relatório de Metas"
         description="Escolha a visão de análise, abra o detalhe quando necessário e exporte em Excel ou no modelo oficial Financial."
-        actions={(
-          <div className="flex flex-wrap gap-2">
-            {effectiveView === "people" && (
-              <ReportExportActions
-                title={`Relatório de Pessoas e Metas · ${year}${selectedPeopleRows.length ? " · Seleção" : ""}`}
-                filename={peopleExportFilename}
-                rows={peopleExportRows}
-                columns={peopleReportColumns}
-                customExports={officialCustomExports}
-              />
-            )}
-
-            {effectiveView === "peopleClients" && (
-              <ReportExportActions
-                title={`Relatório Pessoas x Clientes · ${selectedPeopleClientPersonName || "Pessoa"} · ${year}`}
-                filename={`relatorio-pessoas-clientes-${year}${selectedPeopleClientPersonName ? `-${toFileSlug(selectedPeopleClientPersonName)}` : ""}`}
-                rows={filteredPeopleClientRows}
-                columns={peopleClientReportColumns}
-              />
-            )}
-            {effectiveView === "areas" && hasSelectedAreas && (
-              <ReportExportActions
-                title={`Relatório detalhado por Área/Studio · ${singleSelectedAreaName || `${selectedAreaIds.size} selecionados`} · ${year}`}
-                filename={`relatorio-area-studio-detalhado-${year}${singleSelectedAreaName ? `-${toFileSlug(singleSelectedAreaName)}` : "-selecao"}`}
-                rows={areaExportRows as AreaStudioDetailRow[]}
-                columns={areaDetailReportColumns}
-                customExports={officialCustomExports}
-              />
-            )}
-            {effectiveView === "areas" && !hasSelectedAreas && (
-              <ReportExportActions
-                title={`Relatório por Área/Studio · ${year}`}
-                filename={`relatorio-area-studio-${year}`}
-                rows={areaExportRows as AreaStudioRow[]}
-                columns={areaReportColumns}
-                customExports={officialCustomExports}
-              />
-            )}
-            {effectiveView === "hunters" && !hasDetailHunters && !hunterConsultOnly && (
-              <ReportExportActions
-                title={`Relatório por Hunter · ${year}`}
-                filename={`relatorio-hunter-${year}`}
-                rows={hunterExportRows as HunterRow[]}
-                columns={hunterReportColumns}
-                customExports={officialCustomExports}
-              />
-            )}
-            {effectiveView === "hunters" && hasDetailHunters && (
-              <ReportExportActions
-                title={`Relatório detalhado do Hunter · ${singleSelectedHunterName || `${detailHunterIds.size} selecionados`} · ${year}`}
-                filename={`relatorio-hunter-detalhado-${year}${singleSelectedHunterName ? `-${toFileSlug(singleSelectedHunterName)}` : "-selecao"}`}
-                rows={hunterExportRows as HunterDetailRow[]}
-                columns={hunterDetailReportColumns}
-                customExports={officialCustomExports}
-              />
-            )}
-            {effectiveView === "hunterClients" && (
-              <ReportExportActions
-                title={`Relatório Hunter x Clientes · ${selectedHunterClientId ? peopleNames.get(selectedHunterClientId) ?? "Hunter" : "Hunter"} · ${year}`}
-                filename={`relatorio-hunter-clientes-${year}${selectedHunterClientId ? `-${toFileSlug(peopleNames.get(selectedHunterClientId) ?? "hunter")}` : ""}`}
-                rows={filteredHunterClientRows}
-                columns={hunterClientReportColumns}
-                customExports={officialCustomExports}
-              />
-            )}
-            {effectiveView === "clients" && (
-              <ReportExportActions
-                title={`Relatório Clientes x Hunters x Delivery · ${year}${showClientCoverageValues ? "" : " · sem valores"}`}
-                filename={`relatorio-clientes-hunters-delivery-${showClientCoverageValues ? "com-valores" : "sem-valores"}-${year}`}
-                rows={filteredClientCoverageRows}
-                columns={clientCoverageExportColumns}
-              />
-            )}
-            {effectiveView === "specialistHunters" && (
-              <ReportExportActions
-                title={`Relatório de Hunter Especializado · ${year}`}
-                filename={`relatorio-hunter-especializado-${year}`}
-                rows={filteredSpecialistHunterRows}
-                columns={specialistHunterReportColumns}
-                customExports={officialCustomExports}
-              />
-            )}
-            {effectiveView === "directors" && (
-              <ReportExportActions
-                title={`Relatório por Diretoria Delivery · ${peopleNames.get(selectedDirectorId) ?? "Diretoria"} · ${year}`}
-                filename={`relatorio-diretoria-delivery-${year}${selectedDirectorId ? `-${toFileSlug(peopleNames.get(selectedDirectorId) ?? "diretoria")}` : ""}`}
-                rows={filteredDirectorDetailRows}
-                columns={directorDetailReportColumns}
-                customExports={officialCustomExports}
-              />
-            )}
-            {canEdit && !hunterConsultOnly && <Button asChild><Link href="/metas-pessoas"><Target className="h-4 w-4" /> Ajustar metas</Link></Button>}
-          </div>
-        )}
+        actions={<PersonTargetReportToolbar
+          effectiveView={effectiveView}
+          year={year}
+          canEdit={canEdit}
+          hunterConsultOnly={hunterConsultOnly}
+          peopleExportRows={peopleExportRows}
+          peopleReportColumns={peopleReportColumns as ReportColumn<unknown>[]}
+          officialCustomExports={officialCustomExports}
+          selectedPeopleRowsLength={selectedPeopleRows.length}
+          peopleExportFilename={peopleExportFilename}
+          selectedPeopleClientPersonName={selectedPeopleClientPersonName}
+          filteredPeopleClientRows={filteredPeopleClientRows}
+          peopleClientReportColumns={peopleClientReportColumns as ReportColumn<unknown>[]}
+          hasSelectedAreas={hasSelectedAreas}
+          singleSelectedAreaName={singleSelectedAreaName}
+          selectedAreaIdsSize={selectedAreaIds.size}
+          areaExportRows={areaExportRows}
+          areaDetailReportColumns={areaDetailReportColumns as ReportColumn<unknown>[]}
+          areaReportColumns={areaReportColumns as ReportColumn<unknown>[]}
+          selectedDirectorId={selectedDirectorId}
+          peopleNames={peopleNames}
+          filteredDirectorDetailRows={filteredDirectorDetailRows}
+          directorDetailReportColumns={directorDetailReportColumns as ReportColumn<unknown>[]}
+          hasDetailHunters={hasDetailHunters}
+          singleSelectedHunterName={singleSelectedHunterName}
+          detailHunterIdsSize={detailHunterIds.size}
+          hunterExportRows={hunterExportRows}
+          hunterReportColumns={hunterReportColumns as ReportColumn<unknown>[]}
+          hunterDetailReportColumns={hunterDetailReportColumns as ReportColumn<unknown>[]}
+          selectedHunterClientId={selectedHunterClientId}
+          filteredHunterClientRows={filteredHunterClientRows}
+          hunterClientReportColumns={hunterClientReportColumns as ReportColumn<unknown>[]}
+          showClientCoverageValues={showClientCoverageValues}
+          filteredClientCoverageRows={filteredClientCoverageRows}
+          clientCoverageExportColumns={clientCoverageExportColumns as ReportColumn<unknown>[]}
+          filteredSpecialistHunterRows={filteredSpecialistHunterRows}
+          specialistHunterReportColumns={specialistHunterReportColumns as ReportColumn<unknown>[]}
+        />}
       />
 
       <PersonTargetReportFilters
@@ -2168,15 +2108,6 @@ function summarizeHunterDetailTotals(rows: HunterDetailRow[]) {
     total: summary.total + getContainedHunterTotal(item.ownTotal, item.studioHunterTotal),
   }), { ownTotal: 0, studioHunterTotal: 0, total: 0 });
 }
-
-function summarizeHunterClientRows(rows: HunterClientRow[]) {
-  return rows.reduce((summary, row) => ({
-    hunterAmount: summary.hunterAmount + row.hunterAmount,
-    maintenanceAmount: summary.maintenanceAmount + row.maintenanceAmount,
-    total: summary.total + row.total,
-  }), { hunterAmount: 0, maintenanceAmount: 0, total: 0 });
-}
-
 
 function sumAmount(rows: Array<{ amount: number }>) {
   return rows.reduce((total, row) => total + row.amount, 0);
