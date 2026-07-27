@@ -104,8 +104,8 @@ export function OrganizationChart() {
       </Card>
 
       <div className="overflow-x-auto rounded-xl border bg-white">
-        <div id="organization-chart" className="min-w-[1540px] bg-[#fafafa] p-8">
-          <div className="grid grid-cols-[260px_72px_1fr] items-stretch gap-0">
+        <div id="organization-chart" className="bg-[#fafafa] p-8">
+          <div className="grid grid-cols-[minmax(220px,260px)_72px_1fr] items-stretch gap-0">
             <div className="flex items-center justify-center">
               {executive && renderCard(executive, "executive")}
             </div>
@@ -120,13 +120,15 @@ export function OrganizationChart() {
                 const directReports = people.filter((person) => isDirectReportTo(person, director.id) && person.roleType !== "Director");
                 const isExpanded = expanded[director.id] ?? true;
                 return (
-                  <section key={director.id} className="relative grid grid-cols-[28px_230px_52px_1fr] items-center">
+                  <section key={director.id} className="relative grid grid-cols-[28px_minmax(200px,260px)_52px_1fr] items-center">
                     <div className="border-t-2 border-purple-300" />
                     <div>
                       {renderCard(director, "director")}
                       <button
                         className="mx-auto mt-2 flex items-center gap-1 rounded-full border bg-white px-3 py-1 text-[11px] font-semibold text-brq-purple shadow-sm"
                         onClick={() => setExpanded((current) => ({ ...current, [director.id]: !isExpanded }))}
+                        aria-expanded={isExpanded}
+                        aria-label={isExpanded ? `Recolher equipe de ${director.name}` : `Expandir equipe de ${director.name}`}
                       >
                         {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                         {directReports.length} pessoa(s)
@@ -134,7 +136,7 @@ export function OrganizationChart() {
                     </div>
                     <div className={isExpanded ? "border-t-2 border-purple-200" : ""} />
                     {isExpanded ? (
-                      <div className="grid grid-cols-5 gap-3 rounded-xl border border-purple-100 bg-white/80 p-3">
+                      <div className="grid grid-cols-[repeat(auto-fit,minmax(180px,1fr))] gap-3 rounded-xl border border-purple-100 bg-white/80 p-3">
                         {directReports.map((person) => renderCard(person, "manager"))}
                       </div>
                     ) : (
@@ -147,7 +149,7 @@ export function OrganizationChart() {
               })}
 
               {executiveDirectReports.map((person) => (
-                <section key={person.id} className="relative grid grid-cols-[28px_230px_52px_1fr] items-center">
+                <section key={person.id} className="relative grid grid-cols-[28px_minmax(200px,260px)_52px_1fr] items-center">
                   <div className="border-t-2 border-dashed border-orange-400" />
                   <div>
                     <div className="mb-2 w-fit rounded-full bg-orange-100 px-3 py-1 text-[10px] font-bold tracking-wider text-orange-700">

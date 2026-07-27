@@ -31,24 +31,24 @@ export function PersonCard({
   const isManager = variant === "manager";
   return (
     <article className={cn(
-      "rounded-xl border p-4 shadow-[0_6px_20px_-14px_rgba(21,23,27,0.55)] transition-transform hover:-translate-y-0.5",
+      "w-full rounded-xl border p-4 shadow-[0_6px_20px_-14px_rgba(21,23,27,0.55)] transition-transform hover:-translate-y-0.5",
       roleStyles[person.roleType],
-      variant === "executive" && "w-[260px] border-2 p-5",
-      variant === "director" && "w-[230px]",
-      variant === "staff" && "w-[230px]",
-      isManager && "w-[190px] p-3",
+      variant === "executive" && "border-2 p-5",
+      variant === "director" && "",
+      variant === "staff" && "",
+      isManager && "p-3",
     )}>
       <div className="flex items-start gap-3">
         <PersonAvatar name={person.name} className={cn("h-11 w-11", isManager && "h-9 w-9 text-xs")} />
         <div className="min-w-0 flex-1">
-          <h3 className={cn("truncate font-bold", isManager && "text-sm")}>{person.name}</h3>
-          <p className={cn("mt-0.5 text-xs", dark ? "text-white/65" : "text-slate-500")}>{person.jobTitle}</p>
+          <h3 className={cn("truncate font-bold", isManager && "text-sm")} title={person.name}>{person.name}</h3>
+          <p className={cn("mt-0.5 text-xs truncate", dark ? "text-white/65" : "text-slate-500")} title={person.jobTitle}>{person.jobTitle}</p>
         </div>
       </div>
       <Badge className={cn("mt-3", isManager && "mt-2 px-2 py-0.5 text-[10px]", dark && "bg-white/15 text-white")}>{translateRole(person.roleType)}</Badge>
       {isManager ? (
         <div className={cn("mt-2 border-t pt-2 text-[11px]", dark ? "border-white/15 text-white/70" : "border-slate-200 text-slate-500")}>
-          <p className="truncate font-medium">{areaName ?? "Área não definida"}</p>
+          <p className="truncate font-medium" title={areaName ?? "Área não definida"}>{areaName ?? "Área não definida"}</p>
           <p className="mt-1 font-semibold">{clientNames.length} cliente(s)</p>
         </div>
       ) : (
@@ -65,7 +65,7 @@ function Info({ label, value, muted }: { label: string; value: string; muted: bo
   return (
     <div>
       <dt className={cn("font-semibold", muted ? "text-white/55" : "text-slate-400")}>{label}</dt>
-      <dd className="mt-0.5 line-clamp-2">{value}</dd>
+      <dd className="mt-0.5 line-clamp-2" title={value}>{value}</dd>
     </div>
   );
 }
