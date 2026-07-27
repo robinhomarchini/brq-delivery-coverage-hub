@@ -10,6 +10,8 @@ const customerManagementPath = path.join(root, "src", "components", "customers",
 const customerCoverageViewModelPath = path.join(root, "src", "lib", "customers", "customer-coverage-view-model.ts");
 const customerTargetTotalPath = path.join(root, "src", "lib", "customer-target-total.ts");
 const personTargetReportPath = path.join(root, "src", "components", "reports", "person-target-report.tsx");
+const personTargetHunterClientsViewPath = path.join(root, "src", "components", "reports", "views", "person-target-hunter-clients-view.tsx");
+const personTargetReportFiltersPath = path.join(root, "src", "components", "reports", "person-target-report-filters.tsx");
 const executiveDashboardPath = path.join(root, "src", "components", "dashboard", "executive-dashboard.tsx");
 const customerPortfolioPath = path.join(root, "src", "components", "portfolio", "customer-portfolio-management.tsx");
 const deliveryStorePath = path.join(root, "src", "store", "delivery-store.tsx");
@@ -29,6 +31,8 @@ const customerManagementSource = fs.readFileSync(customerManagementPath, "utf8")
 const customerCoverageViewModelSource = fs.readFileSync(customerCoverageViewModelPath, "utf8");
 const customerTargetTotalSource = fs.readFileSync(customerTargetTotalPath, "utf8");
 const personTargetReportSource = fs.readFileSync(personTargetReportPath, "utf8");
+const personTargetHunterClientsViewSource = fs.readFileSync(personTargetHunterClientsViewPath, "utf8");
+const personTargetReportFiltersSource = fs.readFileSync(personTargetReportFiltersPath, "utf8");
 const executiveDashboardSource = fs.readFileSync(executiveDashboardPath, "utf8");
 const customerPortfolioSource = fs.readFileSync(customerPortfolioPath, "utf8");
 const deliveryStoreSource = fs.readFileSync(deliveryStorePath, "utf8");
@@ -85,14 +89,18 @@ assertNotIncludes(customerManagementSource, "name=\"studioTarget\"", "Customer f
 assertNotIncludes(customerManagementSource, "function getCustomerCoverageStatus(", "Customer management must not reintroduce coverage calculations inline.");
 assertNotIncludes(customerManagementSource, "function getCustomerAllocationComposition(", "Customer management must not reintroduce allocation composition inline.");
 assertNotIncludes(customerManagementSource, "function sortCustomerRows(", "Customer management must not sort rows with inline derived calculations.");
-assertIncludes(personTargetReportSource, "const hunterClientTotals = useMemo", "Person target report must memoize Hunter x Clientes footer totals.");
-assertIncludes(personTargetReportSource, "reportCustomers", "Person target report must filter customers by New Logo scope.");
-assertIncludes(personTargetReportSource, "Incluir New Logos", "Person target report must expose the New Logo scope toggle.");
-assertIncludes(executiveDashboardSource, "dashboardCustomers", "Executive dashboard must filter customers by New Logo scope.");
-assertIncludes(executiveDashboardSource, "Incluir New Logos", "Executive dashboard must expose the New Logo scope toggle.");
-assertIncludes(personTargetReportSource, "function summarizeHunterClientRows", "Person target report must centralize Hunter x Clientes totalization.");
+assertIncludes(personTargetReportSource, "const hunterClientGroups = useMemo", "Person target report must memoize Hunter x Clientes grouped rows before rendering the view.");
+assertIncludes(personTargetReportSource, "buildHunterClientGroups", "Person target report must centralize Hunter x Clientes grouping.");
 assertIncludes(personTargetReportSource, "function sumAmount", "Person target report must reuse a small amount totalizer for report footers.");
 assertNotIncludes(personTargetReportSource, "filteredHunterClientRows.reduce((total, row) => total + row.hunterAmount", "Person target report must not calculate Hunter x Clientes footer totals inline in JSX.");
+assertNotIncludes(personTargetHunterClientsViewSource, "filteredHunterClientRows.reduce((total, row) => total + row.hunterAmount", "Hunter x Clientes view must not calculate footer totals inline from raw filtered rows.");
+assertIncludes(personTargetHunterClientsViewSource, "groups.reduce((sum, group) => sum + group.hunterAmount, 0)", "Hunter x Clientes footer totals must derive from memoized grouped rows.");
+assertIncludes(personTargetReportSource, "reportCustomers", "Person target report must filter customers by New Logo scope.");
+if (!personTargetReportFiltersSource.includes("Incluir New Logos") && !personTargetReportSource.includes("Incluir New Logos")) {
+  throw new Error("Person target report must expose the New Logo scope toggle.");
+}
+assertIncludes(executiveDashboardSource, "dashboardCustomers", "Executive dashboard must filter customers by New Logo scope.");
+assertIncludes(executiveDashboardSource, "Incluir New Logos", "Executive dashboard must expose the New Logo scope toggle.");
 assertNotIncludes(personTargetReportSource, "filteredSpecialistHunterRows.reduce((total, row) => total + row.amount", "Person target report must not calculate Specialist Hunter footer totals inline in JSX.");
 assertNotIncludes(personTargetReportSource, "filteredDirectorDetailRows.reduce((total, row) => total + row.amount", "Person target report must not calculate Director footer totals inline in JSX.");
 assertIncludes(customerPortfolioSource, "hunterIds: string[]", "Customer portfolio must expose Hunters/commercial participants separately.");

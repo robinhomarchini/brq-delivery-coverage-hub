@@ -14,9 +14,9 @@ import { useCloseOnNavigation } from "@/lib/use-close-on-navigation";
 export function OrganizationChart() {
   const { people, customers, areas } = useDeliveryStore();
   const executive = people.find((person) => person.roleType === "Executive");
-  const directors = people.filter((person) => person.roleType === "Director");
+  const directors = people.filter((person) => person.roleType === "Director" && person.active);
   const executiveDirectReports = executive
-    ? people.filter((person) => isDirectReportTo(person, executive.id) && person.roleType !== "Director")
+    ? people.filter((person) => isDirectReportTo(person, executive.id) && person.roleType !== "Director" && person.active)
     : [];
   const [expanded, setExpanded] = useState<Record<string, boolean>>({ ane: true, ca: true });
   const [exporting, setExporting] = useState(false);
@@ -117,7 +117,7 @@ export function OrganizationChart() {
 
             <div className="space-y-5">
               {directors.map((director) => {
-                const directReports = people.filter((person) => isDirectReportTo(person, director.id) && person.roleType !== "Director");
+                const directReports = people.filter((person) => isDirectReportTo(person, director.id) && person.roleType !== "Director" && person.active);
                 const isExpanded = expanded[director.id] ?? true;
                 return (
                   <section key={director.id} className="relative grid grid-cols-[28px_minmax(200px,260px)_52px_1fr] items-center">

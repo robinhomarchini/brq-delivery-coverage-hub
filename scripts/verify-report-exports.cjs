@@ -6,12 +6,18 @@ const Module = require("node:module");
 const { unzipSync, strFromU8 } = require("fflate");
 
 const reportPath = path.join(process.cwd(), "src", "components", "reports", "person-target-report.tsx");
+const reportToolbarPath = path.join(process.cwd(), "src", "components", "reports", "person-target-report-toolbar.tsx");
+const reportFiltersPath = path.join(process.cwd(), "src", "components", "reports", "person-target-report-filters.tsx");
+const reportTablePath = path.join(process.cwd(), "src", "components", "reports", "person-target-report-table.tsx");
 const officialExportPath = path.join(process.cwd(), "src", "lib", "reports", "person-target-official-export.ts");
 const officialExportConfigPath = path.join(process.cwd(), "src", "lib", "reports", "person-target-export-config.ts");
 const reportExportActionsPath = path.join(process.cwd(), "src", "components", "shared", "report-export-actions.tsx");
 const reportExportServicePath = path.join(process.cwd(), "src", "lib", "report-export.ts");
 const clientCoveragePath = path.join(process.cwd(), "src", "lib", "reports", "client-coverage.ts");
 const source = fs.readFileSync(reportPath, "utf8");
+const reportToolbarSource = fs.readFileSync(reportToolbarPath, "utf8");
+const reportFiltersSource = fs.readFileSync(reportFiltersPath, "utf8");
+const reportTableSource = fs.readFileSync(reportTablePath, "utf8");
 const clientCoverageSource = fs.readFileSync(clientCoveragePath, "utf8");
 const officialExportSource = fs.readFileSync(officialExportPath, "utf8");
 const officialExportConfigSource = fs.readFileSync(officialExportConfigPath, "utf8");
@@ -139,7 +145,7 @@ const requiredClientCoverageTokens = [
   "reportTargetAllocations",
   "reportStudioTargetAllocations",
 ];
-const requiredClientCoverageSources = [source, clientCoverageSource];
+const requiredClientCoverageSources = [source, reportFiltersSource, reportTableSource, clientCoverageSource];
 const missingClientCoverageTokens = requiredClientCoverageTokens.filter((token) => !requiredClientCoverageSources.some((fileSource) => fileSource.includes(token)));
 if (missingClientCoverageTokens.length) {
   throw new Error(`Client coverage report is missing tokens: ${missingClientCoverageTokens.join(", ")}`);
@@ -172,7 +178,7 @@ if (missingValueFreeClientCoverageTokens.length) {
 
 for (const view of requiredOfficialExportViews) {
   const branchPattern = new RegExp(`\\{effectiveView === "${view}"[\\s\\S]*?<ReportExportActions([\\s\\S]*?)\\/>`);
-  const branchMatch = source.match(branchPattern);
+  const branchMatch = reportToolbarSource.match(branchPattern);
   if (!branchMatch) {
     throw new Error(`Report view '${view}' was not found.`);
   }

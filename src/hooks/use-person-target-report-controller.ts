@@ -7,7 +7,7 @@ import { buildDeliveryIndexes } from "@/lib/reports/person-target-indexes";
 import { buildPeopleRows, type PeopleRow } from "@/lib/reports/person-target-rows";
 import type { SortState } from "@/components/shared/sortable-table-head";
 import type { PeopleSortKey, AreaSortKey } from "@/components/reports/views/person-target-view-types";
-import type { Customer, Person, RoleType, Area, StudioTargetAllocation } from "@/data/mockData";
+import type { Customer, Person, Area, StudioTargetAllocation } from "@/data/mockData";
 
 type PeopleClientSortKey = "person" | "role" | "customer" | "relationship" | "hunter" | "renewal" | "total";
 type HunterSortKey = "hunter" | "role" | "ownHunter" | "studioHunter" | "totalHunter" | "studios";
@@ -56,7 +56,6 @@ export function usePersonTargetReportController({
 
   function sortPeopleRows(rows: PeopleRow[], sortState: SortState<PeopleSortKey>) {
     if (!sortState) return rows;
-    const direction = sortState.direction;
     return [...rows].sort((first, second) => {
       if (sortState.key === "person") return first.personName.localeCompare(second.personName, "pt-BR", { sensitivity: "base", numeric: true });
       if (sortState.key === "role") return first.roleType.localeCompare(second.roleType, "pt-BR", { sensitivity: "base", numeric: true });
