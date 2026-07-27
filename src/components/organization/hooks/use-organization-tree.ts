@@ -27,7 +27,7 @@ export function useOrganizationTree({ people, expanded, onToggle }: UseOrganizat
       if (roleType === "Executive") return 0;
       if (roleType === "Director") return 1;
       if (roleType === "Staff") return 2;
-      if (["Manager", "Delivery", "Farmer + Delivery", "Hunter", "Hunter Especializado", "Farmer", "Hunter + Farmer"].includes(roleType)) return 2;
+      if (["Delivery", "Farmer + Delivery", "Hunter", "Hunter Especializado", "Farmer", "Hunter + Farmer"].includes(roleType)) return 2;
       return 3;
     };
 

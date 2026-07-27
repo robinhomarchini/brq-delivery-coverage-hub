@@ -1,5 +1,5 @@
-import { OrganizationChartV2 } from "@/components/organization/organization-chart-v2";
+import { OrganizationChart } from "@/components/organization/organization-chart";
 
 export default function OrganizationPage() {
-  return <OrganizationChartV2 />;
+  return <OrganizationChart />;
 }
