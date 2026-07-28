@@ -168,7 +168,7 @@ export async function saveEmployeeImportBatch(input: {
 }): Promise<EmployeeImportPreview> {
   const preview = await buildEmployeeImportPreview(input);
   const batchId = randomUUID();
-  const storagePath = `${batchId}/${sanitizeFileName(input.fileName)}`;
+  const storagePath = `${batchId}/${sanitizeStorageFileName(input.fileName)}`;
   const { error: storageError } = await input.client.storage
     .from("employee-imports")
     .upload(storagePath, input.buffer, {
@@ -176,6 +176,10 @@ export async function saveEmployeeImportBatch(input: {
       upsert: false,
     });
   if (storageError) {
+    console.warn("[employee-import] Private workbook upload failed.", {
+      errorName: storageError.name,
+      statusCode: "statusCode" in storageError ? storageError.statusCode : undefined,
+    });
     throw new Error("Não foi possível armazenar a planilha no repositório privado.");
   }
 
@@ -327,4 +331,17 @@ function cents(value: number) {
 
 function sanitizeFileName(fileName: string) {
   return fileName.replace(/[^\p{L}\p{N}._ -]/gu, "").slice(0, 180) || "importacao.xlsx";
+}
+
+function sanitizeStorageFileName(fileName: string) {
+  const normalized = fileName
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9._-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 160);
+  return normalized.toLowerCase().endsWith(".xlsx")
+    ? normalized
+    : `${normalized || "importacao"}.xlsx`;
 }

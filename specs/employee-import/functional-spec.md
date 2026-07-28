@@ -14,8 +14,9 @@ nas rotas backend e no banco.
 3. O backend normaliza nomes removendo acentos, diferenças de caixa e espaços,
    e compara por igualdade exata.
 4. A tela apresenta indicadores e tabelas de conciliação.
-5. A análise salva o arquivo em bucket privado e cria um lote persistente com
-   snapshot parseado, permitindo retomar o trabalho sem novo upload.
+5. A análise salva o arquivo em bucket privado com chave técnica ASCII segura,
+   preserva o nome original no lote e cria um snapshot parseado, permitindo
+   retomar o trabalho sem novo upload.
 6. Nomes de gestores não resolvidos recebem um combo com todas as pessoas do
    cadastro canônico.
 7. A contagem por pessoa canônica é recalculada conforme o de-para.

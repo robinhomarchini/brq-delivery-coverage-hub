@@ -19,6 +19,7 @@ assertIncludes(applyRoute, "createEmployeeImportClient(request)", "Apply must en
 assertIncludes(headcountRoute, "createEmployeeImportClient(request)", "Headcount confirmation must enforce authorization.");
 assertIncludes(access, "can_manage_person_compensation", "Backend must enforce compensation authorization.");
 assertIncludes(service, "create_employee_import_batch", "Batch creation must use a transactional RPC.");
+assertIncludes(service, "sanitizeStorageFileName", "Storage keys must normalize accented workbook names.");
 assertIncludes(service, "apply_employee_import_salary_item", "Salary action must use its transactional RPC.");
 assertIncludes(service, "confirm_employee_import_headcount", "Headcount confirmation must use its transactional RPC.");
 assertIncludes(service, "parseEmployeeImportWorkbook", "Upload must be parsed server-side.");
