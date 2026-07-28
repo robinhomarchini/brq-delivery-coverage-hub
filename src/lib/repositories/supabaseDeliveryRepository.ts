@@ -202,6 +202,26 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
     return this.fetchAll();
   }
 
+  async findCustomerById(id: string): Promise<Customer | null> {
+    const { data, error } = await this.client
+      .from("customers")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+    if (error) throw error;
+    return data ? fromCustomerRow(data as CustomerRow) : null;
+  }
+
+  async findPersonById(id: string): Promise<Person | null> {
+    const { data, error } = await this.client
+      .from("people")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+    if (error) throw error;
+    return data ? fromPersonRow(data as PersonRow) : null;
+  }
+
   async saveArea(area: Area) {
     const validated = validateArea(area);
     const { error } = await this.client.from("areas").upsert(toAreaRow(validated));

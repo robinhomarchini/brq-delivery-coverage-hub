@@ -27,6 +27,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Dados inválidos para salvar metas." }, { status: 400 });
     }
 
+    const repository = new SupabaseDeliveryRepository(client, {
+      usePersonCustomerTargetsBff: false,
+    });
+
     if (accessUser.role === "hunter_viewer") {
       if (parsed.data.increaseCustomerTarget) {
         return NextResponse.json(
@@ -34,13 +38,8 @@ export async function POST(request: Request) {
           { status: 403 },
         );
       }
-      const { data: person, error: personError } = await client
-        .from("people")
-        .select("id, email")
-        .eq("id", parsed.data.personId)
-        .maybeSingle();
-      if (personError) throw personError;
-      const personEmail = typeof person?.email === "string" ? person.email.trim().toLowerCase() : "";
+      const person = await repository.findPersonById(parsed.data.personId);
+      const personEmail = person?.email?.trim().toLowerCase() ?? "";
       if (!person || personEmail !== accessUser.email.trim().toLowerCase()) {
         return NextResponse.json(
           { error: "Consulta Hunter só pode alterar metas vinculadas à própria pessoa." },
@@ -49,9 +48,6 @@ export async function POST(request: Request) {
       }
     }
 
-    const repository = new SupabaseDeliveryRepository(client, {
-      usePersonCustomerTargetsBff: false,
-    });
     const data = await repository.savePersonCustomerTargets(parsed.data);
 
     return NextResponse.json(data);

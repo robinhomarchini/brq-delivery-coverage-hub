@@ -46,6 +46,12 @@ const unavailableProductionRepository: DeliveryRepository = {
   async getAll() {
     throw new Error(productionConfigurationError);
   },
+  async findCustomerById() {
+    throw new Error(productionConfigurationError);
+  },
+  async findPersonById() {
+    throw new Error(productionConfigurationError);
+  },
   async saveArea() {
     throw new Error(productionConfigurationError);
   },

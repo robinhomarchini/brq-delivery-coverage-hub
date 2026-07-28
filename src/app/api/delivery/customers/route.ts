@@ -42,14 +42,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Dados inválidos para salvar cliente." }, { status: 400 });
     }
 
+    const repository = new SupabaseDeliveryRepository(client, {
+      useCustomerBff: false,
+      usePersonCustomerTargetsBff: false,
+    });
     const isHunterScopedWrite = accessUser.role === "hunter_viewer";
     if (isHunterScopedWrite) {
-      const { data: existingCustomer, error: existingCustomerError } = await client
-        .from("customers")
-        .select("id")
-        .eq("id", parsed.data.customer.id)
-        .maybeSingle();
-      if (existingCustomerError) throw existingCustomerError;
+      const existingCustomer = await repository.findCustomerById(parsed.data.customer.id);
       if (existingCustomer) {
         return NextResponse.json(
           { error: "Consulta Hunter pode criar novos clientes, mas não editar clientes existentes." },
@@ -58,10 +57,6 @@ export async function POST(request: Request) {
       }
     }
 
-    const repository = new SupabaseDeliveryRepository(client, {
-      useCustomerBff: false,
-      usePersonCustomerTargetsBff: false,
-    });
     const customer = {
       ...parsed.data.customer,
       managerResponsibleIds: isHunterScopedWrite ? [] : parsed.data.customer.managerResponsibleIds,

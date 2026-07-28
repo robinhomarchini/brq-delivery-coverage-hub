@@ -53,6 +53,8 @@ export interface DeliveryData {
 
 export interface DeliveryRepository {
   getAll(): Promise<DeliveryData>;
+  findCustomerById(id: string): Promise<Customer | null>;
+  findPersonById(id: string): Promise<Person | null>;
   saveArea(area: Area): Promise<DeliveryData>;
   deleteArea(id: string): Promise<DeliveryData>;
   savePerson(person: Person): Promise<DeliveryData>;

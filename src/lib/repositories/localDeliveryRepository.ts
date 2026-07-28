@@ -45,6 +45,16 @@ export class LocalDeliveryRepository implements DeliveryRepository {
     });
   }
 
+  async findCustomerById(id: string) {
+    const customer = this.data.customers.find((item) => item.id === id) ?? null;
+    return customer ? structuredClone(customer) : null;
+  }
+
+  async findPersonById(id: string) {
+    const person = this.data.people.find((item) => item.id === id) ?? null;
+    return person ? structuredClone(person) : null;
+  }
+
   async saveArea(area: Area) {
     area = validateArea(area);
     this.data.areas = upsert(this.data.areas, area)

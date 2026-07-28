@@ -28,6 +28,31 @@ export async function runDeliveryRepositoryContractTests({
     assertEqual(secondRead.people[0]?.name, originalName, "getAll must not expose mutable repository state.");
   });
 
+  await runContractTest(providerName, "findCustomerById and findPersonById return isolated domain models", async () => {
+    const repository = await createRepository();
+    const data = await repository.getAll();
+    const customer = data.customers[0];
+    const person = data.people[0];
+
+    assert(customer, "Contract test requires at least one customer fixture.");
+    assert(person, "Contract test requires at least one person fixture.");
+
+    const foundCustomer = await repository.findCustomerById(customer.id);
+    const foundPerson = await repository.findPersonById(person.id);
+    assertEqual(foundCustomer?.id, customer.id, "findCustomerById should return the requested customer.");
+    assertEqual(foundPerson?.id, person.id, "findPersonById should return the requested person.");
+
+    if (foundCustomer) foundCustomer.name = "Mutated outside repository";
+    if (foundPerson) foundPerson.name = "Mutated outside repository";
+
+    const unchangedCustomer = await repository.findCustomerById(customer.id);
+    const unchangedPerson = await repository.findPersonById(person.id);
+    assertEqual(unchangedCustomer?.name, customer.name, "findCustomerById must not expose mutable repository state.");
+    assertEqual(unchangedPerson?.name, person.name, "findPersonById must not expose mutable repository state.");
+    assertEqual(await repository.findCustomerById("missing-customer"), null, "findCustomerById should return null for missing customers.");
+    assertEqual(await repository.findPersonById("missing-person"), null, "findPersonById should return null for missing people.");
+  });
+
   await runContractTest(providerName, "savePersonCustomerTargets persists own Hunter, current Hunter and Renewal facts", async () => {
     const repository = await createRepository();
     const { customer, hunter } = await seedHunter(repository);
