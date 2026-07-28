@@ -4,12 +4,12 @@ Artefato oficial de coordenacao entre Codex, Kilo, ChatGPT e outros agentes de e
 
 ## 1. Metadata
 
-- Atualizado em: 2026-07-28 12:18:45 -03:00
+- Atualizado em: 2026-07-28 12:22:24 -03:00
 - Repositorio: `robinhomarchini/brq-delivery-coverage-hub`
 - Raiz local: `C:\Users\rmarchini\projetos\OrgBRQDelivery`
 - Branch: `main`
-- HEAD atual: `a34c307 feat(observability): instrument target saves and challenge analysis`
-- Ultimo commit confirmado nesta sessao: `a34c307 feat(observability): instrument target saves and challenge analysis`
+- HEAD atual: ver `git log -1 --oneline` no clone ativo.
+- Ultimo commit de produto confirmado nesta sessao: `a43e995 feat(observability): instrument target saves and challenge analysis`
 - Baseline de producao conhecida: nao verificado nesta sessao; valor historico conhecido era `3415af1e21813e9bcb2060bbdb3bccebd6afabb2`
 - URL de producao conhecida: `https://brq-delivery-coverage-hub.vercel.app`
 - Agente gerador: Codex
@@ -17,9 +17,11 @@ Artefato oficial de coordenacao entre Codex, Kilo, ChatGPT e outros agentes de e
 
 ## 2. Git status verificado
 
-- `git status --short` apos o commit `a34c307`: limpo antes desta atualizacao final de handoff.
-- Commit do incremento atual de observabilidade: `a34c307 feat(observability): instrument target saves and challenge analysis`.
-- Deploy: nao executado.
+- `git status --short` apos o commit `a43e995`: limpo antes desta atualizacao final de handoff.
+- Commit do incremento atual de observabilidade: `a43e995 feat(observability): instrument target saves and challenge analysis`.
+- Deploy Vercel executado em producao: `dpl_651kV3AADK5ojmXrdfqQBbCqxWyf`.
+- URL inspecionada: `https://brq-delivery-coverage-hub.vercel.app`.
+- Status do deployment inspecionado: Ready.
 
 ## 3. Objetivo atual
 
@@ -133,6 +135,9 @@ Observacoes de seguranca:
 - `npm run smoke:critical`: passou.
 - `npm run test:security`: passou.
 - `git diff --check`: passou.
+- `npm run deploy:check`: passou.
+- `npm run deploy:prod`: passou.
+- `npm run deploy:inspect -- https://brq-delivery-coverage-nhinrwznc-robinsonmarchini-1717s-projects.vercel.app`: passou; alias oficial apontou para o deployment novo quando ficou Ready.
 
 Pendencias nesta fatia:
 
