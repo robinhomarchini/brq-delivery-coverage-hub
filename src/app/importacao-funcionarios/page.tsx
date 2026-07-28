@@ -1,8 +1,9 @@
 "use client";
 
-import { CheckCircle2, FileCheck2, FileSpreadsheet, LoaderCircle, ShieldAlert, Upload, UsersRound } from "lucide-react";
+import { CheckCircle2, FileCheck2, FileSpreadsheet, LoaderCircle, ShieldAlert, Upload, UsersRound, CheckCheck } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type {
+  EmployeeImportApplyAllResult,
   EmployeeImportHeadcountResult,
   EmployeeImportPreview,
   EmployeeImportSalaryActionResult,
@@ -34,6 +35,7 @@ export default function EmployeeImportPage() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [updatingPersonId, setUpdatingPersonId] = useState("");
+  const [applyingAll, setApplyingAll] = useState(false);
 
   const resolvedManagers = useMemo(() => {
     if (!preview) return [];
@@ -210,6 +212,57 @@ export default function EmployeeImportPage() {
       setError(getErrorMessage(actionError, "Não foi possível atualizar o salário."));
     } finally {
       setUpdatingPersonId("");
+    }
+  }
+
+  async function handleApplyAll() {
+    if (!preview?.batchId) return;
+    const salaryChanges = preview.matchedPeople.filter((person) => person.status === "change").length;
+    const confirmed = window.confirm(
+      `Efetivar ${salaryChanges} atualização(ões) de salário e ${resolvedManagers.length} de-para(s) de gestor?`,
+    );
+    if (!confirmed) return;
+    setApplyingAll(true);
+    setApplying(true);
+    setError("");
+    setNotice("");
+    try {
+      const nextResult = await sendJson<EmployeeImportApplyAllResult>("/api/admin/employee-import/apply-all", {
+        method: "POST",
+        body: {
+          batchId: preview.batchId,
+          mappings: resolvedManagers.map((manager) => ({
+            sourceKey: manager.sourceKey,
+            sourceName: manager.sourceName,
+            personId: manager.resolvedManagerId as string,
+            employeeCount: manager.employeeCount,
+          })),
+          managerMappings: managerMappings,
+          previewSnapshot: {
+            matchedPeople: preview.matchedPeople.map((person) => ({ personId: person.personId, status: person.status })),
+          },
+        },
+      });
+      setNotice(
+        `Efetivado: ${nextResult.salaryResults.length} salário(s) e ${nextResult.headcountResult.headcountsUpdated} HC(s).`,
+      );
+      setPreview((current) => {
+        if (!current) return current;
+        const updatedPeople = current.matchedPeople.map((person) => {
+          const changed = nextResult.salaryResults.find((item) => item.personId === person.personId);
+          return changed ? { ...person, status: "updated" as const } : person;
+        });
+        return {
+          ...current,
+          matchedPeople: updatedPeople,
+          batchStatus: nextResult.headcountResult.status,
+        };
+      });
+    } catch (applyError) {
+      setError(getErrorMessage(applyError, "Não foi possível efetivar as alterações."));
+    } finally {
+      setApplyingAll(false);
+      setApplying(false);
     }
   }
 
@@ -465,14 +518,25 @@ export default function EmployeeImportPage() {
                   <div>
                     <p className="font-semibold text-slate-900">Confirmar HC direto conciliado</p>
                     <p className="mt-1 text-sm leading-6 text-slate-600">
-                      Esta ação salva os de-paras e atualiza o campo HC direto das pessoas selecionadas. Salários são atualizados separadamente, linha a linha.
+                      Esta ação salva os de-paras e atualiza o campo HC direto das pessoas selecionadas. Salários são atualizados separadamente, linha a linha, ou todos de uma vez pelo botão abaixo.
                     </p>
                   </div>
                 </div>
-                <Button type="button" onClick={handleConfirmHeadcount} disabled={applying || loading || unresolvedManagerCount > 0 || preview.batchStatus === "hc_confirmed"}>
-                  {applying ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <FileCheck2 className="h-4 w-4" />}
-                  {preview.batchStatus === "hc_confirmed" ? "HC confirmado" : "Confirmar HC"}
-                </Button>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Button type="button" onClick={handleConfirmHeadcount} disabled={applying || loading || unresolvedManagerCount > 0 || preview.batchStatus === "hc_confirmed"}>
+                    {applying ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <FileCheck2 className="h-4 w-4" />}
+                    {preview.batchStatus === "hc_confirmed" ? "HC confirmado" : "Confirmar HC"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={handleApplyAll}
+                    disabled={applyingAll || applying || loading || unresolvedManagerCount > 0 || preview.batchStatus === "hc_confirmed"}
+                  >
+                    {applyingAll ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <CheckCheck className="h-4 w-4" />}
+                    Efetivar tudo
+                  </Button>
+                </div>
               </CardContent>
             </Card>
 

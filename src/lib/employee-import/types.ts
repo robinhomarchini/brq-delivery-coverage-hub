@@ -68,4 +68,9 @@ export interface EmployeeImportHeadcountResult {
   status: "hc_confirmed";
 }
 
+export interface EmployeeImportApplyAllResult {
+  salaryResults: EmployeeImportSalaryActionResult[];
+  headcountResult: EmployeeImportHeadcountResult;
+}
+
 export type EmployeeImportManualMappings = Record<string, string>;

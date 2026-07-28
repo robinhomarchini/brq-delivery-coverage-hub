@@ -51,8 +51,8 @@ export async function buildEmployeeImportPreview(input: {
 }): Promise<EmployeeImportPreview> {
   const parsed = await parseEmployeeImportWorkbook(input.buffer);
   const [peopleResult, compensationResult, mappingsResult] = await Promise.all([
-    input.client.from("people").select("id,name,active,is_manager").order("name").limit(5000),
-    input.client.from("person_compensations").select("person_id,annual_salary").limit(5000),
+    input.client.from("people").select("id,name,active,is_manager").order("name").limit(50000),
+    input.client.from("person_compensations").select("person_id,annual_salary").limit(50000),
     input.client.from("employee_import_manager_mappings")
       .select("source_key,source_manager_name,manager_person_id")
       .limit(500),
@@ -61,9 +61,12 @@ export async function buildEmployeeImportPreview(input: {
   if (peopleResult.error) throw new Error("Não foi possível consultar as pessoas do sistema.");
   if (compensationResult.error) throw new Error("Não foi possível consultar os salários atuais.");
   if (mappingsResult.error) throw new Error("Não foi possível consultar os de-paras de gestores.");
-
   const people = (peopleResult.data ?? []) as PersonRow[];
   const compensations = (compensationResult.data ?? []) as CompensationRow[];
+  if (!people.length) throw new Error("Não há pessoas cadastradas para conciliar.");
+  if (!compensations.length) {
+    // continue, but make it explicit in preview summary via fallback below
+  }
   const savedMappings = (mappingsResult.data ?? []) as ManagerMappingRow[];
   const peopleByName = groupPeopleByNormalizedName(people);
   const compensationByPerson = new Map(
@@ -254,6 +257,35 @@ export async function applyEmployeeImportSalaryItem(input: {
     personId: String(result.person_id ?? input.personId),
     status: "updated" as const,
     updatedAt: String(result.updated_at ?? new Date().toISOString()),
+  };
+}
+
+export async function applyAllEmployeeImportBatch(input: {
+  client: SupabaseClient;
+  batchId: string;
+  mappings: Array<{ sourceKey: string; sourceName: string; personId: string; employeeCount: number }>;
+  managerMappings: EmployeeImportManualMappings;
+  previewSnapshot: {
+    matchedPeople: Array<{
+      personId: string;
+      status: "change" | "unchanged" | "updated";
+    }>;
+  };
+}) {
+  const pendingSalaryPeople = input.previewSnapshot.matchedPeople.filter((person) => person.status === "change");
+  const salaryResults = await Promise.all(
+    pendingSalaryPeople.map((person) =>
+      applyEmployeeImportSalaryItem({ client: input.client, batchId: input.batchId, personId: person.personId }),
+    ),
+  );
+  const headcountResult = await confirmEmployeeImportHeadcount({
+    client: input.client,
+    batchId: input.batchId,
+    mappings: input.mappings,
+  });
+  return {
+    salaryResults,
+    headcountResult,
   };
 }
 
