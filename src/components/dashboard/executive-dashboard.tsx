@@ -9,6 +9,8 @@ import {
   TrendingUp,
   UserCog,
   UsersRound,
+  AlertTriangle,
+  ArrowRight,
 } from "lucide-react";
 import {
   Bar,
@@ -29,147 +31,84 @@ import { KpiSummaryCard } from "@/components/shared/kpi-summary-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useDeliveryStore } from "@/store/delivery-store";
 import { exportDeliveryDataAsCsv, exportElementAsPdf } from "@/lib/export";
-import { cn, formatCompactCurrency, formatCurrency, normalizeBusinessName } from "@/lib/utils";
-import { translateRole, isDeliveryRole, isDirectorRole, isExecutiveRole, isFarmerDeliveryTargetRole, isFarmerRole, isHunterFarmerRole, isHunterRole, isStaffRole } from "@/lib/roles";
-import { applyCustomerTargetsForYear, defaultTargetYear } from "@/lib/customer-targets";
-import { getBoardTargetBaselineRows, getBoardTargetBaselineTotals } from "@/lib/board-target-baseline";
-import { getCustomerTotalTarget } from "@/lib/customer-target-total";
-import { filterCustomersByTargetScope } from "@/lib/domain/customer-target-scope";
-import { getCustomerCoverageAllocatedTotal } from "@/lib/customers/customer-coverage-view-model";
+import { cn, formatCompactCurrency, formatCurrency } from "@/lib/utils";
+import { defaultTargetYear } from "@/lib/customer-targets";
 import { useAccess } from "@/lib/access-context";
 import { buildHunterAccessScope } from "@/lib/hunter-access-scope";
+import { buildDashboardData } from "@/lib/dashboardMetrics";
+import type { DashboardData } from "@/lib/dashboardMetrics";
 
 const COLORS = ["#15171B", "#7F2EC9", "#EE7C38", "#2563EB", "#F97316", "#A3A3A3"];
 
 export function ExecutiveDashboard() {
   const chartsReady = useSyncExternalStore(subscribeToHydration, () => true, () => false);
   const { accessUser } = useAccess();
-  const { areas, people, customers, customerTargets, boardTargetBaselines, targetAllocations, studioTargetAllocations, specialistHunterStudioAssignments } = useDeliveryStore();
+  const { areas, people, customers, customerTargets, boardTargetBaselines, targetAllocations, studioTargetAllocations, specialistHunterStudioAssignments, loading, error } = useDeliveryStore();
   const [includeNewLogos, setIncludeNewLogos] = useState(false);
-  const financialCustomers = applyCustomerTargetsForYear(customers, customerTargets, defaultTargetYear);
+
   const hunterScope = buildHunterAccessScope({
     accessUser,
     people,
-    customers: financialCustomers,
+    customers,
     targetAllocations,
     studioTargetAllocations,
     specialistHunterStudioAssignments,
   });
-  const dashboardCustomers = filterCustomersByTargetScope(financialCustomers, includeNewLogos)
-    .filter((customer) => !hunterScope.enabled || hunterScope.customerIds.has(customer.id));
-  const scopedCustomerIds = new Set(dashboardCustomers.map((customer) => customer.id));
-  const activePeople = people.filter((person) => {
-    if (!person.active) return false;
-    if (!hunterScope.enabled) return true;
-    if (hunterScope.person?.id === person.id) return true;
-    return person.clientIds.some((customerId) => scopedCustomerIds.has(customerId))
-      || targetAllocations.some((allocation) => allocation.personId === person.id && scopedCustomerIds.has(allocation.customerId))
-      || studioTargetAllocations.some((allocation) =>
-        scopedCustomerIds.has(allocation.customerId)
-        && (allocation.hunterPersonId === person.id || allocation.maintenancePersonId === person.id)
-      );
-  });
-  const directors = activePeople.filter((person) => isDirectorRole(person.roleType) || isExecutiveRole(person.roleType));
-  const managers = activePeople.filter((person) => person.isManager);
-  const farmerDeliveryManagers = managers.filter((person) => isFarmerDeliveryTargetRole(person.roleType));
-  const deliveryManagers = managers.filter((person) => isDeliveryRole(person.roleType));
-  const hunters = activePeople.filter((person) => isHunterRole(person.roleType));
-  const farmers = activePeople.filter((person) => isFarmerRole(person.roleType));
-  const hunterFarmers = activePeople.filter((person) => isHunterFarmerRole(person.roleType));
-  const staff = activePeople.filter((person) => isStaffRole(person.roleType));
-  const boardRows = getBoardTargetBaselineRows(defaultTargetYear, boardTargetBaselines);
-  const boardTotals = getScopedBoardTotals(dashboardCustomers, boardRows, hunterScope.enabled);
-  const totalRevenue = boardTotals.totalTarget;
-  const baselineByCustomer = new Map(
-    boardRows
-      .map((row) => [normalizeBusinessName(row.customerName), row.totalTarget]),
+
+  const filters = {
+    includeNewLogos,
+    hunterScope,
+    targetYear: defaultTargetYear,
+  };
+
+  const data: DashboardData = buildDashboardData(
+    people,
+    customers,
+    customerTargets,
+    targetAllocations,
+    studioTargetAllocations,
+    boardTargetBaselines,
+    areas,
+    filters,
   );
-  const dashboardCustomerIds = new Set(dashboardCustomers.map((customer) => customer.id));
-  const dashboardTargetAllocations = targetAllocations.filter((allocation) => dashboardCustomerIds.has(allocation.customerId));
-  const dashboardStudioTargetAllocations = studioTargetAllocations.filter((allocation) => dashboardCustomerIds.has(allocation.customerId));
-  const allocatedPeopleByCustomer = new Map(dashboardCustomers.map((customer) => [
-    customer.id,
-    getCustomerCoverageAllocatedTotal(customer, people, dashboardTargetAllocations, dashboardStudioTargetAllocations, areas, defaultTargetYear),
-  ]));
-  const allocatedPeopleTotal = roundCurrency(Array.from(allocatedPeopleByCustomer.values()).reduce((total, value) => total + value, 0));
-  const peopleDelta = roundCurrency(allocatedPeopleTotal - boardTotals.totalTarget);
-  const financialByCustomer = dashboardCustomers
-    .map((customer) => {
-      const baselineTarget = baselineByCustomer.get(normalizeBusinessName(customer.name)) ?? getCustomerTarget(customer);
-      const allocatedPeople = allocatedPeopleByCustomer.get(customer.id) ?? 0;
-      return {
-        customerCluster: customer.name,
-        revenueCurrent: allocatedPeople,
-        revenueTarget: baselineTarget,
-        hunterRevenue: customer.hunterTarget,
-        deliveryFarmerRevenue: customer.farmerRenewalTarget,
-        studioRevenue: customer.studioTarget,
-      };
-    })
-    .filter((item) => item.revenueCurrent > 0 || item.revenueTarget > 0)
-    .sort((a, b) => Math.max(b.revenueCurrent, b.revenueTarget) - Math.max(a.revenueCurrent, a.revenueTarget))
-    .slice(0, 10);
-  const financialByDirector = activePeople
-    .filter((person) => isDirectorRole(person.roleType))
-    .map((director) => {
-    const plans = dashboardCustomers.filter((customer) => customer.directorResponsibleId === director.id);
-    return {
-      name: director.name,
-      revenueTarget: plans.reduce((total, customer) => total + getCustomerTarget(customer), 0),
-      hunterRevenue: plans.reduce((total, customer) => total + customer.hunterTarget, 0),
-      deliveryFarmerRevenue: plans.reduce((total, customer) => total + customer.farmerRenewalTarget, 0),
-    };
-  })
-    .filter((item) => item.revenueTarget > 0)
-    .sort((a, b) => b.revenueTarget - a.revenueTarget);
-  const financialByManager = managers
-    .map((manager) => {
-      const plans = dashboardCustomers.filter((customer) => customer.managerResponsibleIds.includes(manager.id));
-      return {
-        name: manager.name,
-        revenueTarget: plans.reduce((total, customer) => total + getCustomerTarget(customer), 0),
-        hunterRevenue: plans.reduce((total, customer) => total + customer.hunterTarget, 0),
-        deliveryFarmerRevenue: plans.reduce((total, customer) => total + customer.farmerRenewalTarget, 0),
-      };
-    })
-    .filter((item) => item.revenueTarget > 0)
-    .sort((a, b) => b.revenueTarget - a.revenueTarget);
 
-  const distributionByDirector = people
-    .filter((person) => isDirectorRole(person.roleType))
-    .map((director) => ({
-      name: director.name,
-      managers: managers.filter((manager) => manager.directorId === director.id).length,
-      clientes: dashboardCustomers.filter((customer) => customer.directorResponsibleId === director.id).length,
-    }));
+  if (loading) {
+    return (
+      <div className="min-w-0 space-y-4">
+        <div className="h-8 w-48 animate-pulse rounded bg-slate-200" />
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-8">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="h-24 animate-pulse rounded-xl bg-slate-100" />
+          ))}
+        </div>
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="h-20 animate-pulse rounded-xl bg-slate-100" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
-  const roleDistribution = [
-    { name: translateRole("Delivery"), value: deliveryManagers.length },
-    { name: translateRole("Farmer + Delivery"), value: farmerDeliveryManagers.length },
-    { name: translateRole("Hunter"), value: hunters.length },
-    { name: translateRole("Farmer"), value: farmers.length },
-    { name: translateRole("Hunter + Farmer"), value: hunterFarmers.length },
-    { name: translateRole("Staff"), value: staff.length },
-  ].filter((item) => item.value > 0);
+  if (error) {
+    return (
+      <div className="min-w-0 space-y-4">
+        <Card className="border-red-200 bg-red-50/70">
+          <CardContent className="p-6">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-red-600" aria-hidden="true" />
+              <div>
+                <p className="text-sm font-semibold text-red-800">Falha ao carregar o dashboard</p>
+                <p className="mt-1 text-sm text-red-700">{error}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
-  const clientsByManager = managers
-    .map((manager) => ({
-      name: manager.name.split(" ")[0],
-      clientes: dashboardCustomers.filter((customer) => customer.managerResponsibleIds.includes(manager.id)).length,
-    }))
-    .sort((a, b) => b.clientes - a.clientes)
-    .slice(0, 10);
-
-  const kpis = [
-    { label: "Diretores", value: directors.length, icon: UserCog },
-    { label: "Managers", value: managers.length, icon: UsersRound },
-    { label: "Delivery", value: deliveryManagers.length, icon: UserCog },
-    { label: "Farmer + Delivery", value: farmerDeliveryManagers.length, icon: BriefcaseBusiness, farmer: true },
-    { label: "Hunters", value: hunters.length, icon: Target },
-    { label: "Farmers", value: farmers.length, icon: BriefcaseBusiness },
-    { label: "Hunter + Farmer", value: hunterFarmers.length, icon: TrendingUp },
-    { label: "Clientes", value: dashboardCustomers.length, icon: Building2 },
-  ];
+  const { summary, financialByCustomer, financialByDirector, financialByManager, roleDistribution, clientsByManager, clientsByDirector, alerts } = data;
 
   return (
     <div className="min-w-0 space-y-4">
@@ -181,15 +120,15 @@ export function ExecutiveDashboard() {
         </div>
         <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end" data-no-print="true">
           <div className="min-w-0 rounded-lg border bg-white px-4 py-2 text-left sm:mr-1 sm:text-right">
-            <p className="text-[10px] uppercase tracking-wider text-slate-400">Meta Board 2026</p>
-            <p className="truncate text-lg font-bold text-brq-purple" title={formatCurrency(totalRevenue)}>{formatCompactCurrency(totalRevenue)}</p>
+            <p className="text-[10px] uppercase tracking-wider text-slate-400">Meta Board {defaultTargetYear}</p>
+            <p className="truncate text-lg font-bold text-brq-purple" title={formatCurrency(summary.totalTarget)}>{formatCompactCurrency(summary.totalTarget)}</p>
           </div>
-            <Button variant="outline" className="w-full sm:w-auto" onClick={() => exportDeliveryDataAsCsv(activePeople, dashboardCustomers)}>
-              <Download className="h-4 w-4" /> Exportar dados CSV
-            </Button>
-            <Button className="w-full sm:w-auto" onClick={() => exportElementAsPdf("executive-dashboard", "dashboard-executivo-brq.pdf")}>
-              <FileDown className="h-4 w-4" /> Exportar dashboard PDF
-            </Button>
+          <Button variant="outline" className="w-full sm:w-auto" onClick={() => exportDeliveryDataAsCsv(people, customers)}>
+            <Download className="h-4 w-4" /> Exportar dados CSV
+          </Button>
+          <Button className="w-full sm:w-auto" onClick={() => exportElementAsPdf("executive-dashboard", "dashboard-executivo-brq.pdf")}>
+            <FileDown className="h-4 w-4" /> Exportar dashboard PDF
+          </Button>
         </div>
       </div>
 
@@ -214,108 +153,136 @@ export function ExecutiveDashboard() {
       </Card>
 
       <div id="executive-dashboard" className="min-w-0 space-y-4 rounded-xl">
-        <section className="grid min-w-0 grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-8">
-          {kpis.map(({ label, value, icon: Icon, farmer }) => (
-            <KpiSummaryCard
-              key={label}
-              label={label}
-              value={value}
-              icon={Icon}
-              tone={farmer ? "dark" : "purple"}
-            />
-          ))}
+        <section aria-label="Resumo executivo">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400">Resumo executivo</h2>
+          <div className="grid min-w-0 grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-8">
+            <KpiSummaryCard label="Meta Board" currencyValue={summary.totalTarget} icon={Target} />
+            <KpiSummaryCard label="Receita Alocada" currencyValue={summary.allocatedPeopleTotal} icon={TrendingUp} />
+            <KpiSummaryCard label="Gap" currencyValue={summary.peopleDelta} icon={ArrowRight} tone={summary.peopleDelta < -0.01 ? "danger" : summary.peopleDelta > 0.01 ? "ok" : "neutral"} />
+            <KpiSummaryCard label="Atingimento" value={`${summary.achievementPercentage.toFixed(1)}%`} icon={ChartIcon} />
+            <KpiSummaryCard label="Clientes" value={summary.customerCount} icon={Building2} />
+            <KpiSummaryCard label="Pessoas Ativas" value={summary.activePeopleCount} icon={UsersRound} />
+            <KpiSummaryCard label="Diretores" value={summary.directorCount} icon={UserCog} />
+            <KpiSummaryCard label="Managers" value={summary.managerCount} icon={UsersRound} />
+          </div>
         </section>
 
-        <section className="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-5">
-          <FinancialKpi label="Meta Board 2026" currencyValue={boardTotals.totalTarget} icon={Target} />
-          <FinancialKpi label="Board Hunter" currencyValue={boardTotals.hunterTarget} icon={UserCog} />
-          <FinancialKpi label="Board Renov. + Ampl." currencyValue={boardTotals.farmerRenewalTarget} icon={BriefcaseBusiness} />
-          <FinancialKpi label="Alocado em Pessoas" currencyValue={allocatedPeopleTotal} icon={Building2} />
-          <FinancialKpi label="Dif. Pessoas x Board" currencyValue={peopleDelta} icon={TrendingUp} tone={peopleDelta < -0.01 ? "danger" : peopleDelta > 0.01 ? "ok" : "neutral"} />
+        <section aria-label="Composição financeira">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400">Composição financeira</h2>
+          <div className="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-5">
+            <FinancialKpi label="Meta Board" currencyValue={summary.totalTarget} icon={Target} />
+            <FinancialKpi label="Board Hunter" currencyValue={summary.hunterTarget} icon={UserCog} />
+            <FinancialKpi label="Board Renov. + Ampl." currencyValue={summary.farmerRenewalTarget} icon={BriefcaseBusiness} />
+            <FinancialKpi label="Alocado em Pessoas" currencyValue={summary.allocatedPeopleTotal} icon={Building2} />
+            <FinancialKpi label="Dif. Pessoas x Board" currencyValue={summary.peopleDelta} icon={TrendingUp} tone={summary.peopleDelta < -0.01 ? "danger" : summary.peopleDelta > 0.01 ? "ok" : "neutral"} />
+          </div>
         </section>
 
-        <ChartCard title="Visão Financeira por Cliente">
-          {chartsReady ? <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-            <BarChart data={financialByCustomer} layout="vertical" margin={{ top: 0, right: 10, left: 42, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
-              <XAxis type="number" tickFormatter={(value) => compactCurrency(Number(value))} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis type="category" dataKey="customerCluster" width={120} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-              <Tooltip cursor={{ fill: "#f1f5f9" }} formatter={(value) => formatCurrency(Number(value))} />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar dataKey="revenueCurrent" name="Alocado em Pessoas" fill="#15171B" radius={[0, 4, 4, 0]} />
-              <Bar dataKey="revenueTarget" name="Baseline Board" fill="#7F2EC9" radius={[0, 4, 4, 0]} />
-            </BarChart>
-          </ResponsiveContainer> : <ChartPlaceholder />}
-        </ChartCard>
+        <section aria-label="Visualizações financeiras">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400">Visualizações financeiras</h2>
+          <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+            <ChartCard title="Visão Financeira por Cliente">
+              {chartsReady ? <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                <BarChart data={financialByCustomer} layout="vertical" margin={{ top: 0, right: 10, left: 42, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
+                  <XAxis type="number" tickFormatter={(value) => formatCompactCurrency(Number(value))} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis type="category" dataKey="customerCluster" width={120} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <Tooltip cursor={{ fill: "#f1f5f9" }} formatter={(value) => formatCurrency(Number(value))} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Bar dataKey="revenueCurrent" name="Alocado em Pessoas" fill="#15171B" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="revenueTarget" name="Baseline Board" fill="#7F2EC9" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer> : <ChartPlaceholder />}
+            </ChartCard>
 
-        <section className="grid min-w-0 gap-4 lg:grid-cols-2">
-          <ChartCard title="Visão Financeira por Diretor">
-            {chartsReady ? <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-              <BarChart data={financialByDirector} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                <XAxis dataKey="name" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                <YAxis tickFormatter={(value) => compactCurrency(Number(value))} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                <Tooltip cursor={{ fill: "#f1f5f9" }} formatter={(value) => formatCurrency(Number(value))} />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="hunterRevenue" name="Hunter" stackId="total" fill="#EE7C38" radius={[0, 0, 0, 0]} />
-                <Bar dataKey="deliveryFarmerRevenue" name="Delivery/Farmer" stackId="total" fill="#7F2EC9" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer> : <ChartPlaceholder />}
-          </ChartCard>
+            <ChartCard title="Visão Financeira por Diretor">
+              {chartsReady ? <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                <BarChart data={financialByDirector} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                  <XAxis dataKey="name" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                  <YAxis tickFormatter={(value) => formatCompactCurrency(Number(value))} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <Tooltip cursor={{ fill: "#f1f5f9" }} formatter={(value) => formatCurrency(Number(value))} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Bar dataKey="hunterRevenue" name="Hunter" stackId="total" fill="#EE7C38" radius={[0, 0, 0, 0]} />
+                  <Bar dataKey="deliveryFarmerRevenue" name="Delivery/Farmer" stackId="total" fill="#7F2EC9" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer> : <ChartPlaceholder />}
+            </ChartCard>
+          </div>
 
-          <ChartCard title="Visão Financeira por Subordinado">
-            {chartsReady ? <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-              <BarChart data={financialByManager} layout="vertical" margin={{ top: 0, right: 10, left: 40, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
-                <XAxis type="number" tickFormatter={(value) => compactCurrency(Number(value))} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                <Tooltip cursor={{ fill: "#f1f5f9" }} formatter={(value) => formatCurrency(Number(value))} />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="hunterRevenue" name="Hunter" stackId="total" fill="#EE7C38" radius={[0, 0, 0, 0]} />
-                <Bar dataKey="deliveryFarmerRevenue" name="Delivery/Farmer" stackId="total" fill="#7F2EC9" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer> : <ChartPlaceholder />}
-          </ChartCard>
+          <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+            <ChartCard title="Visão Financeira por Subordinado">
+              {chartsReady ? <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                <BarChart data={financialByManager} layout="vertical" margin={{ top: 0, right: 10, left: 40, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
+                  <XAxis type="number" tickFormatter={(value) => formatCompactCurrency(Number(value))} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <Tooltip cursor={{ fill: "#f1f5f9" }} formatter={(value) => formatCurrency(Number(value))} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Bar dataKey="hunterRevenue" name="Hunter" stackId="total" fill="#EE7C38" radius={[0, 0, 0, 0]} />
+                  <Bar dataKey="deliveryFarmerRevenue" name="Delivery/Farmer" stackId="total" fill="#7F2EC9" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer> : <ChartPlaceholder />}
+            </ChartCard>
+
+            <ChartCard title="Distribuição por Perfil">
+              {chartsReady ? <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                <PieChart>
+                  <Pie data={roleDistribution} dataKey="value" nameKey="name" innerRadius={52} outerRadius={86} paddingAngle={3}>
+                    {roleDistribution.map((entry, index) => <Cell key={entry.name} fill={COLORS[index % COLORS.length]} />)}
+                  </Pie>
+                  <Tooltip />
+                  <Legend verticalAlign="bottom" wrapperStyle={{ fontSize: 11 }} />
+                </PieChart>
+              </ResponsiveContainer> : <ChartPlaceholder />}
+            </ChartCard>
+          </div>
         </section>
 
-        <section className="grid min-w-0 gap-4 lg:grid-cols-3">
-          <ChartCard title="Distribuição por Perfil">
-            {chartsReady ? <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-              <PieChart>
-                <Pie data={roleDistribution} dataKey="value" nameKey="name" innerRadius={52} outerRadius={86} paddingAngle={3}>
-                  {roleDistribution.map((entry, index) => <Cell key={entry.name} fill={COLORS[index % COLORS.length]} />)}
-                </Pie>
-                <Tooltip />
-                <Legend verticalAlign="bottom" wrapperStyle={{ fontSize: 11 }} />
-              </PieChart>
-            </ResponsiveContainer> : <ChartPlaceholder />}
-          </ChartCard>
+        <section aria-label="Distribuição por responsável">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400">Distribuição por responsável</h2>
+          <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+            <ChartCard title="Clientes por Manager">
+              {chartsReady ? <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                <BarChart data={clientsByManager} layout="vertical" margin={{ top: 0, right: 10, left: 15, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
+                  <XAxis type="number" allowDecimals={false} axisLine={false} tickLine={false} />
+                  <YAxis type="category" dataKey="name" width={70} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <Tooltip cursor={{ fill: "#f1f5f9" }} />
+                  <Bar dataKey="clientes" name="Clientes" fill="#15171B" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer> : <ChartPlaceholder />}
+            </ChartCard>
+
+            <ChartCard title="Clientes por Diretor">
+              {chartsReady ? <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                <BarChart data={clientsByDirector} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                  <XAxis dataKey="name" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
+                  <Tooltip cursor={{ fill: "#f1f5f9" }} />
+                  <Bar dataKey="clientes" name="Clientes" fill="#7F2EC9" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer> : <ChartPlaceholder />}
+            </ChartCard>
+          </div>
         </section>
 
-        <section className="grid min-w-0 gap-4 lg:grid-cols-2">
-          <ChartCard title="Clientes por Manager">
-            {chartsReady ? <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-              <BarChart data={clientsByManager} layout="vertical" margin={{ top: 0, right: 10, left: 15, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
-                <XAxis type="number" allowDecimals={false} axisLine={false} tickLine={false} />
-                <YAxis type="category" dataKey="name" width={70} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                <Tooltip cursor={{ fill: "#f1f5f9" }} />
-                <Bar dataKey="clientes" name="Clientes" fill="#15171B" radius={[0, 4, 4, 0]} />
-              </BarChart>
-            </ResponsiveContainer> : <ChartPlaceholder />}
-          </ChartCard>
-
-          <ChartCard title="Clientes por Diretor">
-            {chartsReady ? <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-              <BarChart data={distributionByDirector} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                <XAxis dataKey="name" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                <Tooltip cursor={{ fill: "#f1f5f9" }} />
-                <Bar dataKey="clientes" name="Clientes" fill="#7F2EC9" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer> : <ChartPlaceholder />}
-          </ChartCard>
+        <section aria-label="Alertas de gestão">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400">Alertas de gestão</h2>
+          {alerts.length === 0 ? (
+            <Card className="border-emerald-200 bg-emerald-50/70">
+              <CardContent className="p-4">
+                <p className="text-sm text-emerald-800">Nenhum alerta no momento. Todos os indicadores estão dentro dos parâmetros esperados.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {alerts.map((alert, index) => (
+                <AlertCard key={`${alert.type}-${index}`} alert={alert} />
+              ))}
+            </div>
+          )}
         </section>
       </div>
     </div>
@@ -340,41 +307,34 @@ function FinancialKpi({
   return <KpiSummaryCard label={label} currencyValue={currencyValue} icon={Icon} tone={tone} />;
 }
 
-function getCustomerTarget(customer: { hunterTarget: number; farmerRenewalTarget: number; studioTarget: number }) {
-  return getCustomerTotalTarget(customer);
+function ChartIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+    </svg>
+  );
 }
 
-function getScopedBoardTotals(
-  customers: Array<{ name: string; hunterTarget: number; farmerRenewalTarget: number; studioTarget: number }>,
-  boardRows: ReturnType<typeof getBoardTargetBaselineRows>,
-  scoped: boolean,
-) {
-  if (!scoped) return getBoardTargetBaselineTotals(defaultTargetYear, boardRows);
-
-  const rowsByCustomer = new Map(boardRows.map((row) => [normalizeBusinessName(row.customerName), row]));
-
-  return customers.reduce((totals, customer) => {
-    const baseline = rowsByCustomer.get(normalizeBusinessName(customer.name));
-    const hunterTarget = baseline?.hunterTarget ?? customer.hunterTarget;
-    const farmerRenewalTarget = baseline?.farmerRenewalTarget ?? customer.farmerRenewalTarget;
-    const totalTarget = baseline?.totalTarget ?? getCustomerTarget(customer);
-
-    return {
-      hunterTarget: roundCurrency(totals.hunterTarget + hunterTarget),
-      farmerRenewalTarget: roundCurrency(totals.farmerRenewalTarget + farmerRenewalTarget),
-      totalTarget: roundCurrency(totals.totalTarget + totalTarget),
-    };
-  }, { hunterTarget: 0, farmerRenewalTarget: 0, totalTarget: 0 });
-}
-
-function roundCurrency(value: number) {
-  return Math.round(value * 100) / 100;
-}
-
-function compactCurrency(value: number) {
-  if (Math.abs(value) >= 1_000_000) return `R$ ${(value / 1_000_000).toFixed(0)} mi`;
-  if (Math.abs(value) >= 1_000) return `R$ ${(value / 1_000).toFixed(0)} mil`;
-  return `R$ ${value.toFixed(0)}`;
+function AlertCard({ alert }: { alert: import("@/lib/dashboardMetrics").ManagementAlert }) {
+  const severityTone = alert.severity === "danger" ? "danger" : alert.severity === "warning" ? "warning" : "neutral";
+  return (
+    <Card className={cn("border", severityTone === "danger" ? "border-red-200 bg-red-50/70" : severityTone === "warning" ? "border-amber-200 bg-amber-50/70" : "border-slate-200 bg-white")}>
+      <CardContent className="p-4">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className={cn("mt-0.5 h-5 w-5 shrink-0", alert.severity === "danger" ? "text-red-600" : alert.severity === "warning" ? "text-amber-600" : "text-slate-500")} aria-hidden="true" />
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-slate-900">{alert.description}</p>
+            <p className="mt-1 text-xs text-slate-500">{alert.affectedEntity}</p>
+            {alert.detail && (
+              <p className="mt-1 text-xs text-slate-400" title={alert.detail}>
+                {alert.detail.length > 80 ? `${alert.detail.slice(0, 80)}...` : alert.detail}
+              </p>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 function subscribeToHydration() {

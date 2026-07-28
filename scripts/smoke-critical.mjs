@@ -37,7 +37,7 @@ const checks = [
   },
   {
     name: "Executive customer chart must compare people allocation against Board baseline",
-    file: "src/components/dashboard/executive-dashboard.tsx",
+    file: "src/lib/dashboardMetrics.ts",
     failWhen: [
       /revenueCurrent:\s*customer\.revenue/,
       /name="Receita Atual"/,
@@ -46,6 +46,13 @@ const checks = [
     require: [
       /getCustomerCoverageAllocatedTotal/,
       /getBoardTargetBaselineRows/,
+    ],
+  },
+  {
+    name: "Executive dashboard chart legends must use canonical allocation labels",
+    file: "src/components/dashboard/executive-dashboard.tsx",
+    failWhen: [],
+    require: [
       /name="Alocado em Pessoas"/,
       /name="Baseline Board"/,
     ],
