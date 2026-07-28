@@ -4,121 +4,119 @@ Artefato oficial de coordenacao entre Codex, Kilo, ChatGPT e outros agentes de e
 
 ## 1. Metadata
 
-- Atualizado em: 2026-07-28 10:49:57 -03:00
+- Atualizado em: 2026-07-28 11:20:18 -03:00
 - Repositorio: `robinhomarchini/brq-delivery-coverage-hub`
 - Raiz local: `C:\Users\rmarchini\projetos\OrgBRQDelivery`
 - Branch: `main`
-- HEAD atual: `136813633655ec0dddd5dfa27828114f9cfab00d`
-- Baseline de produto local: `136813633655ec0dddd5dfa27828114f9cfab00d`
-- Baseline de producao conhecida: `3415af1e21813e9bcb2060bbdb3bccebd6afabb2`
+- HEAD atual: `3ee5572aabe9b736f363d049932f873b0126de67`
+- Baseline local confirmado antes desta sessao: `3ee5572aabe9b736f363d049932f873b0126de67`
+- Baseline de producao conhecida: nao verificado nesta sessao; valor anterior conhecido era `3415af1e21813e9bcb2060bbdb3bccebd6afabb2`
 - URL de producao conhecida: `https://brq-delivery-coverage-hub.vercel.app`
 - Agente gerador: Codex
 - Proximo agente previsto: Kilo, Codex ou ChatGPT
 
 ## 2. Git status verificado
 
-- `git status --short` antes desta atualizacao:
-  - `M src/app/api/delivery/customers/route.ts`
-  - `M src/app/api/delivery/person-customer-targets/route.ts`
-  - `M src/lib/repositories/contract-tests/deliveryRepository.contract.ts`
-  - `M src/lib/repositories/localDeliveryRepository.ts`
-  - `M src/lib/repositories/provider.ts`
-  - `M src/lib/repositories/supabaseDeliveryRepository.ts`
-  - `M src/lib/repositories/types.ts`
-- `docs/agent-handoff.md` tambem foi atualizado nesta sessao.
-- Sem arquivos untracked verificados antes desta atualizacao.
-- `git diff --stat` antes do handoff: 7 arquivos, 74 insercoes e 20 remocoes.
+- `git status --short` antes da atualizacao deste handoff:
+  - `M package.json`
+  - `?? scripts/verify-hunter-scoped-customer-create-security.cjs`
+  - `?? supabase/migrations/20260728111436_harden_hunter_scoped_customer_create.sql`
+- `docs/agent-handoff.md` e `.squad/memory.md` foram atualizados depois dessa leitura.
+- `git diff --stat` antes do handoff mostrava alteracao em `package.json`; arquivos novos ainda nao apareciam no stat por estarem untracked.
 - `git diff --cached --stat`: sem staged changes.
-- `git diff --cached`: sem staged changes.
+- Commit/deploy: nao executados nesta sessao.
+- `git status --short` final:
+  - `M .squad/memory.md`
+  - `M docs/agent-handoff.md`
+  - `M package.json`
+  - `?? scripts/verify-hunter-scoped-customer-create-security.cjs`
+  - `?? supabase/migrations/20260728111436_harden_hunter_scoped_customer_create.sql`
 
 ## 3. Objetivo atual
 
-Architecture Epic: Repository Layer and Domain Services. Reduzir acoplamento direto com Supabase migrando apenas uma capacidade coesa para contrato explicito de repositorio, sem alterar comportamento, sem deploy e sem migracao Supabase.
+Security Epic: Authorization and RLS Hardening.
 
-## 4. Decisoes aprovadas
+Escopo implementado: endurecer uma unica capacidade de seguranca, a criacao de cliente por usuario `hunter_viewer`/Consulta Hunter via BFF + RPC transacional. Nao aplicar migration em producao, nao alterar dados, nao fazer deploy.
 
-- `OrganizationChart` e a implementacao oficial do organograma.
-- `OrganizationChartV2` nao deve ser reintroduzido.
-- `src/lib/roles.ts` e a fonte canonica TypeScript para papeis de dominio.
-- Valores persistidos de papel permanecem: `Executive`, `Director`, `Farmer + Delivery`, `Delivery`, `Hunter`, `Hunter Especializado`, `Farmer`, `Hunter + Farmer`, `Staff`.
-- `Manager` nao e `RoleType` persistido.
-- `DeliveryRepository` deve continuar sendo a fronteira principal da aplicacao para persistencia.
-- Regras criticas e filtros de permissao nao devem depender apenas de UI.
+## 4. Decisoes aprovadas preservadas
 
-## 5. Mapa de acoplamento Supabase verificado
+- `DeliveryRepository` continua sendo a fronteira principal de persistencia da aplicacao.
+- Operacoes sensiveis de escrita Delivery continuam passando por BFF com token do usuario e validacao de app access.
+- Supabase Auth, RLS, RBAC e RPCs continuam ativos; nada foi removido ou contornado.
+- Simulacao admin permanece apenas UI/visao; nao altera token, usuario auditado ou decisao RLS.
+- Regras criticas nao podem depender apenas de filtro/estado de UI.
+- Migrations historicas nao devem ser reescritas; correcoes devem ser forward-only.
 
-- UI-level direct access: nenhum uso ativo de `.from(...)`, `.select(...)` ou `.rpc(...)` em componentes React; textos de UI ainda citam Supabase em contexto de importacao.
-- Hook/controller access: `src/app/api/delivery/customers/route.ts` e `src/app/api/delivery/person-customer-targets/route.ts` tinham leituras diretas de `customers` e `people` para validar escrita escopada de Hunter.
-- Existing repository abstraction: `src/lib/repositories/supabaseDeliveryRepository.ts` concentra a maior parte de `.from(...)`, `.rpc(...)`, mapeadores snake_case/camelCase e fallback RPC.
-- Existing service abstraction: `src/lib/auth/auth-service.ts` e `src/lib/repositories/accessRepository.ts` encapsulam auth/acesso, ainda com tipos Supabase no contrato interno.
-- Database contract: `supabase/migrations/**` contem tabelas, constraints, RPCs, RLS e triggers; nao alterado nesta sessao.
-- Validation/test fixture: scripts em `scripts/**` usam Supabase CLI/client para smoke, seguranca, limpeza ou validacao operacional; nao sao consumidores UI.
-- Dead/obsolete code: nao identificado nesta sessao.
+## 5. Mapa de acoplamento e superficie de seguranca verificada
 
-## 6. Capacidade extraida nesta sessao
+- Auth de escrita Delivery: `src/server/auth/delivery-command-access.ts` valida Bearer token com `client.auth.getUser(token)` e resolve app access por `accept_current_app_access`.
+- BFF de cliente: `src/app/api/delivery/customers/route.ts` permite `allowHunterScopedWrite`, mas bloqueia Hunter scoped quando o cliente ja existe e remove `managerResponsibleIds` antes da RPC.
+- BFF de metas pessoa/cliente: `src/app/api/delivery/person-customer-targets/route.ts` bloqueia Hunter scoped de aumentar meta do cliente e exige que `personId` corresponda ao e-mail autenticado.
+- UI de escopo Hunter: `src/lib/hunter-access-scope.ts` filtra visibilidade/edicao, mas nao e considerada fronteira de seguranca.
+- Banco/RLS/RPC: `supabase/migrations/20260721103000_hunter_scoped_access.sql` ja tinha helpers para identidade Hunter, person scope e studio scope; a sessao adicionou helper especifico para criacao de cliente.
+- Scripts de seguranca existentes: `scripts/verify-security-hardening.cjs`, `scripts/smoke-rls-access.mjs`, `scripts/security-check.mjs`.
 
-Capacidade: leitura de entidades para validacao de escopo dos comandos Delivery.
+## 6. Capacidade endurecida nesta sessao
 
-Contrato adicionado em `DeliveryRepository`:
+Capacidade: criacao de cliente por Consulta Hunter.
 
-- `findCustomerById(id): Promise<Customer | null>`
-- `findPersonById(id): Promise<Person | null>`
+Nova regra de banco:
 
-Regras preservadas:
+- `public.can_hunter_scope_create_customer(p_customer_id, p_manager_responsible_ids)` retorna verdadeiro somente quando:
+  - existe identidade ativa `hunter_viewer` mapeada para pessoa ativa com papel Hunter/Hunter + Farmer/Hunter Especializado;
+  - o id do cliente nao esta vazio;
+  - o cliente ainda nao existe em `public.customers`;
+  - nao ha `manager_responsible_ids` enviados.
 
-- Hunter scoped write pode criar novo cliente, mas nao editar cliente existente.
-- Hunter scoped write em metas por pessoa so pode alterar metas vinculadas a propria pessoa autenticada.
-- BFF continua validando sessao, app role e autorizacao via `createDeliveryCommandClient`.
-- Supabase/RLS/RPC nao foram removidos nem contornados.
+RPC reforcada:
 
-Arquivos afetados:
+- `public.save_customer_with_managers_and_targets(...)` passa a calcular `v_hunter_scoped_create` via helper de banco antes de qualquer escrita.
+- Para usuarios sem `can_write_delivery_hardening()`, a RPC preserva as mensagens atuais e so cria o vinculo `rpc_hunter_customer_create` quando o helper autorizou o fluxo.
+- Conflitos de upsert em `customers` e `customer_target_years` so atualizam quando `v_can_edit` e verdadeiro; Consulta Hunter falha em vez de converter criacao concorrente em update.
+- Editor/admin mantem o comportamento existente.
 
-- `src/lib/repositories/types.ts`
-- `src/lib/repositories/localDeliveryRepository.ts`
-- `src/lib/repositories/supabaseDeliveryRepository.ts`
-- `src/lib/repositories/provider.ts`
-- `src/app/api/delivery/customers/route.ts`
-- `src/app/api/delivery/person-customer-targets/route.ts`
-- `src/lib/repositories/contract-tests/deliveryRepository.contract.ts`
+## 7. Arquivos modificados
+
+- `supabase/migrations/20260728111436_harden_hunter_scoped_customer_create.sql`
+- `scripts/verify-hunter-scoped-customer-create-security.cjs`
+- `package.json`
 - `docs/agent-handoff.md`
+- `.squad/memory.md`
 
-Risco de migracao: baixo. Mudanca remove query direta dos BFFs e reaproveita mapeadores existentes do adapter Supabase.
+## 8. Validacoes executadas
 
-## 7. Validacoes executadas
-
-- `npm run test:contracts`: passou.
-- `npm run typecheck`: passou.
 - `npm run lint`: passou.
+- `npm run typecheck`: passou.
 - `npm run validate`: passou.
 - `npm run build`: passou.
+- `npm run smoke:critical`: passou.
+- `npm run test:reports`: passou.
+- `npm run test:performance`: passou.
+- `npm run test:security`: passou, incluindo o novo verificador `verify-hunter-scoped-customer-create-security.cjs`.
+- `git diff --check`: passou sem erro de whitespace; exibiu apenas aviso Windows de normalizacao CRLF em `package.json`.
 
-Nao executadas:
+Validacoes pendentes/nao conclusivas:
 
-- `npm run smoke:critical`: nao executado; mudanca nao alterou tela ou fluxo de persistencia pelo browser.
-- `npm run db:migrations:check`: nao executado; nenhuma migracao/schema/RLS foi alterado.
-- Deploy: nao executado por instrucao explicita.
+- `npm run db:migrations:check`: falhou por falta de autenticacao Supabase (`SUPABASE_DB_URL`, login CLI ou `SUPABASE_ACCESS_TOKEN`). A falha nao confirmou drift.
+- `npm run smoke:rls`: nao executado nesta sessao para evitar conexao com Supabase de producao sem um ambiente local/perfil dedicado confirmado.
+- Migration nova nao foi aplicada por instrucao explicita.
+- Deploy nao foi executado por instrucao explicita.
 
-## 8. Trabalho pendente
+## 9. Riscos e pendencias
 
-- Revisar diff final e decidir commit de produto para a extracao de repository contract.
-- Se for commitar, boundary recomendado: `refactor: route delivery command reads through repository`.
-- Atualizar este handoff depois do commit com o novo HEAD.
-- Capacidades duplicadas restantes para futuras extracoes:
-  - Studio contido / Meta Squads-Times liquida;
-  - escopo de acesso Hunter e filtros por usuario logado;
-  - composicao de portfolio cliente x pessoas;
-  - agregacoes de relatorios oficiais;
-  - KPIs executivos e comparativos com baseline;
-  - analise de desafio por perfil/senioridade;
-  - auth/access repository sem tipos Supabase expostos.
+- A migration forward precisa ser aplicada em ambiente controlado antes de deploy futuro.
+- A checagem de historico Supabase precisa ser reexecutada com autenticacao configurada.
+- `test:security` agora cobre o contrato estatico BFF + SQL desta capacidade; teste RLS real continua dependente de perfis dedicados/local Supabase.
+- O aviso CRLF em `package.json` permanece como normalizacao Git/Windows, sem falha de diff.
 
-## 9. Politica de commit e deploy
+## 10. Proxima recomendacao
 
-- Commits documentais de handoff devem ficar separados quando forem apenas coordenacao.
-- Este handoff pode acompanhar commit de produto quando documenta a entrega da propria sessao.
-- Nao deployar esta sessao.
-- Antes de deploy futuro, usar somente `npm run deploy:check`, `npm run deploy:prod` e `npm run deploy:inspect:prod`.
+Boundary de commit recomendado, se aprovado:
 
-## 10. Prompt de continuacao
+`fix(security): harden hunter scoped customer creation`
 
-Continue em `C:\Users\rmarchini\projetos\OrgBRQDelivery`. Leia `AGENTS.md`, `.github/copilot-instructions.md`, `.squad/config.yaml`, `.squad/memory.md` e este arquivo. Use Git e codigo como fonte da verdade. Preserve `DeliveryRepository`, Supabase/RLS/RBAC e `src/lib/roles.ts`. Nao reintroduza `OrganizationChartV2`. Para continuar a arquitetura, escolha apenas uma capability por vez; proxima recomendada: escopo de acesso Hunter/filtros por usuario logado, desde que sem migracao ampla.
+Proxima capability de seguranca, depois deste commit: cobertura RLS real/local para `hunter_viewer` em criacao de cliente e edicao de metas sem usar producao.
+
+## 11. Prompt de continuacao
+
+Continue em `C:\Users\rmarchini\projetos\OrgBRQDelivery`. Leia `AGENTS.md`, `.github/copilot-instructions.md`, `.squad/config.yaml`, `.squad/memory.md` e este arquivo. Use Git e codigo como fonte da verdade. Ha uma migration nova pendente para hardening de criacao de cliente por Consulta Hunter. Nao aplicar em producao sem autorizacao explicita. Antes de commitar, revisar `git diff`, repetir validacoes relevantes e manter `docs/agent-handoff.md` alinhado ao HEAD/working tree.

@@ -88,7 +88,19 @@ npm run smoke:rls            # RLS com perfis reais
 
 ## Current Task Objective
 
-Centralizar importação de baselines em uma nova rota, removendo uploads antigos de Insights/Comparativo Baseline e preservando telas operacionais atuais.
+Security Epic: endurecer a criacao de cliente por Consulta Hunter (`hunter_viewer`) no BFF + RPC/RLS sem deploy e sem aplicar migration em producao.
+
+## Current Session Notes
+
+- Migration forward criada: `supabase/migrations/20260728111436_harden_hunter_scoped_customer_create.sql`.
+- Novo helper de banco: `public.can_hunter_scope_create_customer(p_customer_id, p_manager_responsible_ids)`.
+- `save_customer_with_managers_and_targets` agora usa o helper antes de qualquer escrita para usuario sem `can_write_delivery_hardening()`.
+- Upserts de cliente/ano agora so fazem update em conflito quando `v_can_edit`; Hunter scoped falha em conflito concorrente.
+- Novo verificador: `scripts/verify-hunter-scoped-customer-create-security.cjs`.
+- `npm run test:security` inclui o novo verificador.
+- Validacoes executadas e aprovadas: lint, typecheck, validate, build, smoke:critical, test:reports, test:performance, test:security e git diff --check.
+- `npm run db:migrations:check` nao concluiu por falta de autenticacao Supabase; nao confirmou drift.
+- Nao houve deploy nem aplicacao de migration nesta sessao.
 
 ## Execution Checklist
 
