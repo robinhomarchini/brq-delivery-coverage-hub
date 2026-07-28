@@ -3,6 +3,13 @@ import { z } from "zod";
 import { generateChallengeNarrative } from "@/server/ai/challenge-analysis";
 import { assertCanUseChallengeAnalysis, ChallengeAccessError } from "@/server/auth/challenge-analysis-access";
 import type { ChallengeAiBaseline, ChallengeAnalysisRow, ChallengeView } from "@/lib/challenge-analysis";
+import {
+  categorizeTelemetryError,
+  getCorrelationId,
+  hashTelemetryValue,
+  startOperation,
+  withCorrelationHeader,
+} from "@/server/observability/telemetry";
 
 const challengeAiNumbersSchema = z.object({
   peopleCount: z.number().int().nonnegative(),
@@ -62,17 +69,48 @@ const challengeRequestSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  const correlationId = getCorrelationId(request);
+  const operation = startOperation({
+    operationName: "executive.challengeAnalysis.generate",
+    capability: "Challenges",
+    correlationId,
+  });
+
   try {
-    await assertCanUseChallengeAnalysis(request);
+    operation.startPhase("auth");
+    const accessUser = await assertCanUseChallengeAnalysis(request);
+    operation.endPhase("auth");
+    operation.setUser({
+      userId: accessUser.userId,
+      role: accessUser.role,
+      emailHash: hashTelemetryValue(accessUser.email),
+    });
+
+    operation.startPhase("request.parse");
     const body = await request.json();
     const parsed = challengeRequestSchema.safeParse(body);
+    operation.endPhase("request.parse");
     if (!parsed.success) {
-      console.warn("Invalid challenge analysis payload", parsed.error.flatten().fieldErrors);
-      return NextResponse.json({ error: "Dados inválidos para análise." }, { status: 400 });
+      operation.fail({ errorCategory: "validation" });
+      return withCorrelationHeader(
+        NextResponse.json({ error: "Dados inválidos para análise." }, { status: 400 }),
+        correlationId,
+      );
     }
 
+    operation.startPhase("analysis.prepare");
     const rows = parsed.data.rows.filter((row) => row.view === parsed.data.view) as ChallengeAnalysisRow[];
     const analysisYear = parsed.data.year ?? 2026;
+    const hasContext = Boolean(parsed.data.context?.trim());
+    const hasPreviousBaseline = Boolean(parsed.data.baseline);
+    operation.setBusinessContext({
+      view: parsed.data.view,
+      year: analysisYear,
+      contextHash: hashTelemetryValue(parsed.data.context),
+    });
+    operation.endPhase("analysis.prepare");
+
+    operation.startPhase("ai.generate");
     const result = await generateChallengeNarrative({
       rows,
       view: parsed.data.view as ChallengeView,
@@ -80,18 +118,37 @@ export async function POST(request: Request) {
       context: parsed.data.context,
       previousBaseline: parsed.data.baseline as ChallengeAiBaseline | undefined,
     });
+    operation.endPhase("ai.generate");
+    operation.succeed({
+      metrics: {
+        submittedRows: parsed.data.rows.length,
+        analyzedRows: rows.length,
+        hasContext: hasContext ? 1 : 0,
+        hasPreviousBaseline: hasPreviousBaseline ? 1 : 0,
+        generativeAiResult: result.source === "generative_ai" ? 1 : 0,
+        deterministicFallbackResult: result.source === "deterministic_fallback" ? 1 : 0,
+      },
+    });
 
-    return NextResponse.json(result);
+    return withCorrelationHeader(NextResponse.json(result), correlationId);
   } catch (error) {
     if (error instanceof ChallengeAccessError) {
-      return NextResponse.json(
-        { error: "Acesso não autorizado para análise de remuneração." },
-        { status: error.status },
+      operation.fail({ errorCategory: "authorization", error });
+      return withCorrelationHeader(
+        NextResponse.json(
+          { error: "Acesso não autorizado para análise de remuneração." },
+          { status: error.status },
+        ),
+        correlationId,
       );
     }
-    return NextResponse.json(
-      { error: "Não foi possível gerar a análise agora. Tente novamente em instantes." },
-      { status: 500 },
+    operation.fail({ errorCategory: categorizeTelemetryError(error), error });
+    return withCorrelationHeader(
+      NextResponse.json(
+        { error: "Não foi possível gerar a análise agora. Tente novamente em instantes." },
+        { status: 500 },
+      ),
+      correlationId,
     );
   }
 }

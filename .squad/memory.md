@@ -88,21 +88,24 @@ npm run smoke:rls            # RLS com perfis reais
 
 ## Current Task Objective
 
-Architecture Epic: segundo incremento de Audit Trail and Change Traceability para metas por pessoa (`revenue_target_allocations`), sem deploy, sem aplicar migration em producao e sem alterar dados produtivos.
+Architecture Epic: Production Observability & Operational Intelligence. Instrumentar capacidades criticas uma por vez com telemetria estruturada, sem deploy e sem alterar comportamento funcional.
 
 ## Current Session Notes
 
-- Commit de seguranca anterior concluido em `ac2a33b security(customers): enforce hunter scoped customer creation`.
-- Primeiro incremento de auditoria concluido e commitado em `6226cd5 feat(audit): add traceability for access administration`.
-- Capacidade atual escolhida para auditoria: metas por pessoa/cliente/ano (`revenue_target_allocations`), por ser fonte canonica de Metas por Pessoa, relatorios, dashboards e batimentos.
-- Migration forward criada: `supabase/migrations/20260728120500_add_person_target_domain_audit.sql`.
-- A migration reaproveita `public.domain_audit_events`, estende a constraint de acoes e adiciona trigger `revenue_target_allocations_domain_audit`.
-- Payload de auditoria de metas guarda apenas ids e valores de negocio (`customer_id`, `person_id`, `target_type`, `target_year`, `amount`, `own_amount`), sem nomes ou e-mails.
-- `remove_person_customer_targets` foi recriada sem mudar comportamento funcional, apenas marcando `app.audit_source = rpc.remove_person_customer_targets`.
-- Novo verificador: `scripts/verify-person-target-audit.cjs`; `npm run test:audit` agora valida acessos e metas por pessoa.
-- Validacoes executadas e aprovadas nesta fatia: lint, typecheck, validate, build, smoke:critical, test:security, test:performance, test:audit e git diff --check.
-- `npm run db:migrations:check` falhou por falta de autenticacao Supabase; nao confirmou drift.
-- Nao houve deploy, nao houve aplicacao de migration e nao houve modificacao de dados produtivos nesta sessao.
+- Incremento de auditoria de metas por pessoa commitado em `9db627f feat(audit): add traceability for person targets`.
+- Capacidade escolhida para observabilidade: BFF de salvar Metas por Pessoa (`POST /api/delivery/person-customer-targets`), por ser frequente, sensivel, dependente de Auth/RLS e com impacto em dashboards/relatorios.
+- Segunda capacidade instrumentada a pedido do usuario: Analise de Desafio/GEN AI (`POST /api/challenge-analysis`), por envolver autorizacao de remuneracao, custo/latencia de IA e fallback deterministico.
+- Nova camada server-side: `src/server/observability/telemetry.ts`.
+- Eventos estruturados: `OperationStarted`, `OperationSucceeded`, `OperationFailed` e tipo reservado `OperationCancelled`.
+- Dados registrados: `operationName`, capability, correlation id, timestamp, duracao total, fases, status, categoria de erro, usuario autenticado seguro e contexto de negocio.
+- PII/sensibilidade: e-mail e personId sao hashados; prompt/contexto da IA usa hash; valores financeiros de metas nao sao enviados para logs.
+- Fases instrumentadas na rota: `auth`, `request.parse`, `authorization.scope` quando Consulta Hunter, e `repository.save` como aproximacao de tempo de banco/repository.
+- Fases instrumentadas na Analise de Desafio: `auth`, `request.parse`, `analysis.prepare` e `ai.generate`.
+- Respostas da rota agora propagam `x-correlation-id`.
+- Novo gate: `scripts/verify-observability.cjs`; `npm run test:observability`.
+- Validacoes executadas nesta fatia: lint, typecheck, test:performance, test:observability, validate, build, smoke:critical, test:security e git diff --check passaram.
+- Nao ha validacoes obrigatorias pendentes para a fatia de observabilidade.
+- Nao houve deploy nem modificacao de dados produtivos nesta sessao.
 
 ## Execution Checklist
 

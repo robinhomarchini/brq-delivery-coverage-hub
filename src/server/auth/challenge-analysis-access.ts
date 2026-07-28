@@ -67,6 +67,8 @@ export async function assertCanUseChallengeAnalysis(request: Request) {
   if (!canManageCompensation(accessUser, matchingPerson ? [matchingPerson] : [])) {
     throw new ChallengeAccessError("Compensation analysis access denied.", 403);
   }
+
+  return accessUser;
 }
 
 export class ChallengeAccessError extends Error {
