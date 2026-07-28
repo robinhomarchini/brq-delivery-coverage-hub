@@ -46,6 +46,11 @@ export interface ChallengeAiResult {
   pendingQuestions: string[];
   baseline: ChallengeAiBaseline;
   source: "generative_ai" | "deterministic_fallback";
+  externalResearch: {
+    requested: boolean;
+    status: "not_requested" | "used" | "unavailable";
+    message: string;
+  };
 }
 
 export interface ChallengeAnalysisRow {

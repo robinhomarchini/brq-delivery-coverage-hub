@@ -66,6 +66,11 @@ const challengeRequestSchema = z.object({
   rows: z.array(challengeRowSchema).max(200),
   context: z.string().trim().max(4000).optional(),
   baseline: challengeAiBaselineSchema.optional(),
+  useExternalResearch: z.boolean().optional(),
+  conversationHistory: z.array(z.object({
+    prompt: z.string().trim().min(1).max(4000),
+    answer: z.string().trim().min(1).max(4000),
+  })).max(6).optional(),
 });
 
 export async function POST(request: Request) {
@@ -117,6 +122,8 @@ export async function POST(request: Request) {
       year: analysisYear,
       context: parsed.data.context,
       previousBaseline: parsed.data.baseline as ChallengeAiBaseline | undefined,
+      conversationHistory: parsed.data.conversationHistory,
+      useExternalResearch: parsed.data.useExternalResearch,
     });
     operation.endPhase("ai.generate");
     operation.succeed({
@@ -125,6 +132,7 @@ export async function POST(request: Request) {
         analyzedRows: rows.length,
         hasContext: hasContext ? 1 : 0,
         hasPreviousBaseline: hasPreviousBaseline ? 1 : 0,
+        requestedExternalResearch: parsed.data.useExternalResearch ? 1 : 0,
         generativeAiResult: result.source === "generative_ai" ? 1 : 0,
         deterministicFallbackResult: result.source === "deterministic_fallback" ? 1 : 0,
       },

@@ -40,7 +40,8 @@ export function ChallengeAnalysis() {
   const [aiResult, setAiResult] = useState<ChallengeAiResult | null>(null);
   const [aiBaselines, setAiBaselines] = useState<Record<string, ChallengeAiBaseline>>({});
   const [contextInput, setContextInput] = useState("");
-  const [lastInteraction, setLastInteraction] = useState<ChallengeAiInteraction | null>(null);
+  const [interactionsByBaseline, setInteractionsByBaseline] = useState<Record<string, ChallengeAiInteraction[]>>({});
+  const [useExternalResearch, setUseExternalResearch] = useState(false);
   const [openAiPanel, setOpenAiPanel] = useState<AiPanelKey>("answer");
   const [loadingAi, setLoadingAi] = useState(false);
   const [listening, setListening] = useState(false);
@@ -64,6 +65,7 @@ export function ChallengeAnalysis() {
   const benchmark = getChallengeBenchmark(view);
   const baselineKey = `${view}:${year}`;
   const activeBaseline = aiBaselines[baselineKey] ?? null;
+  const activeInteractions = interactionsByBaseline[baselineKey] ?? [];
 
   async function generateNarrative() {
     setLoadingAi(true);
@@ -79,7 +81,18 @@ export function ChallengeAnalysis() {
       const response = await fetch("/api/challenge-analysis", {
         method: "POST",
         headers,
-        body: JSON.stringify({ view, year, rows, context: submittedContext || undefined, baseline: activeBaseline ?? undefined }),
+        body: JSON.stringify({
+          view,
+          year,
+          rows,
+          context: submittedContext || undefined,
+          baseline: activeBaseline ?? undefined,
+          useExternalResearch,
+          conversationHistory: activeInteractions.slice(-6).map((interaction) => ({
+            prompt: interaction.prompt,
+            answer: interaction.result.opinion || interaction.result.narrative,
+          })),
+        }),
       });
       const data = await response.json() as ChallengeAiResult & { error?: string };
 
@@ -92,13 +105,21 @@ export function ChallengeAnalysis() {
         ...current,
         [baselineKey]: data.baseline,
       }));
-      setLastInteraction({
-        prompt: submittedContext || "Gerar leitura executiva inicial com os números oficiais e a tese disponível.",
-        result: data,
-        createdAt: new Date().toISOString(),
-      });
+      setInteractionsByBaseline((current) => ({
+        ...current,
+        [baselineKey]: [
+          ...(current[baselineKey] ?? []).slice(-7),
+          {
+            prompt: submittedContext || "Gerar leitura executiva inicial com os números oficiais e a tese disponível.",
+            result: data,
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      }));
       setOpenAiPanel("answer");
-      setContextInput("");
+      if (data.source === "generative_ai") {
+        setContextInput("");
+      }
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Não foi possível gerar a análise.");
     } finally {
@@ -120,16 +141,22 @@ export function ChallengeAnalysis() {
     recognition.maxAlternatives = 1;
     recognition.onstart = () => setListening(true);
     recognition.onend = () => setListening(false);
-    recognition.onerror = () => {
+    recognition.onerror = (event) => {
       setListening(false);
-      setErrorMessage("Não foi possível capturar a fala. Você pode digitar o contexto manualmente.");
+      setErrorMessage(getSpeechRecognitionErrorMessage(event.error));
     };
     recognition.onresult = (event) => {
       const transcript = event.results[0]?.[0]?.transcript?.trim();
       if (!transcript) return;
+      setErrorMessage("");
       setContextInput((current) => current ? `${current}\n${transcript}` : transcript);
     };
-    recognition.start();
+    try {
+      recognition.start();
+    } catch {
+      setListening(false);
+      setErrorMessage("O microfone não pôde ser iniciado. Verifique a permissão do navegador e tente novamente.");
+    }
   }
 
   if (!canView) {
@@ -222,6 +249,18 @@ export function ChallengeAnalysis() {
                 </button>
               )}
             </div>
+            <label className="mt-3 flex cursor-pointer items-start gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                className="mt-0.5 h-4 w-4 accent-purple-700"
+                checked={useExternalResearch}
+                onChange={(event) => setUseExternalResearch(event.target.checked)}
+              />
+              <span>
+                <strong className="block text-slate-950">Buscar referências externas</strong>
+                Usar pesquisa web pública como apoio, sem alterar metas, salários ou números oficiais.
+              </span>
+            </label>
           </div>
           <div className="flex flex-wrap gap-2 lg:justify-end">
             <Button type="button" variant="outline" onClick={startVoiceContext} disabled={listening} title="Ditado por voz em português quando suportado pelo navegador">
@@ -239,7 +278,7 @@ export function ChallengeAnalysis() {
       <ChallengeConversationResult
         aiResult={aiResult}
         narrative={narrative}
-        interaction={lastInteraction}
+        interactions={activeInteractions}
         activePanel={openAiPanel}
         onPanelChange={setOpenAiPanel}
       />
@@ -296,16 +335,17 @@ export function ChallengeAnalysis() {
 function ChallengeConversationResult({
   aiResult,
   narrative,
-  interaction,
+  interactions,
   activePanel,
   onPanelChange,
 }: {
   aiResult: ChallengeAiResult | null;
   narrative: string;
-  interaction: ChallengeAiInteraction | null;
+  interactions: ChallengeAiInteraction[];
   activePanel: AiPanelKey;
   onPanelChange: (panel: AiPanelKey) => void;
 }) {
+  const interaction = interactions.at(-1) ?? null;
   const result = interaction?.result ?? aiResult;
   const panelItems = result ? getAiPanelItems(result) : [];
   const activeItem = panelItems.find((item) => item.key === activePanel) ?? panelItems[0];
@@ -332,9 +372,23 @@ function ChallengeConversationResult({
               {interaction && <span className="text-xs text-slate-400">{formatDateTime(interaction.createdAt)}</span>}
             </div>
             {interaction ? (
-              <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">Você pediu</p>
-                <p className="mt-1 text-sm leading-6 text-slate-700">{interaction.prompt}</p>
+              <div className="mt-3 space-y-2">
+                {interactions.slice(0, -1).map((item, index) => (
+                  <div key={`${item.createdAt}-${index}`} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">Interação anterior</p>
+                      <span className="text-xs text-slate-400">{formatDateTime(item.createdAt)}</span>
+                    </div>
+                    <p className="mt-1 text-sm leading-6 text-slate-700">{item.prompt}</p>
+                    <p className="mt-2 border-l-2 border-purple-200 pl-3 text-sm leading-6 text-purple-950">
+                      {item.result.opinion || item.result.narrative}
+                    </p>
+                  </div>
+                ))}
+                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                  <p className="text-xs font-bold uppercase tracking-[0.12em] text-slate-400">Você pediu</p>
+                  <p className="mt-1 text-sm leading-6 text-slate-700">{interaction.prompt}</p>
+                </div>
               </div>
             ) : (
               <p className="mt-2 text-sm leading-6 text-slate-600">
@@ -356,6 +410,16 @@ function ChallengeConversationResult({
               </p>
               {result?.narrative && result.narrative !== result.opinion && (
                 <p className="mt-3 text-sm leading-6 text-slate-700">{result.narrative}</p>
+              )}
+              {result?.externalResearch.requested && (
+                <p className={cn(
+                  "mt-3 rounded-lg px-3 py-2 text-xs font-semibold",
+                  result.externalResearch.status === "used"
+                    ? "bg-emerald-100 text-emerald-900"
+                    : "bg-amber-100 text-amber-900",
+                )}>
+                  {result.externalResearch.message}
+                </p>
               )}
             </div>
           </div>
@@ -621,9 +685,32 @@ interface SpeechRecognitionLike {
   maxAlternatives: number;
   onstart: (() => void) | null;
   onend: (() => void) | null;
-  onerror: (() => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null;
   onresult: ((event: SpeechRecognitionResultEventLike) => void) | null;
   start: () => void;
+}
+
+interface SpeechRecognitionErrorEventLike {
+  error: string;
+}
+
+function getSpeechRecognitionErrorMessage(error: string) {
+  if (error === "not-allowed" || error === "service-not-allowed") {
+    return "O acesso ao microfone foi bloqueado. Autorize o microfone nas permissões do navegador e tente novamente.";
+  }
+  if (error === "no-speech") {
+    return "Nenhuma fala foi detectada. Aproxime-se do microfone e tente novamente.";
+  }
+  if (error === "audio-capture") {
+    return "Nenhum microfone disponível foi encontrado. Verifique o dispositivo de áudio.";
+  }
+  if (error === "network") {
+    return "O serviço de reconhecimento de voz está indisponível no momento. Você pode digitar o contexto e continuar.";
+  }
+  if (error === "aborted") {
+    return "A captura de voz foi interrompida antes de concluir.";
+  }
+  return "Não foi possível capturar a fala. Verifique o microfone ou digite o contexto manualmente.";
 }
 
 interface SpeechRecognitionResultEventLike {

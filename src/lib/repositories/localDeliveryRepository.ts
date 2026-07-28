@@ -86,10 +86,32 @@ export class LocalDeliveryRepository implements DeliveryRepository {
 
   async getPerformanceByCustomer(filters: DashboardSummaryFilters): Promise<CustomerPerformanceResult> {
     const data = await this.getAll();
-    const items = data.customers.map((customer) => {
-      const customerTargets = data.customerTargets.filter((target) => target.customerId === customer.id);
-      const targetAmount = customerTargets.reduce((sum, target) => sum + target.hunterTarget + target.farmerRenewalTarget, 0);
-      const allocations = data.targetAllocations.filter((allocation) => allocation.customerId === customer.id);
+    const scopedCustomerIds = new Set(filters.hunterCustomerIds);
+    const targetsByCustomer = new Map(
+      data.customerTargets
+        .filter((target) =>
+          target.year === filters.targetYear
+          && (filters.includeNewLogos || target.countsTowardTarget !== false)
+        )
+        .map((target) => [target.customerId, target]),
+    );
+    const baselinesByCustomerName = new Map(
+      data.boardTargetBaselines
+        .filter((baseline) => baseline.year === filters.targetYear)
+        .map((baseline) => [normalizeBusinessName(baseline.customerName), baseline]),
+    );
+    const items = data.customers
+      .filter((customer) => targetsByCustomer.has(customer.id))
+      .filter((customer) => !filters.hunterScopeEnabled || scopedCustomerIds.has(customer.id))
+      .map((customer) => {
+      const customerTarget = targetsByCustomer.get(customer.id);
+      const baseline = baselinesByCustomerName.get(normalizeBusinessName(customer.name));
+      const targetAmount = baseline?.totalTarget
+        ?? (customerTarget ? getCustomerTotalTarget(customerTarget) : 0);
+      const allocations = data.targetAllocations.filter((allocation) =>
+        allocation.customerId === customer.id
+        && allocation.year === filters.targetYear
+      );
       const hunterAllocated = allocations.filter((item) => item.type === "hunter").reduce((sum, item) => sum + item.amount, 0);
       const deliveryFarmerAllocated = allocations.filter((item) => item.type === "farmer_renewal").reduce((sum, item) => sum + item.amount, 0);
       const allocatedTotal = hunterAllocated + deliveryFarmerAllocated;
@@ -109,7 +131,12 @@ export class LocalDeliveryRepository implements DeliveryRepository {
         peopleDelta: roundCurrency(allocatedTotal - targetAmount),
         achievementPercentage: targetAmount > 0 ? roundCurrency((allocatedTotal / targetAmount) * 100) : 0,
       } satisfies CustomerPerformanceMetric;
-    });
+    })
+      .sort((first, second) =>
+        second.allocatedTotal - first.allocatedTotal
+        || second.targetAmount - first.targetAmount
+        || first.customerName.localeCompare(second.customerName, "pt-BR")
+      );
     return { items };
   }
 

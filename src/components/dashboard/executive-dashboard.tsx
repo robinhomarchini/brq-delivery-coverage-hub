@@ -25,7 +25,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { useState, useSyncExternalStore } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { Button } from "@/components/ui/button";
 import { KpiSummaryCard } from "@/components/shared/kpi-summary-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,22 +49,29 @@ export function ExecutiveDashboard() {
   const { areas, people, customers, customerTargets, boardTargetBaselines, targetAllocations, studioTargetAllocations, specialistHunterStudioAssignments, loading, error } = useDeliveryStore();
   const [includeNewLogos, setIncludeNewLogos] = useState(false);
 
-  const hunterScope = buildHunterAccessScope({
+  const hunterScope = useMemo(() => buildHunterAccessScope({
     accessUser,
     people,
     customers,
     targetAllocations,
     studioTargetAllocations,
     specialistHunterStudioAssignments,
-  });
+  }), [
+    accessUser,
+    customers,
+    people,
+    specialistHunterStudioAssignments,
+    studioTargetAllocations,
+    targetAllocations,
+  ]);
 
-  const dashboardFilters: DashboardSummaryFilters = {
+  const dashboardFilters = useMemo<DashboardSummaryFilters>(() => ({
     targetYear: defaultTargetYear,
     includeNewLogos,
     hunterScopeEnabled: hunterScope.enabled,
     hunterPersonId: hunterScope.person?.id ?? null,
-    hunterCustomerIds: Array.from(hunterScope.customerIds ?? []),
-  };
+    hunterCustomerIds: Array.from(hunterScope.customerIds ?? []).sort(),
+  }), [hunterScope.enabled, hunterScope.person?.id, hunterScope.customerIds, includeNewLogos]);
 
   const { summary: rpcSummary, financialByCustomer: rpcFinancialByCustomer, loading: rpcLoading, error: rpcError } = useDashboardSummary(dashboardFilters);
   const { items: customerPerformanceItems, loading: customerPerformanceLoading, error: customerPerformanceError } = useCustomerPerformance(dashboardFilters);

@@ -158,6 +158,15 @@
   salários, status ou faixas oficiais.
 - No campo de contexto da Análise de Desafio, Enter aciona Reavaliar com GEN AI
   e Shift+Enter mantém quebra de linha.
+- A conversa da Análise de Desafio mantém o histórico recente separado por
+  visão/ano durante a sessão e usa esse histórico nas perguntas seguintes.
+- O usuário pode solicitar pesquisa web por uma opção explícita, e a resposta
+  informa se a pesquisa externa foi usada ou ficou indisponível.
+- Quando houver fallback determinístico, a pergunta permanece no campo para
+  permitir ajuste ou nova tentativa e a tela não apresenta o fallback como
+  pesquisa externa concluída.
+- Erros de voz distinguem permissão bloqueada, ausência de fala, microfone
+  indisponível, interrupção e falha do serviço, sempre permitindo digitação.
 - Cards de KPI compartilhados mantêm rótulos e valores legíveis, sem sobreposição
   ou estouro visual em Dashboard Executivo, Clientes, Metas, Relatórios e
   Análise de Desafio.

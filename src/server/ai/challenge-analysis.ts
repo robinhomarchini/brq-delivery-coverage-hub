@@ -8,12 +8,16 @@ export async function generateChallengeNarrative({
   year,
   context,
   previousBaseline,
+  conversationHistory,
+  useExternalResearch,
 }: {
   rows: ChallengeAnalysisRow[];
   view: ChallengeView;
   year: number;
   context?: string;
   previousBaseline?: ChallengeAiBaseline;
+  conversationHistory?: Array<{ prompt: string; answer: string }>;
+  useExternalResearch?: boolean;
 }): Promise<ChallengeAiResult> {
   const benchmark = getChallengeBenchmark(view);
   const normalizedContext = context?.trim();
@@ -29,9 +33,9 @@ export async function generateChallengeNarrative({
     faixaMercado: `${row.marketSignal.low}x a ${row.marketSignal.high}x`,
   }));
 
-  const fallback = buildFallbackResult({ rows, view, year, context: normalizedContext, reflectedNumbers, previousBaseline });
-  const wantsWebSearch = shouldUseWebSearch(normalizedContext);
-  const aiText = await (wantsWebSearch ? generateAiTextWithWebSearch : generateAiText)([
+  const wantsWebSearch = Boolean(useExternalResearch || shouldUseWebSearch(normalizedContext));
+  const fallback = buildFallbackResult({ rows, view, year, context: normalizedContext, reflectedNumbers, previousBaseline, wantsWebSearch });
+  const aiResponse = await (wantsWebSearch ? generateAiTextWithWebSearch : generateAiText)([
     {
       role: "system",
       content: `Você é um advisor executivo de vendas e delivery. Responda em pt-BR, com prudência. Não faça decisão individual de remuneração. Avalie conceitos existentes e aprendidos no baseline GEN AI contra os números oficiais cadastrados/calculados. ${wantsWebSearch ? "O usuário pediu referência externa; use busca web pública apenas como contexto de mercado e indique que não altera números oficiais." : "Use apenas dados agregados/anônimos enviados, baseline GEN AI anterior e contexto adicional."} Diferencie fatos medidos, hipóteses/conceitos aprendidos e recomendações. Não cite nomes de pessoas. Não altere salário, meta ou status oficial. Retorne somente JSON válido.`,
@@ -54,6 +58,7 @@ export async function generateChallengeNarrative({
           recomendacoes: previousBaseline.recommendations,
           perguntasPendentes: previousBaseline.pendingQuestions,
         } : "Nenhum baseline GEN AI anterior.",
+        historicoRecente: conversationHistory?.slice(-6) ?? [],
         contextoAdicional: normalizedContext || "Nenhum contexto adicional informado.",
         linhas: anonymizedRows,
         respostaEsperada: {
@@ -70,12 +75,14 @@ export async function generateChallengeNarrative({
   ]);
 
   return buildResultFromAiText({
-    aiText,
+    aiText: aiResponse.text,
     fallback,
     view,
     year,
     context: normalizedContext,
     reflectedNumbers,
+    wantsWebSearch,
+    webSearchUsed: aiResponse.webSearchUsed,
   });
 }
 
@@ -121,6 +128,7 @@ function buildFallbackResult({
   context,
   reflectedNumbers,
   previousBaseline,
+  wantsWebSearch,
 }: {
   rows: ChallengeAnalysisRow[];
   view: ChallengeView;
@@ -128,6 +136,7 @@ function buildFallbackResult({
   context?: string;
   reflectedNumbers: ChallengeAiNumbers;
   previousBaseline?: ChallengeAiBaseline;
+  wantsWebSearch: boolean;
 }): ChallengeAiResult {
   const total = rows.length;
   const missing = rows.filter((row) => row.status === "missing").length;
@@ -135,7 +144,6 @@ function buildFallbackResult({
   const adequate = rows.filter((row) => row.status === "adequate").length;
   const aggressive = rows.filter((row) => row.status === "aggressive").length;
   const label = getChallengeViewLabel(view);
-  const wantsWebSearch = shouldUseWebSearch(context);
   const narrative = `${label}: ${adequate} de ${total} pessoa(s) estão na faixa adequada, ${low} abaixo do desafio esperado, ${aggressive} com desafio agressivo e ${missing} sem salário cadastrado. ${context ? "O contexto informado foi incorporado como baseline GEN AI da análise, sem alterar salários, metas ou classificações oficiais." : "Este baseline GEN AI inicial usa apenas os dados calculados oficiais."} Use esta leitura como apoio gerencial.`;
   const opinion = wantsWebSearch
     ? "Você pediu referências externas. Nesta execução, a integração generativa com busca web não retornou resposta válida; por segurança, mantive a leitura determinística nos dados oficiais e não inventei fontes."
@@ -180,6 +188,13 @@ function buildFallbackResult({
     recommendations,
     pendingQuestions,
     source: "deterministic_fallback",
+    externalResearch: {
+      requested: wantsWebSearch,
+      status: wantsWebSearch ? "unavailable" : "not_requested",
+      message: wantsWebSearch
+        ? "A pesquisa externa foi solicitada, mas o provedor não retornou uma resposta utilizável. Nenhuma fonte foi inventada."
+        : "Pesquisa externa não solicitada.",
+    },
   });
 }
 
@@ -190,6 +205,8 @@ function buildResultFromAiText({
   year,
   context,
   reflectedNumbers,
+  wantsWebSearch,
+  webSearchUsed,
 }: {
   aiText: string | null;
   fallback: ChallengeAiResult;
@@ -197,6 +214,8 @@ function buildResultFromAiText({
   year: number;
   context?: string;
   reflectedNumbers: ChallengeAiNumbers;
+  wantsWebSearch: boolean;
+  webSearchUsed: boolean;
 }) {
   if (!aiText) return fallback;
 
@@ -216,6 +235,15 @@ function buildResultFromAiText({
     recommendations: normalizeStringArray(parsed.recommendations, fallback.recommendations),
     pendingQuestions: normalizeStringArray(parsed.pendingQuestions, fallback.pendingQuestions),
     source: "generative_ai",
+    externalResearch: {
+      requested: wantsWebSearch,
+      status: wantsWebSearch ? (webSearchUsed ? "used" : "unavailable") : "not_requested",
+      message: wantsWebSearch
+        ? webSearchUsed
+          ? "A resposta generativa utilizou pesquisa web pública como contexto complementar."
+          : "A resposta generativa foi produzida, mas a pesquisa web não foi executada; nenhuma referência externa foi assumida."
+        : "Pesquisa externa não solicitada.",
+    },
   });
 }
 
@@ -232,6 +260,7 @@ function makeAiResult({
   recommendations,
   pendingQuestions,
   source,
+  externalResearch,
 }: {
   view: ChallengeView;
   year: number;
@@ -245,6 +274,7 @@ function makeAiResult({
   recommendations: string[];
   pendingQuestions: string[];
   source: ChallengeAiResult["source"];
+  externalResearch: ChallengeAiResult["externalResearch"];
 }): ChallengeAiResult {
   const createdAt = new Date().toISOString();
   const baseline: ChallengeAiBaseline = {
@@ -274,6 +304,7 @@ function makeAiResult({
     pendingQuestions,
     baseline,
     source,
+    externalResearch,
   };
 }
 

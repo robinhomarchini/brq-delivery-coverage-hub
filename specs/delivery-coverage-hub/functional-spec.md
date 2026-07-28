@@ -374,6 +374,17 @@ Esse baseline vira ponto de partida das próximas reavaliações da mesma visão
 na sessão da tela, mas não sobrescreve metas, salários, status, faixas de
 referência ou qualquer registro oficial no banco.
 
+A conversa deve manter, por visão e ano, o histórico recente da sessão e enviá-lo
+ao backend para que perguntas subsequentes considerem as respostas anteriores.
+Pesquisa externa deve ser uma escolha explícita do usuário, com indicação clara
+quando foi usada ou quando o provedor não conseguiu executá-la. Um fallback
+determinístico não pode apagar a pergunta digitada nem se apresentar como se
+fosse uma resposta externa bem-sucedida.
+
+Falhas de reconhecimento de voz devem diferenciar permissão bloqueada, ausência
+de fala, microfone indisponível, interrupção e indisponibilidade do serviço,
+preservando sempre a alternativa de entrada por texto.
+
 ## Mapa de Cobertura
 
 O Mapa de Cobertura apresenta Diretor → Manager → Cliente. A relação
