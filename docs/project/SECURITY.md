@@ -9,7 +9,11 @@ Gerado em: 2026-07-28 13:19:26 -03:00
 - Controle de acesso de aplicacao: `app_users`, `app_access_invites` e `accept_current_app_access`.
 - Rotas BFF sensiveis validam token e permissao antes de mutar dados.
 - RLS e policies estao em migrations Supabase.
-- Headers de seguranca configurados em `next.config.ts`: `Referrer-Policy`, `X-Content-Type-Options`, `X-Frame-Options`, `Permissions-Policy` e HSTS em producao.
+- Headers de seguranca configurados em `next.config.ts`: `Referrer-Policy`,
+  `X-Content-Type-Options`, `X-Frame-Options`, `Permissions-Policy` e HSTS em
+  producao. O microfone e permitido apenas para o proprio dominio para suportar
+  a captura autenticada da Analise de Desafio; camera, geolocalizacao,
+  pagamentos e USB continuam bloqueados.
 - Auditoria de dominio existe para acesso e metas por pessoa em `domain_audit_events`.
 
 ## Regras de permissao confirmadas

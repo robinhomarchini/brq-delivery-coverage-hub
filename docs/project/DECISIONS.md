@@ -75,6 +75,21 @@ Gerado em: 2026-07-28 14:30:00 -03:00
       sao convertidos e normalizados antes de compor o modelo de dominio/UI.
     - Componentes nao devem conhecer o formato bruto do Postgres.
 
+19. A planilha de funcionarios e uma proposta revisada, nao uma nova fonte de verdade.
+    - Pessoas continuam em `people` e salarios mensais correntes em
+      `person_compensations.annual_salary` (nome legado do campo).
+    - Matching automatico de pessoa e somente por nome normalizado exato;
+      ausencias e ambiguidades nunca criam ou atualizam registros.
+    - O de-para de gestor e persistido separadamente em
+      `employee_import_manager_mappings` e serve para consolidar contagem; nao
+      altera `people.manager_id`.
+    - Salarios e de-paras sao aplicados atomicamente pela RPC
+      `apply_employee_salary_import`, com RLS e auditoria.
+
+20. O microfone e permitido apenas na origem da aplicacao.
+    - `Permissions-Policy` usa `microphone=(self)` para a captura da Analise de
+      Desafio; camera, geolocalizacao, pagamentos e USB permanecem negados.
+
 ## Decisoes pendentes
 
 - Definir formalmente o nome e significado de `PersonCompensation.annualSalary`, pois o calculo atual anualiza o valor multiplicando por 12.

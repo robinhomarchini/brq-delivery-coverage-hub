@@ -167,6 +167,9 @@
   pesquisa externa concluída.
 - A voz usa gravação pelo navegador e transcrição em rota backend autenticada,
   sem depender do serviço nativo `webkitSpeechRecognition` e sem expor chave.
+- O header `Permissions-Policy` autoriza microfone apenas para o próprio
+  domínio (`microphone=(self)`); câmera, localização, pagamentos e USB
+  permanecem bloqueados.
 - Erros de voz distinguem permissão bloqueada, microfone indisponível ou ocupado
   e falha de transcrição, sempre permitindo digitação.
 - Cards de KPI compartilhados mantêm rótulos e valores legíveis, sem sobreposição

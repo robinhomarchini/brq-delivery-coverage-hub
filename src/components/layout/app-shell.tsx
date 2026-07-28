@@ -20,6 +20,7 @@ import {
   Target,
   LogOut,
   MonitorSmartphone,
+  Sheet,
   UsersRound,
   X,
 } from "lucide-react";
@@ -53,6 +54,7 @@ const navigation = [
   { href: "/baselines", label: "Baselines", icon: Files },
   { href: "/comparativo-baseline", label: "Baseline vs Cadastro", icon: FileSearch },
   { href: "/auditoria-duplicatas", label: "Auditoria de Metas", icon: ListChecks, adminOnly: true },
+  { href: "/importacao-funcionarios", label: "Importar Funcionários", icon: Sheet, adminOnly: true, vpOnly: true },
   { href: "/analise-desafio", label: "Análise de Desafio", icon: BrainCircuit, vpOnly: true },
   { href: "/assuntos", label: "Assuntos", icon: Target, disabled: true },
   { href: "/mapa-cobertura", label: "Mapa de Cobertura", icon: Map, disabled: true },

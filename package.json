@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "validate": "npm run lint && npm run typecheck && npm run test:contracts && npm run test:roles && npm run test:customer-scope && npm run test:reports",
+    "validate": "npm run lint && npm run typecheck && npm run test:contracts && npm run test:roles && npm run test:customer-scope && npm run test:reports && npm run test:employee-import",
     "start": "next start",
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",
@@ -43,6 +43,7 @@
     "test:customer-scope": "tsx scripts/verify-customer-target-scope.ts",
     "test:dashboard-metrics": "node scripts/verify-dashboard-metrics.cjs",
     "test:dashboard-performance": "tsx scripts/verify-dashboard-performance-mapping.ts",
+    "test:employee-import": "tsx scripts/verify-employee-import.ts && node scripts/verify-employee-import-security.cjs",
     "verify:dashboard-metric-reconciliation": "tsx scripts/verify-dashboard-metric-reconciliation.ts",
     "verify:dashboard-metric-layer": "node scripts/verify-dashboard-metric-layer.cjs"
   },

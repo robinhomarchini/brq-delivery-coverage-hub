@@ -86,3 +86,24 @@ Gerado em: 2026-07-28 14:30:00 -03:00
 - Numeros serializados como texto sao normalizados antes de chegar aos
   componentes, evitando falhas de renderizacao como chamada de `toFixed` em
   valor indefinido.
+
+## Importacao administrativa de funcionarios
+
+- A rota `/importacao-funcionarios` permite que administradores com acesso a
+  remuneracao comparem uma planilha `.xlsx` antes de qualquer gravacao.
+- O matching de pessoa usa nome normalizado exato. Ausentes, ambiguos e salarios
+  invalidos nao alteram o cadastro nem removem valores existentes.
+- A coluna Gestor gera contagem por nome de origem. Nomes nao reconhecidos
+  exigem de-para com gestores ativos do sistema.
+- De-paras ficam em `employee_import_manager_mappings`; salarios continuam em
+  `person_compensations`. A aplicacao usa a RPC transacional
+  `apply_employee_salary_import`.
+- O arquivo bruto nao e persistido.
+
+## Microfone da Analise de Desafio
+
+- A causa raiz do bloqueio mesmo com permissao do Chrome era o header
+  `Permissions-Policy: microphone=()`.
+- O header passa a permitir microfone apenas para a propria origem com
+  `microphone=(self)`; demais dispositivos/capacidades sensiveis continuam
+  bloqueados.

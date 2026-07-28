@@ -120,6 +120,8 @@ assertNotIncludes(settingsPageSource, ".rpc(", "Settings page must not call Supa
 assertIncludes(providerSource, "if (process.env.NODE_ENV === \"production\") return \"unavailable\"", "Production must not fall back to local mock data.");
 assertIncludes(nextConfigSource, "X-Frame-Options", "Next config must set frame protection headers.");
 assertIncludes(nextConfigSource, "X-Content-Type-Options", "Next config must set MIME sniffing protection.");
+assertIncludes(nextConfigSource, "microphone=(self)", "Permissions Policy must allow microphone only for the app origin.");
+assertNotIncludes(nextConfigSource, "microphone=()", "Permissions Policy must not block the challenge-analysis microphone.");
 assertNotIncludes(nextConfigSource, "script-src 'self' 'unsafe-inline'", "CSP script-src must not allow unsafe-inline.");
 assertNotIncludes(nextConfigSource, "Content-Security-Policy", "Static CSP must not be added without a browser hydration smoke test.");
 assertIncludes(cspProxySource, "Content-Security-Policy", "CSP must be applied through Next proxy with a per-request nonce.");
