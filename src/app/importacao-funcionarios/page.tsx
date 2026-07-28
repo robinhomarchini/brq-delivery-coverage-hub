@@ -522,6 +522,7 @@ export default function EmployeeImportPage() {
                         <TableRow>
                           <TableHead>Nome na planilha</TableHead>
                           <TableHead>Motivo</TableHead>
+                          <TableHead className="text-right">Correspondências no sistema</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -529,6 +530,9 @@ export default function EmployeeImportPage() {
                           <TableRow key={`${person.sourceName}-${index}`}>
                             <TableCell className="font-medium text-slate-900">{person.sourceName}</TableCell>
                             <TableCell>{translateUnmatchedReason(person.reason)}</TableCell>
+                            <TableCell className="text-right tabular-nums text-slate-500">
+                              {person.matchesCount == null ? "—" : `${person.matchesCount} registro(s)`}
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>

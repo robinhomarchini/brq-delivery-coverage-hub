@@ -14,6 +14,7 @@ export interface EmployeeImportMatchedPerson {
 export interface EmployeeImportUnmatchedPerson {
   sourceName: string;
   reason: EmployeeImportUnmatchedReason;
+  matchesCount?: number;
 }
 
 export interface EmployeeImportManagerOption {

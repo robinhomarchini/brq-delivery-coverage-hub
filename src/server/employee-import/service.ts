@@ -83,12 +83,12 @@ export async function buildEmployeeImportPreview(input: {
     }
     const matches = peopleByName.get(row.normalizedName) ?? [];
     if (duplicateSourceNames.has(row.normalizedName) || matches.length > 1) {
-      unmatchedPeople.push({ sourceName: row.name, reason: "ambiguous" });
+      unmatchedPeople.push({ sourceName: row.name, reason: "ambiguous", matchesCount: matches.length });
       continue;
     }
     const person = matches[0];
     if (!person) {
-      unmatchedPeople.push({ sourceName: row.name, reason: "not_found" });
+      unmatchedPeople.push({ sourceName: row.name, reason: "not_found", matchesCount: 0 });
       continue;
     }
     const currentSalary = compensationByPerson.get(person.id) ?? null;
