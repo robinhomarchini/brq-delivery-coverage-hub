@@ -39,7 +39,6 @@ import { useDashboardSummary } from "@/hooks/useDashboardSummary";
 import { useCustomerPerformance } from "@/hooks/useCustomerPerformance";
 import type { DashboardSummaryFilters } from "@/lib/repositories";
 import { buildDashboardData } from "@/lib/dashboardMetrics";
-import type { DashboardData } from "@/lib/dashboardMetrics";
 
 const COLORS = ["#15171B", "#7F2EC9", "#EE7C38", "#2563EB", "#F97316", "#A3A3A3"];
 
@@ -76,7 +75,7 @@ export function ExecutiveDashboard() {
   const { summary: rpcSummary, financialByCustomer: rpcFinancialByCustomer, loading: rpcLoading, error: rpcError } = useDashboardSummary(dashboardFilters);
   const { items: customerPerformanceItems, loading: customerPerformanceLoading, error: customerPerformanceError } = useCustomerPerformance(dashboardFilters);
 
-  const data: DashboardData = buildDashboardData(
+  const data = useMemo(() => buildDashboardData(
     people,
     customers,
     customerTargets,
@@ -89,12 +88,22 @@ export function ExecutiveDashboard() {
       hunterScope,
       targetYear: defaultTargetYear,
     },
-  );
+  ), [
+    people,
+    customers,
+    customerTargets,
+    targetAllocations,
+    studioTargetAllocations,
+    boardTargetBaselines,
+    areas,
+    includeNewLogos,
+    hunterScope,
+  ]);
 
   const summaryLoading = loading ? false : rpcLoading;
   const summaryError = error ? undefined : rpcError;
-  const effectiveSummary = rpcSummary ?? data.summary;
-  const effectiveFinancialByCustomer = rpcFinancialByCustomer.length > 0 ? rpcFinancialByCustomer : data.financialByCustomer;
+  const effectiveSummary = useMemo(() => rpcSummary ?? data.summary, [rpcSummary, data.summary]);
+  const effectiveFinancialByCustomer = useMemo(() => rpcFinancialByCustomer.length > 0 ? rpcFinancialByCustomer : data.financialByCustomer, [rpcFinancialByCustomer, data.financialByCustomer]);
 
   if (loading) {
     return (
@@ -323,33 +332,33 @@ export function ExecutiveDashboard() {
             </Card>
           ) : customerPerformanceItems.length === 0 ? (
             <Card className="p-4 shadow-sm">
-              <CardContent className="p-6">
+              <CardContent className="p-4">
                 <p className="text-sm text-slate-600">Nenhum cliente encontrado para os filtros selecionados.</p>
               </CardContent>
             </Card>
           ) : (
             <Card className="min-w-0 overflow-hidden shadow-sm">
               <CardContent className="overflow-x-auto">
-                <table className="min-w-full text-left text-sm">
+                <table className="min-w-full text-left text-xs leading-5">
                   <thead>
                     <tr className="border-b text-slate-500">
-                      <th className="py-2 pr-4 font-medium">Cliente</th>
-                      <th className="py-2 pr-4 font-medium text-right">Meta</th>
-                      <th className="py-2 pr-4 font-medium text-right">Alocado</th>
-                      <th className="py-2 pr-4 font-medium text-right">Delta</th>
-                      <th className="py-2 pr-4 font-medium text-right">Atingimento</th>
+                      <th className="py-2 pr-3 font-medium">Cliente</th>
+                      <th className="py-2 pr-3 font-medium text-right">Meta</th>
+                      <th className="py-2 pr-3 font-medium text-right">Alocado</th>
+                      <th className="py-2 pr-3 font-medium text-right">Delta</th>
+                      <th className="py-2 pr-3 font-medium text-right">Atingimento</th>
                       <th className="py-2 font-medium text-right">Responsáveis</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {customerPerformanceItems.slice(0, 10).map((item) => (
-                      <tr key={item.customerId} className="border-b last:border-0">
-                        <td className="py-2 pr-4 font-medium text-slate-900">{item.customerName}</td>
-                        <td className="py-2 pr-4 text-right tabular-nums text-slate-700">{formatCurrency(item.targetAmount)}</td>
-                        <td className="py-2 pr-4 text-right tabular-nums text-slate-700">{formatCurrency(item.allocatedTotal)}</td>
-                        <td className={`py-2 pr-4 text-right tabular-nums ${item.peopleDelta < -0.01 ? "text-red-600" : item.peopleDelta > 0.01 ? "text-emerald-700" : "text-slate-700"}`}>{formatCurrency(item.peopleDelta)}</td>
-                        <td className={`py-2 pr-4 text-right tabular-nums ${item.achievementPercentage >= 100 ? "text-emerald-700" : item.achievementPercentage < 100 ? "text-red-600" : "text-slate-700"}`}>{item.achievementPercentage.toFixed(1)}%</td>
-                        <td className="py-2 text-right tabular-nums text-slate-700">{item.responsiblePeopleCount}</td>
+                    {customerPerformanceItems.slice(0, 10).map((item, index) => (
+                      <tr key={item.customerId} className={index > 0 ? "border-t" : ""}>
+                        <td className="py-1.5 pr-3 font-medium text-slate-900">{item.customerName}</td>
+                        <td className="py-1.5 pr-3 text-right tabular-nums text-slate-700">{formatCurrency(item.targetAmount)}</td>
+                        <td className="py-1.5 pr-3 text-right tabular-nums text-slate-700">{formatCurrency(item.allocatedTotal)}</td>
+                        <td className={`py-1.5 pr-3 text-right tabular-nums ${item.peopleDelta < -0.01 ? "text-red-600" : item.peopleDelta > 0.01 ? "text-emerald-700" : "text-slate-700"}`}>{formatCurrency(item.peopleDelta)}</td>
+                        <td className={`py-1.5 pr-3 text-right tabular-nums ${item.achievementPercentage >= 100 ? "text-emerald-700" : item.achievementPercentage < 100 ? "text-red-600" : "text-slate-700"}`}>{item.achievementPercentage.toFixed(1)}%</td>
+                        <td className="py-1.5 text-right tabular-nums text-slate-700">{item.responsiblePeopleCount}</td>
                       </tr>
                     ))}
                   </tbody>

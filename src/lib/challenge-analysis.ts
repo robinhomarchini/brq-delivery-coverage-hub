@@ -50,6 +50,7 @@ export interface ChallengeAiResult {
     requested: boolean;
     status: "not_requested" | "used" | "unavailable";
     message: string;
+    sources: Array<{ title: string; url: string }>;
   };
 }
 

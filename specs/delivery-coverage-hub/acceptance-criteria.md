@@ -145,8 +145,9 @@
 - A Análise de Desafio mostra a interação feita pelo usuário, o feedback da IA
   para aquela interação e botões para abrir considerações, conceitos
   incorporados à tese e números refletidos.
-- Se a IA generativa não responder, a Análise de Desafio sinaliza leitura
-  determinística de fallback.
+- Se a IA generativa não responder na leitura inicial, a Análise de Desafio pode
+  sinalizar leitura determinística de contingência; em uma pergunta/reavaliação,
+  sinaliza erro recuperável e não apresenta a contingência como resposta da IA.
 - Quando o navegador suportar reconhecimento de voz, a Análise de Desafio
   permite ditar contexto em pt-BR e preencher o campo de contexto.
 - A reavaliação com IA diferencia dados calculados, hipóteses informadas no
@@ -160,8 +161,11 @@
   e Shift+Enter mantém quebra de linha.
 - A conversa da Análise de Desafio mantém o histórico recente separado por
   visão/ano durante a sessão e usa esse histórico nas perguntas seguintes.
+- Somente respostas generativas válidas atualizam o baseline e o histórico da
+  sessão; nenhum contexto, baseline ou histórico conversacional é persistido.
 - O usuário pode solicitar pesquisa web por uma opção explícita, e a resposta
-  informa se a pesquisa externa foi usada ou ficou indisponível.
+  informa se a pesquisa externa foi usada ou ficou indisponível e, quando usada,
+  apresenta links das fontes públicas retornadas pelo provedor.
 - Quando houver fallback determinístico, a pergunta permanece no campo para
   permitir ajuste ou nova tentativa e a tela não apresenta o fallback como
   pesquisa externa concluída.

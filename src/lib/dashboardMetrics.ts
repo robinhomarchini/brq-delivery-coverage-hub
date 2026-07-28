@@ -3,8 +3,8 @@ import type { BoardTargetBaselineRow } from "@/data/boardTargetBaseline";
 import { isDirectorOrExecutiveRole, isDeliveryRole, isFarmerDeliveryTargetRole, isHunterRole, isFarmerRole, isHunterFarmerRole, isStaffRole, isTargetAssignableRole } from "@/lib/roles";
 import { getCustomerTotalTarget } from "@/lib/customer-target-total";
 import { getCustomerCoverageAllocatedTotal } from "@/lib/customers/customer-coverage-view-model";
-import { getBoardTargetBaselineTotals, getBoardTargetBaselineRows } from "@/lib/board-target-baseline";
-import { applyCustomerTargetsForYear, defaultTargetYear } from "@/lib/customer-targets";
+import { getBoardTargetBaselineRows } from "@/lib/board-target-baseline";
+import { applyCustomerTargetsForYear } from "@/lib/customer-targets";
 import { filterCustomersByTargetScope } from "@/lib/domain/customer-target-scope";
 import { normalizeBusinessName } from "@/lib/utils";
 import type { HunterAccessScope } from "@/lib/hunter-access-scope";
@@ -95,7 +95,7 @@ function getScopedBoardTotals(
   boardRows: BoardTargetBaselineRow[],
   scoped: boolean,
 ) {
-  if (!scoped) return getBoardTargetBaselineTotals(defaultTargetYear, boardRows);
+  if (!scoped) return getBoardTargetBaselineTotalsFromRows(boardRows);
 
   const rowsByCustomer = new Map(boardRows.map((row) => [normalizeBusinessName(row.customerName), row]));
 
@@ -111,6 +111,14 @@ function getScopedBoardTotals(
       totalTarget: roundCurrency(totals.totalTarget + totalTarget),
     };
   }, { hunterTarget: 0, farmerRenewalTarget: 0, totalTarget: 0 });
+}
+
+function getBoardTargetBaselineTotalsFromRows(rows: BoardTargetBaselineRow[]) {
+  return rows.reduce((totals, row) => ({
+    hunterTarget: roundCurrency(totals.hunterTarget + row.hunterTarget),
+    farmerRenewalTarget: roundCurrency(totals.farmerRenewalTarget + row.farmerRenewalTarget),
+    totalTarget: roundCurrency(totals.totalTarget + row.totalTarget),
+  }), { hunterTarget: 0, farmerRenewalTarget: 0, totalTarget: 0 });
 }
 
 export function buildDashboardData(
@@ -217,7 +225,7 @@ export function buildDashboardData(
     .filter((item) => item.revenueTarget > 0)
     .sort((a, b) => b.revenueTarget - a.revenueTarget);
 
-  const distributionByDirector = people
+  const distributionByDirector = activePeople
     .filter((person) => isDirectorOrExecutiveRole(person.roleType))
     .map((director) => ({
       name: director.name,

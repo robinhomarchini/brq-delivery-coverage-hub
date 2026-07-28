@@ -83,6 +83,7 @@ export async function generateChallengeNarrative({
     reflectedNumbers,
     wantsWebSearch,
     webSearchUsed: aiResponse.webSearchUsed,
+    webSources: aiResponse.sources,
   });
 }
 
@@ -194,6 +195,7 @@ function buildFallbackResult({
       message: wantsWebSearch
         ? "A pesquisa externa foi solicitada, mas o provedor não retornou uma resposta utilizável. Nenhuma fonte foi inventada."
         : "Pesquisa externa não solicitada.",
+      sources: [],
     },
   });
 }
@@ -207,6 +209,7 @@ function buildResultFromAiText({
   reflectedNumbers,
   wantsWebSearch,
   webSearchUsed,
+  webSources,
 }: {
   aiText: string | null;
   fallback: ChallengeAiResult;
@@ -216,6 +219,7 @@ function buildResultFromAiText({
   reflectedNumbers: ChallengeAiNumbers;
   wantsWebSearch: boolean;
   webSearchUsed: boolean;
+  webSources?: Array<{ title: string; url: string }>;
 }) {
   if (!aiText) return fallback;
 
@@ -243,6 +247,7 @@ function buildResultFromAiText({
           ? "A resposta generativa utilizou pesquisa web pública como contexto complementar."
           : "A resposta generativa foi produzida, mas a pesquisa web não foi executada; nenhuma referência externa foi assumida."
         : "Pesquisa externa não solicitada.",
+      sources: wantsWebSearch && webSearchUsed ? (webSources ?? []) : [],
     },
   });
 }

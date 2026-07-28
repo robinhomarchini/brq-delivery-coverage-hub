@@ -468,14 +468,25 @@ function ChallengeConversationResult({
                 <p className="mt-3 text-sm leading-6 text-slate-700">{result.narrative}</p>
               )}
               {result?.externalResearch.requested && (
-                <p className={cn(
+                <div className={cn(
                   "mt-3 rounded-lg px-3 py-2 text-xs font-semibold",
                   result.externalResearch.status === "used"
                     ? "bg-emerald-100 text-emerald-900"
                     : "bg-amber-100 text-amber-900",
                 )}>
-                  {result.externalResearch.message}
-                </p>
+                  <p>{result.externalResearch.message}</p>
+                  {result.externalResearch.sources.length > 0 && (
+                    <ul className="mt-2 space-y-1">
+                      {result.externalResearch.sources.map((source) => (
+                        <li key={source.url}>
+                          <a className="underline underline-offset-2 hover:no-underline" href={source.url} target="_blank" rel="noreferrer">
+                            {source.title}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               )}
             </div>
           </div>

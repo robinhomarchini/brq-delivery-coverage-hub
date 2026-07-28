@@ -371,15 +371,21 @@ Cada reavaliação gera um baseline conceitual GEN AI para a visão/ano da sess�
 ele consolida conceitos existentes, hipóteses e aprendizados informados pelo
 usuário para serem comparados contra os números oficiais cadastrados/calculados.
 Esse baseline vira ponto de partida das próximas reavaliações da mesma visão/ano
-na sessão da tela, mas não sobrescreve metas, salários, status, faixas de
-referência ou qualquer registro oficial no banco.
+na sessão da tela somente quando a resposta for generativa e válida, mas não
+sobrescreve metas, salários, status, faixas de referência ou qualquer registro
+oficial no banco. Leituras determinísticas de contingência não são tratadas como
+aprendizado da IA nem entram no histórico conversacional.
 
 A conversa deve manter, por visão e ano, o histórico recente da sessão e enviá-lo
 ao backend para que perguntas subsequentes considerem as respostas anteriores.
 Pesquisa externa deve ser uma escolha explícita do usuário, com indicação clara
 quando foi usada ou quando o provedor não conseguiu executá-la. Um fallback
 determinístico não pode apagar a pergunta digitada nem se apresentar como se
-fosse uma resposta externa bem-sucedida.
+fosse uma resposta externa bem-sucedida. Em interações conversacionais, falhas
+do provedor devem ser apresentadas como erro recuperável, preservando a pergunta
+para nova tentativa, em vez de responder como se a IA tivesse reconsiderado a
+tese. Quando a pesquisa web for concluída, a resposta deve apresentar as fontes
+públicas retornadas pelo provedor.
 
 A entrada por voz deve gravar o áudio com a API de mídia do navegador e enviar
 o arquivo somente à rota backend autenticada para transcrição, sem expor a chave

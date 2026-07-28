@@ -126,6 +126,19 @@ export async function POST(request: Request) {
       useExternalResearch: parsed.data.useExternalResearch,
     });
     operation.endPhase("ai.generate");
+    if (
+      result.source === "deterministic_fallback"
+      && (hasContext || hasPreviousBaseline || parsed.data.useExternalResearch)
+    ) {
+      operation.fail({ errorCategory: "dependency" });
+      return withCorrelationHeader(
+        NextResponse.json(
+          { error: "A IA generativa não conseguiu responder agora. Sua pergunta foi preservada; tente novamente em instantes." },
+          { status: 502 },
+        ),
+        correlationId,
+      );
+    }
     operation.succeed({
       metrics: {
         submittedRows: parsed.data.rows.length,

@@ -5,6 +5,11 @@ interface AiMessage {
   content: string;
 }
 
+export interface AiWebSource {
+  title: string;
+  url: string;
+}
+
 export async function generateAiText(messages: AiMessage[]) {
   const response = await generateAiResponseText(messages);
   if (response.text) return response;
@@ -73,20 +78,30 @@ async function generateAiResponseText(messages: AiMessage[], options: { webSearc
           content: message.content,
         })),
         max_output_tokens: config.maxTokens,
-        temperature: config.temperature,
-        text: { format: { type: "json_object" } },
         store: false,
-        ...(options.webSearch ? { tools: [{ type: "web_search", search_context_size: "low" }] } : {}),
+        ...(options.webSearch
+          ? {
+              tools: [{ type: "web_search", search_context_size: "medium" }],
+              tool_choice: "required",
+            }
+          : {
+              temperature: config.temperature,
+              text: { format: { type: "json_object" } },
+            }),
       }),
       signal: controller.signal,
     });
 
     if (!response.ok) {
+      const providerError = await readProviderError(response);
       console.warn("[ai] Responses API request failed.", {
         status: response.status,
         webSearch: Boolean(options.webSearch),
+        code: providerError.code,
+        type: providerError.type,
+        param: providerError.param,
       });
-      return { text: null, error: "provider_error" as const, webSearchUsed: false };
+      return { text: null, error: "provider_error" as const, webSearchUsed: false, sources: [] };
     }
 
     const data = await response.json() as {
@@ -96,6 +111,11 @@ async function generateAiResponseText(messages: AiMessage[], options: { webSearc
         content?: Array<{
           text?: string;
           type?: string;
+          annotations?: Array<{
+            type?: string;
+            title?: string;
+            url?: string;
+          }>;
         }>;
       }>;
     };
@@ -103,7 +123,8 @@ async function generateAiResponseText(messages: AiMessage[], options: { webSearc
       || data.output?.flatMap((item) => item.content ?? []).map((content) => content.text ?? "").join("").trim()
       || null;
     const webSearchUsed = Boolean(data.output?.some((item) => item.type === "web_search_call"));
-    return { text, error: text ? null : "empty_response" as const, webSearchUsed };
+    const sources = extractWebSources(data.output);
+    return { text, error: text ? null : "empty_response" as const, webSearchUsed, sources };
   } catch (error) {
     console.warn("[ai] Responses API request did not complete.", {
       reason: error instanceof Error ? error.name : "unknown",
@@ -113,9 +134,51 @@ async function generateAiResponseText(messages: AiMessage[], options: { webSearc
       text: null,
       error: error instanceof Error && error.name === "AbortError" ? "timeout" as const : "network_error" as const,
       webSearchUsed: false,
+      sources: [],
     };
   } finally {
     clearTimeout(timeout);
+  }
+}
+
+function extractWebSources(output: Array<{
+  content?: Array<{
+    annotations?: Array<{ type?: string; title?: string; url?: string }>;
+  }>;
+}> | undefined): AiWebSource[] {
+  const unique = new Map<string, AiWebSource>();
+  for (const item of output ?? []) {
+    for (const content of item.content ?? []) {
+      for (const annotation of content.annotations ?? []) {
+        if (annotation.type !== "url_citation" || !annotation.url) continue;
+        try {
+          const url = new URL(annotation.url);
+          if (url.protocol !== "http:" && url.protocol !== "https:") continue;
+          unique.set(url.href, {
+            title: annotation.title?.trim() || url.hostname,
+            url: url.href,
+          });
+        } catch {
+          // Ignore malformed provider citations.
+        }
+      }
+    }
+  }
+  return [...unique.values()].slice(0, 8);
+}
+
+async function readProviderError(response: Response) {
+  try {
+    const payload = await response.json() as {
+      error?: { code?: string; type?: string; param?: string };
+    };
+    return {
+      code: payload.error?.code ?? "unknown",
+      type: payload.error?.type ?? "unknown",
+      param: payload.error?.param ?? "unknown",
+    };
+  } catch {
+    return { code: "unknown", type: "unknown", param: "unknown" };
   }
 }
 
