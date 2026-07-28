@@ -88,19 +88,21 @@ npm run smoke:rls            # RLS com perfis reais
 
 ## Current Task Objective
 
-Security Epic: endurecer a criacao de cliente por Consulta Hunter (`hunter_viewer`) no BFF + RPC/RLS sem deploy e sem aplicar migration em producao.
+Architecture Epic: implementar o primeiro incremento de Audit Trail and Change Traceability sem deploy, sem aplicar migration em producao e sem alterar dados produtivos.
 
 ## Current Session Notes
 
-- Migration forward criada: `supabase/migrations/20260728111436_harden_hunter_scoped_customer_create.sql`.
-- Novo helper de banco: `public.can_hunter_scope_create_customer(p_customer_id, p_manager_responsible_ids)`.
-- `save_customer_with_managers_and_targets` agora usa o helper antes de qualquer escrita para usuario sem `can_write_delivery_hardening()`.
-- Upserts de cliente/ano agora so fazem update em conflito quando `v_can_edit`; Hunter scoped falha em conflito concorrente.
-- Novo verificador: `scripts/verify-hunter-scoped-customer-create-security.cjs`.
-- `npm run test:security` inclui o novo verificador.
-- Validacoes executadas e aprovadas: lint, typecheck, validate, build, smoke:critical, test:reports, test:performance, test:security e git diff --check.
+- Commit de seguranca anterior concluido em `ac2a33b security(customers): enforce hunter scoped customer creation`.
+- Capacidade escolhida para auditoria: administracao de perfis de acesso (`app_users` e `app_access_invites`), por ser sensivel, pequena e ja centralizada em RPCs admin.
+- Migration forward criada: `supabase/migrations/20260728113530_add_app_access_domain_audit.sql`.
+- Nova tabela append-only: `public.domain_audit_events`, com ator, entidade, acao, valores anteriores/novos, campos alterados, origem, correlacao e status.
+- Triggers criados para `app_users` e `app_access_invites`; alteracoes diretas ficam auditadas como `db.trigger`.
+- RPCs `upsert_app_access` e `delete_app_access` foram recriadas preservando autorizacao admin e protecao de ultimo admin, adicionando `app.audit_source`.
+- Novo verificador: `scripts/verify-app-access-audit.cjs`; `package.json` ganhou `npm run test:audit`.
+- Validacoes executadas e aprovadas: lint, typecheck, validate, build, smoke:critical, test:reports, test:performance, test:security, test:audit e git diff --check.
 - `npm run db:migrations:check` nao concluiu por falta de autenticacao Supabase; nao confirmou drift.
-- Nao houve deploy nem aplicacao de migration nesta sessao.
+- `npm run smoke:rls` nao foi executado para evitar conexao com Supabase de producao sem ambiente/perfis dedicados confirmados.
+- Nao houve deploy, nao houve aplicacao de migration e nao houve modificacao de dados produtivos nesta sessao.
 
 ## Execution Checklist
 
