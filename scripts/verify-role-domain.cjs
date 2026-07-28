@@ -6,10 +6,12 @@ const root = path.resolve(__dirname, "..");
 const rolesPath = path.join(root, "src", "lib", "roles.ts");
 const mockDataPath = path.join(root, "src", "data", "mockData.ts");
 const validationPath = path.join(root, "src", "lib", "validation.ts");
+const canonicalRoleMigrationPath = path.join(root, "supabase", "migrations", "20260707203000_specialist_hunter_role.sql");
 
 const rolesSource = fs.readFileSync(rolesPath, "utf8");
 const mockDataSource = fs.readFileSync(mockDataPath, "utf8");
 const validationSource = fs.readFileSync(validationPath, "utf8");
+const canonicalRoleMigrationSource = fs.readFileSync(canonicalRoleMigrationPath, "utf8");
 
 function assertIncludes(source, token, message) {
   if (!source.includes(token)) {
@@ -87,16 +89,45 @@ assertIncludes(validationSource, '"Hunter"', "Validation schema must include Hun
 assertIncludes(validationSource, '"Farmer"', "Validation schema must include Farmer.");
 assertIncludes(validationSource, '"Hunter + Farmer"', "Validation schema must include Hunter + Farmer.");
 
-const supabaseRolePattern = /check \(role_type in \(([^)]+)\)/g;
-const migrationMatches = [
-  ...rolesSource.matchAll(supabaseRolePattern),
-  ...validationSource.matchAll(supabaseRolePattern),
-];
-for (const match of migrationMatches) {
-  const rolesInMigration = match[1].split(",").map((item) => item.trim().replace(/^'|'$/g, ""));
-  for (const role of rolesInMigration) {
-    assert(roleTypes.includes(role), `Supabase migration or validation contains role "${role}" which is not in canonical ROLE_TYPES.`);
-  }
+const validationRoles = extractQuotedListAfter(validationSource, "roleType: z.enum([");
+assertSameRoleSet(validationRoles, roleTypes, "validation.ts role schema");
+
+const migrationConstraintMatch = canonicalRoleMigrationSource.match(/check \(role_type in \(([\s\S]*?)\)\);/);
+if (!migrationConstraintMatch) {
+  throw new Error("Canonical Specialist Hunter migration must define people_role_type_check.");
 }
+const migrationConstraintRoles = extractSqlQuotedValues(migrationConstraintMatch[1]);
+assertSameRoleSet(migrationConstraintRoles, roleTypes, "canonical Supabase role constraint");
+
+const rpcRoleGuardMatch = canonicalRoleMigrationSource.match(/if p_role_type not in \(([\s\S]*?)\) then/);
+if (!rpcRoleGuardMatch) {
+  throw new Error("Canonical Specialist Hunter migration must validate p_role_type in save_person_with_assignments.");
+}
+const rpcRoleGuardRoles = extractSqlQuotedValues(rpcRoleGuardMatch[1]);
+assertSameRoleSet(rpcRoleGuardRoles, roleTypes, "canonical Supabase save_person role guard");
 
 console.log("Role domain contract checks passed.");
+
+function extractQuotedListAfter(source, token) {
+  const start = source.indexOf(token);
+  if (start < 0) return [];
+  const listStart = start + token.length;
+  const listEnd = source.indexOf("])", listStart);
+  if (listEnd < 0) return [];
+  return Array.from(source.slice(listStart, listEnd).matchAll(/"([^"]+)"/g)).map((match) => match[1]);
+}
+
+function extractSqlQuotedValues(source) {
+  return Array.from(source.matchAll(/'([^']+)'/g)).map((match) => match[1]);
+}
+
+function assertSameRoleSet(actual, expected, label) {
+  const actualSet = new Set(actual);
+  const expectedSet = new Set(expected);
+  const missing = expected.filter((role) => !actualSet.has(role));
+  const extra = actual.filter((role) => !expectedSet.has(role));
+
+  if (missing.length || extra.length || actualSet.size !== expectedSet.size) {
+    throw new Error(`${label} differs from ROLE_TYPES. Missing: ${missing.join(", ") || "none"}. Extra: ${extra.join(", ") || "none"}.`);
+  }
+}

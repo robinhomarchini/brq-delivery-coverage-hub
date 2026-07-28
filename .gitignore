@@ -27,5 +27,6 @@ tsconfig.tsbuildinfo
 
 .vercel
 .vercel-cli/
+.kilo/
 supabase/.temp/
 .npm-cache/
