@@ -1,4 +1,4 @@
-import { readSheet } from "read-excel-file/node";
+import readWorkbook from "read-excel-file/node";
 
 const requiredHeaders = {
   name: "nome",
@@ -23,13 +23,37 @@ export interface ParsedEmployeeImport {
 export class EmployeeImportParseError extends Error {}
 
 export async function parseEmployeeImportWorkbook(buffer: Buffer): Promise<ParsedEmployeeImport> {
-  let sheetRows: unknown[][];
+  let sheets: Array<{ sheet: string; data: unknown[][] }>;
   try {
-    sheetRows = await readSheet(buffer) as unknown as unknown[][];
+    sheets = await readWorkbook(buffer) as unknown as Array<{ sheet: string; data: unknown[][] }>;
   } catch {
     throw new EmployeeImportParseError("Não foi possível ler a planilha. Confirme que o arquivo é um .xlsx válido.");
   }
-  return parseEmployeeImportRows(sheetRows);
+  return parseEmployeeImportSheets(sheets);
+}
+
+export function parseEmployeeImportSheets(sheets: Array<{ sheet: string; data: unknown[][] }>): ParsedEmployeeImport {
+  const parsedSheets: ParsedEmployeeImport[] = [];
+  for (const sheet of sheets) {
+    try {
+      parsedSheets.push(parseEmployeeImportRows(sheet.data));
+    } catch (error) {
+      if (
+        error instanceof EmployeeImportParseError
+        && error.message.includes("colunas Nome, Salário e Gestor")
+      ) {
+        continue;
+      }
+      throw error;
+    }
+  }
+  if (!parsedSheets.length) {
+    throw new EmployeeImportParseError("A planilha precisa conter as colunas Nome, Salário e Gestor em pelo menos uma aba.");
+  }
+  return {
+    rows: parsedSheets.flatMap((sheet) => sheet.rows),
+    headerRowNumber: parsedSheets[0].headerRowNumber,
+  };
 }
 
 export function parseEmployeeImportRows(sheetRows: unknown[][]): ParsedEmployeeImport {

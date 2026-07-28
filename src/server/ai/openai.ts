@@ -59,7 +59,7 @@ export async function transcribeAiAudio(audio: Blob, fileName: string) {
 
 async function generateAiResponseText(messages: AiMessage[], options: { webSearch?: boolean } = {}) {
   const config = getAiConfig();
-  if (!config.apiKey) return { text: null, error: "missing_api_key" as const, webSearchUsed: false };
+  if (!config.apiKey) return { text: null, error: "missing_api_key" as const, webSearchUsed: false, sources: [] };
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 20000);
@@ -184,7 +184,7 @@ async function readProviderError(response: Response) {
 
 async function generateAiChatCompletionText(messages: AiMessage[]) {
   const config = getAiConfig();
-  if (!config.apiKey) return { text: null, error: "missing_api_key" as const, webSearchUsed: false };
+  if (!config.apiKey) return { text: null, error: "missing_api_key" as const, webSearchUsed: false, sources: [] };
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 20000);
@@ -208,12 +208,12 @@ async function generateAiChatCompletionText(messages: AiMessage[]) {
 
     if (!response.ok) {
       console.warn("[ai] Chat Completions fallback failed.", { status: response.status });
-      return { text: null, error: "provider_error" as const, webSearchUsed: false };
+      return { text: null, error: "provider_error" as const, webSearchUsed: false, sources: [] };
     }
 
     const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
     const text = data.choices?.[0]?.message?.content?.trim() || null;
-    return { text, error: text ? null : "empty_response" as const, webSearchUsed: false };
+    return { text, error: text ? null : "empty_response" as const, webSearchUsed: false, sources: [] };
   } catch (error) {
     console.warn("[ai] Chat Completions fallback did not complete.", {
       reason: error instanceof Error ? error.name : "unknown",
@@ -222,6 +222,7 @@ async function generateAiChatCompletionText(messages: AiMessage[]) {
       text: null,
       error: error instanceof Error && error.name === "AbortError" ? "timeout" as const : "network_error" as const,
       webSearchUsed: false,
+      sources: [],
     };
   } finally {
     clearTimeout(timeout);

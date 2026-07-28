@@ -90,6 +90,13 @@ Gerado em: 2026-07-28 14:30:00 -03:00
     - `Permissions-Policy` usa `microphone=(self)` para a captura da Analise de
       Desafio; camera, geolocalizacao, pagamentos e USB permanecem negados.
 
+21. A importacao de funcionarios processa todas as abas validas e todos os perfis.
+    - Cada aba com Nome, Salario e Gestor participa da mesma previa.
+    - Hunter, Farmer, Delivery, diretorias e demais funcoes seguem o mesmo
+      matching exato contra toda a fonte canonica `people`.
+    - O filtro de pessoa ativa com papel de gestor existe somente para os
+      destinos validos do de-para.
+
 ## Decisoes pendentes
 
 - Definir formalmente o nome e significado de `PersonCompensation.annualSalary`, pois o calculo atual anualiza o valor multiplicando por 12.

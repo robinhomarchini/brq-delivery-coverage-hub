@@ -93,6 +93,11 @@ Gerado em: 2026-07-28 14:30:00 -03:00
   remuneracao comparem uma planilha `.xlsx` antes de qualquer gravacao.
 - O matching de pessoa usa nome normalizado exato. Ausentes, ambiguos e salarios
   invalidos nao alteram o cadastro nem removem valores existentes.
+- O parser consolida todas as abas que contenham Nome, Salario e Gestor. A
+  planilha de referencia resulta em 1.108 pessoas (Time Hunter + Time Operacoes),
+  sem filtro por cargo, perfil ou area.
+- A conciliacao consulta todas as pessoas canonicas de `people`; somente o combo
+  de destino do de-para restringe as opcoes a gestores ativos.
 - A coluna Gestor gera contagem por nome de origem. Nomes nao reconhecidos
   exigem de-para com gestores ativos do sistema.
 - De-paras ficam em `employee_import_manager_mappings`; salarios continuam em

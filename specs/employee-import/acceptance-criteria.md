@@ -2,6 +2,8 @@
 
 - Dada uma planilha válida, a prévia informa total de linhas, pessoas
   encontradas, alterações de salário, salários já iguais e pessoas ausentes.
+- A prévia consolida todas as abas válidas e inclui qualquer cargo ou perfil,
+  sem restringir a importação ao time de Delivery.
 - Para pessoa encontrada com salário positivo, o valor proposto vem da coluna
   `Salário`.
 - Para pessoa ausente, salário inválido ou match ambíguo, nenhuma remuneração é

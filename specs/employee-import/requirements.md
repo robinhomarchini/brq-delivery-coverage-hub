@@ -9,7 +9,9 @@ concilie os nomes de gestores da origem com os gestores canônicos do sistema.
 ## Requisitos
 
 1. A função deve aceitar arquivos `.xlsx` com as colunas `Nome`, `Salário` e
-   `Gestor`; na planilha de referência elas estão em B, E e P.
+   `Gestor`; na planilha de referência elas estão em B, E e P. Todas as abas
+   que contenham essas colunas devem ser processadas, sem filtrar por cargo,
+   perfil ou área (incluindo Hunters, Farmers, Delivery e lideranças).
 2. A identificação de pessoa deve usar nome normalizado exato, sem aproximação
    automática que possa atribuir salário à pessoa errada.
 3. Pessoa não encontrada não deve ser criada nem ter qualquer dado alterado.
