@@ -65,6 +65,22 @@ export interface DashboardMetricSummary {
   managerCount: number;
 }
 
+export interface CustomerPerformanceMetric {
+  customerId: string;
+  customerName: string;
+  targetAmount: number;
+  allocatedTotal: number;
+  hunterAllocated: number;
+  deliveryFarmerAllocated: number;
+  responsiblePeopleCount: number;
+  peopleDelta: number;
+  achievementPercentage: number;
+}
+
+export interface CustomerPerformanceResult {
+  items: CustomerPerformanceMetric[];
+}
+
 export interface DashboardMetricFinancialByCustomer {
   customerCluster: string;
   revenueCurrent: number;
@@ -111,4 +127,5 @@ export interface DeliveryRepository {
   savePersonCustomerTargets(input: PersonCustomerTargetsInput): Promise<DeliveryData>;
   removePersonCustomerTargets(input: PersonCustomerRemovalInput): Promise<DeliveryData>;
   getDashboardSummary(filters: DashboardSummaryFilters): Promise<DashboardMetricResult>;
+  getPerformanceByCustomer(filters: DashboardSummaryFilters): Promise<CustomerPerformanceResult>;
 }

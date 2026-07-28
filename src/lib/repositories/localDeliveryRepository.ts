@@ -1,7 +1,7 @@
 import { areas, customers, customerTargets, people, specialistHunterStudioAssignments, studioTargetAllocations, subjects, targetAllocations } from "@/data/mockData";
 import { boardTargetBaselineRows } from "@/data/boardTargetBaseline";
 import type { Area, Customer, Person, PersonCompensation, StudioTargetAllocation, Subject, TargetAllocation } from "@/data/mockData";
-import type { DashboardMetricResult, DashboardSummaryFilters, DeliveryData, DeliveryRepository, PersonCustomerRemovalInput, PersonCustomerTargetsInput, SpecialistHunterStudioAssignmentsInput } from "./types";
+import type { DashboardMetricResult, DashboardSummaryFilters, DeliveryData, DeliveryRepository, PersonCustomerRemovalInput, PersonCustomerTargetsInput, SpecialistHunterStudioAssignmentsInput, CustomerPerformanceResult, CustomerPerformanceMetric } from "./types";
 import type { StudioBaselineSnapshot } from "@/lib/studio-baseline-import";
 import type { TargetBaselineSnapshot } from "@/lib/target-baseline-import";
 import { buildDashboardData } from "@/lib/dashboardMetrics";
@@ -82,6 +82,35 @@ export class LocalDeliveryRepository implements DeliveryRepository {
       },
       financialByCustomer: dashboard.financialByCustomer,
     };
+  }
+
+  async getPerformanceByCustomer(filters: DashboardSummaryFilters): Promise<CustomerPerformanceResult> {
+    const data = await this.getAll();
+    const items = data.customers.map((customer) => {
+      const customerTargets = data.customerTargets.filter((target) => target.customerId === customer.id);
+      const targetAmount = customerTargets.reduce((sum, target) => sum + target.hunterTarget + target.farmerRenewalTarget, 0);
+      const allocations = data.targetAllocations.filter((allocation) => allocation.customerId === customer.id);
+      const hunterAllocated = allocations.filter((item) => item.type === "hunter").reduce((sum, item) => sum + item.amount, 0);
+      const deliveryFarmerAllocated = allocations.filter((item) => item.type === "farmer_renewal").reduce((sum, item) => sum + item.amount, 0);
+      const allocatedTotal = hunterAllocated + deliveryFarmerAllocated;
+      const responsiblePeopleCount = new Set(
+        data.people
+          .filter((person) => person.clientIds?.includes(customer.id))
+          .map((person) => person.id)
+      ).size;
+      return {
+        customerId: customer.id,
+        customerName: customer.name,
+        targetAmount: roundCurrency(targetAmount),
+        allocatedTotal: roundCurrency(allocatedTotal),
+        hunterAllocated: roundCurrency(hunterAllocated),
+        deliveryFarmerAllocated: roundCurrency(deliveryFarmerAllocated),
+        responsiblePeopleCount,
+        peopleDelta: roundCurrency(allocatedTotal - targetAmount),
+        achievementPercentage: targetAmount > 0 ? roundCurrency((allocatedTotal / targetAmount) * 100) : 0,
+      } satisfies CustomerPerformanceMetric;
+    });
+    return { items };
   }
 
   async findCustomerById(id: string) {

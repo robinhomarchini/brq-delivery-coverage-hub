@@ -36,6 +36,7 @@ import { defaultTargetYear } from "@/lib/customer-targets";
 import { useAccess } from "@/lib/access-context";
 import { buildHunterAccessScope } from "@/lib/hunter-access-scope";
 import { useDashboardSummary } from "@/hooks/useDashboardSummary";
+import { useCustomerPerformance } from "@/hooks/useCustomerPerformance";
 import type { DashboardSummaryFilters } from "@/lib/repositories";
 import { buildDashboardData } from "@/lib/dashboardMetrics";
 import type { DashboardData } from "@/lib/dashboardMetrics";
@@ -66,6 +67,7 @@ export function ExecutiveDashboard() {
   };
 
   const { summary: rpcSummary, financialByCustomer: rpcFinancialByCustomer, loading: rpcLoading, error: rpcError } = useDashboardSummary(dashboardFilters);
+  const { items: customerPerformanceItems, loading: customerPerformanceLoading, error: customerPerformanceError } = useCustomerPerformance(dashboardFilters);
 
   const data: DashboardData = buildDashboardData(
     people,
@@ -292,6 +294,62 @@ export function ExecutiveDashboard() {
               </ResponsiveContainer> : <ChartPlaceholder />}
             </ChartCard>
           </div>
+        </section>
+
+        <section aria-label="Performance por cliente">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400">Performance por cliente</h2>
+          {customerPerformanceLoading ? (
+            <Card className="p-4 shadow-sm">
+              <div className="h-64 animate-pulse rounded-xl bg-slate-100" />
+            </Card>
+          ) : customerPerformanceError ? (
+            <Card className="border-red-200 bg-red-50/70">
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="h-5 w-5 text-red-600" aria-hidden="true" />
+                  <div>
+                    <p className="text-sm font-semibold text-red-800">Falha ao carregar a performance por cliente</p>
+                    <p className="mt-1 text-sm text-red-700">{customerPerformanceError}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ) : customerPerformanceItems.length === 0 ? (
+            <Card className="p-4 shadow-sm">
+              <CardContent className="p-6">
+                <p className="text-sm text-slate-600">Nenhum cliente encontrado para os filtros selecionados.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="min-w-0 overflow-hidden shadow-sm">
+              <CardContent className="overflow-x-auto">
+                <table className="min-w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b text-slate-500">
+                      <th className="py-2 pr-4 font-medium">Cliente</th>
+                      <th className="py-2 pr-4 font-medium text-right">Meta</th>
+                      <th className="py-2 pr-4 font-medium text-right">Alocado</th>
+                      <th className="py-2 pr-4 font-medium text-right">Delta</th>
+                      <th className="py-2 pr-4 font-medium text-right">Atingimento</th>
+                      <th className="py-2 font-medium text-right">Responsáveis</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {customerPerformanceItems.slice(0, 10).map((item) => (
+                      <tr key={item.customerId} className="border-b last:border-0">
+                        <td className="py-2 pr-4 font-medium text-slate-900">{item.customerName}</td>
+                        <td className="py-2 pr-4 text-right tabular-nums text-slate-700">{formatCurrency(item.targetAmount)}</td>
+                        <td className="py-2 pr-4 text-right tabular-nums text-slate-700">{formatCurrency(item.allocatedTotal)}</td>
+                        <td className={`py-2 pr-4 text-right tabular-nums ${item.peopleDelta < -0.01 ? "text-red-600" : item.peopleDelta > 0.01 ? "text-emerald-700" : "text-slate-700"}`}>{formatCurrency(item.peopleDelta)}</td>
+                        <td className={`py-2 pr-4 text-right tabular-nums ${item.achievementPercentage >= 100 ? "text-emerald-700" : item.achievementPercentage < 100 ? "text-red-600" : "text-slate-700"}`}>{item.achievementPercentage.toFixed(1)}%</td>
+                        <td className="py-2 text-right tabular-nums text-slate-700">{item.responsiblePeopleCount}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </CardContent>
+            </Card>
+          )}
         </section>
 
         <section aria-label="Distribuição por responsável">

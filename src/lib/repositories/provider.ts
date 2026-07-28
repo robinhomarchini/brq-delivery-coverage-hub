@@ -115,4 +115,7 @@ const unavailableProductionRepository: DeliveryRepository = {
   async getDashboardSummary() {
     throw new Error(productionConfigurationError);
   },
+  async getPerformanceByCustomer() {
+    throw new Error(productionConfigurationError);
+  },
 };

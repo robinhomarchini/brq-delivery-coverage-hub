@@ -1,4 +1,4 @@
-export type { AreaUsage, DashboardMetricFinancialByCustomer, DashboardMetricResult, DashboardMetricSummary, DashboardSummaryFilters, DeliveryData, DeliveryRepository, PersonCustomerRemovalInput, PersonCustomerTargetsInput, SpecialistHunterStudioAssignmentsInput } from "./types";
+export type { AreaUsage, CustomerPerformanceMetric, CustomerPerformanceResult, DashboardMetricFinancialByCustomer, DashboardMetricResult, DashboardMetricSummary, DashboardSummaryFilters, DeliveryData, DeliveryRepository, PersonCustomerRemovalInput, PersonCustomerTargetsInput, SpecialistHunterStudioAssignmentsInput } from "./types";
 export { createAccessRepositorySelection, createSupabaseAccessRepository } from "./accessRepository";
 export type { AccessRepository, AccessRepositoryProvider, AccessRepositorySelection } from "./accessRepository";
 export { localDeliveryRepository } from "./localDeliveryRepository";

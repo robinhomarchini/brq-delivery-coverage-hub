@@ -64,3 +64,15 @@ Gerado em: 2026-07-28 14:30:00 -03:00
 
 - Nenhum deploy realizado.
 - Nenhuma migration aplicada em producao.
+
+## Analise de Desafio - conversa e voz
+
+- A conversa GEN AI mantem historico recente por visao/ano apenas durante a
+  sessao da tela e envia esse contexto para a rota backend nas reavaliacoes.
+- Pesquisa web passou a ser solicitada por opcao explicita e a resposta informa
+  se a pesquisa foi usada ou ficou indisponivel.
+- Fallback deterministico nao apaga a pergunta digitada nem se apresenta como
+  pesquisa externa concluida.
+- Reconhecimento de voz diferencia permissao bloqueada, ausencia de fala,
+  microfone indisponivel, interrupcao e indisponibilidade do servico.
+- Nenhuma conversa, contexto de voz ou resultado externo e persistido no banco.

@@ -16,7 +16,7 @@ import type { RoleType } from "@/lib/roles";
 import { boardTargetBaselineRows as fallbackBoardTargetBaselineRows, type BoardTargetBaselineRow } from "@/data/boardTargetBaseline";
 import { getStudioBaselineSource, type StudioBaselineSnapshot, type StudioBaselineSourceCode } from "@/lib/studio-baseline-import";
 import type { TargetBaselineRow, TargetBaselineSnapshot } from "@/lib/target-baseline-import";
-import type { DeliveryData, DashboardMetricResult, DashboardSummaryFilters, DeliveryRepository } from "./types";
+import type { DeliveryData, DashboardMetricResult, DashboardSummaryFilters, DeliveryRepository, CustomerPerformanceResult } from "./types";
 import type { PersonCustomerRemovalInput, PersonCustomerTargetsInput } from "./types";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { buildAreaUsages } from "@/lib/area-usage";
@@ -230,6 +230,21 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
     return {
       summary: payload.summary,
       financialByCustomer: payload.financialByCustomer ?? [],
+    };
+  }
+
+  async getPerformanceByCustomer(filters: DashboardSummaryFilters): Promise<CustomerPerformanceResult> {
+    const { data, error } = await this.client.rpc("get_dashboard_performance_by_customer", {
+      p_target_year: filters.targetYear,
+      p_include_new_logos: filters.includeNewLogos,
+      p_hunter_scope_enabled: filters.hunterScopeEnabled,
+      p_hunter_customer_ids: filters.hunterCustomerIds,
+      p_hunter_person_id: filters.hunterPersonId ?? null,
+    });
+    if (error) throw error;
+    const payload = (data as CustomerPerformanceResult | null) ?? { items: [] };
+    return {
+      items: payload.items ?? [],
     };
   }
 

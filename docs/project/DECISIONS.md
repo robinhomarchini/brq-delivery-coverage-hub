@@ -56,6 +56,14 @@ Gerado em: 2026-07-28 14:30:00 -03:00
 15. Indices no metric layer so sao criados apos evidencia de plano de execucao.
     - Nenhum indice extra foi adicionado preventivamente.
 
+16. O historico da conversa da Analise de Desafio e efemero e isolado por visao/ano.
+    - O frontend envia apenas as seis interacoes mais recentes para a rota
+      backend; nenhum texto da conversa e persistido no banco.
+    - Pesquisa web depende de escolha explicita do usuario ou pedido textual
+      reconhecido, e seu estado deve aparecer na resposta.
+    - Fallback deterministico preserva o texto para nova tentativa e nunca e
+      rotulado como pesquisa externa bem-sucedida.
+
 ## Decisoes pendentes
 
 - Definir formalmente o nome e significado de `PersonCompensation.annualSalary`, pois o calculo atual anualiza o valor multiplicando por 12.
