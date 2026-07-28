@@ -13,11 +13,11 @@
 ## Backend e banco
 
 - negar sessão ausente e usuário sem permissão;
-- prévia não persiste dados;
-- aplicação repete parsing/matching no servidor;
-- transação atualiza apenas pessoas encontradas;
-- transação salva de-paras válidos;
-- pessoa de destino do de-para precisa ser gestor ativo;
+- análise persiste lote/snapshot e arquivo em bucket privado;
+- consulta recupera o lote sem novo upload;
+- ação salarial atualiza somente a linha comandada e marca seu status;
+- confirmação salva de-paras e HC direto;
+- pessoa de destino do de-para pode ser qualquer pessoa cadastrada;
 - RLS bloqueia leitura e escrita não autorizadas;
 - auditoria registra mudanças nas tabelas canônicas.
 
@@ -29,7 +29,9 @@
 - combo de cada gestor não resolvido;
 - confirmação bloqueada até resolver todos;
 - feedback de sucesso/erro próximo à tarefa;
-- recarregamento da prévia após aplicação.
+- recarregamento do lote sem arquivo local;
+- botão e status por salário;
+- HC importado visível no cadastro da pessoa.
 
 ## Gates
 

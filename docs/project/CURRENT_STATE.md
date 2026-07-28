@@ -96,13 +96,22 @@ Gerado em: 2026-07-28 14:30:00 -03:00
 - O parser consolida todas as abas que contenham Nome, Salario e Gestor. A
   planilha de referencia resulta em 1.108 pessoas (Time Hunter + Time Operacoes),
   sem filtro por cargo, perfil ou area.
-- A conciliacao consulta todas as pessoas canonicas de `people`; somente o combo
-  de destino do de-para restringe as opcoes a gestores ativos.
+- A conciliacao e o combo consultam todas as pessoas canonicas de `people`.
 - A coluna Gestor gera contagem por nome de origem. Nomes nao reconhecidos
-  exigem de-para com gestores ativos do sistema.
+  exigem de-para com uma pessoa cadastrada no sistema.
 - De-paras ficam em `employee_import_manager_mappings`; salarios continuam em
-  `person_compensations`. A aplicacao usa a RPC transacional
-  `apply_employee_salary_import`.
+  `person_compensations`; as novas acoes usam RPCs transacionais separadas.
+- A migration `20260728223000_employee_import_batches_and_headcount.sql` foi
+  aplicada no Supabase: arquivos ficam no bucket privado `employee-imports`,
+  lotes/snapshots em `employee_import_batches` e estados por salario em
+  `employee_import_salary_items`.
+- O combo de de-para usa todas as pessoas canonicas, sem filtro por cargo ou
+  `is_manager`.
+- Atualizacao salarial e uma acao explicita por linha; o status persistido muda
+  para `updated` somente depois do sucesso da RPC.
+- A confirmacao de HC salva de-paras e atualiza o HC direto importado em
+  `people`, com data, arquivo de origem e lote. O cadastro de Pessoas exibe esse
+  valor como campo somente leitura.
 - O arquivo bruto nao e persistido.
 
 ## Microfone da Analise de Desafio

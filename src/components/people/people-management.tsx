@@ -201,6 +201,10 @@ export function PeopleManagement() {
       closedReason: lifecycleStatus === "closed" ? closedReason : undefined,
       isManager: isDeliveryManagerRole(selectedRole),
       hierarchyLevel: getHierarchyLevelForRole(selectedRole),
+      importedDirectHeadcount: editing?.importedDirectHeadcount,
+      importedDirectHeadcountAt: editing?.importedDirectHeadcountAt,
+      importedDirectHeadcountSource: editing?.importedDirectHeadcountSource,
+      importedDirectHeadcountBatchId: editing?.importedDirectHeadcountBatchId,
     };
     const person: Person = hunterScope.enabled && editing
       ? {
@@ -323,6 +327,7 @@ export function PeopleManagement() {
                 <SortableTableHead label="Tipo" sortKey="role" sortState={sortState} onSort={setSortState} />
                 <SortableTableHead label="Diretor" sortKey="director" sortState={sortState} onSort={setSortState} />
                 <SortableTableHead label="Área / Cobertura" sortKey="area" sortState={sortState} onSort={setSortState} />
+                <TableHead className="text-right">HC direto</TableHead>
                 <SortableTableHead label="Status" sortKey="status" sortState={sortState} onSort={setSortState} />
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
@@ -367,6 +372,14 @@ export function PeopleManagement() {
                   <TableCell>
                     <p>{areas.find((item) => item.id === person.areaId)?.name ?? "—"}</p>
                     <p className="max-w-64 truncate text-xs text-slate-400">{person.clientIds.length} cliente(s)</p>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <p className="font-bold tabular-nums">{person.importedDirectHeadcount ?? "—"}</p>
+                    {person.importedDirectHeadcountAt && (
+                      <p className="text-xs text-slate-400" title={person.importedDirectHeadcountSource}>
+                        Atualizado em {formatDate(person.importedDirectHeadcountAt)}
+                      </p>
+                    )}
                   </TableCell>
                   <TableCell>
                     <Badge variant={getLifecycleStatusBadgeVariant(person.lifecycleStatus)}>
@@ -424,6 +437,13 @@ export function PeopleManagement() {
                 <option value="">Sem área</option>
                 {areas.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
               </Select>
+            </Field>
+            <Field label="HC sob gestão direta">
+              <Input value={editing?.importedDirectHeadcount ?? ""} readOnly placeholder="Ainda não conciliado" />
+              <span className="mt-1 block text-xs text-slate-400">
+                Atualizado pela importação de funcionários
+                {editing?.importedDirectHeadcountSource ? ` · ${editing.importedDirectHeadcountSource}` : ""}.
+              </span>
             </Field>
             <Field label="Clientes" className="md:col-span-2">
               {hunterScope.enabled ? (

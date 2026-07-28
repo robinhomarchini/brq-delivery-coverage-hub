@@ -97,6 +97,13 @@ Gerado em: 2026-07-28 14:30:00 -03:00
     - O filtro de pessoa ativa com papel de gestor existe somente para os
       destinos validos do de-para.
 
+22. Planilha, salario e HC possuem ciclos de confirmacao separados.
+    - O arquivo bruto fica em Storage privado; o snapshot parseado e o estado
+      das acoes ficam em lote persistente para retomada sem novo upload.
+    - Salario so muda por comando explicito da linha e a conclusao e auditavel.
+    - HC direto e um atributo importado vigente em `people`, com linhagem de
+      lote/data/origem; nao altera automaticamente `people.manager_id`.
+
 ## Decisoes pendentes
 
 - Definir formalmente o nome e significado de `PersonCompensation.annualSalary`, pois o calculo atual anualiza o valor multiplicando por 12.

@@ -22,20 +22,30 @@ concilie os nomes de gestores da origem com os gestores canônicos do sistema.
    - pessoas não encontradas;
    - quantidade de colaboradores por gestor da planilha;
    - gestores resolvidos e não resolvidos.
-6. Gestor sem correspondência deve exigir seleção em um combo alimentado pelos
-   gestores ativos do sistema.
+6. Gestor sem correspondência deve exigir seleção em um combo alimentado por
+   todas as pessoas do cadastro canônico, sem filtro por `is_manager`, cargo,
+   perfil ou área.
 7. O de-para confirmado deve ser persistido para reutilização em importações
    futuras, sem alterar a hierarquia individual das pessoas.
 8. A aplicação deve atualizar somente `person_compensations`; a planilha não se
    torna fonte canônica de `people`.
 9. A gravação de salários e de-paras deve ser atômica, autorizada no backend,
    protegida por RLS e auditada.
-10. O arquivo bruto não deve ser armazenado no banco nem em logs.
+10. O arquivo bruto deve ser armazenado em bucket privado, sem conteúdo em logs;
+    o banco mantém o lote e seu snapshot parseado para reabrir a conciliação sem
+    novo upload.
+11. Analisar a planilha cria um lote persistente em estado de conciliação.
+12. A conciliação de gestores/HC e a atualização salarial são ações separadas.
+13. Cada salário divergente possui ação explícita para atualizar; após sucesso,
+    a linha fica marcada como atualizada com usuário e instante.
+14. Após confirmar o de-para, o HC direto conciliado é gravado para a pessoa
+    selecionada e exibido em seu cadastro, com origem e data da importação.
+15. Reabrir a página recupera o lote mais recente e seus estados, sem exigir que
+    o administrador selecione novamente o arquivo.
 
 ## Fora do escopo inicial
 
 - criar pessoas ausentes;
 - alterar cargo, cliente, líder, gestor ou status da pessoa;
 - inferir correspondências aproximadas de nomes;
-- persistir a contagem de colaboradores, que é uma projeção derivada da
-  planilha e dos de-paras.
+- alterar automaticamente `people.manager_id` com base na planilha.

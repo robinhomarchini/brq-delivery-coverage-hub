@@ -1,10 +1,11 @@
 "use client";
 
-import { FileCheck2, FileSpreadsheet, LoaderCircle, ShieldAlert, Upload, UsersRound } from "lucide-react";
-import { useMemo, useState } from "react";
+import { CheckCircle2, FileCheck2, FileSpreadsheet, LoaderCircle, ShieldAlert, Upload, UsersRound } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import type {
-  EmployeeImportApplyResult,
+  EmployeeImportHeadcountResult,
   EmployeeImportPreview,
+  EmployeeImportSalaryActionResult,
 } from "@/lib/employee-import/types";
 import { useAccess } from "@/lib/access-context";
 import { canManageCompensation } from "@/lib/compensation-access";
@@ -32,7 +33,7 @@ export default function EmployeeImportPage() {
   const [applying, setApplying] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [result, setResult] = useState<EmployeeImportApplyResult | null>(null);
+  const [updatingPersonId, setUpdatingPersonId] = useState("");
 
   const resolvedManagers = useMemo(() => {
     if (!preview) return [];
@@ -72,6 +73,30 @@ export default function EmployeeImportPage() {
     );
   }, [resolvedManagers]);
 
+  useEffect(() => {
+    if (!allowed) return;
+    let mounted = true;
+    sendJson<EmployeeImportPreview | null>("/api/admin/employee-import/preview", { method: "GET" })
+      .then((saved) => {
+        if (!mounted || !saved) return;
+        setPreview(saved);
+        setManagerMappings(Object.fromEntries(
+          saved.managers
+            .filter((manager) => manager.resolvedManagerId)
+            .map((manager) => [manager.sourceKey, manager.resolvedManagerId as string]),
+        ));
+      })
+      .catch((loadError) => {
+        if (mounted) setError(getErrorMessage(loadError, "Não foi possível recuperar o último lote."));
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [allowed]);
+
   if (loadingAccess || loadingData) {
     return <div className="grid min-h-[50vh] place-items-center"><LoaderCircle className="h-8 w-8 animate-spin text-brq-purple" /></div>;
   }
@@ -105,7 +130,6 @@ export default function EmployeeImportPage() {
     setLoading(true);
     setError("");
     setNotice("");
-    setResult(null);
     try {
       const nextPreview = await sendWorkbook<EmployeeImportPreview>(
         "/api/admin/employee-import/preview",
@@ -124,14 +148,14 @@ export default function EmployeeImportPage() {
     }
   }
 
-  async function handleApply() {
-    if (!file || !preview) return;
+  async function handleConfirmHeadcount() {
+    if (!preview?.batchId) return;
     if (unresolvedManagerCount > 0) {
       setError("Resolva todos os gestores sem correspondência antes de confirmar.");
       return;
     }
     const confirmed = window.confirm(
-      `Confirmar a atualização de ${preview.summary.salaryChanges} salário(s) e salvar ${resolvedManagers.length} de-para(s) de gestor?`,
+      `Confirmar o HC direto de ${managerTotals.length} pessoa(s) e salvar ${resolvedManagers.length} de-para(s)?`,
     );
     if (!confirmed) return;
 
@@ -139,27 +163,25 @@ export default function EmployeeImportPage() {
     setError("");
     setNotice("");
     try {
-      const nextResult = await sendWorkbook<EmployeeImportApplyResult>(
-        "/api/admin/employee-import/apply",
-        file,
-        Object.fromEntries(
-          resolvedManagers.map((manager) => [manager.sourceKey, manager.resolvedManagerId as string]),
-        ),
+      const nextResult = await sendJson<EmployeeImportHeadcountResult>(
+        "/api/admin/employee-import/headcount",
+        {
+          method: "POST",
+          body: {
+            batchId: preview.batchId,
+            mappings: resolvedManagers.map((manager) => ({
+              sourceKey: manager.sourceKey,
+              sourceName: manager.sourceName,
+              personId: manager.resolvedManagerId as string,
+              employeeCount: manager.employeeCount,
+            })),
+          },
+        },
       );
-      setResult(nextResult);
       setNotice(
-        `${nextResult.salariesChanged} salário(s) atualizado(s), ${nextResult.salariesUnchanged} mantido(s) e ${nextResult.managerMappingsSaved} de-para(s) salvo(s).`,
+        `HC direto atualizado para ${nextResult.headcountsUpdated} pessoa(s).`,
       );
-      const refreshed = await sendWorkbook<EmployeeImportPreview>(
-        "/api/admin/employee-import/preview",
-        file,
-      );
-      setPreview(refreshed);
-      setManagerMappings(Object.fromEntries(
-        refreshed.managers
-          .filter((manager) => manager.resolvedManagerId)
-          .map((manager) => [manager.sourceKey, manager.resolvedManagerId as string]),
-      ));
+      setPreview((current) => current ? { ...current, batchStatus: "hc_confirmed" } : current);
     } catch (applyError) {
       setError(getErrorMessage(applyError, "Não foi possível aplicar a importação."));
     } finally {
@@ -167,11 +189,34 @@ export default function EmployeeImportPage() {
     }
   }
 
+  async function handleApplySalary(personId: string) {
+    if (!preview?.batchId) return;
+    if (!window.confirm("Atualizar o salário desta pessoa com o valor da planilha?")) return;
+    setUpdatingPersonId(personId);
+    setError("");
+    try {
+      const action = await sendJson<EmployeeImportSalaryActionResult>(
+        "/api/admin/employee-import/apply",
+        { method: "POST", body: { batchId: preview.batchId, personId } },
+      );
+      setPreview((current) => current ? {
+        ...current,
+        matchedPeople: current.matchedPeople.map((person) =>
+          person.personId === action.personId ? { ...person, status: "updated" } : person
+        ),
+      } : current);
+      setNotice("Salário atualizado e marcado como concluído.");
+    } catch (actionError) {
+      setError(getErrorMessage(actionError, "Não foi possível atualizar o salário."));
+    } finally {
+      setUpdatingPersonId("");
+    }
+  }
+
   function handleFileChange(nextFile: File | null) {
     setFile(nextFile);
     setPreview(null);
     setManagerMappings({});
-    setResult(null);
     setNotice("");
     setError("");
   }
@@ -196,7 +241,7 @@ export default function EmployeeImportPage() {
               <div>
                 <CardTitle>Selecionar planilha</CardTitle>
                 <CardDescription className="mt-1">
-                  Formato `.xlsx`, até 10 MB, com as colunas Nome, Salário e Gestor. Nenhum dado é alterado durante a prévia.
+                  Formato `.xlsx`, até 10 MB. A análise salva o lote para você continuar depois sem reenviar o arquivo.
                 </CardDescription>
               </div>
             </div>
@@ -231,12 +276,16 @@ export default function EmployeeImportPage() {
               <SummaryCard label="Pessoas não atualizadas" value={preview.unmatchedPeople.length} tone="warning" />
               <SummaryCard label="Gestores sem de-para" value={unresolvedManagerCount} tone={unresolvedManagerCount ? "danger" : "success"} />
             </section>
+            <p className="text-sm text-slate-500">
+              Lote salvo: <strong>{preview.sourceFileName}</strong>
+              {preview.batchStatus === "hc_confirmed" ? " · HC confirmado" : " · Em conciliação"}
+            </p>
 
             <Card className="shadow-sm">
               <CardHeader>
                 <CardTitle>De-para de gestores</CardTitle>
                 <CardDescription>
-                  A contagem vem da coluna Gestor. Selecione um gestor atual para cada nome não reconhecido; isso não altera a hierarquia das pessoas.
+                  A contagem vem da coluna Gestor. O combo contém todas as pessoas cadastradas; isso não altera a hierarquia individual.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-5">
@@ -335,6 +384,7 @@ export default function EmployeeImportPage() {
                           <TableHead className="text-right">Atual</TableHead>
                           <TableHead className="text-right">Planilha</TableHead>
                           <TableHead>Status</TableHead>
+                          <TableHead className="text-right">Ação</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -346,7 +396,27 @@ export default function EmployeeImportPage() {
                             </TableCell>
                             <TableCell className="text-right">{person.currentSalary === null ? "Não informado" : formatCurrency(person.currentSalary)}</TableCell>
                             <TableCell className="text-right font-semibold">{formatCurrency(person.proposedSalary)}</TableCell>
-                            <TableCell><Badge variant={person.status === "change" ? "warning" : "success"}>{person.status === "change" ? "Atualizar" : "Mantido"}</Badge></TableCell>
+                            <TableCell>
+                              <Badge variant={person.status === "change" ? "warning" : "success"}>
+                                {person.status === "change" ? "Pendente" : person.status === "updated" ? "Atualizado" : "Já igual"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {person.status === "change" ? (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  onClick={() => void handleApplySalary(person.personId)}
+                                  disabled={Boolean(updatingPersonId)}
+                                >
+                                  {updatingPersonId === person.personId ? <LoaderCircle className="h-4 w-4 animate-spin" /> : "Atualizar salário"}
+                                </Button>
+                              ) : person.status === "updated" ? (
+                                <span className="inline-flex items-center gap-1 text-sm font-semibold text-emerald-700">
+                                  <CheckCircle2 className="h-4 w-4" /> Atualizado
+                                </span>
+                              ) : null}
+                            </TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -393,20 +463,19 @@ export default function EmployeeImportPage() {
                 <div className="flex items-start gap-3">
                   <FileCheck2 className="mt-0.5 h-5 w-5 shrink-0 text-brq-purple" />
                   <div>
-                    <p className="font-semibold text-slate-900">Confirmar importação revisada</p>
+                    <p className="font-semibold text-slate-900">Confirmar HC direto conciliado</p>
                     <p className="mt-1 text-sm leading-6 text-slate-600">
-                      Serão alterados apenas os salários encontrados. Pessoas ausentes e valores inválidos continuarão intactos.
+                      Esta ação salva os de-paras e atualiza o campo HC direto das pessoas selecionadas. Salários são atualizados separadamente, linha a linha.
                     </p>
                   </div>
                 </div>
-                <Button type="button" onClick={handleApply} disabled={applying || loading || unresolvedManagerCount > 0}>
+                <Button type="button" onClick={handleConfirmHeadcount} disabled={applying || loading || unresolvedManagerCount > 0 || preview.batchStatus === "hc_confirmed"}>
                   {applying ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <FileCheck2 className="h-4 w-4" />}
-                  Confirmar atualização
+                  {preview.batchStatus === "hc_confirmed" ? "HC confirmado" : "Confirmar HC"}
                 </Button>
               </CardContent>
             </Card>
 
-            {result && <p className="sr-only">Importação concluída com sucesso.</p>}
           </>
         )}
       </div>
@@ -440,7 +509,7 @@ function SummaryCard({
   );
 }
 
-async function sendWorkbook<T>(endpoint: string, file: File, managerMappings?: Record<string, string>) {
+async function sendWorkbook<T>(endpoint: string, file: File) {
   const authService = createAuthServiceSelection().service;
   if (!authService) throw new Error("O provedor de autenticação não está configurado.");
   const token = await authService.getAccessToken();
@@ -448,7 +517,6 @@ async function sendWorkbook<T>(endpoint: string, file: File, managerMappings?: R
 
   const formData = new FormData();
   formData.set("file", file);
-  if (managerMappings) formData.set("managerMappings", JSON.stringify(managerMappings));
   const response = await fetch(endpoint, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
@@ -459,6 +527,31 @@ async function sendWorkbook<T>(endpoint: string, file: File, managerMappings?: R
     throw new Error(payload && typeof payload === "object" && "error" in payload
       ? String(payload.error ?? "Não foi possível processar a planilha.")
       : "Não foi possível processar a planilha.");
+  }
+  return payload as T;
+}
+
+async function sendJson<T>(
+  endpoint: string,
+  options: { method: "GET" | "POST"; body?: unknown },
+) {
+  const authService = createAuthServiceSelection().service;
+  if (!authService) throw new Error("O provedor de autenticação não está configurado.");
+  const token = await authService.getAccessToken();
+  if (!token) throw new Error("Sua sessão expirou. Entre novamente para continuar.");
+  const response = await fetch(endpoint, {
+    method: options.method,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(options.body === undefined ? {} : { "Content-Type": "application/json" }),
+    },
+    body: options.body === undefined ? undefined : JSON.stringify(options.body),
+  });
+  const payload = await response.json().catch(() => null) as T | { error?: string } | null;
+  if (!response.ok) {
+    throw new Error(payload && typeof payload === "object" && "error" in payload
+      ? String(payload.error ?? "Não foi possível concluir a ação.")
+      : "Não foi possível concluir a ação.");
   }
   return payload as T;
 }

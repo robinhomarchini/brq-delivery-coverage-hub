@@ -64,6 +64,10 @@ type PersonRow = {
   closed_reason?: string | null;
   is_manager: boolean;
   hierarchy_level: number;
+  imported_direct_headcount?: number | null;
+  imported_direct_headcount_at?: string | null;
+  imported_direct_headcount_source?: string | null;
+  imported_direct_headcount_batch_id?: string | null;
 };
 
 type PersonCompensationRow = {
@@ -1229,6 +1233,10 @@ function toPersonRow(person: Person): PersonRow {
     closed_reason: person.closedReason ?? null,
     is_manager: person.isManager,
     hierarchy_level: person.hierarchyLevel,
+    imported_direct_headcount: person.importedDirectHeadcount ?? null,
+    imported_direct_headcount_at: person.importedDirectHeadcountAt ?? null,
+    imported_direct_headcount_source: person.importedDirectHeadcountSource ?? null,
+    imported_direct_headcount_batch_id: person.importedDirectHeadcountBatchId ?? null,
   };
 }
 
@@ -1251,6 +1259,10 @@ function fromPersonRow(row: PersonRow): Person {
     closedReason: row.closed_reason ?? undefined,
     isManager: row.is_manager,
     hierarchyLevel: row.hierarchy_level as 1 | 2 | 3,
+    importedDirectHeadcount: row.imported_direct_headcount ?? undefined,
+    importedDirectHeadcountAt: row.imported_direct_headcount_at ?? undefined,
+    importedDirectHeadcountSource: row.imported_direct_headcount_source ?? undefined,
+    importedDirectHeadcountBatchId: row.imported_direct_headcount_batch_id ?? undefined,
   };
 }
 

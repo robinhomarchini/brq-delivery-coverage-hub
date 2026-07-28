@@ -40,6 +40,10 @@ const personSchema = z.object({
   ...lifecycleFields,
   isManager: z.boolean(),
   hierarchyLevel: z.union([z.literal(1), z.literal(2), z.literal(3)]),
+  importedDirectHeadcount: z.number().int().nonnegative().optional(),
+  importedDirectHeadcountAt: z.string().optional(),
+  importedDirectHeadcountSource: optionalText(180),
+  importedDirectHeadcountBatchId: optionalText(120),
 }).superRefine(addLifecycleClosureIssue).transform((value) => ({
   ...value,
   active: getActiveFromLifecycle(value.lifecycleStatus),
@@ -139,7 +143,7 @@ export function validateStudioTargetAllocation(value: StudioTargetAllocation) {
   return parse(studioTargetAllocationSchema, value);
 }
 
-function parse<T>(schema: z.ZodType<T>, value: T): T {
+function parse<T>(schema: z.ZodType<T>, value: unknown): T {
   const result = schema.safeParse(value);
   if (result.success) return result.data;
   throw new Error(result.error.issues[0]?.message ?? "Dados inválidos.");

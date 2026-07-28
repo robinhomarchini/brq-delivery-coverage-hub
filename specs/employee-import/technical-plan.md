@@ -4,20 +4,22 @@
    `read-excel-file/node` somente no servidor.
 2. Criar serviço de domínio/backend que consulta pessoas, remunerações e
    de-paras com o cliente autenticado.
-3. Criar rotas BFF de prévia e aplicação.
+3. Criar rotas BFF para criar/consultar lote, aplicar uma linha salarial e
+   confirmar HC.
 4. Criar migration forward-only para:
    - `employee_import_manager_mappings`;
-   - RLS/grants/auditoria;
-   - RPC transacional de aplicação.
+   - lote persistente e itens salariais;
+   - campos de HC direto importado em `people`;
+   - bucket privado, RLS/grants/auditoria;
+   - RPCs transacionais por ação.
 5. Criar página administrativa com upload, prévia, combos e confirmação.
 6. Adicionar navegação somente para administrador com acesso a remuneração.
 7. Adicionar testes de parser, contrato de autorização/migration e segurança.
 
 ## Fronteira transacional
 
-Uma confirmação contém dois conjuntos: salários válidos de pessoas encontradas
-e de-paras resolvidos. A RPC valida autorização e referências antes de efetuar
-os `upserts`; qualquer erro desfaz o conjunto inteiro.
+A atualização de uma linha salarial é atômica com a marcação de seu status.
+A confirmação do HC é atômica entre de-paras e atualização dos totais diretos.
 
 ## Portabilidade
 

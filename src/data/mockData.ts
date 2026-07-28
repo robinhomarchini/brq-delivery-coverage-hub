@@ -36,6 +36,10 @@ export interface Person {
   closedReason?: string;
   isManager: boolean;
   hierarchyLevel: 1 | 2 | 3;
+  importedDirectHeadcount?: number;
+  importedDirectHeadcountAt?: string;
+  importedDirectHeadcountSource?: string;
+  importedDirectHeadcountBatchId?: string;
 }
 
 export interface PersonCompensation {

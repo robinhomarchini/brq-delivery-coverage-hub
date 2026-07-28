@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { randomUUID } from "node:crypto";
 import type {
-  EmployeeImportApplyResult,
   EmployeeImportManagerGroup,
   EmployeeImportManagerTotal,
   EmployeeImportManualMappings,
@@ -18,6 +18,18 @@ type PersonRow = {
   name: string;
   active: boolean;
   is_manager: boolean;
+};
+
+type ImportBatchRow = {
+  id: string;
+  source_file_name: string;
+  preview_snapshot: EmployeeImportPreview;
+  status: "reconciling" | "hc_confirmed";
+};
+
+type SalaryItemRow = {
+  person_id: string;
+  status: "pending" | "unchanged" | "updated";
 };
 
 type CompensationRow = {
@@ -90,12 +102,11 @@ export async function buildEmployeeImportPreview(input: {
   }
 
   const availableManagers = people
-    .filter((person) => person.active && person.is_manager)
     .map((person) => ({ id: person.id, name: person.name }))
     .sort((first, second) => first.name.localeCompare(second.name, "pt-BR"));
   const managerById = new Map(availableManagers.map((manager) => [manager.id, manager]));
   const managersByName = groupPeopleByNormalizedName(
-    people.filter((person) => person.active && person.is_manager),
+    people,
   );
   const savedMappingByKey = new Map(savedMappings.map((mapping) => [mapping.source_key, mapping]));
   const managerCounts = countSourceManagers(parsed.rows);
@@ -150,41 +161,117 @@ export async function buildEmployeeImportPreview(input: {
   };
 }
 
-export async function applyEmployeeImport(input: {
+export async function saveEmployeeImportBatch(input: {
   client: SupabaseClient;
   buffer: Buffer;
   fileName: string;
-  manualMappings: EmployeeImportManualMappings;
-}): Promise<EmployeeImportApplyResult> {
+}): Promise<EmployeeImportPreview> {
   const preview = await buildEmployeeImportPreview(input);
-  if (preview.summary.unresolvedManagers > 0) {
-    throw new Error("Resolva todos os gestores sem correspondência antes de confirmar a importação.");
+  const batchId = randomUUID();
+  const storagePath = `${batchId}/${sanitizeFileName(input.fileName)}`;
+  const { error: storageError } = await input.client.storage
+    .from("employee-imports")
+    .upload(storagePath, input.buffer, {
+      contentType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      upsert: false,
+    });
+  if (storageError) {
+    throw new Error("Não foi possível armazenar a planilha no repositório privado.");
   }
 
-  const salaryRows = preview.matchedPeople.map((person) => ({
+  const items = preview.matchedPeople.map((person) => ({
     person_id: person.personId,
-    salary: person.proposedSalary,
     source_name: person.sourceName,
+    proposed_salary: person.proposedSalary,
+    status: person.status === "unchanged" ? "unchanged" : "pending",
   }));
-  const managerMappings = preview.managers.map((manager) => ({
-    source_key: manager.sourceKey,
-    source_name: manager.sourceName,
-    manager_person_id: manager.resolvedManagerId,
-  }));
-  const { data, error } = await input.client.rpc("apply_employee_salary_import", {
-    p_salary_rows: salaryRows,
-    p_manager_mappings: managerMappings,
-    p_effective_from: new Date().toISOString().slice(0, 10),
+  const { error: batchError } = await input.client.rpc("create_employee_import_batch", {
+    p_batch_id: batchId,
     p_source_file_name: sanitizeFileName(input.fileName),
+    p_storage_path: storagePath,
+    p_preview_snapshot: preview,
+    p_salary_items: items,
   });
-  if (error) throw new Error("Não foi possível aplicar a importação de funcionários.");
+  if (batchError) {
+    await input.client.storage.from("employee-imports").remove([storagePath]);
+    throw new Error("Não foi possível salvar o lote da planilha.");
+  }
+  return { ...preview, batchId, batchStatus: "reconciling" };
+}
 
+export async function getLatestEmployeeImportBatch(client: SupabaseClient) {
+  const { data, error } = await client
+    .from("employee_import_batches")
+    .select("id,source_file_name,preview_snapshot,status")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error("Não foi possível consultar o último lote de importação.");
+  if (!data) return null;
+  const batch = data as ImportBatchRow;
+  const { data: salaryItems, error: salaryError } = await client
+    .from("employee_import_salary_items")
+    .select("person_id,status")
+    .eq("batch_id", batch.id);
+  if (salaryError) throw new Error("Não foi possível consultar os estados salariais do lote.");
+  const statusByPerson = new Map(
+    ((salaryItems ?? []) as SalaryItemRow[]).map((item) => [item.person_id, item.status]),
+  );
+  const peopleResult = await client.from("people").select("id,name").order("name").limit(5000);
+  if (peopleResult.error) throw new Error("Não foi possível consultar as pessoas do sistema.");
+  return {
+    ...batch.preview_snapshot,
+    sourceFileName: batch.source_file_name,
+    batchId: batch.id,
+    batchStatus: batch.status,
+    availableManagers: (peopleResult.data ?? []).map((person) => ({
+      id: String(person.id),
+      name: String(person.name),
+    })),
+    matchedPeople: batch.preview_snapshot.matchedPeople.map((person) => ({
+      ...person,
+      status: statusByPerson.get(person.personId) === "updated" ? "updated" as const : person.status,
+    })),
+  } satisfies EmployeeImportPreview;
+}
+
+export async function applyEmployeeImportSalaryItem(input: {
+  client: SupabaseClient;
+  batchId: string;
+  personId: string;
+}) {
+  const { data, error } = await input.client.rpc("apply_employee_import_salary_item", {
+    p_batch_id: input.batchId,
+    p_person_id: input.personId,
+  });
+  if (error) throw new Error("Não foi possível atualizar o salário selecionado.");
   const result = (data ?? {}) as Record<string, unknown>;
   return {
-    salariesChanged: Number(result.salaries_changed ?? 0),
-    salariesUnchanged: Number(result.salaries_unchanged ?? 0),
-    managerMappingsSaved: Number(result.manager_mappings_saved ?? 0),
-    ignoredPeople: preview.unmatchedPeople.length,
+    personId: String(result.person_id ?? input.personId),
+    status: "updated" as const,
+    updatedAt: String(result.updated_at ?? new Date().toISOString()),
+  };
+}
+
+export async function confirmEmployeeImportHeadcount(input: {
+  client: SupabaseClient;
+  batchId: string;
+  mappings: Array<{ sourceKey: string; sourceName: string; personId: string; employeeCount: number }>;
+}) {
+  const { data, error } = await input.client.rpc("confirm_employee_import_headcount", {
+    p_batch_id: input.batchId,
+    p_manager_mappings: input.mappings.map((mapping) => ({
+      source_key: mapping.sourceKey,
+      source_name: mapping.sourceName,
+      person_id: mapping.personId,
+      employee_count: mapping.employeeCount,
+    })),
+  });
+  if (error) throw new Error("Não foi possível confirmar o HC direto.");
+  const result = (data ?? {}) as Record<string, unknown>;
+  return {
+    headcountsUpdated: Number(result.headcounts_updated ?? 0),
+    status: "hc_confirmed" as const,
   };
 }
 

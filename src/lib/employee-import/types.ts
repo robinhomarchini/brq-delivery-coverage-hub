@@ -1,4 +1,4 @@
-export type EmployeeImportMatchStatus = "change" | "unchanged";
+export type EmployeeImportMatchStatus = "change" | "unchanged" | "updated";
 export type EmployeeImportUnmatchedReason = "not_found" | "ambiguous" | "invalid_salary";
 export type ManagerResolution = "exact" | "saved" | "manual" | "unmatched";
 
@@ -38,6 +38,8 @@ export interface EmployeeImportManagerTotal {
 }
 
 export interface EmployeeImportPreview {
+  batchId?: string;
+  batchStatus?: "reconciling" | "hc_confirmed";
   sourceFileName: string;
   sourceRowCount: number;
   matchedPeople: EmployeeImportMatchedPerson[];
@@ -55,11 +57,15 @@ export interface EmployeeImportPreview {
   };
 }
 
-export interface EmployeeImportApplyResult {
-  salariesChanged: number;
-  salariesUnchanged: number;
-  managerMappingsSaved: number;
-  ignoredPeople: number;
+export interface EmployeeImportSalaryActionResult {
+  personId: string;
+  status: "updated";
+  updatedAt: string;
+}
+
+export interface EmployeeImportHeadcountResult {
+  headcountsUpdated: number;
+  status: "hc_confirmed";
 }
 
 export type EmployeeImportManualMappings = Record<string, string>;

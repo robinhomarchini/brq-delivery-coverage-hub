@@ -14,15 +14,17 @@ nas rotas backend e no banco.
 3. O backend normaliza nomes removendo acentos, diferenças de caixa e espaços,
    e compara por igualdade exata.
 4. A tela apresenta indicadores e tabelas de conciliação.
-5. Gestores não resolvidos recebem um combo de gestores ativos do sistema.
-6. A contagem por gestor canônico é recalculada conforme o de-para.
-7. O botão de confirmação permanece bloqueado enquanto houver gestor sem
-   resolução.
-8. Na confirmação, o mesmo arquivo é enviado novamente. O backend repete a
-   leitura e o matching, rejeitando resultados manipulados no navegador.
-9. Uma RPC transacional grava os salários válidos encontrados e os de-paras.
-10. A tela informa quantos salários foram alterados, mantidos, ignorados e
-    quantos de-paras foram salvos.
+5. A análise salva o arquivo em bucket privado e cria um lote persistente com
+   snapshot parseado, permitindo retomar o trabalho sem novo upload.
+6. Nomes de gestores não resolvidos recebem um combo com todas as pessoas do
+   cadastro canônico.
+7. A contagem por pessoa canônica é recalculada conforme o de-para.
+8. Cada salário divergente possui botão próprio; a RPC valida o lote, atualiza
+   a remuneração e marca a linha como atualizada com usuário e instante.
+9. A confirmação do HC permanece bloqueada enquanto houver nome sem resolução.
+10. Uma RPC separada salva os de-paras e o HC direto importado de todas as
+    pessoas resolvidas em uma única transação.
+11. Ao abrir a página, o backend devolve o lote mais recente e seus estados.
 
 ## Fonte de verdade
 
@@ -30,7 +32,10 @@ nas rotas backend e no banco.
 - Salário mensal corrente: `person_compensations.annual_salary` (nome legado do
   campo; o valor de produto continua mensal).
 - Alias/de-para de gestor: `employee_import_manager_mappings`.
-- Contagem por gestor: derivada das linhas válidas da planilha após resolução.
+- Lote e snapshot: `employee_import_batches`.
+- Ações salariais: `employee_import_salary_items`.
+- HC direto vigente: campos importados de `people`, atualizados somente após
+  confirmação do lote e exibidos com data/origem.
 
 ## Regras de matching
 
@@ -47,5 +52,5 @@ nas rotas backend e no banco.
 - Somente `.xlsx`.
 - Nenhum salário é devolvido ou gravado para usuário sem a permissão
   `can_manage_person_compensation()`.
-- Nenhum conteúdo do arquivo é escrito em logs.
+- O arquivo bruto fica em bucket privado e nenhum conteúdo é escrito em logs.
 - Mensagens ao usuário não exibem stack trace ou detalhes internos.
