@@ -1,150 +1,64 @@
-# BRQ Delivery Coverage Hub
+# BRQ Delivery Coverage Hub - Agent Entry Point
 
-## Operating mode
+Este arquivo e o ponto de entrada para qualquer agente de engenharia neste
+repositorio. Antes de alterar codigo, leia a documentacao do projeto e use o
+repositorio como fonte da verdade.
 
-Use Spec Driven Development (SDD). Read the feature specification in
-`specs/delivery-coverage-hub/` before changing product behavior.
+## Ordem obrigatoria de leitura
 
-## Virtual squad workflow
+1. `.github/copilot-instructions.md` - constituicao tecnica do projeto.
+2. `docs/project/PROJECT_OVERVIEW.md` - escopo e estado geral.
+3. `docs/project/ARCHITECTURE.md` - camadas, fronteiras e fluxos.
+4. `docs/project/DOMAIN_MODEL.md` e `docs/project/BUSINESS_RULES.md` - dominio e regras confirmadas.
+5. `docs/project/DATABASE.md`, `docs/project/SECURITY.md` e `docs/project/DEPLOYMENT.md` - Supabase, RLS, seguranca e deploy.
+6. `docs/project/CURRENT_STATE.md`, `docs/project/KNOWN_ISSUES.md` e `docs/project/NEXT_STEPS.md` - estado atual e pendencias.
+7. `docs/agent-handoff.md` e `.squad/memory.md` quando estiver retomando trabalho em andamento.
+8. `specs/delivery-coverage-hub/` antes de mudar comportamento de produto.
 
-Use the project-local squad layer as a complementary operating model. For
-non-trivial work, read `.squad/config.yaml` and `.squad/memory.md` after this
-file and before changing code. Treat the main Codex agent as the Tech Lead
-orchestrator: understand the request, inspect the project, identify impacted
-layers, create an execution checklist, reason through specialist review lenses,
-consolidate the solution, and require evidence before completion.
+## Regras permanentes
 
-For feature or bugfix work, use this review sequence:
-Domain check -> Architecture impact -> Database/source-of-truth check ->
-Implementation -> UX Quality Review -> Reuse & Componentization Review ->
-Security/RLS Review -> Database Performance Review -> Final Code Review ->
-evidence-based response.
+- Raiz canonica: `C:\Users\rmarchini\projetos\OrgBRQDelivery`.
+- O banco, as RPCs, RLS e regras de backend sao a fonte de verdade para regras criticas.
+- Nao hardcode IDs, nomes, clientes, pessoas, estudios ou mapeamentos operacionais na UI.
+- Preserve comportamento existente salvo quando a mudanca for explicitamente pedida.
+- Valide banco, backend, frontend, dashboards, relatorios e exportacoes de forma consistente.
+- Revise impactos de Supabase RLS/RBAC, auditoria e seguranca antes de concluir mudancas.
+- Mantenha acesso a dados atras de `src/lib/repositories/` e fronteiras BFF/RPC quando houver mutacao critica.
+- Atualize `docs/project/CURRENT_STATE.md` e `docs/project/DECISIONS.md` apos mudancas relevantes.
 
-Keep `.squad/memory.md` updated with the current objective, decisions, commands,
-pitfalls and next pending step when work changes project behavior. Keep
-`.squad/config.yaml` aligned with actual project standards. Do not replace the
-existing SDD/specs/skills flow; the squad model complements it.
+## Database engineering guardian
 
-## Agent instructions and constitution
+Esta regra se aplica a Codex, Kilo, Claude, Cursor, GitHub Copilot e qualquer
+outro agente automatizado que opere neste repositorio.
 
-- Leia primeiro `.github/copilot-instructions.md` para os princípios canônicos
-  de engenharia e governança do projeto.
-- Use `AGENTS.md` para entender o modo geral de operação, as convenções e o
-  fluxo local do squad.
-- Se houver conflito entre este guia e a Constituição em
-  `.github/copilot-instructions.md`, siga a Constituição com justificativa.
+Antes de planejar qualquer parte de uma tarefa que crie, altere, revise ou
+dependa de SQL, schema, tabela, coluna, constraint, relacionamento, tipo de
+banco, migration, backfill, indice, query, join, view, materialized view,
+function, procedure, RPC, trigger, RLS, grant, seguranca de banco, transacao,
+tipos Supabase, adapter de repositorio, performance ou execution plan:
 
-## Lean enterprise engineering mode
+1. carregue e siga `.agent/skills/database-engineering-guardian/SKILL.md`;
+2. leia os checklists aplicaveis referenciados pela skill;
+3. inclua as validacoes de banco no plano de implementacao;
+4. pare diante de fonte de verdade ou cardinalidade nao resolvida;
+5. apresente evidencias para indices e alegacoes de performance;
+6. preserve o historico de migrations como forward-only.
 
-This repository inherits the global lean enterprise engineering defaults from
-`C:\Users\rmarchini\.codex\AGENTS.md`. Project-local rules below are stricter
-where they mention this app's Supabase, repository, target and UX conventions.
+O arquivo da skill e a unica fonte canonica dessas regras. Adapters de
+ferramentas devem apenas apontar para ele, sem copiar seu conteudo. A existencia
+desta regra nao implica suporte automatico de uma ferramenta sem configuracao
+confirmada no repositorio.
 
-For final handoff after implementation or review, use this structure:
+## Comandos de validacao
 
-- Summary
-- Files Changed
-- Evidence
-- Risks / Pending
-- Next Step
+- Padrao: `npm run lint`, `npm run typecheck`, `npm run validate`, `npm run build`.
+- Fluxos criticos de persistencia: tambem rode `npm run smoke:critical`.
+- Banco, RLS, RPCs ou migrations: tambem rode `npm run db:migrations:check`.
+- Supabase CLI neste projeto: `npx --cache .npm-cache --yes supabase <command> --linked`.
+- Deploy de producao somente pelos scripts versionados: `npm run deploy:check`, `npm run deploy:prod`, `npm run deploy:inspect:prod`.
 
-## Project conventions
+## Politica de alteracao
 
-- Canonical project root: `C:\Users\rmarchini\projetos\OrgBRQDelivery`.
-  Before changing files, verify that `.git`, `package.json`, `src/`, and `supabase/` exist in the working directory. Do not edit the OneDrive stub path `C:\Users\rmarchini\OneDrive - BRQ\Documentos\OrgBRQDelivery` unless the user explicitly asks for it.
-- User-facing copy is Portuguese (pt-BR).
-- Source code, identifiers, components, functions, and comments are English.
-- Keep domain data access behind `src/lib/repositories/`.
-- Preserve local mock repositories until Supabase is explicitly introduced.
-- Reuse components from `src/components/ui/` for interface primitives.
-- Run `npm run lint`, `npm run typecheck`, and `npm run build` after material changes.
-- Run `npm run smoke:critical` before deploy when touching customer/person/target persistence flows.
-- Use `$project-quality-gate` for non-trivial implementation, bug fixing, and handoff.
-- Use `$domain-modeling-data-structure` before model changes involving people, customers, areas/studios, targets, imports, ownership, financial facts, or operational defaults.
-- Use `$database-normalization-audit` for schema, Supabase, RLS, migrations, source-of-truth, and cross-screen data consistency work.
-- Use `$crud-ux-persistence-check` for CRUD forms, save flows, multi-select assignment UX, and persistence feedback.
-- Use `$parallel-agent-orchestration` for broad audits, multi-skill reviews, release readiness, and safe parallel validation.
-- Use `$performance-usability-review` as a parallel pre-deploy UX/CX gate for dashboard, CRUD, KPI, table, modal, and executive 16:9 changes. Treat broken KPI alignment, unreadable currency totals, stale modal state, confusing filters, and misplaced feedback as release blockers for touched screens.
-- Use `$ux-quality-reviewer` after UI changes to inspect concrete screens/components and flag visual, scroll, responsive, navigation, state, modal, validation and accessibility issues.
-- Use `$reuse-componentization-reviewer` after implementation to find real duplication in UI, business logic, formatting, filters, totals, exports and repository calls without over-engineering.
-- Use `$database-performance-reviewer` for Supabase/repository/report/import changes to review query patterns, RLS performance, indexes, RPCs, pagination, transactions and migration safety.
-- For comparison tables with stacked/multi-source rows, use shared stable-height cells such as `StackedComparisonCell`; do not hand-roll multi-line table cells that can wrap labels and desynchronize values across columns.
-- Prefer a single normalized source of truth. Relationship fields shown in UI should be derived from the canonical model whenever possible.
-- Do not hardcode operational people, clients, managers, hunters, farmers, areas, studios, or owners in UI components.
-- Do not duplicate business rules only in UI. Repository, API, RPC, RLS and/or
-  migrations must enforce production-relevant rules when applicable.
-- Run `npm run db:migrations:check` when database, migrations, RLS or RPC
-  behavior is touched.
-- For Supabase CLI automation, use the already-proven project path first:
-  `npx --cache .npm-cache --yes supabase <command> --linked`, from the canonical
-  project root. Do not start with `npx --no-install supabase ...` in this repo;
-  it can touch the global npm cache and fail with EPERM. Use `migration list`
-  before `db push`, parse migration versions, and only use `repair` after
-  confirming the schema was applied. Treat cache/network/PostHog transport
-  failures as transient CLI failures, not as migration drift.
-- For this project, Supabase operations must go through the Supabase CLI. If the
-  sandboxed CLI path fails with npm cache/EPERM, rerun the same
-  `npx --cache .npm-cache --yes supabase ...` command with approved escalation
-  instead of switching to browser/manual SQL or inventing a new path.
-- Automation scripts must use local/project cache paths, bounded retries, and clear failure messages. Do not keep changing command strategy after one path has produced a reliable result.
-- Vercel production operations must use the versioned project scripts only:
-  `npm run deploy:check`, `npm run deploy:prod`, `npm run deploy:inspect:prod`,
-  and `npm run deploy:inspect -- <deployment-url>`. Do not run raw
-  `npx vercel ...` commands in this repo; the scripts load local env files,
-  pin Node/Vercel versions, and isolate Windows cache paths.
-- GitHub Actions status checks should use `npm run github:checks`. If it returns
-  a repository/API 404, do not retry raw `gh run list` variants; validate
-  permissions or inspect the run in GitHub UI.
-
-## Security, incidents and architecture
-
-- Canonical security gates, incident prevention lessons and architecture standards are in `.github/copilot-instructions.md`.
-- In case of conflict, `.github/copilot-instructions.md` is authoritative.
-
-## Project conventions
-
-- Canonical project root: `C:\Users\rmarchini\projetos\OrgBRQDelivery`.
-  Before changing files, verify that `.git`, `package.json`, `src/`, and `supabase/` exist in the working directory. Do not edit the OneDrive stub path `C:\Users\rmarchini\OneDrive - BRQ\Documentos\OrgBRQDelivery` unless the user explicitly asks for it.
-- User-facing copy is Portuguese (pt-BR).
-- Source code, identifiers, components, functions, and comments are English.
-- Keep domain data access behind `src/lib/repositories/`.
-- Preserve local mock repositories until Supabase is explicitly introduced.
-- Reuse components from `src/components/ui/` for interface primitives.
-- Run `npm run lint`, `npm run typecheck`, and `npm run build` after material changes.
-- Run `npm run smoke:critical` before deploy when touching customer/person/target persistence flows.
-- Use `$project-quality-gate` for non-trivial implementation, bug fixing, and handoff.
-- Use `$domain-modeling-data-structure` before model changes involving people, customers, areas/studios, targets, imports, ownership, financial facts, or operational defaults.
-- Use `$database-normalization-audit` for schema, Supabase, RLS, migrations, source-of-truth, and cross-screen data consistency work.
-- Use `$crud-ux-persistence-check` for CRUD forms, save flows, multi-select assignment UX, and persistence feedback.
-- Use `$parallel-agent-orchestration` for broad audits, multi-skill reviews, release readiness, and safe parallel validation.
-- Use `$performance-usability-review` as a parallel pre-deploy UX/CX gate for dashboard, CRUD, KPI, table, modal, and executive 16:9 changes. Treat broken KPI alignment, unreadable currency totals, stale modal state, confusing filters, and misplaced feedback as release blockers for touched screens.
-- Use `$ux-quality-reviewer` after UI changes to inspect concrete screens/components and flag visual, scroll, responsive, navigation, state, modal, validation and accessibility issues.
-- Use `$reuse-componentization-reviewer` after implementation to find real duplication in UI, business logic, formatting, filters, totals, exports and repository calls without over-engineering.
-- Use `$database-performance-reviewer` for Supabase/repository/report/import changes to review query patterns, RLS performance, indexes, RPCs, pagination, transactions and migration safety.
-- For comparison tables with stacked/multi-source rows, use shared stable-height cells such as `StackedComparisonCell`; do not hand-roll multi-line table cells that can wrap labels and desynchronize values across columns.
-- Prefer a single normalized source of truth. Relationship fields shown in UI should be derived from the canonical model whenever possible.
-- Do not hardcode operational people, clients, managers, hunters, farmers, areas, studios, or owners in UI components.
-- Do not duplicate business rules only in UI. Repository, API, RPC, RLS and/or
-  migrations must enforce production-relevant rules when applicable.
-- Run `npm run db:migrations:check` when database, migrations, RLS or RPC
-  behavior is touched.
-- For Supabase CLI automation, use the already-proven project path first:
-  `npx --cache .npm-cache --yes supabase <command> --linked`, from the canonical
-  project root. Do not start with `npx --no-install supabase ...` in this repo;
-  it can touch the global npm cache and fail with EPERM. Use `migration list`
-  before `db push`, parse migration versions, and only use `repair` after
-  confirming the schema was applied. Treat cache/network/PostHog transport
-  failures as transient CLI failures, not as migration drift.
-- For this project, Supabase operations must go through the Supabase CLI. If the
-  sandboxed CLI path fails with npm cache/EPERM, rerun the same
-  `npx --cache .npm-cache --yes supabase ...` command with approved escalation
-  instead of switching to browser/manual SQL or inventing a new path.
-- Automation scripts must use local/project cache paths, bounded retries, and clear failure messages. Do not keep changing command strategy after one path has produced a reliable result.
-- Vercel production operations must use the versioned project scripts only:
-  `npm run deploy:check`, `npm run deploy:prod`, `npm run deploy:inspect:prod`,
-  and `npm run deploy:inspect -- <deployment-url>`. Do not run raw
-  `npx vercel ...` commands in this repo; the scripts load local env files,
-  pin Node/Vercel versions, and isolate Windows cache paths.
-- GitHub Actions status checks should use `npm run github:checks`. If it returns
-  a repository/API 404, do not retry raw `gh run list` variants; validate
-  permissions or inspect the run in GitHub UI.
+- Nao reverta mudancas nao feitas por voce.
+- Nao misture commits de documentacao com codigo de produto quando o trabalho pedir fronteira limpa.
+- Antes do handoff, informe arquivos alterados, validacoes executadas, riscos restantes e proximo passo.

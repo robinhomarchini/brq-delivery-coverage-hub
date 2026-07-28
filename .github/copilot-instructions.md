@@ -108,6 +108,11 @@ Canonical correction:
 
 - Agentes devem começar por este arquivo.
 - `AGENTS.md` e as instruções do projeto devem apontar para ele.
+- Antes de planejar ou alterar qualquer artefato relacionado a banco de dados,
+  o GitHub Copilot deve carregar e seguir a skill canônica
+  `.agent/skills/database-engineering-guardian/SKILL.md` e seus checklists
+  aplicáveis. Esse arquivo é a única fonte de verdade para as regras
+  especializadas de engenharia de banco.
 - Em caso de conflito entre instruções locais e esta Constituição, siga esta Constituição salvo justificativa documentada.
 
 ## Observações

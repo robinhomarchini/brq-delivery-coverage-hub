@@ -35,6 +35,8 @@ import { cn, formatCompactCurrency, formatCurrency } from "@/lib/utils";
 import { defaultTargetYear } from "@/lib/customer-targets";
 import { useAccess } from "@/lib/access-context";
 import { buildHunterAccessScope } from "@/lib/hunter-access-scope";
+import { useDashboardSummary } from "@/hooks/useDashboardSummary";
+import type { DashboardSummaryFilters } from "@/lib/repositories";
 import { buildDashboardData } from "@/lib/dashboardMetrics";
 import type { DashboardData } from "@/lib/dashboardMetrics";
 
@@ -55,11 +57,15 @@ export function ExecutiveDashboard() {
     specialistHunterStudioAssignments,
   });
 
-  const filters = {
-    includeNewLogos,
-    hunterScope,
+  const dashboardFilters: DashboardSummaryFilters = {
     targetYear: defaultTargetYear,
+    includeNewLogos,
+    hunterScopeEnabled: hunterScope.enabled,
+    hunterPersonId: hunterScope.person?.id ?? null,
+    hunterCustomerIds: Array.from(hunterScope.customerIds ?? []),
   };
+
+  const { summary: rpcSummary, financialByCustomer: rpcFinancialByCustomer, loading: rpcLoading, error: rpcError } = useDashboardSummary(dashboardFilters);
 
   const data: DashboardData = buildDashboardData(
     people,
@@ -69,8 +75,17 @@ export function ExecutiveDashboard() {
     studioTargetAllocations,
     boardTargetBaselines,
     areas,
-    filters,
+    {
+      includeNewLogos,
+      hunterScope,
+      targetYear: defaultTargetYear,
+    },
   );
+
+  const summaryLoading = loading ? false : rpcLoading;
+  const summaryError = error ? undefined : rpcError;
+  const effectiveSummary = rpcSummary ?? data.summary;
+  const effectiveFinancialByCustomer = rpcFinancialByCustomer.length > 0 ? rpcFinancialByCustomer : data.financialByCustomer;
 
   if (loading) {
     return (
@@ -108,7 +123,7 @@ export function ExecutiveDashboard() {
     );
   }
 
-  const { summary, financialByCustomer, financialByDirector, financialByManager, roleDistribution, clientsByManager, clientsByDirector, alerts } = data;
+  const { summary, financialByDirector, financialByManager, roleDistribution, clientsByManager, clientsByDirector, alerts } = data;
 
   return (
     <div className="min-w-0 space-y-4">
@@ -155,27 +170,67 @@ export function ExecutiveDashboard() {
       <div id="executive-dashboard" className="min-w-0 space-y-4 rounded-xl">
         <section aria-label="Resumo executivo">
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400">Resumo executivo</h2>
-          <div className="grid min-w-0 grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-8">
-            <KpiSummaryCard label="Meta Board" currencyValue={summary.totalTarget} icon={Target} />
-            <KpiSummaryCard label="Receita Alocada" currencyValue={summary.allocatedPeopleTotal} icon={TrendingUp} />
-            <KpiSummaryCard label="Gap" currencyValue={summary.peopleDelta} icon={ArrowRight} tone={summary.peopleDelta < -0.01 ? "danger" : summary.peopleDelta > 0.01 ? "ok" : "neutral"} />
-            <KpiSummaryCard label="Atingimento" value={`${summary.achievementPercentage.toFixed(1)}%`} icon={ChartIcon} />
-            <KpiSummaryCard label="Clientes" value={summary.customerCount} icon={Building2} />
-            <KpiSummaryCard label="Pessoas Ativas" value={summary.activePeopleCount} icon={UsersRound} />
-            <KpiSummaryCard label="Diretores" value={summary.directorCount} icon={UserCog} />
-            <KpiSummaryCard label="Managers" value={summary.managerCount} icon={UsersRound} />
-          </div>
+          {summaryLoading && !effectiveSummary ? (
+            <div className="grid min-w-0 grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-8">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="h-24 animate-pulse rounded-xl bg-slate-100" />
+              ))}
+            </div>
+          ) : summaryError && !effectiveSummary ? (
+            <Card className="border-red-200 bg-red-50/70">
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="h-5 w-5 text-red-600" aria-hidden="true" />
+                  <div>
+                    <p className="text-sm font-semibold text-red-800">Falha ao carregar o resumo executivo</p>
+                    <p className="mt-1 text-sm text-red-700">{summaryError}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid min-w-0 grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-8">
+              <KpiSummaryCard label="Meta Board" currencyValue={effectiveSummary.totalTarget} icon={Target} />
+              <KpiSummaryCard label="Receita Alocada" currencyValue={effectiveSummary.allocatedPeopleTotal} icon={TrendingUp} />
+              <KpiSummaryCard label="Gap" currencyValue={effectiveSummary.peopleDelta} icon={ArrowRight} tone={effectiveSummary.peopleDelta < -0.01 ? "danger" : effectiveSummary.peopleDelta > 0.01 ? "ok" : "neutral"} />
+              <KpiSummaryCard label="Atingimento" value={`${effectiveSummary.achievementPercentage.toFixed(1)}%`} icon={ChartIcon} />
+              <KpiSummaryCard label="Clientes" value={effectiveSummary.customerCount} icon={Building2} />
+              <KpiSummaryCard label="Pessoas Ativas" value={effectiveSummary.activePeopleCount ?? data.summary.activePeopleCount} icon={UsersRound} />
+              <KpiSummaryCard label="Diretores" value={effectiveSummary.directorCount ?? data.summary.directorCount} icon={UserCog} />
+              <KpiSummaryCard label="Managers" value={effectiveSummary.managerCount ?? data.summary.managerCount} icon={UsersRound} />
+            </div>
+          )}
         </section>
 
         <section aria-label="Composição financeira">
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400">Composição financeira</h2>
-          <div className="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-5">
-            <FinancialKpi label="Meta Board" currencyValue={summary.totalTarget} icon={Target} />
-            <FinancialKpi label="Board Hunter" currencyValue={summary.hunterTarget} icon={UserCog} />
-            <FinancialKpi label="Board Renov. + Ampl." currencyValue={summary.farmerRenewalTarget} icon={BriefcaseBusiness} />
-            <FinancialKpi label="Alocado em Pessoas" currencyValue={summary.allocatedPeopleTotal} icon={Building2} />
-            <FinancialKpi label="Dif. Pessoas x Board" currencyValue={summary.peopleDelta} icon={TrendingUp} tone={summary.peopleDelta < -0.01 ? "danger" : summary.peopleDelta > 0.01 ? "ok" : "neutral"} />
-          </div>
+          {summaryLoading && !effectiveSummary ? (
+            <div className="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-5">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="h-20 animate-pulse rounded-xl bg-slate-100" />
+              ))}
+            </div>
+          ) : summaryError && !effectiveSummary ? (
+            <Card className="border-red-200 bg-red-50/70">
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="h-5 w-5 text-red-600" aria-hidden="true" />
+                  <div>
+                    <p className="text-sm font-semibold text-red-800">Falha ao carregar a composição financeira</p>
+                    <p className="mt-1 text-sm text-red-700">{summaryError}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-5">
+              <FinancialKpi label="Meta Board" currencyValue={effectiveSummary.totalTarget} icon={Target} />
+              <FinancialKpi label="Board Hunter" currencyValue={effectiveSummary.hunterTarget} icon={UserCog} />
+              <FinancialKpi label="Board Renov. + Ampl." currencyValue={effectiveSummary.farmerRenewalTarget} icon={BriefcaseBusiness} />
+              <FinancialKpi label="Alocado em Pessoas" currencyValue={effectiveSummary.allocatedPeopleTotal} icon={Building2} />
+              <FinancialKpi label="Dif. Pessoas x Board" currencyValue={effectiveSummary.peopleDelta} icon={TrendingUp} tone={effectiveSummary.peopleDelta < -0.01 ? "danger" : effectiveSummary.peopleDelta > 0.01 ? "ok" : "neutral"} />
+            </div>
+          )}
         </section>
 
         <section aria-label="Visualizações financeiras">
@@ -183,7 +238,7 @@ export function ExecutiveDashboard() {
           <div className="grid min-w-0 gap-4 lg:grid-cols-2">
             <ChartCard title="Visão Financeira por Cliente">
               {chartsReady ? <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                <BarChart data={financialByCustomer} layout="vertical" margin={{ top: 0, right: 10, left: 42, bottom: 0 }}>
+                <BarChart data={effectiveFinancialByCustomer} layout="vertical" margin={{ top: 0, right: 10, left: 42, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
                   <XAxis type="number" tickFormatter={(value) => formatCompactCurrency(Number(value))} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
                   <YAxis type="category" dataKey="customerCluster" width={120} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />

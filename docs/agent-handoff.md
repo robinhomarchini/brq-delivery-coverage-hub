@@ -4,15 +4,15 @@ Artefato oficial de coordenacao entre Codex, Kilo, ChatGPT e outros agentes de e
 
 ## 1. Metadata
 
-- Atualizado em: 2026-07-28 12:22:24 -03:00
+- Atualizado em: 2026-07-28 15:39:00 -03:00
 - Repositorio: `robinhomarchini/brq-delivery-coverage-hub`
 - Raiz local: `C:\Users\rmarchini\projetos\OrgBRQDelivery`
 - Branch: `main`
-- HEAD atual: ver `git log -1 --oneline` no clone ativo.
-- Ultimo commit de produto confirmado nesta sessao: `a43e995 feat(observability): instrument target saves and challenge analysis`
+- HEAD atual: `6b5bfaf7cce47e0acc9b2de62f3e4f46248ce28a`
+- Ultimo commit de produto confirmado nesta sessao: `6b5bfaf`
 - Baseline de producao conhecida: nao verificado nesta sessao; valor historico conhecido era `3415af1e21813e9bcb2060bbdb3bccebd6afabb2`
 - URL de producao conhecida: `https://brq-delivery-coverage-hub.vercel.app`
-- Agente gerador: Codex
+- Agente gerador: Kilo
 - Proximo agente previsto: Kilo, Codex ou ChatGPT
 
 ## 2. Git status verificado
@@ -25,9 +25,156 @@ Artefato oficial de coordenacao entre Codex, Kilo, ChatGPT e outros agentes de e
 
 ## 3. Objetivo atual
 
-Architecture Epic: Production Observability & Operational Intelligence.
+Dashboard Baseline and Metric Integrity Epic.
 
-Escopo atual: criar uma camada leve de telemetria estruturada e instrumentar capacidades criticas uma por vez. Nao instrumentar o sistema inteiro, nao fazer deploy e nao alterar comportamento funcional.
+Escopo atual: reassess e melhoria do dashboard executivo para se tornar uma ferramenta confiavel de decisao executiva. Prioridades: correção de métricas, consistência da fonte de verdade, consistência de filtros, hierarquia executiva clara, rastreabilidade de drill-down, usabilidade e polimento visual.
+
+## 4. Capacidades implementadas
+
+1. Camada canonical de métricas (`src/lib/dashboardMetrics.ts`).
+2. Reorganização do dashboard executivo com hierarquia clara.
+3. Cards de resumo executivo com métricas de meta, receita alocada, gap e atingimento.
+4. Seção de alertas de gestão com verificações estruturais de qualidade de dados.
+5. Estados de loading, vazio e erro no dashboard.
+6. Testes de contrato de métricas (`scripts/verify-dashboard-metrics.cjs`).
+7. Atualização dos scripts de smoke e performance para refletir a nova arquitetura.
+
+## 5. Arquitetura da camada de métricas
+
+Modulo novo:
+
+- `src/lib/dashboardMetrics.ts`
+
+Função principal:
+
+- `buildDashboardData(people, customers, customerTargets, targetAllocations, studioTargetAllocations, boardTargetBaselines, areas, filters)`: retorna `DashboardData` com resumo executivo, dados financeiros por cliente/diretor/manager, distribuição por perfil, contagem de clientes por responsável e alertas de gestão.
+
+Contrato de filtros (`DashboardFilters`):
+
+- `includeNewLogos`: boolean — controla se new logos entram no escopo de métricas.
+- `hunterScope`: `HunterAccessScope` — controla o escopo de acesso do hunter consult.
+- `targetYear`: number — ano de referência para metas (padrão: 2026).
+
+Métricas canônicas:
+
+| Métrica | Label | Fonte | Filtros |
+|---|---|---|---|
+| totalTarget | Meta Board | Board baseline + getCustomerTotalTarget | includeNewLogos, hunterScope, targetYear |
+| hunterTarget | Board Hunter | Board baseline | idem |
+| farmerRenewalTarget | Board Renov. + Ampl. | Board baseline | idem |
+| allocatedPeopleTotal | Alocado em Pessoas | getCustomerCoverageAllocatedTotal | idem |
+| peopleDelta | Dif. Pessoas x Board | allocatedPeopleTotal - totalTarget | idem |
+| achievementPercentage | Atingimento | (allocatedPeopleTotal / totalTarget) * 100 | idem |
+| customerCount | Clientes | dashboardCustomers.length | idem |
+| activePeopleCount | Pessoas Ativas | activePeople.length | idem |
+
+## 6. Divergências identificadas e resolvidas
+
+- O dashboard anterior não tinha métrica de "receita atual" — apenas "alocado em pessoas" (que é alocação de metas, não receita real). Mantido o comportamento atual e documentado.
+- O dashboard anterior não tinha porcentagem de atingimento — adicionada como métrica derivada.
+- O dashboard anterior não tinha seção de alertas — adicionada com verificações estruturais de qualidade de dados.
+- O dashboard anterior não tinha estados de loading/empty/error — adicionados.
+- O dashboard anterior não tinha drill-down — mantido sem links de navegação por enquanto (requer decisão de negócio sobre quais destinos usar).
+
+## 7. Arquivos modificados
+
+- `src/lib/dashboardMetrics.ts` (novo) — camada canonical de métricas
+- `src/components/dashboard/executive-dashboard.tsx` — reestruturado para usar a camada de métricas
+- `scripts/verify-dashboard-metrics.cjs` (novo) — testes de contrato de métricas
+- `scripts/smoke-critical.mjs` — atualizado para verificar a camada de métricas
+- `scripts/verify-performance-hardening.cjs` — atualizado para a nova arquitetura
+
+## 8. Validacoes executadas
+
+- `npm run lint`: passou.
+- `npm run typecheck`: passou.
+- `npm run test:contracts`: passou.
+- `npm run test:roles`: passou.
+- `npm run test:customer-scope`: passou.
+- `npm run test:reports`: passou.
+- `npm run test:performance`: passou.
+- `npm run test:security`: passou.
+- `npm run smoke:critical`: passou.
+- `npm run build`: passou.
+- `npm run validate`: passou.
+- `npm run deploy:check`: passou.
+
+Pendencias nesta fatia:
+
+- Testes de componentes UI (não há framework de testes React instalado no projeto).
+- Validação manual da UX (requer execução local do Next.js dev server).
+- Drill-down traceability (requer decisão de negócio sobre destinos de navegação).
+
+## 9. Riscos e pendencias
+
+- A métrica "Alocado em Pessoas" reflete alocação de metas, não receita real. O nome pode ser confuso para executivos.
+- O drill-down do dashboard para relatórios detalhados ainda não está implementado (sem links de navegação).
+- A seção de alertas usa regras estruturais simples; thresholds de negócio não foram estabelecidos para alertas de concentração.
+- O AGENTS.md foi modificado por um agente anterior (alterações não relacionadas ao dashboard) — estas não estão incluídas no commit do dashboard.
+
+## 10. Proxima recomendacao
+
+Boundary de commit recomendado para a fatia atual:
+
+`refactor(dashboard): centralize executive metric calculations`
+
+Proximo incremento recomendado:
+
+1. Configurar usuarios RLS de teste (`SUPABASE_RLS_*_EMAIL`/`SUPABASE_RLS_*_PASSWORD`) para validar reconciliacao automatizada.
+2. Revisar plano do RPC: `EXPLAIN ANALYZE` mediu ~2.4ms para CTEs financeiras; nao ha justificativa para indexes adicionais nesta fase.
+3. Expandir reconcilicao para comparar `activePeopleCount`, `directorCount`, `managerCount` entre RPC e dominio local.
+4. Decidir fonte canonica de `current_revenue` antes de exibir cartao correspondente.
+5. Migrar charts e drill-down adicionais gradualmente, comecando por consumidores de baixo risco.
+6. Validar manualmente os cards, filtros e charts no dev server local.
+
+## 10. Metric Layer SQL (novo epic)
+
+Objetivo: camada metrico no Supabase para o dashboard executivo, com reconciliacao e anti-duplicacao.
+
+### Semantica confirmada
+
+- **Meta oficial/autoritativa**: `board_target_baselines.total_target` quando `scenario='board_approved'` e `approved=true`; fallback para `customer_target_years.revenue` quando nao houver baseline.
+- **Baseline Board**: `board_target_baselines.total_target` (= hunter_target + farmer_renewal_target).
+- **Alocacoes por pessoa**: `revenue_target_allocations` — ja contem studio Hunter/manutencao (contained), nao somar novamente.
+- **Alocacoes por area/studio**: `studio_target_allocations` — quebra da `customer_target_years.studio_target`.
+- **Receita atual**: nao existe fonte no banco; apenas mock em `src/data/customerPortfolioData.ts`.
+
+### Arquivos criados/modificados
+
+1. `supabase/migrations/20260728140000_dashboard_customer_metric_view.sql` — view inicial `vw_customer_dashboard_metrics` (movida para historico).
+2. `supabase/migrations/20260728140500_dashboard_executive_summary_rpc.sql` — RPC inicial `get_executive_dashboard_summary()` (movida para historico).
+3. `supabase/migrations/20260728143000_replace_dashboard_view_and_rpc.sql` — substituto atomico: view + RPC alinhados.
+4. `supabase/migrations/20260728144000_dashboard_metric_rpc_org_counts.sql` — extend RPC com contadores organizacionais.
+5. `supabase/migrations/20260728144500_dashboard_metric_rpc_org_counts_fix.sql` — corrige colunas `role_type`/`is_manager` no CTE `people_scope`.
+6. `src/lib/repositories/types.ts` — tipos `DashboardMetricResult`, `DashboardSummaryFilters` com contadores organizacionais.
+7. `src/lib/repositories/supabaseDeliveryRepository.ts` — implementacao do RPC com `p_hunter_person_id`.
+8. `src/lib/repositories/localDeliveryRepository.ts` — fallback via `buildDashboardData` com contadores.
+9. `src/hooks/useDashboardSummary.ts` — hook de consumo do RPC no dashboard.
+10. `src/components/dashboard/executive-dashboard.tsx` — resumo executivo migrado para o hook/RPC com fallback.
+11. `scripts/verify-dashboard-metric-reconciliation.ts` — reconciliacao local vs SQL (TS).
+12. `scripts/verify-dashboard-metric-layer.cjs` — verificacao de invariantes.
+13. `scripts/verify-dashboard-metric-rls.mjs` — smoke test RLS para o dashboard RPC.
+14. `package.json` — comandos de teste e verificacao atualizados.
+
+### Validacoes executadas
+
+- `npm run lint`: passou.
+- `npm run typecheck`: passou.
+- `npm run build`: passou.
+- `npm run validate`: passou.
+- `npm run test:contracts`: passou.
+- `npm run test:roles`: passou.
+- `npm run test:customer-scope`: passou.
+- `npm run test:reports`: passou.
+- `npm run smoke:critical`: passou.
+- `npm run db:migrations:check`: passou (90 migrations locais = 90 remote).
+- `node scripts/verify-dashboard-metric-layer.cjs`: skip por ausencia de usuario RLS autenticado.
+
+### Pendencias
+
+- Reconciliacao automatizada com Supabase autenticado (script atual pula por falta de usuario RLS configurado).
+- Validacao manual da UI com dev server comecou; precisa confirmar cards, filtros, estados e charts.
+- Investigacao de `current_revenue`: `revenue_plans` existe no banco mas carece de processo de atualizacao documentado.
 
 ## 4. Capacidade instrumentada
 
@@ -168,4 +315,4 @@ Proxima capacidade recomendada:
 
 ## 11. Prompt de continuacao
 
-Continue em `C:\Users\rmarchini\projetos\OrgBRQDelivery`. Leia `AGENTS.md`, `.github/copilot-instructions.md`, `.squad/config.yaml`, `.squad/memory.md` e este arquivo. Use Git e codigo como fonte da verdade. O workstream aberto e observabilidade das rotas Metas por Pessoa e Analise de Desafio; nao ampliar para outra capacidade antes de commitar ou encerrar esta fatia. Nao fazer deploy sem autorizacao explicita.
+Continue em `C:\Users\rmarchini\projetos\OrgBRQDelivery`. Leia `AGENTS.md`, `.github/copilot-instructions.md`, `.squad/config.yaml`, `.squad/memory.md` e este arquivo. Use Git e codigo como fonte da verdade. O workstream aberto e o Dashboard Baseline and Metric Integrity Epic; nao ampliar para outra capacidade antes de commitar ou encerrar esta fatia. Nao fazer deploy sem autorizacao explicita.

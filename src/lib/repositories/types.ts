@@ -51,6 +51,41 @@ export interface DeliveryData {
   targetBaselineSnapshots: TargetBaselineSnapshot[];
 }
 
+export interface DashboardMetricSummary {
+  totalTarget: number;
+  boardTotalTarget: number;
+  hunterTarget: number;
+  farmerRenewalTarget: number;
+  allocatedPeopleTotal: number;
+  peopleDelta: number;
+  achievementPercentage: number;
+  customerCount: number;
+  activePeopleCount: number;
+  directorCount: number;
+  managerCount: number;
+}
+
+export interface DashboardMetricFinancialByCustomer {
+  customerCluster: string;
+  revenueCurrent: number;
+  revenueTarget: number;
+  hunterRevenue: number;
+  deliveryFarmerRevenue: number;
+}
+
+export interface DashboardMetricResult {
+  summary: DashboardMetricSummary;
+  financialByCustomer: DashboardMetricFinancialByCustomer[];
+}
+
+export interface DashboardSummaryFilters {
+  targetYear: number;
+  includeNewLogos: boolean;
+  hunterScopeEnabled: boolean;
+  hunterPersonId: string | null;
+  hunterCustomerIds: string[];
+}
+
 export interface DeliveryRepository {
   getAll(): Promise<DeliveryData>;
   findCustomerById(id: string): Promise<Customer | null>;
@@ -75,4 +110,5 @@ export interface DeliveryRepository {
   saveTargetBaselineSnapshot(snapshot: Omit<TargetBaselineSnapshot, "id" | "createdAt">): Promise<TargetBaselineSnapshot>;
   savePersonCustomerTargets(input: PersonCustomerTargetsInput): Promise<DeliveryData>;
   removePersonCustomerTargets(input: PersonCustomerRemovalInput): Promise<DeliveryData>;
+  getDashboardSummary(filters: DashboardSummaryFilters): Promise<DashboardMetricResult>;
 }

@@ -22,6 +22,7 @@
     "smoke:critical": "node scripts/smoke-critical.mjs && node scripts/verify-customer-coverage-status.cjs",
     "smoke:csp": "node scripts/smoke-csp-local.mjs",
     "smoke:rls": "node scripts/smoke-rls-access.mjs",
+    "smoke:rls:dashboard": "node scripts/verify-dashboard-metric-rls.mjs",
     "smoke:rls:provision": "node scripts/provision-rls-smoke-users.mjs",
     "security:check": "node scripts/security-check.mjs",
     "security:pentest-lite": "node scripts/pentest-lite.mjs",
@@ -39,7 +40,10 @@
     "ai:context": "tsx .ai/router/context-selector.ts",
     "test:ai-router": "tsx .ai/router/task-router.test.ts",
     "test:roles": "node scripts/verify-role-domain.cjs",
-    "test:customer-scope": "tsx scripts/verify-customer-target-scope.ts"
+    "test:customer-scope": "tsx scripts/verify-customer-target-scope.ts",
+    "test:dashboard-metrics": "node scripts/verify-dashboard-metrics.cjs",
+    "verify:dashboard-metric-reconciliation": "tsx scripts/verify-dashboard-metric-reconciliation.ts",
+    "verify:dashboard-metric-layer": "node scripts/verify-dashboard-metric-layer.cjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",

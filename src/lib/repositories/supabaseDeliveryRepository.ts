@@ -16,7 +16,7 @@ import type { RoleType } from "@/lib/roles";
 import { boardTargetBaselineRows as fallbackBoardTargetBaselineRows, type BoardTargetBaselineRow } from "@/data/boardTargetBaseline";
 import { getStudioBaselineSource, type StudioBaselineSnapshot, type StudioBaselineSourceCode } from "@/lib/studio-baseline-import";
 import type { TargetBaselineRow, TargetBaselineSnapshot } from "@/lib/target-baseline-import";
-import type { DeliveryData, DeliveryRepository } from "./types";
+import type { DeliveryData, DashboardMetricResult, DashboardSummaryFilters, DeliveryRepository } from "./types";
 import type { PersonCustomerRemovalInput, PersonCustomerTargetsInput } from "./types";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { buildAreaUsages } from "@/lib/area-usage";
@@ -200,6 +200,37 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
 
   async getAll(): Promise<DeliveryData> {
     return this.fetchAll();
+  }
+
+  async getDashboardSummary(filters: DashboardSummaryFilters): Promise<DashboardMetricResult> {
+    const { data, error } = await this.client.rpc("get_executive_dashboard_summary", {
+      p_target_year: filters.targetYear,
+      p_include_new_logos: filters.includeNewLogos,
+      p_hunter_scope_enabled: filters.hunterScopeEnabled,
+      p_hunter_customer_ids: filters.hunterCustomerIds,
+      p_hunter_person_id: filters.hunterPersonId ?? null,
+    });
+    if (error) throw error;
+    const payload = (data as DashboardMetricResult | null) ?? {
+      summary: {
+        totalTarget: 0,
+        boardTotalTarget: 0,
+        hunterTarget: 0,
+        farmerRenewalTarget: 0,
+        allocatedPeopleTotal: 0,
+        peopleDelta: 0,
+        achievementPercentage: 0,
+        customerCount: 0,
+        activePeopleCount: 0,
+        directorCount: 0,
+        managerCount: 0,
+      },
+      financialByCustomer: [],
+    };
+    return {
+      summary: payload.summary,
+      financialByCustomer: payload.financialByCustomer ?? [],
+    };
   }
 
   async findCustomerById(id: string): Promise<Customer | null> {

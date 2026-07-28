@@ -112,4 +112,7 @@ const unavailableProductionRepository: DeliveryRepository = {
   async removePersonCustomerTargets() {
     throw new Error(productionConfigurationError);
   },
+  async getDashboardSummary() {
+    throw new Error(productionConfigurationError);
+  },
 };

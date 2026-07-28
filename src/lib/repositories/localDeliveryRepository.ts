@@ -1,9 +1,10 @@
 import { areas, customers, customerTargets, people, specialistHunterStudioAssignments, studioTargetAllocations, subjects, targetAllocations } from "@/data/mockData";
 import { boardTargetBaselineRows } from "@/data/boardTargetBaseline";
 import type { Area, Customer, Person, PersonCompensation, StudioTargetAllocation, Subject, TargetAllocation } from "@/data/mockData";
-import type { DeliveryData, DeliveryRepository, PersonCustomerRemovalInput, PersonCustomerTargetsInput, SpecialistHunterStudioAssignmentsInput } from "./types";
+import type { DashboardMetricResult, DashboardSummaryFilters, DeliveryData, DeliveryRepository, PersonCustomerRemovalInput, PersonCustomerTargetsInput, SpecialistHunterStudioAssignmentsInput } from "./types";
 import type { StudioBaselineSnapshot } from "@/lib/studio-baseline-import";
 import type { TargetBaselineSnapshot } from "@/lib/target-baseline-import";
+import { buildDashboardData } from "@/lib/dashboardMetrics";
 import { getCustomerTotalTarget } from "@/lib/customer-target-total";
 import { validateArea, validateCustomer, validatePerson, validatePersonCompensation, validateStudioTargetAllocation, validateSubject, validateTargetAllocation } from "@/lib/validation";
 import { buildAreaUsages } from "@/lib/area-usage";
@@ -43,6 +44,44 @@ export class LocalDeliveryRepository implements DeliveryRepository {
       customers: coverage.customers,
       areaUsages,
     });
+  }
+
+  async getDashboardSummary(filters: DashboardSummaryFilters): Promise<DashboardMetricResult> {
+    const data = await this.getAll();
+    const dashboard = buildDashboardData(
+      data.people,
+      data.customers,
+      data.customerTargets,
+      data.targetAllocations,
+      data.studioTargetAllocations,
+      data.boardTargetBaselines,
+      data.areas,
+      {
+        includeNewLogos: filters.includeNewLogos,
+        hunterScope: {
+          enabled: filters.hunterScopeEnabled,
+          person: null,
+          customerIds: new Set(filters.hunterCustomerIds),
+        },
+        targetYear: filters.targetYear,
+      },
+    );
+    return {
+      summary: {
+        totalTarget: dashboard.summary.totalTarget,
+        boardTotalTarget: dashboard.summary.totalTarget,
+        hunterTarget: dashboard.summary.hunterTarget,
+        farmerRenewalTarget: dashboard.summary.farmerRenewalTarget,
+        allocatedPeopleTotal: dashboard.summary.allocatedPeopleTotal,
+        peopleDelta: dashboard.summary.peopleDelta,
+        achievementPercentage: dashboard.summary.achievementPercentage,
+        customerCount: dashboard.summary.customerCount,
+        activePeopleCount: dashboard.summary.activePeopleCount,
+        directorCount: dashboard.summary.directorCount,
+        managerCount: dashboard.summary.managerCount,
+      },
+      financialByCustomer: dashboard.financialByCustomer,
+    };
   }
 
   async findCustomerById(id: string) {
