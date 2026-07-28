@@ -32,10 +32,11 @@ export default function EmployeeImportPage() {
   const [managerMappings, setManagerMappings] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [applying, setApplying] = useState(false);
+  const [applyingAll, setApplyingAll] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [updatingPersonId, setUpdatingPersonId] = useState("");
-  const [applyingAll, setApplyingAll] = useState(false);
+  const [unmatchedSearch, setUnmatchedSearch] = useState("");
 
   const resolvedManagers = useMemo(() => {
     if (!preview) return [];
@@ -74,6 +75,14 @@ export default function EmployeeImportPage() {
       || first.managerName.localeCompare(second.managerName, "pt-BR")
     );
   }, [resolvedManagers]);
+  const filteredUnmatchedPeople = useMemo(() => {
+    const query = unmatchedSearch.trim().toLowerCase();
+    if (!query) return preview?.unmatchedPeople ?? [];
+    return (preview?.unmatchedPeople ?? []).filter((person) =>
+      person.sourceName.toLowerCase().includes(query)
+      || translateUnmatchedReason(person.reason).toLowerCase().includes(query),
+    );
+  }, [preview?.unmatchedPeople, unmatchedSearch]);
 
   useEffect(() => {
     if (!allowed) return;
@@ -429,6 +438,22 @@ export default function EmployeeImportPage() {
                   <CardDescription>Somente estas pessoas podem receber atualização.</CardDescription>
                 </CardHeader>
                 <CardContent>
+                  <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-xs text-slate-500">
+                      {preview.matchedPeople.some((person) => person.currentSalary === null)
+                        ? "Há pessoas sem salário atual cadastrado. Nesses casos, a atualização será uma inclusão."
+                        : "Todos os registros below já possuem salário atual."}
+                    </p>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={handleApplyAll}
+                      disabled={applyingAll || applying || loading || unresolvedManagerCount > 0 || preview.batchStatus === "hc_confirmed"}
+                    >
+                      {applyingAll ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <CheckCheck className="h-4 w-4" />}
+                      Atualizar tudo
+                    </Button>
+                  </div>
                   <div className="max-h-[480px] overflow-auto rounded-xl border">
                     <Table>
                       <TableHeader>
@@ -484,6 +509,13 @@ export default function EmployeeImportPage() {
                   <CardDescription>Ausentes, ambíguas ou sem salário válido permanecem como estão no sistema.</CardDescription>
                 </CardHeader>
                 <CardContent>
+                  <div className="mb-3">
+                    <Input
+                      placeholder="Buscar por nome ou motivo..."
+                      value={unmatchedSearch}
+                      onChange={(event) => setUnmatchedSearch(event.target.value)}
+                    />
+                  </div>
                   <div className="max-h-[480px] overflow-auto rounded-xl border">
                     <Table>
                       <TableHeader>
@@ -493,7 +525,7 @@ export default function EmployeeImportPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {preview.unmatchedPeople.slice(0, visibleUnmatchedLimit).map((person, index) => (
+                        {filteredUnmatchedPeople.slice(0, visibleUnmatchedLimit).map((person, index) => (
                           <TableRow key={`${person.sourceName}-${index}`}>
                             <TableCell className="font-medium text-slate-900">{person.sourceName}</TableCell>
                             <TableCell>{translateUnmatchedReason(person.reason)}</TableCell>
@@ -502,9 +534,11 @@ export default function EmployeeImportPage() {
                       </TableBody>
                     </Table>
                   </div>
-                  {preview.unmatchedPeople.length > visibleUnmatchedLimit && (
+                  {(preview.unmatchedPeople.length > visibleUnmatchedLimit || filteredUnmatchedPeople.length === 0) && (
                     <p className="mt-3 text-sm text-slate-500">
-                      Exibindo as primeiras {visibleUnmatchedLimit} de {preview.unmatchedPeople.length} pessoas não atualizadas.
+                      {filteredUnmatchedPeople.length === 0
+                        ? "Nenhum resultado para o filtro atual."
+                        : `Exibindo as primeiras ${visibleUnmatchedLimit} de ${preview.unmatchedPeople.length} pessoas não atualizadas.`}
                     </p>
                   )}
                 </CardContent>
