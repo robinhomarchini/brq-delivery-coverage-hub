@@ -144,7 +144,7 @@ export function ExecutiveDashboard() {
   const { summary, financialByDirector, financialByManager, roleDistribution, clientsByManager, clientsByDirector, alerts } = data;
 
   return (
-    <div className="min-w-0 space-y-4">
+    <div className="min-w-0 space-y-6">
       <div className="flex min-w-0 flex-col items-stretch justify-between gap-3 lg:flex-row lg:items-end">
         <div className="min-w-0">
           <p className="text-xs uppercase tracking-[0.18em] text-brq-purple">Visão executiva</p>
@@ -185,11 +185,11 @@ export function ExecutiveDashboard() {
         </div>
       </Card>
 
-      <div id="executive-dashboard" className="min-w-0 space-y-4 rounded-xl">
+      <div id="executive-dashboard" className="min-w-0 space-y-6 rounded-xl">
         <section aria-label="Resumo executivo">
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400">Resumo executivo</h2>
           {summaryLoading && !effectiveSummary ? (
-            <div className="grid min-w-0 grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-8">
+            <div className="grid min-w-0 grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
               {Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="h-24 animate-pulse rounded-xl bg-slate-100" />
               ))}
@@ -207,7 +207,7 @@ export function ExecutiveDashboard() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid min-w-0 grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-8">
+            <div className="grid min-w-0 grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-8">
               <KpiSummaryCard label="Meta Board" currencyValue={effectiveSummary.totalTarget} icon={Target} />
               <KpiSummaryCard label="Receita Alocada" currencyValue={effectiveSummary.allocatedPeopleTotal} icon={TrendingUp} />
               <KpiSummaryCard label="Gap" currencyValue={effectiveSummary.peopleDelta} icon={ArrowRight} tone={effectiveSummary.peopleDelta < -0.01 ? "danger" : effectiveSummary.peopleDelta > 0.01 ? "ok" : "neutral"} />
@@ -241,7 +241,7 @@ export function ExecutiveDashboard() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-5">
+            <div className="grid min-w-0 grid-cols-2 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-5">
               <FinancialKpi label="Meta Board" currencyValue={effectiveSummary.totalTarget} icon={Target} />
               <FinancialKpi label="Board Hunter" currencyValue={effectiveSummary.hunterTarget} icon={UserCog} />
               <FinancialKpi label="Board Renov. + Ampl." currencyValue={effectiveSummary.farmerRenewalTarget} icon={BriefcaseBusiness} />
@@ -316,7 +316,7 @@ export function ExecutiveDashboard() {
           <h2 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400">Performance por cliente</h2>
           {customerPerformanceLoading ? (
             <Card className="p-4 shadow-sm">
-              <div className="h-64 animate-pulse rounded-xl bg-slate-100" />
+              <div className="h-40 animate-pulse rounded-xl bg-slate-100" />
             </Card>
           ) : customerPerformanceError ? (
             <Card className="border-red-200 bg-red-50/70">
@@ -342,21 +342,21 @@ export function ExecutiveDashboard() {
                 <table className="min-w-full text-left text-xs leading-5">
                   <thead>
                     <tr className="border-b text-slate-500">
-                      <th className="py-2 pr-3 font-medium">Cliente</th>
-                      <th className="py-2 pr-3 font-medium text-right">Meta</th>
-                      <th className="py-2 pr-3 font-medium text-right">Alocado</th>
-                      <th className="py-2 pr-3 font-medium text-right">Delta</th>
-                      <th className="py-2 pr-3 font-medium text-right">Atingimento</th>
-                      <th className="py-2 font-medium text-right">Responsáveis</th>
+                      <th className="py-1.5 pr-3 font-medium">Cliente</th>
+                      <th className="py-1.5 pr-3 font-medium text-right">Meta</th>
+                      <th className="py-1.5 pr-3 font-medium text-right">Alocado</th>
+                      <th className="py-1.5 pr-3 font-medium text-right">Delta</th>
+                      <th className="py-1.5 pr-3 font-medium text-right">Atingimento</th>
+                      <th className="py-1.5 font-medium text-right">Responsáveis</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {customerPerformanceItems.slice(0, 10).map((item, index) => (
+                    {customerPerformanceItems.slice(0, 8).map((item, index) => (
                       <tr key={item.customerId} className={index > 0 ? "border-t" : ""}>
                         <td className="py-1.5 pr-3 font-medium text-slate-900">{item.customerName}</td>
-                        <td className="py-1.5 pr-3 text-right tabular-nums text-slate-700">{formatCurrency(item.targetAmount)}</td>
-                        <td className="py-1.5 pr-3 text-right tabular-nums text-slate-700">{formatCurrency(item.allocatedTotal)}</td>
-                        <td className={`py-1.5 pr-3 text-right tabular-nums ${item.peopleDelta < -0.01 ? "text-red-600" : item.peopleDelta > 0.01 ? "text-emerald-700" : "text-slate-700"}`}>{formatCurrency(item.peopleDelta)}</td>
+                        <td className="py-1.5 pr-3 text-right tabular-nums text-slate-700">{formatCompactCurrency(item.targetAmount)}</td>
+                        <td className="py-1.5 pr-3 text-right tabular-nums text-slate-700">{formatCompactCurrency(item.allocatedTotal)}</td>
+                        <td className={`py-1.5 pr-3 text-right tabular-nums ${item.peopleDelta < -0.01 ? "text-red-600" : item.peopleDelta > 0.01 ? "text-emerald-700" : "text-slate-700"}`}>{formatCompactCurrency(item.peopleDelta)}</td>
                         <td className={`py-1.5 pr-3 text-right tabular-nums ${item.achievementPercentage >= 100 ? "text-emerald-700" : item.achievementPercentage < 100 ? "text-red-600" : "text-slate-700"}`}>{item.achievementPercentage.toFixed(1)}%</td>
                         <td className="py-1.5 text-right tabular-nums text-slate-700">{item.responsiblePeopleCount}</td>
                       </tr>
