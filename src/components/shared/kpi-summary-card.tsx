@@ -39,14 +39,14 @@ export function KpiSummaryCard({
   const classes = toneClasses[tone];
   const valueClassName = currencyValue === undefined
     ? "text-2xl sm:text-[1.65rem]"
-    : "text-[1.05rem] sm:text-[1.15rem] lg:text-[1.25rem]";
+    : "text-[0.85rem] sm:text-[0.95rem] lg:text-[1.05rem]";
 
   return (
     <Card className={cn("min-w-0 shadow-sm", classes.card, className)}>
-      <CardContent className="grid min-w-0 gap-3 p-4">
+      <CardContent className="grid min-w-0 gap-2 p-3">
         {Icon && (
-          <div className={cn("grid h-10 w-10 shrink-0 place-items-center rounded-lg", classes.icon)}>
-            <Icon className="h-5 w-5" aria-hidden="true" />
+          <div className={cn("grid h-9 w-9 shrink-0 place-items-center rounded-lg", classes.icon)}>
+            <Icon className="h-4 w-4" aria-hidden="true" />
           </div>
         )}
         <div className="min-w-0">
@@ -57,7 +57,7 @@ export function KpiSummaryCard({
             {label}
           </p>
           <p
-            className={cn("mt-1.5 min-w-0 max-w-full break-words font-black leading-tight tracking-normal text-slate-950 tabular-nums", valueClassName)}
+            className={cn("mt-1.5 min-w-0 max-w-full whitespace-nowrap font-black leading-tight tracking-normal text-slate-950 tabular-nums", valueClassName)}
             title={accessibleValue}
             aria-label={`${label}: ${accessibleValue}`}
           >
