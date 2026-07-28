@@ -381,8 +381,10 @@ quando foi usada ou quando o provedor não conseguiu executá-la. Um fallback
 determinístico não pode apagar a pergunta digitada nem se apresentar como se
 fosse uma resposta externa bem-sucedida.
 
-Falhas de reconhecimento de voz devem diferenciar permissão bloqueada, ausência
-de fala, microfone indisponível, interrupção e indisponibilidade do serviço,
+A entrada por voz deve gravar o áudio com a API de mídia do navegador e enviar
+o arquivo somente à rota backend autenticada para transcrição, sem expor a chave
+OpenAI. O usuário controla início e parada da gravação. Falhas devem diferenciar
+permissão bloqueada, microfone indisponível ou ocupado e falha de transcrição,
 preservando sempre a alternativa de entrada por texto.
 
 ## Mapa de Cobertura

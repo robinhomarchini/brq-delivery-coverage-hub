@@ -64,6 +64,17 @@ Gerado em: 2026-07-28 14:30:00 -03:00
     - Fallback deterministico preserva o texto para nova tentativa e nunca e
       rotulado como pesquisa externa bem-sucedida.
 
+17. Audio da Analise de Desafio e capturado no navegador e transcrito no backend.
+    - O frontend usa `MediaRecorder` e envia o blob para uma rota interna
+      autenticada; a chave e a chamada ao provedor de IA permanecem no servidor.
+    - O fluxo nao depende de `webkitSpeechRecognition`, cuja permissao do site
+      nao garante disponibilidade do servico de reconhecimento do Chrome.
+
+18. Respostas de RPC sao adaptadas na fronteira do repositorio.
+    - `get_dashboard_performance_by_customer` retorna campos `snake_case`, que
+      sao convertidos e normalizados antes de compor o modelo de dominio/UI.
+    - Componentes nao devem conhecer o formato bruto do Postgres.
+
 ## Decisoes pendentes
 
 - Definir formalmente o nome e significado de `PersonCompensation.annualSalary`, pois o calculo atual anualiza o valor multiplicando por 12.

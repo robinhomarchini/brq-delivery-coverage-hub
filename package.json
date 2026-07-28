@@ -42,6 +42,7 @@
     "test:roles": "node scripts/verify-role-domain.cjs",
     "test:customer-scope": "tsx scripts/verify-customer-target-scope.ts",
     "test:dashboard-metrics": "node scripts/verify-dashboard-metrics.cjs",
+    "test:dashboard-performance": "tsx scripts/verify-dashboard-performance-mapping.ts",
     "verify:dashboard-metric-reconciliation": "tsx scripts/verify-dashboard-metric-reconciliation.ts",
     "verify:dashboard-metric-layer": "node scripts/verify-dashboard-metric-layer.cjs"
   },

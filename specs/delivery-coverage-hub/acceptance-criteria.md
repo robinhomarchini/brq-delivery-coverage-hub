@@ -165,11 +165,16 @@
 - Quando houver fallback determinístico, a pergunta permanece no campo para
   permitir ajuste ou nova tentativa e a tela não apresenta o fallback como
   pesquisa externa concluída.
-- Erros de voz distinguem permissão bloqueada, ausência de fala, microfone
-  indisponível, interrupção e falha do serviço, sempre permitindo digitação.
+- A voz usa gravação pelo navegador e transcrição em rota backend autenticada,
+  sem depender do serviço nativo `webkitSpeechRecognition` e sem expor chave.
+- Erros de voz distinguem permissão bloqueada, microfone indisponível ou ocupado
+  e falha de transcrição, sempre permitindo digitação.
 - Cards de KPI compartilhados mantêm rótulos e valores legíveis, sem sobreposição
   ou estouro visual em Dashboard Executivo, Clientes, Metas, Relatórios e
   Análise de Desafio.
+- A performance por cliente converte explicitamente o contrato `snake_case` do
+  RPC Supabase para o DTO `camelCase` da aplicação, incluindo valores `numeric`
+  retornados como texto, sem derrubar o dashboard por campos indefinidos.
 - Em telas de iPhone/mobile, a página principal não gera scroll horizontal; se
   uma consulta permitida tiver tabela larga, a rolagem horizontal fica limitada
   ao card/tabela, mantendo cabeçalho, KPIs, filtros e botões enquadrados na

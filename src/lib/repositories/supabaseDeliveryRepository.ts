@@ -242,10 +242,7 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
       p_hunter_person_id: filters.hunterPersonId ?? null,
     });
     if (error) throw error;
-    const payload = (data as CustomerPerformanceResult | null) ?? { items: [] };
-    return {
-      items: payload.items ?? [],
-    };
+    return mapCustomerPerformanceResult(data);
   }
 
   async findCustomerById(id: string): Promise<Customer | null> {
@@ -1155,6 +1152,48 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
     });
   }
 
+}
+
+export function mapCustomerPerformanceResult(data: unknown): CustomerPerformanceResult {
+  if (!isRecord(data) || !Array.isArray(data.items)) {
+    return { items: [] };
+  }
+
+  return {
+    items: data.items
+      .filter(isRecord)
+      .map((item) => ({
+        customerId: readString(item, "customerId", "customer_id"),
+        customerName: readString(item, "customerName", "customer_name"),
+        targetAmount: readNumber(item, "targetAmount", "target_amount"),
+        allocatedTotal: readNumber(item, "allocatedTotal", "allocated_total"),
+        hunterAllocated: readNumber(item, "hunterAllocated", "hunter_allocated"),
+        deliveryFarmerAllocated: readNumber(item, "deliveryFarmerAllocated", "delivery_farmer_allocated"),
+        responsiblePeopleCount: readNumber(item, "responsiblePeopleCount", "responsible_people_count"),
+        peopleDelta: readNumber(item, "peopleDelta", "people_delta"),
+        achievementPercentage: readNumber(item, "achievementPercentage", "achievement_percentage"),
+      }))
+      .filter((item) => item.customerId && item.customerName),
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function readString(record: Record<string, unknown>, camelKey: string, snakeKey: string) {
+  const value = record[camelKey] ?? record[snakeKey];
+  return typeof value === "string" ? value : "";
+}
+
+function readNumber(record: Record<string, unknown>, camelKey: string, snakeKey: string) {
+  const value = record[camelKey] ?? record[snakeKey];
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return 0;
 }
 
 export function createSupabaseDeliveryRepository() {

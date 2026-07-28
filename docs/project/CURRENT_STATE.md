@@ -73,6 +73,16 @@ Gerado em: 2026-07-28 14:30:00 -03:00
   se a pesquisa foi usada ou ficou indisponivel.
 - Fallback deterministico nao apaga a pergunta digitada nem se apresenta como
   pesquisa externa concluida.
-- Reconhecimento de voz diferencia permissao bloqueada, ausencia de fala,
-  microfone indisponivel, interrupcao e indisponibilidade do servico.
+- Captura de voz usa `MediaRecorder` no navegador e transcricao autenticada no
+  backend, sem depender do servico nativo de reconhecimento de fala do Chrome.
+- A integracao diferencia permissao bloqueada, microfone indisponivel, formato
+  invalido, falha de transcricao e indisponibilidade do servico.
 - Nenhuma conversa, contexto de voz ou resultado externo e persistido no banco.
+
+## Dashboard - contrato do RPC de performance
+
+- O repositorio converte explicitamente o payload `snake_case` do RPC
+  `get_dashboard_performance_by_customer` para o modelo `camelCase` da aplicacao.
+- Numeros serializados como texto sao normalizados antes de chegar aos
+  componentes, evitando falhas de renderizacao como chamada de `toFixed` em
+  valor indefinido.

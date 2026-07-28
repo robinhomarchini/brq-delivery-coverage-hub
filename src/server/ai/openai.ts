@@ -15,6 +15,43 @@ export async function generateAiTextWithWebSearch(messages: AiMessage[]) {
   return generateAiResponseText(messages, { webSearch: true });
 }
 
+export async function transcribeAiAudio(audio: Blob, fileName: string) {
+  const config = getAiConfig();
+  if (!config.apiKey) return null;
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30000);
+
+  try {
+    const body = new FormData();
+    body.append("file", audio, fileName);
+    body.append("model", config.transcriptionModel);
+    body.append("language", "pt");
+    body.append("response_format", "json");
+
+    const response = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${config.apiKey}` },
+      body,
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      console.warn("[ai] Audio transcription request failed.", { status: response.status });
+      return null;
+    }
+
+    const data = await response.json() as { text?: string };
+    return data.text?.trim() || null;
+  } catch (error) {
+    console.warn("[ai] Audio transcription request did not complete.", {
+      reason: error instanceof Error ? error.name : "unknown",
+    });
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function generateAiResponseText(messages: AiMessage[], options: { webSearch?: boolean } = {}) {
   const config = getAiConfig();
   if (!config.apiKey) return { text: null, error: "missing_api_key" as const, webSearchUsed: false };

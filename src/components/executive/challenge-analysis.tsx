@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Bot, BrainCircuit, CheckCircle2, Gauge, Info, MessageSquareText, Mic, MicOff, RefreshCw, ShieldAlert, Target, TrendingDown, TrendingUp, UsersRound } from "lucide-react";
 import type { ChallengeAiBaseline, ChallengeAiResult, ChallengeAnalysisRow, ChallengeMarketStatus, ChallengeStatus, ChallengeView } from "@/lib/challenge-analysis";
 import { buildChallengeRows, getChallengeBenchmark } from "@/lib/challenge-analysis";
@@ -45,7 +45,12 @@ export function ChallengeAnalysis() {
   const [openAiPanel, setOpenAiPanel] = useState<AiPanelKey>("answer");
   const [loadingAi, setLoadingAi] = useState(false);
   const [listening, setListening] = useState(false);
+  const [transcribingVoice, setTranscribingVoice] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const authSelection = useMemo(() => createAuthServiceSelection(), []);
   const authService = authSelection.service;
   const canView = canManageCompensation(accessUser, people);
@@ -66,6 +71,12 @@ export function ChallengeAnalysis() {
   const baselineKey = `${view}:${year}`;
   const activeBaseline = aiBaselines[baselineKey] ?? null;
   const activeInteractions = interactionsByBaseline[baselineKey] ?? [];
+
+  useEffect(() => () => {
+    if (recordingTimeoutRef.current) clearTimeout(recordingTimeoutRef.current);
+    if (mediaRecorderRef.current?.state === "recording") mediaRecorderRef.current.stop();
+    mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+  }, []);
 
   async function generateNarrative() {
     setLoadingAi(true);
@@ -127,35 +138,80 @@ export function ChallengeAnalysis() {
     }
   }
 
-  function startVoiceContext() {
-    const speechWindow = window as SpeechRecognitionWindow;
-    const Recognition = speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition;
-    if (!Recognition) {
-      setErrorMessage("Reconhecimento de voz não está disponível neste navegador.");
+  async function startVoiceContext() {
+    if (listening) {
+      mediaRecorderRef.current?.stop();
       return;
     }
 
-    const recognition = new Recognition();
-    recognition.lang = "pt-BR";
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-    recognition.onstart = () => setListening(true);
-    recognition.onend = () => setListening(false);
-    recognition.onerror = (event) => {
-      setListening(false);
-      setErrorMessage(getSpeechRecognitionErrorMessage(event.error));
-    };
-    recognition.onresult = (event) => {
-      const transcript = event.results[0]?.[0]?.transcript?.trim();
-      if (!transcript) return;
-      setErrorMessage("");
-      setContextInput((current) => current ? `${current}\n${transcript}` : transcript);
-    };
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      setErrorMessage("Gravação de voz não está disponível neste navegador. Você pode digitar o contexto.");
+      return;
+    }
+
+    setErrorMessage("");
     try {
-      recognition.start();
-    } catch {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const preferredType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : "";
+      const recorder = new MediaRecorder(stream, preferredType ? { mimeType: preferredType } : undefined);
+      mediaStreamRef.current = stream;
+      mediaRecorderRef.current = recorder;
+      audioChunksRef.current = [];
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) audioChunksRef.current.push(event.data);
+      };
+      recorder.onstop = () => {
+        if (recordingTimeoutRef.current) clearTimeout(recordingTimeoutRef.current);
+        recordingTimeoutRef.current = null;
+        setListening(false);
+        stream.getTracks().forEach((track) => track.stop());
+        mediaStreamRef.current = null;
+        const audio = new Blob(audioChunksRef.current, { type: recorder.mimeType || "audio/webm" });
+        audioChunksRef.current = [];
+        void transcribeVoiceContext(audio);
+      };
+      recorder.start();
+      setListening(true);
+      recordingTimeoutRef.current = setTimeout(() => {
+        if (recorder.state === "recording") recorder.stop();
+      }, 60000);
+    } catch (error) {
       setListening(false);
-      setErrorMessage("O microfone não pôde ser iniciado. Verifique a permissão do navegador e tente novamente.");
+      setErrorMessage(getVoiceCaptureErrorMessage(error));
+    }
+  }
+
+  async function transcribeVoiceContext(audio: Blob) {
+    if (!audio.size) {
+      setErrorMessage("Nenhum áudio foi capturado. Tente novamente.");
+      return;
+    }
+
+    setTranscribingVoice(true);
+    setErrorMessage("");
+    try {
+      const accessToken = authService ? await authService.getAccessToken() : null;
+      const headers: HeadersInit = {};
+      if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+      const body = new FormData();
+      body.append("audio", audio, "contexto.webm");
+      const response = await fetch("/api/challenge-analysis/transcribe", {
+        method: "POST",
+        headers,
+        body,
+      });
+      const data = await response.json() as { transcript?: string; error?: string };
+      if (!response.ok || !data.transcript) {
+        throw new Error(data.error || "Não foi possível transcrever o áudio.");
+      }
+      setContextInput((current) => current ? `${current}\n${data.transcript}` : data.transcript || current);
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Não foi possível transcrever o áudio.");
+    } finally {
+      setTranscribingVoice(false);
     }
   }
 
@@ -263,9 +319,9 @@ export function ChallengeAnalysis() {
             </label>
           </div>
           <div className="flex flex-wrap gap-2 lg:justify-end">
-            <Button type="button" variant="outline" onClick={startVoiceContext} disabled={listening} title="Ditado por voz em português quando suportado pelo navegador">
+            <Button type="button" variant="outline" onClick={() => void startVoiceContext()} disabled={transcribingVoice} title="Gravar e transcrever contexto em português">
               {listening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
-              {listening ? "Ouvindo..." : "Falar contexto"}
+              {transcribingVoice ? "Transcrevendo..." : listening ? "Parar e transcrever" : "Falar contexto"}
             </Button>
             <Button type="button" onClick={generateNarrative} disabled={loadingAi || !rows.length}>
               {loadingAi ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Bot className="h-4 w-4" />}
@@ -670,49 +726,15 @@ function getChallengeViewLabel(view: ChallengeView) {
   return "Delivery";
 }
 
-interface SpeechRecognitionWindow extends Window {
-  SpeechRecognition?: SpeechRecognitionConstructor;
-  webkitSpeechRecognition?: SpeechRecognitionConstructor;
-}
-
-interface SpeechRecognitionConstructor {
-  new (): SpeechRecognitionLike;
-}
-
-interface SpeechRecognitionLike {
-  lang: string;
-  interimResults: boolean;
-  maxAlternatives: number;
-  onstart: (() => void) | null;
-  onend: (() => void) | null;
-  onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null;
-  onresult: ((event: SpeechRecognitionResultEventLike) => void) | null;
-  start: () => void;
-}
-
-interface SpeechRecognitionErrorEventLike {
-  error: string;
-}
-
-function getSpeechRecognitionErrorMessage(error: string) {
-  if (error === "not-allowed" || error === "service-not-allowed") {
+function getVoiceCaptureErrorMessage(error: unknown) {
+  if (error instanceof DOMException && (error.name === "NotAllowedError" || error.name === "SecurityError")) {
     return "O acesso ao microfone foi bloqueado. Autorize o microfone nas permissões do navegador e tente novamente.";
   }
-  if (error === "no-speech") {
-    return "Nenhuma fala foi detectada. Aproxime-se do microfone e tente novamente.";
-  }
-  if (error === "audio-capture") {
+  if (error instanceof DOMException && error.name === "NotFoundError") {
     return "Nenhum microfone disponível foi encontrado. Verifique o dispositivo de áudio.";
   }
-  if (error === "network") {
-    return "O serviço de reconhecimento de voz está indisponível no momento. Você pode digitar o contexto e continuar.";
+  if (error instanceof DOMException && error.name === "NotReadableError") {
+    return "O microfone está sendo usado por outro aplicativo ou não pôde ser lido.";
   }
-  if (error === "aborted") {
-    return "A captura de voz foi interrompida antes de concluir.";
-  }
-  return "Não foi possível capturar a fala. Verifique o microfone ou digite o contexto manualmente.";
-}
-
-interface SpeechRecognitionResultEventLike {
-  results: ArrayLike<ArrayLike<{ transcript: string }>>;
+  return "Não foi possível iniciar a gravação. Verifique o microfone ou digite o contexto manualmente.";
 }
