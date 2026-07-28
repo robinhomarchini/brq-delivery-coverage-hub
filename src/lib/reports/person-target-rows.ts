@@ -1,4 +1,4 @@
-import type { RoleType } from "@/data/mockData";
+import type { RoleType } from "@/lib/roles";
 import {
   buildStudioHunterTotalsByHunterCustomer,
   buildStudioRenewalTotalsByPersonCustomer,

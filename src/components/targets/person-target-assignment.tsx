@@ -3,7 +3,8 @@
 import { useRouter } from "next/navigation";
 import { Plus, Save, Trash2, UserRound } from "lucide-react";
 import { useMemo, useState, type InputHTMLAttributes } from "react";
-import type { Customer, RoleType, StudioTargetAllocation, TargetAllocation, TargetAllocationType } from "@/data/mockData";
+import type { Customer, StudioTargetAllocation, TargetAllocation, TargetAllocationType } from "@/data/mockData";
+import type { RoleType } from "@/lib/roles";
 import { PageHeader } from "@/components/shared/page-header";
 import { ReportExportActions, type ReportColumn } from "@/components/shared/report-export-actions";
 import { ErrorNotice, SuccessNotice } from "@/components/shared/success-notice";
@@ -1070,7 +1071,7 @@ function getExpectedBaseTotalForPerson(roleType: RoleType, rows: PersonTargetRow
   return rows.reduce((total, row) => {
     if (isSpecialistHunterRole(roleType)) return total + row.customerTarget;
     const hunterBase = isHunterRole(roleType) ? row.customerHunterTarget : 0;
-    const deliveryBase = roleType === "Hunter" ? 0 : row.customerFarmerRenewalTarget;
+    const deliveryBase = isHunterRole(roleType) ? 0 : row.customerFarmerRenewalTarget;
     return total + hunterBase + deliveryBase;
   }, 0);
 }

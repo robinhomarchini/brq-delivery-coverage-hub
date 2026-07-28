@@ -3,7 +3,9 @@
 import { Card } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { FilterBar } from "@/components/shared/filter-bar";
+import { translateRole } from "@/lib/roles";
 import type { ReportView } from "@/lib/reports/person-target-official-export";
+import type { RoleType } from "@/lib/roles";
 
 export interface PersonTargetReportFiltersProps {
   view: ReportView;
@@ -16,7 +18,7 @@ export interface PersonTargetReportFiltersProps {
   onSearchChange: (value: string) => void;
   roleType: string;
   onRoleTypeChange: (value: string) => void;
-  roleTypes: string[];
+  roleTypes: RoleType[];
   selectedDirectorId: string;
   onSelectedDirectorIdChange: (value: string) => void;
   directorOptions: Array<{ id: string; name: string }>;
@@ -25,7 +27,7 @@ export interface PersonTargetReportFiltersProps {
   hunterRows: Array<{ hunterId: string; hunterName: string }>;
   selectedPeopleClientPersonId: string;
   onSelectedPeopleClientPersonIdChange: (value: string) => void;
-  peopleClientPersonOptions: Array<{ personId: string; personName: string; roleType: string }>;
+  peopleClientPersonOptions: Array<{ personId: string; personName: string; roleType: RoleType }>;
   includeNewLogos: boolean;
   onIncludeNewLogosChange: (value: boolean) => void;
   showClientCoverageValues: boolean;
@@ -108,7 +110,7 @@ export function PersonTargetReportFilters({
                 <option value="">Escolha uma pessoa para montar a visão</option>
                 {peopleClientPersonOptions.map((person) => (
                   <option key={person.personId} value={person.personId}>
-                    {person.personName} · {person.roleType}
+                    {person.personName} · {translateRole(person.roleType)}
                   </option>
                 ))}
               </Select>
@@ -140,9 +142,9 @@ export function PersonTargetReportFilters({
                   .map((hunter) => <option key={hunter.hunterId} value={hunter.hunterId}>{hunter.hunterName}</option>)}
               </Select>
             ) : (
-              <Select value={roleType} onChange={(event) => onRoleTypeChange(event.target.value)}>
+               <Select value={roleType} onChange={(event) => onRoleTypeChange(event.target.value)}>
                 <option value="">Todos os perfis</option>
-                {roleTypes.map((item) => <option key={item} value={item}>{item}</option>)}
+                {roleTypes.map((item) => <option key={item} value={item}>{translateRole(item)}</option>)}
               </Select>
             )
           )}

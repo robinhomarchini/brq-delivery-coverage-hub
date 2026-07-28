@@ -21,7 +21,7 @@ import { useDeliveryStore } from "@/store/delivery-store";
 import { getCustomerTotalTarget } from "@/lib/customer-target-total";
 import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears } from "@/lib/customer-targets";
 import { formatCurrency, makeId } from "@/lib/utils";
-import { isHunterRole, isTargetAssignableRole } from "@/lib/roles";
+import { isDirectorRole, isExecutiveRole, isHunterRole, isTargetAssignableRole } from "@/lib/roles";
 import { useCloseOnNavigation } from "@/lib/use-close-on-navigation";
 
 const currentYear = defaultTargetYear;
@@ -732,8 +732,8 @@ function buildHierarchySummary(people: Person[], allocations: TargetAllocation[]
   const peopleWithHunterTargets = new Set(annualAllocations
     .filter((allocation) => allocation.type === "hunter")
     .map((allocation) => allocation.personId));
-  const executives = people.filter((person) => person.roleType === "Executive");
-  const directors = people.filter((person) => person.roleType === "Director");
+  const executives = people.filter((person) => isExecutiveRole(person.roleType));
+  const directors = people.filter((person) => isDirectorRole(person.roleType));
   const hunterPeople = people.filter((person) =>
     isHunterRole(person.roleType)
     || peopleWithHunterTargets.has(person.id)

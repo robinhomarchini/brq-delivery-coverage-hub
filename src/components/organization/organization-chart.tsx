@@ -10,13 +10,14 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { useDeliveryStore } from "@/store/delivery-store";
 import { exportElementAsPng } from "@/lib/export";
 import { useCloseOnNavigation } from "@/lib/use-close-on-navigation";
+import { isDirectorRole, isExecutiveRole, isStaffRole } from "@/lib/roles";
 
 export function OrganizationChart() {
   const { people, customers, areas } = useDeliveryStore();
-  const executive = people.find((person) => person.roleType === "Executive");
-  const directors = people.filter((person) => person.roleType === "Director" && person.active);
+  const executive = people.find((person) => isExecutiveRole(person.roleType));
+  const directors = people.filter((person) => isDirectorRole(person.roleType) && person.active);
   const executiveDirectReports = executive
-    ? people.filter((person) => isDirectReportTo(person, executive.id) && person.roleType !== "Director" && person.active)
+    ? people.filter((person) => isDirectReportTo(person, executive.id) && !isDirectorRole(person.roleType) && person.active)
     : [];
   const [expanded, setExpanded] = useState<Record<string, boolean>>({ ane: true, ca: true });
   const [exporting, setExporting] = useState(false);
@@ -63,11 +64,11 @@ export function OrganizationChart() {
   };
 
   function getDisplayClientIds(person: NonNullable<typeof executive>) {
-    if (person.roleType === "Executive") {
+    if (isExecutiveRole(person.roleType)) {
       return unique(people.filter((item) => item.id !== person.id && item.active).flatMap((item) => item.clientIds));
     }
 
-    if (person.roleType === "Director") {
+    if (isDirectorRole(person.roleType)) {
       return unique(people
         .filter((item) => isDirectReportTo(item, person.id))
         .flatMap((item) => item.clientIds));
@@ -117,7 +118,7 @@ export function OrganizationChart() {
 
             <div className="space-y-5">
               {directors.map((director) => {
-                const directReports = people.filter((person) => isDirectReportTo(person, director.id) && person.roleType !== "Director" && person.active);
+                const directReports = people.filter((person) => isDirectReportTo(person, director.id) && !isDirectorRole(person.roleType) && person.active);
                 const isExpanded = expanded[director.id] ?? true;
                 return (
                   <section key={director.id} className="relative grid grid-cols-[28px_minmax(200px,260px)_52px_1fr] items-center">
@@ -153,7 +154,7 @@ export function OrganizationChart() {
                   <div className="border-t-2 border-dashed border-orange-400" />
                   <div>
                     <div className="mb-2 w-fit rounded-full bg-orange-100 px-3 py-1 text-[10px] font-bold tracking-wider text-orange-700">
-                      {person.roleType === "Staff" ? "STAFF" : "REPORT DIRETO"}
+                       {isStaffRole(person.roleType) ? "STAFF" : "REPORT DIRETO"}
                     </div>
                     {renderCard(person, "staff")}
                   </div>

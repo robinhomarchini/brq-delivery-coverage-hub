@@ -2,7 +2,8 @@
 
 import { Pencil, Plus, Power, RotateCcw, ShieldCheck, UserRoundCheck } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Person, RoleType } from "@/data/mockData";
+import type { Person } from "@/data/mockData";
+import type { RoleType } from "@/lib/roles";
 import { PageHeader } from "@/components/shared/page-header";
 import { FilterBar } from "@/components/shared/filter-bar";
 import { PersonAvatar } from "@/components/shared/avatar";
@@ -28,7 +29,7 @@ import { createAccessRepositorySelection } from "@/lib/repositories/accessReposi
 import type { LifecycleStatus } from "@/lib/lifecycle";
 import { getActiveFromLifecycle, getLifecycleStatusBadgeVariant, translateLifecycleStatus } from "@/lib/lifecycle";
 import { makeId } from "@/lib/utils";
-import { getHierarchyLevelForRole, getRoleBadgeVariant, isDeliveryManagerRole, roleTypes, translateRole } from "@/lib/roles";
+import { getHierarchyLevelForRole, getRoleBadgeVariant, isDeliveryManagerRole, isDirectorOrExecutiveRole, roleTypes, translateRole } from "@/lib/roles";
 import { useCloseOnNavigation } from "@/lib/use-close-on-navigation";
 
 type PeopleSortKey = "person" | "jobTitle" | "role" | "director" | "area" | "status";
@@ -69,7 +70,7 @@ export function PeopleManagement() {
   const [formError, setFormError] = useState("");
   const [systemUsers, setSystemUsers] = useState<AccessUser[]>([]);
   const [sortState, setSortState] = useState<SortState<PeopleSortKey>>({ key: "person", direction: "asc" });
-  const directors = people.filter((person) => person.roleType === "Director" || person.roleType === "Executive");
+  const directors = people.filter((person) => isDirectorOrExecutiveRole(person.roleType));
   const jobTitleOptions = useMemo(
     () => Array.from(new Set([...people.map((person) => person.jobTitle).filter(Boolean), ...suggestedJobTitles])).sort((a, b) => a.localeCompare(b)),
     [people],

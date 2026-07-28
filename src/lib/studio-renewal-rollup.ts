@@ -1,4 +1,5 @@
-import type { Area, Person, RoleType, StudioTargetAllocation } from "@/data/mockData";
+import type { Area, Person, StudioTargetAllocation } from "@/data/mockData";
+import type { RoleType } from "@/lib/roles";
 import { isFarmerDeliveryTargetRole } from "@/lib/roles";
 
 export function isStudioRenewalEligibleForFarmer(

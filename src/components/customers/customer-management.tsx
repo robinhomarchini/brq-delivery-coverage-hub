@@ -26,7 +26,7 @@ import { customerCountsTowardTarget, getCustomerTotalTargetFromParts } from "@/l
 import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears } from "@/lib/customer-targets";
 import { getFinancialCustomerMetric } from "@/lib/financial-customers";
 import { formatPercentPtBr, targetMarginPercent } from "@/lib/financial-targets";
-import { isCustomerFarmerResponsibleProfile, isHunterSelectionRole, isSpecialistHunterRole } from "@/lib/roles";
+import { isCustomerFarmerResponsibleProfile, isDirectorRole, isHunterSelectionRole, isSpecialistHunterRole } from "@/lib/roles";
 import { formatCurrency, makeId } from "@/lib/utils";
 import { useCloseOnNavigation } from "@/lib/use-close-on-navigation";
 import { displayDirectorName, OTHER_DIRECTOR_ID, OTHER_DIRECTOR_NAME } from "@/lib/director-governance";
@@ -117,7 +117,7 @@ export function CustomerManagement() {
   const [sortState, setSortState] = useState<SortState<CustomerSortKey>>({ key: "customer", direction: "asc" });
   const directors = useMemo(() => {
     const activeDirectors = people
-      .filter((person) => person.active && person.roleType === "Director")
+      .filter((person) => person.active && isDirectorRole(person.roleType))
       .sort((first, second) => first.name.localeCompare(second.name));
     if (activeDirectors.some((person) => person.id === OTHER_DIRECTOR_ID)) return activeDirectors;
     return [...activeDirectors, makeOtherDirectorOption()];

@@ -30,7 +30,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useDeliveryStore } from "@/store/delivery-store";
 import { exportDeliveryDataAsCsv, exportElementAsPdf } from "@/lib/export";
 import { cn, formatCompactCurrency, formatCurrency, normalizeBusinessName } from "@/lib/utils";
-import { translateRole } from "@/lib/roles";
+import { translateRole, isDeliveryRole, isDirectorRole, isExecutiveRole, isFarmerDeliveryTargetRole, isFarmerRole, isHunterFarmerRole, isHunterRole, isStaffRole } from "@/lib/roles";
 import { applyCustomerTargetsForYear, defaultTargetYear } from "@/lib/customer-targets";
 import { getBoardTargetBaselineRows, getBoardTargetBaselineTotals } from "@/lib/board-target-baseline";
 import { customerCountsTowardTarget, getCustomerTotalTarget } from "@/lib/customer-target-total";
@@ -68,14 +68,14 @@ export function ExecutiveDashboard() {
         && (allocation.hunterPersonId === person.id || allocation.maintenancePersonId === person.id)
       );
   });
-  const directors = activePeople.filter((person) => person.roleType === "Director" || person.roleType === "Executive");
+  const directors = activePeople.filter((person) => isDirectorRole(person.roleType) || isExecutiveRole(person.roleType));
   const managers = activePeople.filter((person) => person.isManager);
-  const farmerDeliveryManagers = managers.filter((person) => person.roleType === "Farmer + Delivery");
-  const deliveryManagers = managers.filter((person) => person.roleType === "Delivery");
-  const hunters = activePeople.filter((person) => person.roleType === "Hunter");
-  const farmers = activePeople.filter((person) => person.roleType === "Farmer");
-  const hunterFarmers = activePeople.filter((person) => person.roleType === "Hunter + Farmer");
-  const staff = activePeople.filter((person) => person.roleType === "Staff");
+  const farmerDeliveryManagers = managers.filter((person) => isFarmerDeliveryTargetRole(person.roleType));
+  const deliveryManagers = managers.filter((person) => isDeliveryRole(person.roleType));
+  const hunters = activePeople.filter((person) => isHunterRole(person.roleType));
+  const farmers = activePeople.filter((person) => isFarmerRole(person.roleType));
+  const hunterFarmers = activePeople.filter((person) => isHunterFarmerRole(person.roleType));
+  const staff = activePeople.filter((person) => isStaffRole(person.roleType));
   const boardRows = getBoardTargetBaselineRows(defaultTargetYear, boardTargetBaselines);
   const boardTotals = getScopedBoardTotals(dashboardCustomers, boardRows, hunterScope.enabled);
   const totalRevenue = boardTotals.totalTarget;
@@ -109,7 +109,7 @@ export function ExecutiveDashboard() {
     .sort((a, b) => Math.max(b.revenueCurrent, b.revenueTarget) - Math.max(a.revenueCurrent, a.revenueTarget))
     .slice(0, 10);
   const financialByDirector = activePeople
-    .filter((person) => person.roleType === "Director")
+    .filter((person) => isDirectorRole(person.roleType))
     .map((director) => {
     const plans = dashboardCustomers.filter((customer) => customer.directorResponsibleId === director.id);
     return {
@@ -135,7 +135,7 @@ export function ExecutiveDashboard() {
     .sort((a, b) => b.revenueTarget - a.revenueTarget);
 
   const distributionByDirector = people
-    .filter((person) => person.roleType === "Director")
+    .filter((person) => isDirectorRole(person.roleType))
     .map((director) => ({
       name: director.name,
       managers: managers.filter((manager) => manager.directorId === director.id).length,

@@ -22,7 +22,7 @@ import { portfolioSource, revenuePlans, type RevenuePlan } from "@/data/customer
 import type { Customer, Person } from "@/data/mockData";
 import { useDeliveryStore } from "@/store/delivery-store";
 import { normalizeName } from "@/lib/financial-customers";
-import { isCustomerManagerProfile, isFarmerDeliveryTargetRole, isHunterRole } from "@/lib/roles";
+import { isCustomerManagerProfile, isDirectorRole, isFarmerDeliveryTargetRole, isHunterRole } from "@/lib/roles";
 import { formatCurrency } from "@/lib/utils";
 import { displayDirectorName } from "@/lib/director-governance";
 
@@ -40,7 +40,7 @@ export function CustomerPortfolioManagement() {
   const [cluster, setCluster] = useState("");
   const portfolioYear = 2026;
   const directors = useMemo(() => people
-    .filter((person) => person.active && person.roleType === "Director")
+    .filter((person) => person.active && isDirectorRole(person.roleType))
     .sort((first, second) => first.name.localeCompare(second.name, "pt-BR")),
   [people]);
   const managers = useMemo(() => people

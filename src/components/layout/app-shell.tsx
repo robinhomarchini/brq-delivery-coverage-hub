@@ -36,7 +36,7 @@ import { Select } from "@/components/ui/select";
 import { isHunterSelectionRole } from "@/lib/roles";
 import { createAccessRepositorySelection } from "@/lib/repositories/accessRepository";
 import { accessUsersChangedEvent } from "@/lib/access-events";
-import type { RoleType } from "@/data/mockData";
+import type { RoleType } from "@/lib/roles";
 
 const navigation = [
   { href: "/", label: "Dashboard Executivo", icon: LayoutDashboard },

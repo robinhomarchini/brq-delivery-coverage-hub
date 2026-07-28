@@ -1,8 +1,9 @@
-import type { Person, RoleType } from "@/data/mockData";
+import type { Person } from "@/data/mockData";
+import type { RoleType } from "@/lib/roles";
 import { Badge } from "@/components/ui/badge";
 import { PersonAvatar } from "@/components/shared/avatar";
 import { cn } from "@/lib/utils";
-import { translateRole } from "@/lib/roles";
+import { translateRole, hasDarkCardTheme } from "@/lib/roles";
 
 const roleStyles: Record<RoleType, string> = {
   Executive: "border-brq-purple bg-gradient-to-br from-brq-purple to-[#5f2098] text-white",
@@ -27,7 +28,7 @@ export function PersonCard({
   clientNames: string[];
   variant?: "executive" | "director" | "manager" | "staff";
 }) {
-  const dark = ["Executive", "Director", "Farmer + Delivery"].includes(person.roleType);
+  const dark = hasDarkCardTheme(person.roleType);
   const isManager = variant === "manager";
   return (
     <article className={cn(

@@ -1,4 +1,4 @@
-import type { RoleType } from "@/data/mockData";
+import type { RoleType } from "@/lib/roles";
 import { isTargetAssignableRole } from "@/lib/roles";
 import { getStudioMaintenancePersonId } from "@/lib/studio-renewal-rollup";
 import { normalizeBusinessName, toFileSlug } from "@/lib/utils";

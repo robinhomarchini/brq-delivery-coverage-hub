@@ -8,17 +8,7 @@ import {
 import { targetMarginPercent } from "@/lib/financial-targets";
 import type { LifecycleStatus } from "@/lib/lifecycle";
 import { OTHER_DIRECTOR_ID, OTHER_DIRECTOR_NAME } from "@/lib/director-governance";
-
-export type RoleType =
-  | "Executive"
-  | "Director"
-  | "Farmer + Delivery"
-  | "Delivery"
-  | "Hunter"
-  | "Hunter Especializado"
-  | "Farmer"
-  | "Hunter + Farmer"
-  | "Staff";
+import type { RoleType } from "@/lib/roles";
 
 export type SubjectStatus = "Ativo" | "Em evolução" | "Atenção" | "Planejado";
 

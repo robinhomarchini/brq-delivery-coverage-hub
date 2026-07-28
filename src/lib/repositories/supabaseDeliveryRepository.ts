@@ -5,7 +5,6 @@ import {
   type CustomerTarget,
   type Person,
   type PersonCompensation,
-  type RoleType,
   type SpecialistHunterStudioAssignment,
   type StudioTargetAllocation,
   type Subject,
@@ -13,6 +12,7 @@ import {
   type TargetAllocation,
   type TargetAllocationType,
 } from "@/data/mockData";
+import type { RoleType } from "@/lib/roles";
 import { boardTargetBaselineRows as fallbackBoardTargetBaselineRows, type BoardTargetBaselineRow } from "@/data/boardTargetBaseline";
 import { getStudioBaselineSource, type StudioBaselineSnapshot, type StudioBaselineSourceCode } from "@/lib/studio-baseline-import";
 import type { TargetBaselineRow, TargetBaselineSnapshot } from "@/lib/target-baseline-import";

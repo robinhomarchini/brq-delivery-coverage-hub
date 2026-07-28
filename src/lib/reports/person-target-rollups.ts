@@ -1,4 +1,4 @@
-import type { RoleType } from "@/data/mockData";
+import type { RoleType } from "@/lib/roles";
 import { isHunterRole } from "@/lib/roles";
 import { getStudioMaintenancePersonId, isStudioRenewalEligibleForFarmer } from "@/lib/studio-renewal-rollup";
 

@@ -1,4 +1,4 @@
-import type { RoleType } from "@/data/mockData";
+import type { RoleType } from "@/lib/roles";
 import { isCustomerFarmerResponsibleProfile, isHunterRole, isSpecialistHunterRole } from "@/lib/roles";
 import { getStudioMaintenancePersonId } from "@/lib/studio-renewal-rollup";
 import type { ReportColumn } from "@/components/shared/report-export-actions";

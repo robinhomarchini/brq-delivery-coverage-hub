@@ -1,5 +1,6 @@
-import type { Person, PersonCompensation, RoleType, StudioTargetAllocation, TargetAllocation } from "@/data/mockData";
-import { isHunterRole } from "@/lib/roles";
+import type { Person, PersonCompensation, StudioTargetAllocation, TargetAllocation } from "@/data/mockData";
+import type { RoleType } from "@/lib/roles";
+import { isDeliveryManagerRole, isDeliveryRole, isFarmerDeliveryTargetRole, isHunterRole } from "@/lib/roles";
 
 export type ChallengeView = "hunters" | "farmers" | "delivery";
 export type ChallengeStatus = "low" | "adequate" | "aggressive" | "missing";
@@ -198,8 +199,8 @@ export function getChallengeMarketSignal(
 
 function isRelevantForView(roleType: RoleType, view: ChallengeView) {
   if (view === "hunters") return isHunterRole(roleType);
-  if (view === "farmers") return roleType === "Farmer" || roleType === "Farmer + Delivery" || roleType === "Hunter + Farmer";
-  return roleType === "Delivery" || roleType === "Farmer + Delivery";
+  if (view === "farmers") return isFarmerDeliveryTargetRole(roleType) && !isDeliveryRole(roleType);
+  return isDeliveryManagerRole(roleType);
 }
 
 function getRelevantTargetTypes(view: ChallengeView) {

@@ -25,9 +25,9 @@ import { isHunterConsultAccess } from "@/lib/access-control";
 import { customerCountsTowardTarget, getCustomerTotalTarget } from "@/lib/customer-target-total";
 import { buildHunterAccessScope } from "@/lib/hunter-access-scope";
 import { formatCurrency, toFileSlug } from "@/lib/utils";
-import { isHunterRole, isSpecialistHunterRole, isTargetAssignableRole } from "@/lib/roles";
+import { isDirectorRole, isHunterRole, isSpecialistHunterRole, isTargetAssignableRole } from "@/lib/roles";
 import { getStudioMaintenancePersonId, isStudioRenewalEligibleForFarmer } from "@/lib/studio-renewal-rollup";
-import type { RoleType } from "@/data/mockData";
+import type { RoleType } from "@/lib/roles";
 import { isOtherDirectorId } from "@/lib/director-governance";
 import {
   buildOfficialRowsForView,
@@ -1002,7 +1002,7 @@ function canConsolidateDirectorReport(
   person: { id: string; roleType: RoleType },
   people: Array<{ id: string; directorId?: string }>,
 ) {
-  return person.roleType === "Director" || people.some((candidate) => candidate.id !== person.id && candidate.directorId === person.id);
+  return isDirectorRole(person.roleType) || people.some((candidate) => candidate.id !== person.id && candidate.directorId === person.id);
 }
 
 function buildPeopleClientRows({

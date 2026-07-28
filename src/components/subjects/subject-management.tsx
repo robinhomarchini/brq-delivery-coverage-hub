@@ -17,6 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useDeliveryStore } from "@/store/delivery-store";
 import { makeId } from "@/lib/utils";
 import { useCloseOnNavigation } from "@/lib/use-close-on-navigation";
+import { isDirectorRole } from "@/lib/roles";
 
 const statuses: SubjectStatus[] = ["Ativo", "Em evolução", "Atenção", "Planejado"];
 
@@ -28,7 +29,7 @@ export function SubjectManagement() {
   const [status, setStatus] = useState("");
   const [editing, setEditing] = useState<Subject | null>(null);
   const [open, setOpen] = useState(false);
-  const owners = people.filter((person) => person.isManager || person.roleType === "Director");
+  const owners = people.filter((person) => person.isManager || isDirectorRole(person.roleType));
 
   const filtered = useMemo(() => subjects.filter((subject) =>
     (!search || `${subject.name} ${subject.description}`.toLowerCase().includes(search.toLowerCase()))
