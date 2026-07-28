@@ -4,12 +4,12 @@ Artefato oficial de coordenacao entre Codex, Kilo, ChatGPT e outros agentes de e
 
 ## 1. Metadata
 
-- Atualizado em: 2026-07-28 11:41:32 -03:00
+- Atualizado em: 2026-07-28 12:16:00 -03:00
 - Repositorio: `robinhomarchini/brq-delivery-coverage-hub`
 - Raiz local: `C:\Users\rmarchini\projetos\OrgBRQDelivery`
 - Branch: `main`
-- HEAD atual: `ac2a33b07d90298993268fda8ef4c1ce4b4d81e6`
-- Ultimo commit confirmado nesta sessao: `ac2a33b security(customers): enforce hunter scoped customer creation`
+- HEAD atual: `6226cd5 feat(audit): add traceability for access administration`
+- Ultimo commit confirmado nesta sessao: `6226cd5 feat(audit): add traceability for access administration`
 - Baseline de producao conhecida: nao verificado nesta sessao; valor historico conhecido era `3415af1e21813e9bcb2060bbdb3bccebd6afabb2`
 - URL de producao conhecida: `https://brq-delivery-coverage-hub.vercel.app`
 - Agente gerador: Codex
@@ -17,47 +17,50 @@ Artefato oficial de coordenacao entre Codex, Kilo, ChatGPT e outros agentes de e
 
 ## 2. Git status verificado
 
-- `git status --short` apos o commit de seguranca e antes do handoff:
+- `git status --short` apos o commit `6226cd5` e antes desta atualizacao:
   - `M .squad/memory.md`
   - `M docs/agent-handoff.md`
   - `M package.json`
-  - `?? scripts/verify-app-access-audit.cjs`
-  - `?? supabase/migrations/20260728113530_add_app_access_domain_audit.sql`
+  - `?? scripts/verify-person-target-audit.cjs`
+  - `?? supabase/migrations/20260728120500_add_person_target_domain_audit.sql`
 - `docs/agent-handoff.md` e `.squad/memory.md` representam o workstream atual de auditoria.
 - `git diff --cached --stat`: sem staged changes.
-- Commit do epic de auditoria: nao executado.
+- Commit do incremento atual de metas por pessoa: nao executado.
 - Deploy: nao executado.
 
 ## 3. Objetivo atual
 
 Architecture Epic: Audit Trail and Change Traceability.
 
-Escopo implementado: auditar uma unica capacidade de negocio sensivel, a administracao de perfis de acesso (`app_users` e `app_access_invites`). Nao aplicar migration em producao, nao alterar dados e nao fazer deploy.
+Escopo atual: auditar uma segunda capacidade de negocio sensivel, metas por pessoa/cliente/ano (`revenue_target_allocations`). Nao aplicar migration em producao, nao alterar dados e nao fazer deploy.
 
 ## 4. Capacidade auditada
 
-Capacidade: administracao de perfis de acesso.
+Capacidade ja commitada em `6226cd5`: administracao de perfis de acesso.
 
-Inclui:
+Capacidade atual pendente: metas por pessoa.
 
-- pre-cadastrar/alterar acesso por `upsert_app_access`;
-- ativar/desativar usuario por `upsert_app_access`;
-- excluir acesso por `delete_app_access`;
-- alteracoes persistidas em `app_users`;
-- alteracoes persistidas em `app_access_invites`.
+Inclui nesta fatia:
+
+- insert/update/delete em `revenue_target_allocations`;
+- alteracoes vindas da tela Metas por Pessoa via BFF/fallback;
+- remocao por `remove_person_customer_targets`;
+- campos de negocio: `customer_id`, `person_id`, `target_type`, `target_year`, `amount`, `own_amount`.
 
 Exclui neste incremento:
 
-- metas, clientes, studios, portfolios, subjects e baselines;
+- clientes, studios, portfolios, subjects e baselines;
 - UI grande de timeline;
 - aplicacao da migration em producao;
 - testes RLS reais contra Supabase remoto.
 
 ## 5. Modelo do evento de auditoria
 
-Migration: `supabase/migrations/20260728113530_add_app_access_domain_audit.sql`.
+Migration base commitada: `supabase/migrations/20260728113530_add_app_access_domain_audit.sql`.
 
-Tabela criada:
+Migration atual pendente: `supabase/migrations/20260728120500_add_person_target_domain_audit.sql`.
+
+Tabela reutilizada:
 
 - `public.domain_audit_events`
 
@@ -81,7 +84,7 @@ Campos principais:
 - `error_category`
 - `created_at`
 
-Acoes controladas neste incremento:
+Acoes controladas ja existentes:
 
 - `app_access.user.created`
 - `app_access.user.updated`
@@ -90,9 +93,16 @@ Acoes controladas neste incremento:
 - `app_access.invite.updated`
 - `app_access.invite.deleted`
 
+Acoes adicionadas nesta fatia:
+
+- `person_target.created`
+- `person_target.updated`
+- `person_target.deleted`
+
 Privacidade:
 
-- payload limitado a `email`, `role`, `active`, `user_id` quando aplicavel e `accepted_at` para convite;
+- payload de acesso limitado a `email`, `role`, `active`, `user_id` quando aplicavel e `accepted_at` para convite;
+- payload de meta por pessoa limitado a ids e valores de negocio, sem nomes ou e-mails;
 - nao armazena tokens, secrets, stack traces ou payload completo de auth;
 - email e dado pessoal, mas necessario para auditoria de acesso.
 
@@ -103,7 +113,7 @@ Retencao:
 
 ## 6. Mecanismo escolhido
 
-Mecanismo: trigger de banco + RPC audited source.
+Mecanismo: trigger de banco + RPC audited source quando disponivel.
 
 - `public.audit_app_access_profile_change()` gera eventos append-only em transacao com a mutacao.
 - Triggers:
@@ -113,6 +123,11 @@ Mecanismo: trigger de banco + RPC audited source.
   - `upsert_app_access` define `app.audit_source = rpc.upsert_app_access`
   - `delete_app_access` define `app.audit_source = rpc.delete_app_access`
 - Escritas diretas nas tabelas de acesso tambem sao auditadas por trigger com `source = db.trigger`.
+- `public.audit_person_target_change()` gera eventos para `revenue_target_allocations`.
+- Trigger atual:
+  - `revenue_target_allocations_domain_audit`
+- `remove_person_customer_targets` define `app.audit_source = rpc.remove_person_customer_targets`.
+- Escritas diretas/fallback em `revenue_target_allocations` sao auditadas por trigger com `source = db.trigger`.
 - Falhas de mutacao nao geram evento de sucesso, porque o evento e gravado na mesma transacao.
 
 ## 7. Contrato de leitura
@@ -131,7 +146,7 @@ Mecanismo: trigger de banco + RPC audited source.
 | Pessoas | `people` | save/delete/status/role | repository/RPC/fallback | editor/admin, alguns casos Hunter scoped | `audit_log` generico |
 | Clientes | `customers`, `customer_target_years` | save/delete/targets | BFF/RPC/repository | editor/admin, Hunter create scoped | `audit_log` generico parcial |
 | Responsaveis cliente | `person_customer_assignments` | replace/delete | RPC/repository | editor/admin/Hunter scoped propria pessoa | `audit_log` generico |
-| Metas pessoa | `revenue_target_allocations` | upsert/delete | BFF/repository | editor/admin/Hunter scoped propria pessoa | `audit_log` generico |
+| Metas pessoa | `revenue_target_allocations` | upsert/delete | BFF/repository | editor/admin/Hunter scoped propria pessoa | `audit_log` generico + novo `domain_audit_events` pendente |
 | Metas Studio | `studio_target_allocations` | upsert/delete | repository | editor/admin/Hunter scoped studio proprio | `audit_log` generico |
 | Hunter Especializado | `specialist_hunter_studio_assignments` | RPC save | RPC | editor/admin | `audit_log` generico |
 | Baselines | snapshot tables | insert/cleanup | repository/script | editor/admin/service role script | `audit_log` generico onde trigger existe |
@@ -144,6 +159,7 @@ Mecanismo: trigger de banco + RPC audited source.
 - RLS ainda permite admin gerenciar diretamente as tabelas de acesso; isso e coberto pelos triggers, mas fica com `source = db.trigger`.
 - Scripts de provisionamento RLS usam service role e podem alterar acesso fora do fluxo UI; triggers devem registrar sucesso com ator nulo quando nao houver `auth.uid()`.
 - Migrations historicas fazem backfills e correcoes; nao representam fluxo runtime auditavel completo.
+- `savePersonCustomerTargets` ainda usa BFF e fallback direto no adapter Supabase; a auditoria por trigger cobre esse caminho sem mudar comportamento.
 
 ## 10. Validacoes executadas
 
@@ -165,7 +181,8 @@ Nao conclusivo:
 
 ## 11. Riscos e pendencias
 
-- Migration nova nao aplicada localmente nem em producao.
+- Migration de acessos commitada, mas ainda nao aplicada localmente nem em producao nesta sessao.
+- Migration atual de metas por pessoa nao aplicada localmente nem em producao.
 - Sem teste real de transacao/RLS em banco local; o teste atual e verificacao de contrato SQL/repository.
 - Nao ha UI de consulta de auditoria ainda.
 - Retencao de eventos de auditoria ainda precisa decisao.
@@ -173,14 +190,14 @@ Nao conclusivo:
 
 ## 12. Proxima recomendacao
 
-Boundary de commit recomendado:
+Boundary de commit recomendado para a fatia atual:
 
-`feat(audit): add traceability for access administration`
+`feat(audit): add traceability for person targets`
 
 Proxima capacidade auditavel recomendada:
 
-- metas por pessoa (`revenue_target_allocations`) ou responsabilidade de cliente (`customers` + `person_customer_assignments`), dependendo de qual fluxo o usuario considerar mais critico para governanca.
+- responsabilidade de cliente (`customers` + `person_customer_assignments`) ou metas por Studio (`studio_target_allocations`), dependendo de qual fluxo o usuario considerar mais critico para governanca.
 
 ## 13. Prompt de continuacao
 
-Continue em `C:\Users\rmarchini\projetos\OrgBRQDelivery`. Leia `AGENTS.md`, `.github/copilot-instructions.md`, `.squad/config.yaml`, `.squad/memory.md` e este arquivo. Use Git e codigo como fonte da verdade. Ha uma migration nova pendente para auditoria de administracao de acessos. Nao aplicar em producao sem autorizacao explicita. Antes de commitar, revisar `git diff`, repetir validacoes relevantes e manter este handoff alinhado.
+Continue em `C:\Users\rmarchini\projetos\OrgBRQDelivery`. Leia `AGENTS.md`, `.github/copilot-instructions.md`, `.squad/config.yaml`, `.squad/memory.md` e este arquivo. Use Git e codigo como fonte da verdade. Ha uma migration nova pendente para auditoria de metas por pessoa. Nao aplicar em producao sem autorizacao explicita. Antes de commitar, revisar `git diff`, repetir validacoes relevantes e manter este handoff alinhado.
