@@ -18,7 +18,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ErrorNotice, SuccessNotice } from "@/components/shared/success-notice";
 import { useDeliveryStore } from "@/store/delivery-store";
 import { useAccess } from "@/lib/access-context";
-import { customerCountsTowardTarget, getCustomerTotalTargetFromParts } from "@/lib/customer-target-total";
+import { getCustomerTotalTargetFromParts } from "@/lib/customer-target-total";
+import { filterCustomersByTargetScope } from "@/lib/domain/customer-target-scope";
 import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears } from "@/lib/customer-targets";
 import { buildHunterAccessScope } from "@/lib/hunter-access-scope";
 import { getCustomerAllocationComposition, getCustomerTargetBreakdown } from "@/lib/customers/customer-coverage-view-model";
@@ -106,7 +107,7 @@ export function BaselineComparison() {
     [scopedYearCustomers],
   );
   const boardComparisonCustomers = useMemo(
-    () => scopedYearCustomers.filter((customer) => includeNewLogos || customerCountsTowardTarget(customer)),
+    () => filterCustomersByTargetScope(scopedYearCustomers, includeNewLogos),
     [includeNewLogos, scopedYearCustomers],
   );
   const boardComparisonCustomerNames = useMemo(

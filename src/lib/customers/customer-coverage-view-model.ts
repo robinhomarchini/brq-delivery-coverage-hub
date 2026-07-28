@@ -1,6 +1,7 @@
 import type { Area, Customer, Person, StudioTargetAllocation, TargetAllocation } from "@/data/mockData";
 import type { SortDirection, SortState } from "@/components/shared/sortable-table-head";
-import { customerCountsTowardTarget, getCustomerEffectiveTotalTarget, getCustomerTotalTarget } from "@/lib/customer-target-total";
+import { getCustomerEffectiveTotalTarget, getCustomerTotalTarget } from "@/lib/customer-target-total";
+import { customerCountsTowardTarget } from "@/lib/domain/customer-target-scope";
 import { displayDirectorName } from "@/lib/director-governance";
 import { isCustomerFarmerResponsibleProfile, isHunterSelectionRole, isSpecialistHunterRole, isTargetAssignableRole } from "@/lib/roles";
 import { formatCurrency, roundCurrency } from "@/lib/utils";

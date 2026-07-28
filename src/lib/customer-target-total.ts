@@ -1,12 +1,9 @@
 import type { Customer } from "@/data/mockData";
+import { customerCountsTowardTarget } from "@/lib/domain/customer-target-scope";
 import { roundCurrency } from "@/lib/utils";
 
 export function getCustomerTotalTarget(customer: Pick<Customer, "hunterTarget" | "farmerRenewalTarget">) {
   return getCustomerTotalTargetFromParts(customer.hunterTarget, customer.farmerRenewalTarget);
-}
-
-export function customerCountsTowardTarget(customer: Pick<Customer, "countsTowardTarget">) {
-  return customer.countsTowardTarget !== false;
 }
 
 export function getCustomerEffectiveTotalTarget(customer: Pick<Customer, "hunterTarget" | "farmerRenewalTarget" | "countsTowardTarget">) {
@@ -17,3 +14,5 @@ export function getCustomerEffectiveTotalTarget(customer: Pick<Customer, "hunter
 export function getCustomerTotalTargetFromParts(hunterTarget: number, farmerRenewalTarget: number) {
   return roundCurrency(hunterTarget + farmerRenewalTarget);
 }
+
+export { customerCountsTowardTarget } from "@/lib/domain/customer-target-scope";

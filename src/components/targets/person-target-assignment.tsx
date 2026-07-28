@@ -15,7 +15,8 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useDeliveryStore } from "@/store/delivery-store";
-import { customerCountsTowardTarget, getCustomerTotalTarget } from "@/lib/customer-target-total";
+import { getCustomerTotalTarget } from "@/lib/customer-target-total";
+import { customerCountsTowardTarget, filterCustomersByTargetScope } from "@/lib/domain/customer-target-scope";
 import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears } from "@/lib/customer-targets";
 import { formatCurrency, toFileSlug } from "@/lib/utils";
 import { isHunterRole, isSpecialistHunterRole, isTargetAssignableRole } from "@/lib/roles";
@@ -66,7 +67,10 @@ export function PersonTargetAssignment() {
     [effectivePersonId, extraCustomerIds, people, selectedPerson?.clientIds, studioTargetAllocations, targetAllocations, year],
   );
   const visibleCustomers = useMemo(
-    () => yearCustomers.filter((customer) => visibleCustomerIds.has(customer.id) && (includeNewLogos || customerCountsTowardTarget(customer))),
+    () => filterCustomersByTargetScope(
+      yearCustomers.filter((customer) => visibleCustomerIds.has(customer.id)),
+      includeNewLogos,
+    ),
     [includeNewLogos, visibleCustomerIds, yearCustomers],
   );
   const visibleCustomerIdSet = useMemo(
@@ -82,7 +86,10 @@ export function PersonTargetAssignment() {
   );
   const availableCustomersToAdd = useMemo(
     () => effectivePersonId
-      ? yearCustomers.filter((customer) => !visibleCustomerIds.has(customer.id) && (includeNewLogos || customerCountsTowardTarget(customer)))
+      ? filterCustomersByTargetScope(
+        yearCustomers.filter((customer) => !visibleCustomerIds.has(customer.id)),
+        includeNewLogos,
+      )
       : [],
     [effectivePersonId, includeNewLogos, visibleCustomerIds, yearCustomers],
   );

@@ -22,7 +22,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useDeliveryStore } from "@/store/delivery-store";
 import { useAccess } from "@/lib/access-context";
 import { isHunterConsultAccess } from "@/lib/access-control";
-import { customerCountsTowardTarget, getCustomerTotalTarget } from "@/lib/customer-target-total";
+import { getCustomerTotalTarget } from "@/lib/customer-target-total";
+import { filterCustomersByTargetScope } from "@/lib/domain/customer-target-scope";
 import { buildHunterAccessScope } from "@/lib/hunter-access-scope";
 import { formatCurrency, toFileSlug } from "@/lib/utils";
 import { isDirectorRole, isHunterRole, isSpecialistHunterRole, isTargetAssignableRole } from "@/lib/roles";
@@ -83,7 +84,7 @@ export function PersonTargetReport() {
   const selectedYear = Number(year) || currentYear;
   const hunterConsultOnly = isHunterConsultAccess(accessUser);
   const baseReportCustomers = useMemo(
-    () => includeNewLogos ? customers : customers.filter(customerCountsTowardTarget),
+    () => filterCustomersByTargetScope(customers, includeNewLogos),
     [customers, includeNewLogos],
   );
   const hunterScope = useMemo(() => buildHunterAccessScope({

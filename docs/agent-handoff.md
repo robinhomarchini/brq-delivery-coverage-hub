@@ -4,12 +4,12 @@ Este arquivo e um artefato oficial de coordenacao entre Codex, Kilo, ChatGPT e o
 
 ## 1. Metadata
 
-- Atualizado em: 2026-07-28 10:07:51 -03:00
+- Atualizado em: 2026-07-28 10:27:18 -03:00
 - Repositorio: `robinhomarchini/brq-delivery-coverage-hub`
 - Raiz local: `C:\Users\rmarchini\projetos\OrgBRQDelivery`
 - Branch: `main`
-- HEAD de produto antes deste commit documental: `3415af1e21813e9bcb2060bbdb3bccebd6afabb2`
-- Commit de handoff: este commit documental (`docs: add agent handoff workflow`)
+- HEAD antes desta sessao: `4546a30850a729f0986a1867472d32d05fd95129`
+- Baseline de produto antes desta sessao: `3415af1e21813e9bcb2060bbdb3bccebd6afabb2`
 - Baseline de producao conhecida: `3415af1e21813e9bcb2060bbdb3bccebd6afabb2`
 - URL de producao conhecida: `https://brq-delivery-coverage-hub.vercel.app`
 - Agente gerador: Codex
@@ -17,19 +17,30 @@ Este arquivo e um artefato oficial de coordenacao entre Codex, Kilo, ChatGPT e o
 
 ## 2. Git status verificado
 
-- `git status --short` antes do commit documental: apenas `?? docs/agent-handoff.md`
+- `git status --short` apos a extracao atual:
+  - `M package.json`
+  - `M src/components/customers/customer-management.tsx`
+  - `M src/components/dashboard/executive-dashboard.tsx`
+  - `M src/components/insights/baseline-comparison.tsx`
+  - `M src/components/reports/person-target-report.tsx`
+  - `M src/components/targets/person-target-assignment.tsx`
+  - `M src/components/targets/specialist-hunter-target-assignment.tsx`
+  - `M src/lib/customer-target-total.ts`
+  - `M src/lib/customers/customer-coverage-view-model.ts`
+  - `M docs/agent-handoff.md`
+  - `?? scripts/verify-customer-target-scope.ts`
+  - `?? src/lib/domain/`
 - `git branch --show-current`: `main`
-- `git rev-parse HEAD`: `3415af1e21813e9bcb2060bbdb3bccebd6afabb2`
-- `git diff --stat`: sem diff de arquivos rastreados
-- `git diff`: sem diff de arquivos rastreados
+- `git rev-parse HEAD`: `4546a30850a729f0986a1867472d32d05fd95129`
+- `git diff --stat`: diff pequeno de produto + handoff; sem migracoes/Supabase.
+- `git diff`: revisado para a capacidade de escopo New Logo.
 - `git diff --cached --stat`: sem staged changes
 - `git diff --cached`: sem staged changes
-- Arquivos untracked antes do commit documental: `docs/agent-handoff.md`
-- Estado esperado apos o commit documental: working tree limpa
+- Arquivos untracked atuais: `scripts/verify-customer-target-scope.ts`
 
 ## 3. Objetivo atual
 
-Estabelecer este handoff como referencia oficial de coordenacao de engenharia, separado dos commits de implementacao de produto.
+Backend Business Rules Consolidation: migrar uma capacidade deterministica para um contrato de dominio/backend-safe sem alterar comportamento.
 
 ## 4. Decisoes aprovadas
 
@@ -51,26 +62,50 @@ Estabelecer este handoff como referencia oficial de coordenacao de engenharia, s
 - `Manager` nao aparece em `ROLE_TYPES` ou `ROLE_DEFINITIONS`.
 - Nenhuma referencia ativa de runtime para `OrganizationChartV2`, `organization-chart-v2`, `useOrganizationTree` ou `use-organization-tree` foi encontrada; as referencias restantes sao avisos documentais.
 - Migracoes historicas contem listas antigas de papeis, mas a migracao canonica de `Hunter Especializado` contem o conjunto atual. Nao tratar migracao antiga isolada como drift real.
+- `src/lib/domain/customer-target-scope.ts` concentra a regra de escopo de clientes que compoem meta/New Logo.
 
 ## 6. Trabalho concluido
 
 - `d1dd7b2 feat(roles): centralize role domain definitions and migrate active consumers`
 - `3415af1 chore: harden role validation docs`
+- `4546a30 docs: add agent handoff workflow`
 - `npm run validate` inclui `npm run test:roles`.
 - Deploy anterior conhecido da baseline `3415af1` foi inspecionado como Ready.
-- Esta sessao nao alterou codigo de produto.
+- Nesta sessao, foi migrada a capacidade `Target Customer Scope` para um contrato de dominio/backend-safe:
+  - novo modulo: `src/lib/domain/customer-target-scope.ts`;
+  - `customerCountsTowardTarget` continua definindo que `countsTowardTarget !== false` compoe meta;
+  - `customerBelongsToTargetScope` centraliza a decisao por cliente;
+  - `filterCustomersByTargetScope` centraliza a filtragem de listas quando o usuario inclui ou exclui New Logos.
+- Consumidores atualizados: Clientes, Dashboard Executivo, Relatorio de Metas, Comparativo Baseline, Metas por Pessoa, Metas de Hunter Especializado e coverage view model.
+- Teste de contrato adicionado: `scripts/verify-customer-target-scope.ts`.
+- `npm run validate` agora inclui `npm run test:customer-scope`.
 
 ## 7. Trabalho pendente
 
 - Manter este arquivo em commits documentais separados quando a alteracao for apenas coordenacao de agentes.
+- Commitar a migracao atual em um commit de produto pequeno, se aprovado.
+- Corrigir/decidir politica definitiva para avisos CRLF do Git; eles apareceram em `package.json` e `src/components/reports/person-target-report.tsx`, mas nao bloquearam validacoes.
 - Em futura tarefa pequena, melhorar `scripts/verify-role-domain.cjs` para varrer novas constraints/RPCs de papeis sem confundir migracoes historicas supersedidas.
 - Revisar comparacoes literais de papeis restantes e classificar como filtro intencional, label de UI ou candidato a helper.
 - Reautenticar GitHub CLI antes de confiar em `npm run github:checks`.
+- Capacidades duplicadas restantes mapeadas:
+  - Studio contido / Meta Squads-Times liquida;
+  - escopo de acesso Hunter;
+  - composicao de portfolio cliente x pessoas;
+  - agregacoes de relatorios oficiais;
+  - KPIs executivos e comparativos com baseline;
+  - analise de desafio por perfil/senioridade.
 
 ## 8. Validacoes
 
-- Executadas nesta sessao de handoff: comandos Git listados na secao 2 e inspecoes por `rg`/`Get-Content` em roles, mockData, organograma, migracoes, scripts de validacao e contratos.
-- Nao executadas nesta sessao: lint, typecheck, build, smoke, migracoes e deploy, pois a tarefa e documental.
+- Executadas nesta sessao:
+  - `npm run test:customer-scope`: passou.
+  - `npm run lint`: passou.
+  - `npm run typecheck`: falhou uma vez por tipo fraco no teste/helper, corrigido, depois passou.
+  - `npm run validate`: passou.
+  - `npm run build`: passou.
+  - `npm run test:performance`: passou.
+- Nao executadas nesta sessao: smoke, Supabase migration check, deploy.
 - Ultima baseline de produto conhecida passou anteriormente em: `npm run test:roles`, `npm run validate`, `npm run test:performance`, `npm run test:security`, `npm run smoke:critical`, `npm run build`, `npm run db:migrations:check`, `git diff --check`, `npm run deploy:check`, `npm run deploy:prod`, `npm run deploy:inspect:prod` e `npm run security:pentest-lite`.
 - `npm run github:checks` falhou anteriormente por autenticacao do GitHub CLI, nao por erro de codigo.
 

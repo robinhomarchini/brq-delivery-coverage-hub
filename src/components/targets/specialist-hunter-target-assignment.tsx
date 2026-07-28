@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useDeliveryStore } from "@/store/delivery-store";
-import { customerCountsTowardTarget } from "@/lib/customer-target-total";
+import { customerCountsTowardTarget } from "@/lib/domain/customer-target-scope";
 import { applyCustomerTargetsForYear, defaultTargetYear, getAvailableTargetYears } from "@/lib/customer-targets";
 import { formatCurrencyInput, formatCurrencyInputValue, parseCurrencyInput } from "@/lib/currency-input";
 import { isSpecialistHunterRole } from "@/lib/roles";

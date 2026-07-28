@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "validate": "npm run lint && npm run typecheck && npm run test:contracts && npm run test:roles && npm run test:reports",
+    "validate": "npm run lint && npm run typecheck && npm run test:contracts && npm run test:roles && npm run test:customer-scope && npm run test:reports",
     "start": "next start",
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",
@@ -36,7 +36,8 @@
     "ai:route": "tsx .ai/router/task-router.ts",
     "ai:context": "tsx .ai/router/context-selector.ts",
     "test:ai-router": "tsx .ai/router/task-router.test.ts",
-    "test:roles": "node scripts/verify-role-domain.cjs"
+    "test:roles": "node scripts/verify-role-domain.cjs",
+    "test:customer-scope": "tsx scripts/verify-customer-target-scope.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",

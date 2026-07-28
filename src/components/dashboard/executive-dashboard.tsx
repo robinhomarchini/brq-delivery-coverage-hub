@@ -33,7 +33,8 @@ import { cn, formatCompactCurrency, formatCurrency, normalizeBusinessName } from
 import { translateRole, isDeliveryRole, isDirectorRole, isExecutiveRole, isFarmerDeliveryTargetRole, isFarmerRole, isHunterFarmerRole, isHunterRole, isStaffRole } from "@/lib/roles";
 import { applyCustomerTargetsForYear, defaultTargetYear } from "@/lib/customer-targets";
 import { getBoardTargetBaselineRows, getBoardTargetBaselineTotals } from "@/lib/board-target-baseline";
-import { customerCountsTowardTarget, getCustomerTotalTarget } from "@/lib/customer-target-total";
+import { getCustomerTotalTarget } from "@/lib/customer-target-total";
+import { filterCustomersByTargetScope } from "@/lib/domain/customer-target-scope";
 import { getCustomerCoverageAllocatedTotal } from "@/lib/customers/customer-coverage-view-model";
 import { useAccess } from "@/lib/access-context";
 import { buildHunterAccessScope } from "@/lib/hunter-access-scope";
@@ -54,7 +55,7 @@ export function ExecutiveDashboard() {
     studioTargetAllocations,
     specialistHunterStudioAssignments,
   });
-  const dashboardCustomers = (includeNewLogos ? financialCustomers : financialCustomers.filter(customerCountsTowardTarget))
+  const dashboardCustomers = filterCustomersByTargetScope(financialCustomers, includeNewLogos)
     .filter((customer) => !hunterScope.enabled || hunterScope.customerIds.has(customer.id));
   const scopedCustomerIds = new Set(dashboardCustomers.map((customer) => customer.id));
   const activePeople = people.filter((person) => {
