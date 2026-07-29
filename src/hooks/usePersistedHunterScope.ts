@@ -52,5 +52,5 @@ export function usePersistedHunterScope(derivedScope: {
       window.sessionStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
     }
     return merged;
-  }, [derivedScope.enabled, derivedScope.person?.id, customerIdsKey]);
+  }, [derivedScope.enabled, derivedScope.person?.id, customerIds]);
 }

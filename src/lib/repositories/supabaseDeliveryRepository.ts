@@ -13,7 +13,7 @@ import {
   type TargetAllocationType,
 } from "@/data/mockData";
 import type { RoleType } from "@/lib/roles";
-import { boardTargetBaselineRows as fallbackBoardTargetBaselineRows, type BoardTargetBaselineRow } from "@/data/boardTargetBaseline";
+import type { BoardTargetBaselineRow } from "@/data/boardTargetBaseline";
 import { getStudioBaselineSource, type StudioBaselineSnapshot, type StudioBaselineSourceCode } from "@/lib/studio-baseline-import";
 import type { TargetBaselineRow, TargetBaselineSnapshot } from "@/lib/target-baseline-import";
 import type { DeliveryData, DashboardMetricResult, DashboardSummaryFilters, DeliveryRepository, CustomerPerformanceResult } from "./types";
@@ -154,11 +154,6 @@ type SpecialistHunterStudioAssignmentRow = {
   target_year: number;
   assigned_amount?: number | string | null;
   notes: string | null;
-};
-
-type TerritoryAreaRow = {
-  id: string;
-  area_id: string | null;
 };
 
 type BoardTargetBaselineDbRow = {
@@ -537,67 +532,37 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
   }
 
   private async fetchAll(): Promise<DeliveryData> {
-    const [areasResult, peopleResult, personCompensationsResult, customersResult, customerTargetsResult, subjectsResult, assignmentsResult, targetAllocationsResult, studioTargetAllocationsResult, specialistHunterStudioAssignmentsResult, territoriesResult, boardTargetBaselinesResult, studioBaselineSnapshotsResult, targetBaselineSnapshotsResult] = await Promise.all([
-      this.client.from("areas").select("*").order("name"),
-      this.client.from("people").select("*").order("hierarchy_level").order("name"),
-      this.client.from("person_compensations").select("*").order("person_id"),
-      this.client.from("customers").select("*").order("name"),
-      this.client.from("customer_target_years").select("*").order("target_year", { ascending: false }).order("customer_id"),
-      this.client.from("subjects").select("*").order("name"),
-      this.client.from("person_customer_assignments").select("person_id, customer_id"),
-      this.client.from("revenue_target_allocations").select("*").order("target_year", { ascending: false }).order("customer_id"),
-      this.client.from("studio_target_allocations").select("*").order("target_year", { ascending: false }).order("customer_id"),
-      this.client.from("specialist_hunter_studio_assignments").select("*").order("target_year", { ascending: false }).order("person_id"),
-      this.client.from("territories").select("id, area_id"),
-      this.client.from("board_target_baselines").select("*").eq("approved", true).order("baseline_year", { ascending: false }).order("customer_name"),
-      this.client.from("studio_baseline_snapshots").select("*").order("created_at", { ascending: false }).limit(20),
-      this.client.from("target_baseline_snapshots").select("*").order("created_at", { ascending: false }).limit(20),
-    ]);
-
-    const error = areasResult.error ?? peopleResult.error ?? customersResult.error ?? subjectsResult.error;
+    const { data, error } = await this.client.rpc("get_full_delivery_data");
     if (error) throw error;
 
-    const people = (peopleResult.data as PersonRow[]).map(fromPersonRow);
-    const customerTargets = customerTargetsResult.error
-      ? (customersResult.data as CustomerRow[]).map(fromLegacyCustomerTargetRow)
-      : (customerTargetsResult.data as CustomerTargetRow[]).map(fromCustomerTargetRow);
-    const customers = applyCustomerTargetsForYear((customersResult.data as CustomerRow[]).map(fromCustomerRow), customerTargets, 2026);
-    const assignments = assignmentsResult.error
-      ? buildAssignmentsFromCoverage(people, customers)
-      : (assignmentsResult.data as AssignmentRow[]).map(fromAssignmentRow);
+    const payload = (data ?? {}) as Record<string, unknown>;
+    const people = ((payload.people ?? []) as unknown[]).map((row) => fromPersonRow(row as never));
+    const customerTargets = Array.isArray(payload.customerTargets) && payload.customerTargets.length
+      ? (payload.customerTargets as unknown[]).map((row) => fromCustomerTargetRow(row as never))
+      : ((payload.customers ?? []) as unknown[]).map((row) => fromLegacyCustomerTargetRow(row as never));
+    const customers = applyCustomerTargetsForYear(((payload.customers ?? []) as unknown[]).map((row) => fromCustomerRow(row as never)), customerTargets, 2026);
+    const assignments = Array.isArray(payload.assignments) && payload.assignments.length
+      ? (payload.assignments as unknown[]).map((row) => fromAssignmentRow(row as never))
+      : buildAssignmentsFromCoverage(people, customers);
     const coverage = applyCoverageAssignments(people, customers, assignments);
-    const territoryRefs = territoriesResult.error
-      ? []
-      : (territoriesResult.data as TerritoryAreaRow[]).map((row) => ({ areaId: row.area_id }));
+    const territoryRefs = Array.isArray(payload.territoryRefs)
+      ? ((payload.territoryRefs as unknown[]).map((row) => ({ areaId: (row as { areaId: string }).areaId })))
+      : [];
 
     return {
-      areas: (areasResult.data as AreaRow[]).map(fromAreaRow),
+      areas: ((payload.areas ?? []) as unknown[]).map((row) => fromAreaRow(row as never)),
       people: coverage.people,
-      personCompensations: personCompensationsResult.error
-        ? []
-        : (personCompensationsResult.data as PersonCompensationRow[]).map(fromPersonCompensationRow),
+      personCompensations: ((payload.personCompensations ?? []) as unknown[]).map((row) => fromPersonCompensationRow(row as never)),
       customers: coverage.customers,
       customerTargets,
-      subjects: (subjectsResult.data as SubjectRow[]).map(fromSubjectRow),
+      subjects: ((payload.subjects ?? []) as unknown[]).map((row) => fromSubjectRow(row as never)),
       areaUsages: buildAreaUsages(coverage.people, territoryRefs),
-      targetAllocations: targetAllocationsResult.error
-        ? []
-        : (targetAllocationsResult.data as TargetAllocationRow[]).map(fromTargetAllocationRow),
-      studioTargetAllocations: studioTargetAllocationsResult.error
-        ? []
-        : (studioTargetAllocationsResult.data as StudioTargetAllocationRow[]).map(fromStudioTargetAllocationRow),
-      specialistHunterStudioAssignments: specialistHunterStudioAssignmentsResult.error
-        ? []
-        : (specialistHunterStudioAssignmentsResult.data as SpecialistHunterStudioAssignmentRow[]).map(fromSpecialistHunterStudioAssignmentRow),
-      boardTargetBaselines: boardTargetBaselinesResult.error
-        ? fallbackBoardTargetBaselineRows
-        : (boardTargetBaselinesResult.data as BoardTargetBaselineDbRow[]).map(fromBoardTargetBaselineDbRow),
-      studioBaselineSnapshots: studioBaselineSnapshotsResult.error
-        ? []
-        : (studioBaselineSnapshotsResult.data as StudioBaselineSnapshotRow[]).map(fromStudioBaselineSnapshotRow),
-      targetBaselineSnapshots: targetBaselineSnapshotsResult.error
-        ? []
-        : (targetBaselineSnapshotsResult.data as TargetBaselineSnapshotRow[]).map(fromTargetBaselineSnapshotRow),
+      targetAllocations: ((payload.targetAllocations ?? []) as unknown[]).map((row) => fromTargetAllocationRow(row as never)),
+      studioTargetAllocations: ((payload.studioTargetAllocations ?? []) as unknown[]).map((row) => fromStudioTargetAllocationRow(row as never)),
+      specialistHunterStudioAssignments: ((payload.specialistHunterStudioAssignments ?? []) as unknown[]).map((row) => fromSpecialistHunterStudioAssignmentRow(row as never)),
+      boardTargetBaselines: ((payload.boardTargetBaselines ?? []) as unknown[]).map((row) => fromBoardTargetBaselineDbRow(row as never)),
+      studioBaselineSnapshots: ((payload.studioBaselineSnapshots ?? []) as unknown[]).map((row) => fromStudioBaselineSnapshotRow(row as never)),
+      targetBaselineSnapshots: ((payload.targetBaselineSnapshots ?? []) as unknown[]).map((row) => fromTargetBaselineSnapshotRow(row as never)),
     };
   }
 
