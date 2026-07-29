@@ -23,6 +23,7 @@
     "smoke:csp": "node scripts/smoke-csp-local.mjs",
     "smoke:rls": "node scripts/smoke-rls-access.mjs",
     "smoke:rls:dashboard": "node scripts/verify-dashboard-metric-rls.mjs",
+    "smoke:rls:security": "node scripts/verify-dashboard-rls-security.mjs",
     "smoke:rls:provision": "node scripts/provision-rls-smoke-users.mjs",
     "security:check": "node scripts/security-check.mjs",
     "security:pentest-lite": "node scripts/pentest-lite.mjs",
