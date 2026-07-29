@@ -207,15 +207,34 @@ export async function saveEmployeeImportBatch(input: {
 }
 
 export async function getLatestEmployeeImportBatch(client: SupabaseClient) {
-  const { data, error } = await client
+  const batch = await findImportBatch(client, null);
+  if (!batch) return null;
+  return resolveBatchPreview(client, batch);
+}
+
+export async function getEmployeeImportBatchById(client: SupabaseClient, batchId: string) {
+  const batch = await findImportBatch(client, batchId);
+  if (!batch) return null;
+  return resolveBatchPreview(client, batch);
+}
+
+async function findImportBatch(client: SupabaseClient, batchId: string | null) {
+  const query = client
     .from("employee_import_batches")
     .select("id,source_file_name,preview_snapshot,status")
     .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (error) throw new Error("Não foi possível consultar o último lote de importação.");
-  if (!data) return null;
-  const batch = data as ImportBatchRow;
+    .limit(1);
+
+  if (batchId) {
+    query.eq("id", batchId);
+  }
+
+  const { data, error } = await query.maybeSingle();
+  if (error) throw new Error("Não foi possível consultar o lote de importação.");
+  return data ? (data as ImportBatchRow) : null;
+}
+
+async function resolveBatchPreview(client: SupabaseClient, batch: ImportBatchRow) {
   const { data: salaryItems, error: salaryError } = await client
     .from("employee_import_salary_items")
     .select("person_id,status")
@@ -225,7 +244,13 @@ export async function getLatestEmployeeImportBatch(client: SupabaseClient) {
     ((salaryItems ?? []) as SalaryItemRow[]).map((item) => [item.person_id, item.status]),
   );
   const peopleResult = await client.from("people").select("id,name").order("name").limit(5000);
+  const compensationResult = await client.from("person_compensations").select("person_id,annual_salary").limit(5000);
   if (peopleResult.error) throw new Error("Não foi possível consultar as pessoas do sistema.");
+  if (compensationResult.error) throw new Error("Não foi possível consultar os salários atuais.");
+  const compensationByPerson = new Map(
+    ((compensationResult.data ?? []) as Array<{ person_id: string; annual_salary: number | null }>).map((row) => [row.person_id, Number(row.annual_salary ?? 0)]),
+  );
+  const peopleLookup = new Map(((peopleResult.data ?? []) as Array<{ id: string; name: string }>).map((person) => [person.id, person.name]));
   return {
     ...batch.preview_snapshot,
     sourceFileName: batch.source_file_name,
@@ -235,10 +260,23 @@ export async function getLatestEmployeeImportBatch(client: SupabaseClient) {
       id: String(person.id),
       name: String(person.name),
     })),
-    matchedPeople: batch.preview_snapshot.matchedPeople.map((person) => ({
-      ...person,
-      status: statusByPerson.get(person.personId) === "updated" ? "updated" as const : person.status,
-    })),
+    matchedPeople: batch.preview_snapshot.matchedPeople.map((person) => {
+      const currentSalary = compensationByPerson.get(person.personId) ?? null;
+      const rawStatus = statusByPerson.get(person.personId);
+      const proposedSalaryCents = cents(person.proposedSalary);
+      const currentSalaryCents = currentSalary === null ? null : cents(currentSalary);
+      const status = rawStatus === "updated" || currentSalaryCents === null
+        ? "updated"
+        : currentSalaryCents === proposedSalaryCents
+          ? "unchanged"
+          : "change";
+      return {
+        ...person,
+        personName: peopleLookup.get(person.personId) ?? person.personName,
+        currentSalary,
+        status: status as "updated" | "unchanged" | "change",
+      };
+    }),
   } satisfies EmployeeImportPreview;
 }
 

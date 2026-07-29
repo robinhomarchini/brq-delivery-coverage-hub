@@ -37,6 +37,8 @@ export default function EmployeeImportPage() {
   const [notice, setNotice] = useState("");
   const [updatingPersonId, setUpdatingPersonId] = useState("");
   const [unmatchedSearch, setUnmatchedSearch] = useState("");
+  const [history, setHistory] = useState<Array<{ id: string; sourceFileName: string; sourceRowCount: number; status: string; createdAt: string }>>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
 
   const resolvedManagers = useMemo(() => {
     if (!preview) return [];
@@ -87,6 +89,18 @@ export default function EmployeeImportPage() {
   useEffect(() => {
     if (!allowed) return;
     let mounted = true;
+    sendJson<{ batches: Array<{ id: string; sourceFileName: string; sourceRowCount: number; status: string; createdAt: string }> }>("/api/admin/employee-import/history", { method: "GET" })
+      .then((historyData) => {
+        if (!mounted) return;
+        setHistory(historyData.batches ?? []);
+      })
+      .catch((historyError) => {
+        if (mounted) setError(getErrorMessage(historyError, "Não foi possível carregar o histórico de importação."));
+      })
+      .finally(() => {
+        if (mounted) setHistoryLoading(false);
+      });
+
     sendJson<EmployeeImportPreview | null>("/api/admin/employee-import/preview", { method: "GET" })
       .then((saved) => {
         if (!mounted || !saved) return;
@@ -275,6 +289,29 @@ export default function EmployeeImportPage() {
     }
   }
 
+  async function retakeBatch(batchId: string) {
+    setLoading(true);
+    setError("");
+    setNotice("");
+    try {
+      const nextPreview = await sendJson<EmployeeImportPreview>("/api/admin/employee-import/batch", {
+        method: "GET",
+        body: undefined,
+      }, { batchId });
+      setPreview(nextPreview);
+      setManagerMappings(Object.fromEntries(
+        nextPreview.managers
+          .filter((manager) => manager.resolvedManagerId)
+          .map((manager) => [manager.sourceKey, manager.resolvedManagerId as string]),
+      ));
+      setNotice(`Lote retomado: ${nextPreview.sourceFileName}`);
+    } catch (retakeError) {
+      setError(getErrorMessage(retakeError, "Não foi possível retomar o lote selecionado."));
+    } finally {
+      setLoading(false);
+    }
+  }
+
   function handleFileChange(nextFile: File | null) {
     setFile(nextFile);
     setPreview(null);
@@ -294,6 +331,57 @@ export default function EmployeeImportPage() {
       {error && <ErrorNotice message={error} floating onClose={() => setError("")} />}
 
       <div className="space-y-5">
+        <Card className="shadow-sm">
+          <CardHeader>
+            <CardTitle>Histórico de importação</CardTitle>
+            <CardDescription>Retome um lote recente sem reenviar o arquivo.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {historyLoading ? (
+              <div className="flex items-center gap-2 text-sm text-slate-500">
+                <LoaderCircle className="h-4 w-4 animate-spin" /> Carregando histórico...
+              </div>
+            ) : history.length === 0 ? (
+              <p className="text-sm text-slate-500">Nenhum lote recente encontrado.</p>
+            ) : (
+              <div className="overflow-x-auto rounded-xl border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Arquivo</TableHead>
+                      <TableHead className="text-right">Linhas</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Data</TableHead>
+                      <TableHead className="text-right">Ação</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {history.map((batch) => (
+                      <TableRow key={batch.id}>
+                        <TableCell className="font-medium text-slate-900">{batch.sourceFileName}</TableCell>
+                        <TableCell className="text-right tabular-nums">{batch.sourceRowCount.toLocaleString("pt-BR")}</TableCell>
+                        <TableCell>
+                          <Badge variant={batch.status === "hc_confirmed" ? "success" : "warning"}>
+                            {batch.status === "hc_confirmed" ? "HC confirmado" : "Em conciliação"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm text-slate-500">
+                          {batch.createdAt ? new Date(batch.createdAt).toLocaleString("pt-BR") : "—"}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button size="sm" variant="secondary" onClick={() => retakeBatch(batch.id)}>
+                            Retomar
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         <Card className="shadow-sm">
           <CardHeader>
             <div className="flex items-center gap-3">
@@ -320,12 +408,22 @@ export default function EmployeeImportPage() {
                   accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                   onChange={(event) => handleFileChange(event.target.files?.[0] ?? null)}
                 />
+                {file ? (
+                  <p className="mt-1 text-xs text-slate-500">
+                    {file.name} · {(file.size / (1024 * 1024)).toFixed(1)} MB
+                  </p>
+                ) : null}
               </div>
               <Button type="button" onClick={handlePreview} disabled={!file || loading || applying}>
                 {loading ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />}
-                Analisar planilha
+                {loading ? "Analisando..." : "Analisar planilha"}
               </Button>
             </div>
+            {loading ? (
+              <p className="mt-2 text-xs text-slate-500">
+                Planilhas grandes podem levar alguns segundos. O lote é salvo automaticamente e você pode continuar depois.
+              </p>
+            ) : null}
           </CardContent>
         </Card>
 
@@ -636,12 +734,19 @@ async function sendWorkbook<T>(endpoint: string, file: File) {
 async function sendJson<T>(
   endpoint: string,
   options: { method: "GET" | "POST"; body?: unknown },
+  searchParams?: Record<string, string>,
 ) {
   const authService = createAuthServiceSelection().service;
   if (!authService) throw new Error("O provedor de autenticação não está configurado.");
   const token = await authService.getAccessToken();
   if (!token) throw new Error("Sua sessão expirou. Entre novamente para continuar.");
-  const response = await fetch(endpoint, {
+  const url = new URL(endpoint, window.location.origin);
+  if (options.method === "GET" && searchParams) {
+    for (const [key, value] of Object.entries(searchParams)) {
+      if (value) url.searchParams.set(key, value);
+    }
+  }
+  const response = await fetch(url.toString(), {
     method: options.method,
     headers: {
       Authorization: `Bearer ${token}`,
