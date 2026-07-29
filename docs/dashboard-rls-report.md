@@ -2,7 +2,7 @@
 
 Date: 2026-07-29
 Scope: dashboard metric layer, views, RPCs, repository integration
-Status: automated validation ready; full execution requires provisioned RLS smoke users
+Status: offline validations enforced; live negative tests require provisioned RLS smoke users
 
 ## Scenarios Covered
 
@@ -57,7 +57,7 @@ Status: automated validation ready; full execution requires provisioned RLS smok
     - Confirmed: view and RPCs use caller context
     - Confirmed: no `SECURITY DEFINER` in dashboard path
     - Confirmed: no direct `.from("vw_customer_dashboard_metrics")` from `src/`
-    - Pending: live negative execution with provisioned test identities
+    - Offline checks now enforce `security_invoker`, `search_path`, and `board_approved` filter presence
 
 ## Files
 
@@ -68,11 +68,14 @@ Status: automated validation ready; full execution requires provisioned RLS smok
 ## Execution
 
 ```bash
+# offline validations only
+node scripts/verify-dashboard-rls-security.mjs
+
 # provision smoke users (requires confirmation and service role key)
 RLS_SMOKE_PROVISION_CONFIRM=provision-rls-smoke-users npm run smoke:rls:provision
 
-# run dashboard RLS validation
-npm run test:dashboard-rls-security
+# run full dashboard RLS validation
+npm run smoke:rls:security
 
 # run full RLS suite
 npm run smoke:rls
@@ -80,6 +83,6 @@ npm run smoke:rls
 
 ## Remaining Gaps
 
-- Full negative-path execution depends on provisioned test users; without them, validation is skipped
-- Board baseline exposure should be verified against board_approved filter on a dataset containing multiple scenarios
+- Full negative-path execution still depends on provisioned test users; without them, offline assertions run and live paths are skipped
+- Board baseline exposure should still be verified against board_approved filter on production-like data
 - Hunter scope negative tests should use real assigned-customer data to confirm intersection behavior

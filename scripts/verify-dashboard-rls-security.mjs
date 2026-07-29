@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
 import { loadLocalEnv } from "./env-loader.mjs";
 
@@ -30,20 +32,31 @@ const configuredProfiles = profiles
   }))
   .filter((profile) => profile.email && profile.password);
 
-if (!url || !anonKey || configuredProfiles.length === 0) {
-  const missingBase = [
-    ["NEXT_PUBLIC_SUPABASE_URL", url],
-    ["NEXT_PUBLIC_SUPABASE_ANON_KEY", anonKey],
-  ].filter(([, value]) => !value).map(([name]) => name);
-  const reason = missingBase.length > 0
-    ? `missing ${missingBase.join(", ")}`
-    : `missing test users such as ${requiredProfileEnvNames.join(", ")}`;
-  console.log(`Dashboard RLS security validation skipped: ${reason}.`);
-  process.exit(0);
-}
-
 let failed = false;
 const report = [];
+
+function fail(message) {
+  failed = true;
+  console.error(`FAIL ${message}`);
+}
+
+function addReport(profile, scenario, pass, detail) {
+  report.push({ profile, scenario, pass, detail });
+}
+
+if (!url || !anonKey) {
+  console.log("Dashboard RLS security validation skipped: missing Supabase URL/anon key.");
+  runOfflineValidations();
+  printReport();
+  process.exit(failed ? 1 : 0);
+}
+
+if (configuredProfiles.length === 0) {
+  console.log(`Dashboard RLS security validation skipped: missing test users such as ${requiredProfileEnvNames.join(", ")}.`);
+  runOfflineValidations();
+  printReport();
+  process.exit(failed ? 1 : 0);
+}
 
 for (const profile of configuredProfiles) {
   const label = profile.key.toLowerCase();
@@ -57,7 +70,7 @@ for (const profile of configuredProfiles) {
   });
   if (signInError || !signInData.session) {
     fail(`${label}: sign-in failed: ${signInError?.message ?? "missing session"}`);
-    report.push({ profile: label, scenario: "auth", pass: false, detail: signInError?.message ?? "missing session" });
+    addReport(label, "auth", false, signInError?.message ?? "missing session");
     continue;
   }
 
@@ -65,22 +78,22 @@ for (const profile of configuredProfiles) {
   if (profile.active) {
     if (accessError || !accessData) {
       fail(`${label}: active user could not resolve app access: ${accessError?.message ?? "missing access row"}`);
-      report.push({ profile: label, scenario: "app_access", pass: false, detail: accessError?.message ?? "missing access row" });
+      addReport(label, "app_access", false, accessError?.message ?? "missing access row");
       continue;
     }
     if (accessData.role !== profile.expectedRole || accessData.active !== true) {
       fail(`${label}: expected active ${profile.expectedRole}, got role=${accessData.role} active=${accessData.active}`);
-      report.push({ profile: label, scenario: "app_access", pass: false, detail: `role=${accessData.role} active=${accessData.active}` });
+      addReport(label, "app_access", false, `role=${accessData.role} active=${accessData.active}`);
       continue;
     }
   } else if (accessData?.active === true) {
     fail(`${label}: blocked user resolved as active.`);
-    report.push({ profile: label, scenario: "app_access", pass: false, detail: "blocked user resolved as active" });
+    addReport(label, "app_access", false, "blocked user resolved as active");
     continue;
   }
 
-  report.push({ profile: label, scenario: "auth", pass: true, detail: "authenticated" });
-  report.push({ profile: label, scenario: "app_access", pass: true, detail: `role=${accessData?.role ?? "n/a"} active=${accessData?.active ?? "n/a"}` });
+  addReport(label, "auth", true, "authenticated");
+  addReport(label, "app_access", true, `role=${accessData?.role ?? "n/a"} active=${accessData?.active ?? "n/a"}`);
 
   await assertDashboardRpc(client, profile);
   await assertHunterScopeBoundary(client, profile);
@@ -92,17 +105,9 @@ for (const profile of configuredProfiles) {
   await client.auth.signOut();
 }
 
-if (failed) {
-  console.log("\n=== DASHBOARD RLS SECURITY REPORT ===");
-  for (const entry of report) {
-    console.log(`${entry.pass ? "PASS" : "FAIL"}\t${entry.profile}\t${entry.scenario}\t${entry.detail}`);
-  }
-  console.log("=== END REPORT ===\n");
-  process.exit(1);
-}
-
-console.log("All dashboard RLS security checks passed.");
-process.exit(0);
+runOfflineValidations();
+printReport();
+process.exit(failed ? 1 : 0);
 
 async function assertDashboardRpc(client, profile) {
   const { data, error } = await client.rpc("get_executive_dashboard_summary", {
@@ -118,40 +123,21 @@ async function assertDashboardRpc(client, profile) {
   if (!profile.active) {
     if (!error) {
       fail(`${label}: dashboard RPC should be denied for blocked user.`);
-      report.push({ profile: label, scenario: "dashboard_summary_blocked", pass: false, detail: "allowed" });
+      addReport(label, "dashboard_summary_blocked", false, "allowed");
     } else {
-      report.push({ profile: label, scenario: "dashboard_summary_blocked", pass: true, detail: error.message });
+      addReport(label, "dashboard_summary_blocked", true, error.message);
     }
     return;
   }
 
   if (error) {
     fail(`${label}: dashboard RPC should be allowed for active users: ${error.message}`);
-    report.push({ profile: label, scenario: "dashboard_summary_active", pass: false, detail: error.message });
+    addReport(label, "dashboard_summary_active", false, error.message);
     return;
   }
 
   const summary = data?.summary ?? {};
   const financialByCustomer = Array.isArray(data?.financialByCustomer) ? data.financialByCustomer : [];
-
-  if (!Number.isFinite(summary.totalTarget)) {
-    fail(`${label}: dashboard RPC returned invalid totalTarget.`);
-  }
-  if (!Number.isFinite(summary.customerCount)) {
-    fail(`${label}: dashboard RPC returned invalid customerCount.`);
-  }
-  if (!Number.isInteger(summary.activePeopleCount) || summary.activePeopleCount < 0) {
-    fail(`${label}: dashboard RPC returned invalid activePeopleCount.`);
-  }
-  if (!Number.isInteger(summary.directorCount) || summary.directorCount < 0) {
-    fail(`${label}: dashboard RPC returned invalid directorCount.`);
-  }
-  if (!Number.isInteger(summary.managerCount) || summary.managerCount < 0) {
-    fail(`${label}: dashboard RPC returned invalid managerCount.`);
-  }
-  if (Array.isArray(financialByCustomer) && financialByCustomer.length > 10) {
-    fail(`${label}: dashboard RPC returned more than 10 financial rows.`);
-  }
 
   const pass = Number.isFinite(summary.totalTarget)
     && Number.isFinite(summary.customerCount)
@@ -160,7 +146,11 @@ async function assertDashboardRpc(client, profile) {
     && Number.isInteger(summary.managerCount)
     && (!Array.isArray(financialByCustomer) || financialByCustomer.length <= 10);
 
-  report.push({ profile: label, scenario: "dashboard_summary_active", pass, detail: `totalTarget=${summary.totalTarget} customers=${summary.customerCount}` });
+  if (!pass) {
+    fail(`${label}: dashboard RPC returned invalid summary payload.`);
+  }
+
+  addReport(label, "dashboard_summary_active", pass, `totalTarget=${summary.totalTarget} customers=${summary.customerCount}`);
 }
 
 async function assertPerformanceRpc(client, profile) {
@@ -177,25 +167,26 @@ async function assertPerformanceRpc(client, profile) {
   if (!profile.active) {
     if (!error) {
       fail(`${label}: performance RPC should be denied for blocked user.`);
-      report.push({ profile: label, scenario: "dashboard_performance_blocked", pass: false, detail: "allowed" });
+      addReport(label, "dashboard_performance_blocked", false, "allowed");
     } else {
-      report.push({ profile: label, scenario: "dashboard_performance_blocked", pass: true, detail: error.message });
+      addReport(label, "dashboard_performance_blocked", true, error.message);
     }
     return;
   }
 
   if (error) {
     fail(`${label}: performance RPC should be allowed for active users: ${error.message}`);
-    report.push({ profile: label, scenario: "dashboard_performance_active", pass: false, detail: error.message });
+    addReport(label, "dashboard_performance_active", false, error.message);
     return;
   }
 
   const items = Array.isArray(data?.items) ? data.items : [];
-  if (items.length > 100) {
+  const pass = items.length <= 100;
+  if (!pass) {
     fail(`${label}: performance RPC returned too many rows.`);
   }
 
-  report.push({ profile: label, scenario: "dashboard_performance_active", pass: true, detail: `items=${items.length}` });
+  addReport(label, "dashboard_performance_active", pass, `items=${items.length}`);
 }
 
 async function assertHunterScopeBoundary(client, profile) {
@@ -212,44 +203,44 @@ async function assertHunterScopeBoundary(client, profile) {
   if (!profile.active) {
     if (!unrestrictedError) {
       fail(`${label}: hunter-scoped dashboard RPC should be denied for blocked user.`);
-      report.push({ profile: label, scenario: "hunter_scope_blocked", pass: false, detail: "allowed" });
+      addReport(label, "hunter_scope_blocked", false, "allowed");
     } else {
-      report.push({ profile: label, scenario: "hunter_scope_blocked", pass: true, detail: unrestrictedError.message });
+      addReport(label, "hunter_scope_blocked", true, unrestrictedError.message);
     }
     return;
   }
 
   if (profile.expectedRole === "hunter_viewer") {
     if (unrestrictedError) {
-      report.push({ profile: label, scenario: "hunter_scope_arbitrary_ids", pass: true, detail: unrestrictedError.message });
+      addReport(label, "hunter_scope_arbitrary_ids", true, unrestrictedError.message);
     } else if (unrestricted && typeof unrestricted.summary === "object") {
       const customerCount = Number(unrestricted.summary.customerCount ?? 0);
       if (customerCount > 0) {
         fail(`${label}: hunter scope with arbitrary IDs must not reveal unauthorized customers.`);
-        report.push({ profile: label, scenario: "hunter_scope_arbitrary_ids", pass: false, detail: `customerCount=${customerCount}` });
+        addReport(label, "hunter_scope_arbitrary_ids", false, `customerCount=${customerCount}`);
       } else {
-        report.push({ profile: label, scenario: "hunter_scope_arbitrary_ids", pass: true, detail: "filtered to zero" });
+        addReport(label, "hunter_scope_arbitrary_ids", true, "filtered to zero");
       }
     } else {
-      report.push({ profile: label, scenario: "hunter_scope_arbitrary_ids", pass: true, detail: "no data" });
+      addReport(label, "hunter_scope_arbitrary_ids", true, "no data");
     }
     return;
   }
 
   if (unrestrictedError) {
     fail(`${label}: non-hunter active user should not be forced into hunter scope failure: ${unrestrictedError.message}`);
-    report.push({ profile: label, scenario: "hunter_scope_arbitrary_ids", pass: false, detail: unrestrictedError.message });
+    addReport(label, "hunter_scope_arbitrary_ids", false, unrestrictedError.message);
   } else if (unrestricted && typeof unrestricted.summary === "object") {
     const customerCount = Number(unrestricted.summary.customerCount ?? 0);
     const totalTarget = Number(unrestricted.summary.totalTarget ?? 0);
     if (customerCount === 0 && totalTarget === 0) {
-      report.push({ profile: label, scenario: "hunter_scope_arbitrary_ids", pass: true, detail: "empty result" });
+      addReport(label, "hunter_scope_arbitrary_ids", true, "empty result");
     } else {
       fail(`${label}: arbitrary hunter customer IDs must not increase visibility.`);
-      report.push({ profile: label, scenario: "hunter_scope_arbitrary_ids", pass: false, detail: `customerCount=${customerCount}` });
+      addReport(label, "hunter_scope_arbitrary_ids", false, `customerCount=${customerCount}`);
     }
   } else {
-    report.push({ profile: label, scenario: "hunter_scope_arbitrary_ids", pass: true, detail: "no data" });
+    addReport(label, "hunter_scope_arbitrary_ids", true, "no data");
   }
 }
 
@@ -264,21 +255,21 @@ async function assertDirectViewAccess(client, profile) {
   if (!profile.active) {
     if (!error) {
       fail(`${label}: direct view access should be denied for blocked user.`);
-      report.push({ profile: label, scenario: "direct_view_blocked", pass: false, detail: "allowed" });
+      addReport(label, "direct_view_blocked", false, "allowed");
     } else {
-      report.push({ profile: label, scenario: "direct_view_blocked", pass: true, detail: error.message });
+      addReport(label, "direct_view_blocked", true, error.message);
     }
     return;
   }
 
   if (error) {
     fail(`${label}: direct view access should be allowed for active users: ${error.message}`);
-    report.push({ profile: label, scenario: "direct_view_active", pass: false, detail: error.message });
+    addReport(label, "direct_view_active", false, error.message);
     return;
   }
 
   const rows = Array.isArray(data) ? data : [];
-  report.push({ profile: label, scenario: "direct_view_active", pass: true, detail: `rows=${rows.length}` });
+  addReport(label, "direct_view_active", true, `rows=${rows.length}`);
 }
 
 async function assertEditorBoundary(client, profile) {
@@ -296,21 +287,21 @@ async function assertEditorBoundary(client, profile) {
   if (profile.canEdit) {
     if (!error) {
       fail(`${label}: editor RPC unexpectedly succeeded with smoke payload.`);
-      report.push({ profile: label, scenario: "editor_boundary", pass: false, detail: "unexpected success" });
+      addReport(label, "editor_boundary", false, "unexpected success");
     } else if (isPermissionError(error)) {
       fail(`${label}: editor RPC should pass authorization and fail validation, got permission error: ${error.message}`);
-      report.push({ profile: label, scenario: "editor_boundary", pass: false, detail: error.message });
+      addReport(label, "editor_boundary", false, error.message);
     } else {
-      report.push({ profile: label, scenario: "editor_boundary", pass: true, detail: "validation error expected" });
+      addReport(label, "editor_boundary", true, "validation error expected");
     }
     return;
   }
 
   if (!isPermissionError(error)) {
     fail(`${label}: editor RPC should be denied, got ${error?.message ?? "success"}`);
-    report.push({ profile: label, scenario: "editor_boundary", pass: false, detail: error?.message ?? "success" });
+    addReport(label, "editor_boundary", false, error?.message ?? "success");
   } else {
-    report.push({ profile: label, scenario: "editor_boundary", pass: true, detail: error.message });
+    addReport(label, "editor_boundary", true, error.message);
   }
 }
 
@@ -329,9 +320,9 @@ async function assertAnonymousBlocked(client) {
 
   if (!error) {
     fail("anonymous: dashboard RPC should be denied for anonymous users.");
-    report.push({ profile: "anonymous", scenario: "dashboard_summary_anon", pass: false, detail: "allowed" });
+    addReport("anonymous", "dashboard_summary_anon", false, "allowed");
   } else {
-    report.push({ profile: "anonymous", scenario: "dashboard_summary_anon", pass: true, detail: error.message });
+    addReport("anonymous", "dashboard_summary_anon", true, error.message);
   }
 }
 
@@ -344,7 +335,133 @@ function isPermissionError(error) {
     || message.includes("access denied");
 }
 
-function fail(message) {
-  failed = true;
-  console.error(`FAIL ${message}`);
+function printReport() {
+  console.log("\n=== DASHBOARD RLS SECURITY REPORT ===");
+  for (const entry of report) {
+    console.log(`${entry.pass ? "PASS" : "FAIL"}\t${entry.profile}\t${entry.scenario}\t${entry.detail}`);
+  }
+  console.log("=== END REPORT ===\n");
+}
+
+function runOfflineValidations() {
+  validateViewSecurityInvoker();
+  validateDashboardRpcSecurityInvoker();
+  validateBoardApprovedFilter();
+  validateSearchPath();
+  validateNoDefinerInDashboard();
+}
+
+function validateViewSecurityInvoker() {
+  const migrationFiles = [
+    "supabase/migrations/20260728140000_dashboard_customer_metric_view.sql",
+    "supabase/migrations/20260728143000_replace_dashboard_view_and_rpc.sql",
+    "supabase/migrations/20260729203300_set_dashboard_view_security_invoker.sql",
+  ];
+
+  let viewHasSecurityInvoker = false;
+  for (const file of migrationFiles) {
+    const content = readMigration(file);
+    if (content.includes("security_invoker = true")) {
+      viewHasSecurityInvoker = true;
+    }
+  }
+
+  if (viewHasSecurityInvoker) {
+    addReport("offline", "view_security_invoker", true, "vw_customer_dashboard_metrics uses security_invoker = true");
+  } else {
+    fail("offline: vw_customer_dashboard_metrics missing security_invoker = true");
+    addReport("offline", "view_security_invoker", false, "missing security_invoker = true");
+  }
+}
+
+function validateDashboardRpcSecurityInvoker() {
+  const files = [
+    "supabase/migrations/20260728140500_dashboard_executive_summary_rpc.sql",
+    "supabase/migrations/20260728144000_dashboard_metric_rpc_org_counts.sql",
+    "supabase/migrations/20260728144500_dashboard_metric_rpc_org_counts_fix.sql",
+    "supabase/migrations/20260728145000_dashboard_performance_by_customer.sql",
+  ];
+
+  let rpcsOk = true;
+  for (const file of files) {
+    const content = readMigration(file);
+    if (!content.includes("security invoker")) {
+      rpcsOk = false;
+      fail(`offline: ${path.basename(file)} missing security invoker`);
+    }
+    if (!content.includes("set search_path = public")) {
+      rpcsOk = false;
+      fail(`offline: ${path.basename(file)} missing set search_path = public`);
+    }
+  }
+
+  addReport("offline", "dashboard_rpc_security_invoker", rpcsOk, rpcsOk ? "all dashboard RPCs use security invoker + search_path" : "missing security invoker/search_path");
+}
+
+function validateBoardApprovedFilter() {
+  const viewFiles = [
+    "supabase/migrations/20260728140000_dashboard_customer_metric_view.sql",
+    "supabase/migrations/20260728143000_replace_dashboard_view_and_rpc.sql",
+  ];
+
+  let ok = true;
+  for (const file of viewFiles) {
+    const content = readMigration(file);
+    const hasApproved = content.includes("approved = true");
+    const hasScenario = content.includes("scenario = 'board_approved'");
+    if (!hasApproved || !hasScenario) {
+      ok = false;
+      fail(`offline: ${path.basename(file)} missing board_approved filter`);
+    }
+  }
+
+  addReport("offline", "board_approved_filter", ok, ok ? "view restricts board_target_baselines to approved rows" : "missing approved/scenario filter");
+}
+
+function validateSearchPath() {
+  const files = [
+    "supabase/migrations/20260728140500_dashboard_executive_summary_rpc.sql",
+    "supabase/migrations/20260728144000_dashboard_metric_rpc_org_counts.sql",
+    "supabase/migrations/20260728144500_dashboard_metric_rpc_org_counts_fix.sql",
+    "supabase/migrations/20260728145000_dashboard_performance_by_customer.sql",
+  ];
+
+  let ok = true;
+  for (const file of files) {
+    const content = readMigration(file);
+    if (!content.includes("set search_path = public")) {
+      ok = false;
+      fail(`offline: ${path.basename(file)} missing set search_path = public`);
+    }
+  }
+
+  addReport("offline", "search_path_safety", ok, ok ? "all dashboard RPCs set search_path = public" : "missing search_path");
+}
+
+function validateNoDefinerInDashboard() {
+  const files = [
+    "supabase/migrations/20260728140500_dashboard_executive_summary_rpc.sql",
+    "supabase/migrations/20260728144000_dashboard_metric_rpc_org_counts.sql",
+    "supabase/migrations/20260728144500_dashboard_metric_rpc_org_counts_fix.sql",
+    "supabase/migrations/20260728145000_dashboard_performance_by_customer.sql",
+  ];
+
+  let hasDefiner = false;
+  for (const file of files) {
+    const content = readMigration(file);
+    if (/security\s+definer/i.test(content)) {
+      hasDefiner = true;
+      fail(`offline: ${path.basename(file)} uses SECURITY DEFINER`);
+    }
+  }
+
+  addReport("offline", "no_security_definer", !hasDefiner, !hasDefiner ? "no SECURITY DEFINER in dashboard RPCs" : "SECURITY DEFINER found");
+}
+
+function readMigration(relativePath) {
+  const absolutePath = path.join(process.cwd(), relativePath);
+  if (!fs.existsSync(absolutePath)) {
+    return "";
+  }
+  return fs.readFileSync(absolutePath, "utf8");
 }
