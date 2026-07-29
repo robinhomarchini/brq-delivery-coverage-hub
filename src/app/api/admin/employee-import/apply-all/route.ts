@@ -14,12 +14,6 @@ const requestSchema = z.object({
     employeeCount: z.number().int().nonnegative().max(100000),
   })).min(1).max(500),
   managerMappings: z.record(z.string().min(1).max(120), z.string().min(1).max(120)).optional(),
-  previewSnapshot: z.object({
-    matchedPeople: z.array(z.object({
-      personId: z.string().min(1).max(240),
-      status: z.enum(["change", "unchanged", "updated"]),
-    })),
-  }),
 });
 
 export async function POST(request: Request) {
@@ -34,7 +28,6 @@ export async function POST(request: Request) {
       batchId: parsed.data.batchId,
       mappings: parsed.data.mappings,
       managerMappings: parsed.data.managerMappings ?? {},
-      previewSnapshot: parsed.data.previewSnapshot,
     });
     return Response.json(result);
   } catch (error) {

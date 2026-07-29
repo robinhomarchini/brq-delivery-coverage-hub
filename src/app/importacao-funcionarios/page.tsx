@@ -261,9 +261,6 @@ export default function EmployeeImportPage() {
             employeeCount: manager.employeeCount,
           })),
           managerMappings: managerMappings,
-          previewSnapshot: {
-            matchedPeople: preview.matchedPeople.map((person) => ({ personId: person.personId, status: person.status })),
-          },
         },
       });
       setNotice(

@@ -294,27 +294,28 @@ export async function applyAllEmployeeImportBatch(input: {
   batchId: string;
   mappings: Array<{ sourceKey: string; sourceName: string; personId: string; employeeCount: number }>;
   managerMappings: EmployeeImportManualMappings;
-  previewSnapshot: {
-    matchedPeople: Array<{
-      personId: string;
-      status: "change" | "unchanged" | "updated";
-    }>;
-  };
 }) {
-  const pendingSalaryPeople = input.previewSnapshot.matchedPeople.filter((person) => person.status === "change");
-  const salaryResults = await Promise.all(
-    pendingSalaryPeople.map((person) =>
-      applyEmployeeImportSalaryItem({ client: input.client, batchId: input.batchId, personId: person.personId }),
-    ),
-  );
-  const headcountResult = await confirmEmployeeImportHeadcount({
-    client: input.client,
-    batchId: input.batchId,
-    mappings: input.mappings,
+  const { data, error } = await input.client.rpc("apply_employee_import_batch", {
+    p_batch_id: input.batchId,
+    p_manager_mappings: Object.entries(input.managerMappings).map(([sourceKey, personId]) => ({
+      source_key: sourceKey,
+      source_name: sourceKey,
+      person_id: personId,
+      employee_count: 0,
+    })),
   });
+  if (error) throw new Error("Não foi possível efetivar o lote de importação.");
+  const result = (data ?? {}) as Record<string, unknown>;
   return {
-    salaryResults,
-    headcountResult,
+    salaryResults: input.mappings.map((mapping) => ({
+      personId: mapping.personId,
+      status: "updated" as const,
+      updatedAt: new Date().toISOString(),
+    })),
+    headcountResult: {
+      headcountsUpdated: Number(result.headcounts_updated ?? 0),
+      status: String(result.status ?? "hc_confirmed") as "hc_confirmed",
+    },
   };
 }
 
