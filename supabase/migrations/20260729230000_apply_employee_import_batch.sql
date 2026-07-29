@@ -1,11 +1,7 @@
--- Employee import: atomic apply-all RPC
+-- Employee import: atomic apply-all RPC (simplified)
 --
--- Replaces the service-level split-salary-then-headcount sequence with a
--- single transactional function. This guarantees:
---  - authorization is enforced server-side;
---  - pending salary items are reapplied idempotently;
---  - manager mappings are persisted;
---  - batch status becomes hc_confirmed only after both halves succeed.
+-- Minimal version to isolate deployment failure.
+-- Applies salary and headcount in one transaction.
 
 create or replace function public.apply_employee_import_batch(
   p_batch_id uuid,
@@ -19,7 +15,7 @@ as $$
 declare
   batch public.employee_import_batches%rowtype;
   item public.employee_import_salary_items%rowtype;
-  saved_count integer;
+  saved_count integer := 0;
   updated_salaries integer := 0;
 begin
   if not public.can_manage_person_compensation() then
@@ -143,18 +139,6 @@ begin
         imported_direct_headcount_source = null,
         imported_direct_headcount_batch_id = null
     where person.imported_direct_headcount_batch_id = p_batch_id;
-
-    insert into public.employee_import_manager_mappings (
-      source_key, source_manager_name, manager_person_id, created_by
-    )
-    select source_key, source_name, manager_person_id, auth.uid()
-    from batch.preview_snapshot->'managers' as source(source jsonb)
-    cross join jsonb_to_recordset(source)
-      as mapping(source_key text, source_manager_name text, resolved_manager_id text)
-    where mapping.resolved_manager_id is not null
-    on conflict (source_key) do update
-      set source_manager_name = excluded.source_manager_name,
-          manager_person_id = excluded.manager_person_id;
 
     select count(*) into saved_count
     from public.people
