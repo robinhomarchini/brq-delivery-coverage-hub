@@ -241,7 +241,32 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
       p_hunter_person_id: filters.hunterPersonId ?? null,
     });
     if (error) throw error;
-    return mapCustomerPerformanceResult(data);
+    const rows = (data ?? []) as Array<{
+      customer_id: string;
+      customer_name: string;
+      target_amount: number | string | null;
+      allocated_total: number | string | null;
+      hunter_allocated: number | string | null;
+      delivery_farmer_allocated: number | string | null;
+      responsible_people_count: number | string | null;
+      people_delta: number | string | null;
+      achievement_percentage: number | string | null;
+    }>;
+    return {
+      items: rows
+        .filter((row) => row.customer_id && row.customer_name)
+        .map((row) => ({
+          customerId: row.customer_id ?? "",
+          customerName: row.customer_name ?? "",
+          targetAmount: readNumber(row, "targetAmount", "target_amount"),
+          allocatedTotal: readNumber(row, "allocatedTotal", "allocated_total"),
+          hunterAllocated: readNumber(row, "hunterAllocated", "hunter_allocated"),
+          deliveryFarmerAllocated: readNumber(row, "deliveryFarmerAllocated", "delivery_farmer_allocated"),
+          responsiblePeopleCount: readNumber(row, "responsiblePeopleCount", "responsible_people_count"),
+          peopleDelta: readNumber(row, "peopleDelta", "people_delta"),
+          achievementPercentage: readNumber(row, "achievementPercentage", "achievement_percentage"),
+        })),
+    };
   }
 
   async findCustomerById(id: string): Promise<Customer | null> {
@@ -1121,38 +1146,6 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
     });
   }
 
-}
-
-export function mapCustomerPerformanceResult(data: unknown): CustomerPerformanceResult {
-  if (!isRecord(data) || !Array.isArray(data.items)) {
-    return { items: [] };
-  }
-
-  return {
-    items: data.items
-      .filter(isRecord)
-      .map((item) => ({
-        customerId: readString(item, "customerId", "customer_id"),
-        customerName: readString(item, "customerName", "customer_name"),
-        targetAmount: readNumber(item, "targetAmount", "target_amount"),
-        allocatedTotal: readNumber(item, "allocatedTotal", "allocated_total"),
-        hunterAllocated: readNumber(item, "hunterAllocated", "hunter_allocated"),
-        deliveryFarmerAllocated: readNumber(item, "deliveryFarmerAllocated", "delivery_farmer_allocated"),
-        responsiblePeopleCount: readNumber(item, "responsiblePeopleCount", "responsible_people_count"),
-        peopleDelta: readNumber(item, "peopleDelta", "people_delta"),
-        achievementPercentage: readNumber(item, "achievementPercentage", "achievement_percentage"),
-      }))
-      .filter((item) => item.customerId && item.customerName),
-  };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function readString(record: Record<string, unknown>, camelKey: string, snakeKey: string) {
-  const value = record[camelKey] ?? record[snakeKey];
-  return typeof value === "string" ? value : "";
 }
 
 function readNumber(record: Record<string, unknown>, camelKey: string, snakeKey: string) {
