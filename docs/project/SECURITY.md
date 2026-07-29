@@ -24,6 +24,7 @@ Gerado em: 2026-07-28 13:19:26 -03:00
 - Em metas por pessoa, hunter scoped so pode alterar a propria pessoa.
 - Em studio, hunter scoped so pode alterar alocacao vinculada a ele.
 - Remuneracao usada em analise de desafio requer permissao especifica.
+- `vw_customer_dashboard_metrics` usa `security_invoker = true` e select explicitamente concedido para `authenticated`. Qualquer alteracao futura na view deve preservar os filtros `approved = true` e `scenario = 'board_approved'` em `board_target_baselines`.
 
 ## Fontes
 
@@ -37,6 +38,8 @@ Gerado em: 2026-07-28 13:19:26 -03:00
 - `supabase/migrations/20260709102000_harden_rls_audit_for_financial_targets.sql`
 - `supabase/migrations/20260728113530_add_app_access_domain_audit.sql`
 - `supabase/migrations/20260728120500_add_person_target_domain_audit.sql`
+- `supabase/migrations/20260729203300_set_dashboard_view_security_invoker.sql`
+- `supabase/migrations/20260729210000_grant_dashboard_view_select.sql`
 
 ## Riscos e pendencias
 

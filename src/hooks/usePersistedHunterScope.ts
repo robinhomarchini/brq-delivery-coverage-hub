@@ -33,7 +33,6 @@ export function usePersistedHunterScope(derivedScope: {
   customerIds?: Set<string> | null;
 }) {
   const customerIds = useMemo(() => Array.from(derivedScope.customerIds ?? []), [derivedScope.customerIds]);
-  const customerIdsKey = customerIds.join(",");
 
   return useMemo(() => {
     const persisted = readHunterScopeSnapshot();

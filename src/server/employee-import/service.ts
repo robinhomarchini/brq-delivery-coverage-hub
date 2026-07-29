@@ -20,6 +20,15 @@ type PersonRow = {
   is_manager: boolean;
 };
 
+function fromImportPersonRow(row: Record<string, unknown>): PersonRow {
+  return {
+    id: String(row.id ?? ""),
+    name: String(row.name ?? ""),
+    active: Boolean(row.active),
+    is_manager: Boolean(row.is_manager),
+  };
+}
+
 type ImportBatchRow = {
   id: string;
   source_file_name: string;
@@ -32,17 +41,6 @@ type SalaryItemRow = {
   status: "pending" | "unchanged" | "updated";
 };
 
-type CompensationRow = {
-  person_id: string;
-  annual_salary: number | string;
-};
-
-type ManagerMappingRow = {
-  source_key: string;
-  source_manager_name: string;
-  manager_person_id: string;
-};
-
 export async function buildEmployeeImportPreview(input: {
   client: SupabaseClient;
   buffer: Buffer;
@@ -50,24 +48,17 @@ export async function buildEmployeeImportPreview(input: {
   manualMappings?: EmployeeImportManualMappings;
 }): Promise<EmployeeImportPreview> {
   const parsed = await parseEmployeeImportWorkbook(input.buffer);
-  const [peopleResult, compensationResult, mappingsResult] = await Promise.all([
-    input.client.from("people").select("id,name,active,is_manager").order("name").limit(50000),
-    input.client.from("person_compensations").select("person_id,annual_salary").limit(50000),
-    input.client.from("employee_import_manager_mappings")
-      .select("source_key,source_manager_name,manager_person_id")
-      .limit(500),
-  ]);
+  const { data: previewData, error: previewError } = await input.client.rpc("get_employee_import_preview_data");
+  if (previewError) throw new Error("Não foi possível consultar os dados de importação.");
+  const previewPayload = (previewData ?? {}) as Record<string, unknown>;
+  const people = ((previewPayload.people ?? []) as unknown[]).map((row) => fromImportPersonRow(row as never));
+  const compensations = ((previewPayload.compensations ?? []) as unknown[]).map((row) => ({ person_id: String((row as { person_id: string }).person_id), annual_salary: (row as { annual_salary: number | null }).annual_salary }));
+  const savedMappings = ((previewPayload.managerMappings ?? []) as unknown[]).map((row) => ({ source_key: String((row as { source_key: string }).source_key), source_manager_name: String((row as { source_manager_name: string }).source_manager_name ?? ""), manager_person_id: String((row as { manager_person_id: string }).manager_person_id) }));
 
-  if (peopleResult.error) throw new Error("Não foi possível consultar as pessoas do sistema.");
-  if (compensationResult.error) throw new Error("Não foi possível consultar os salários atuais.");
-  if (mappingsResult.error) throw new Error("Não foi possível consultar os de-paras de gestores.");
-  const people = (peopleResult.data ?? []) as PersonRow[];
-  const compensations = (compensationResult.data ?? []) as CompensationRow[];
   if (!people.length) throw new Error("Não há pessoas cadastradas para conciliar.");
-  if (!compensations.length) {
-    // continue, but make it explicit in preview summary via fallback below
+  if ((previewPayload.compensationSourceEmpty ?? compensations.length === 0) === true) {
+    // continue with explicit empty-compensation state
   }
-  const savedMappings = (mappingsResult.data ?? []) as ManagerMappingRow[];
   const peopleByName = groupPeopleByNormalizedName(people);
   const compensationByPerson = new Map(
     compensations.map((row) => [row.person_id, Number(row.annual_salary)]),
