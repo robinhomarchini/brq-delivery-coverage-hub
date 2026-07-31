@@ -4,12 +4,12 @@ Artefato oficial de coordenacao entre Codex, Kilo, ChatGPT e outros agentes de e
 
 ## 1. Metadata
 
-- Atualizado em: 2026-07-28 15:39:00 -03:00
+- Atualizado em: 2026-07-31 15:30:00 -03:00
 - Repositorio: `robinhomarchini/brq-delivery-coverage-hub`
 - Raiz local: `C:\Users\rmarchini\projetos\OrgBRQDelivery`
 - Branch: `main`
-- HEAD atual: `6b5bfaf7cce47e0acc9b2de62f3e4f46248ce28a`
-- Ultimo commit de produto confirmado nesta sessao: `6b5bfaf`
+- HEAD atual: `c82c795 docs: update RPC contract inventory and current state for Database Contract Hardening epic`
+- Ultimo commit de produto confirmado nesta sessao: `c82c795`
 - Baseline de producao conhecida: nao verificado nesta sessao; valor historico conhecido era `3415af1e21813e9bcb2060bbdb3bccebd6afabb2`
 - URL de producao conhecida: `https://brq-delivery-coverage-hub.vercel.app`
 - Agente gerador: Kilo
@@ -25,19 +25,21 @@ Artefato oficial de coordenacao entre Codex, Kilo, ChatGPT e outros agentes de e
 
 ## 3. Objetivo atual
 
-Dashboard Baseline and Metric Integrity Epic.
+Epic: Database Contract Hardening — Typed RPCs and Runtime Validation.
 
-Escopo atual: reassess e melhoria do dashboard executivo para se tornar uma ferramenta confiavel de decisao executiva. Prioridades: correção de métricas, consistência da fonte de verdade, consistência de filtros, hierarquia executiva clara, rastreabilidade de drill-down, usabilidade e polimento visual.
+Hardening do contrato entre PostgreSQL/Supabase e TypeScript. Garantir que RPCs tabulares usem saidas SQL tipadas, JSON hierarquico seja validado em runtime, tipos Supabase refletam o contrato real, repositorios mapeiem respostas em DTOs estaveis e frontend nunca consuma payloads brutos. Ver faseamento em `docs/epics/database-contract-hardening-phases.md` (referenciado abaixo).
 
 ## 4. Capacidades implementadas
 
-1. Camada canonical de métricas (`src/lib/dashboardMetrics.ts`).
-2. Reorganização do dashboard executivo com hierarquia clara.
-3. Cards de resumo executivo com métricas de meta, receita alocada, gap e atingimento.
-4. Seção de alertas de gestão com verificações estruturais de qualidade de dados.
-5. Estados de loading, vazio e erro no dashboard.
-6. Testes de contrato de métricas (`scripts/verify-dashboard-metrics.cjs`).
-7. Atualização dos scripts de smoke e performance para refletir a nova arquitetura.
+### Database Contract Hardening (inicio: 2026-07-29)
+
+1. Inventario completo de RPCs: nome, proposito, return type, consumidores, classificacao (RETURNS TABLE, SCALAR, HIERARCHICAL_JSON, MUTATION_COMMAND, etc.), risco e recomendacao de contrato.
+2. `get_dashboard_performance_by_customer_v2`: migration `20260729240000` criada e aplicada; repositório `SupabaseDeliveryRepository.getPerformanceByCustomer` atualizado para consumir linhas tipadas (RETURNS TABLE).
+3. `validateDashboardMetricResult` adicionada em `src/lib/repositories/types.ts` para validar o payload JSON de `get_executive_dashboard_summary` (sumario + financialByCustomer) na fronteira do repositório. Cast cego e fallback hardcoded removidos.
+4. `apply_employee_import_batch_v2`: migration `20260729241000` criada e aplicada; `service.ts` atualizada para consumir typed returns (headcounts_updated, status, salaries_updated) sem cast jsonb.
+5. `validateRpcObject` centralizada em `src/server/employee-import/service.ts`; casts `as Record<string, unknown>` removidos de `applyEmployeeImportSalaryItem`, `applyAllEmployeeImportBatch` (ja usa v2), `confirmEmployeeImportHeadcount` e `buildEmployeeImportPreview`.
+6. Inventario de contratos RPC e classificacao documentados em `docs/project/DECISIONS.md`.
+7. Estado atualizado em `docs/project/CURRENT_STATE.md`.
 
 ## 5. Arquitetura da camada de métricas
 
@@ -306,13 +308,16 @@ Nao executar sem autorizacao:
 
 Boundary de commit recomendado para a fatia atual:
 
-`feat(observability): instrument target saves and challenge analysis`
+`refactor(employee-import): validate employee import RPC object boundaries`
 
-Proxima capacidade recomendada:
+Proximo incremento recomendado (Database Contract Hardening epic):
 
-- importacao de baselines, porque e pesada, frequente em ciclos de fechamento e ja teve percepcao de travamento;
-- depois, exports de relatorios oficiais.
+1. Criar RPCs tipadas sucessoras para `apply_employee_import_salary_item` e `confirm_employee_import_headcount` (RETURNS TABLE, wrappers sobre as JSON originais), aplicar migration e atualizar `service.ts` para consumir v2.
+2. Adicionar validacao de contrato para `get_employee_import_preview_data` e `get_full_delivery_data` na fronteira do repositorio/service.
+3. Investigar `apply_employee_salary_import` (jsonb) — verificar se tem consumidor TS ativo; se nao, documentar como legado.
+4. Regenerar tipos Supabase via comando padrao do projeto (`npm run supabase:types` ou equivalente) para refletir as RPCs tipadas.
+5. Adicionar testes de contrato SQL e runtime para os novos contratos (colunas, tipos, empty result, escopo Hunter, anonymous denial, zero target, negative delta, achievement > 100%).
 
 ## 11. Prompt de continuacao
 
-Continue em `C:\Users\rmarchini\projetos\OrgBRQDelivery`. Leia `AGENTS.md`, `.github/copilot-instructions.md`, `.squad/config.yaml`, `.squad/memory.md` e este arquivo. Use Git e codigo como fonte da verdade. O workstream aberto e o Dashboard Baseline and Metric Integrity Epic; nao ampliar para outra capacidade antes de commitar ou encerrar esta fatia. Nao fazer deploy sem autorizacao explicita.
+Continue em `C:\Users\rmarchini\projetos\OrgBRQDelivery`. Leia `AGENTS.md`, `.github/copilot-instructions.md`, `docs/project/*.md`, `.squad/memory.md` e este arquivo. Carregue `.agent/skills/database-engineering-guardian/SKILL.md`. Use Git e codigo como fonte da verdade. O workstream atual e o Database Contract Hardening epic; priorize RPCs criticas de dashboard e employee-import. Nao fazer deploy sem autorizacao explicita.
