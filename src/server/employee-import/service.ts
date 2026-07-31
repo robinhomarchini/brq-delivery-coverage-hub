@@ -295,7 +295,7 @@ export async function applyAllEmployeeImportBatch(input: {
   mappings: Array<{ sourceKey: string; sourceName: string; personId: string; employeeCount: number }>;
   managerMappings: EmployeeImportManualMappings;
 }) {
-  const { data, error } = await input.client.rpc("apply_employee_import_batch", {
+  const { data, error } = await input.client.rpc("apply_employee_import_batch_v2", {
     p_batch_id: input.batchId,
     p_manager_mappings: Object.entries(input.managerMappings).map(([sourceKey, personId]) => ({
       source_key: sourceKey,
@@ -305,7 +305,8 @@ export async function applyAllEmployeeImportBatch(input: {
     })),
   });
   if (error) throw new Error("Não foi possível efetivar o lote de importação.");
-  const result = (data ?? {}) as Record<string, unknown>;
+  const rows = Array.isArray(data) ? data : [];
+  const row = rows[0];
   return {
     salaryResults: input.mappings.map((mapping) => ({
       personId: mapping.personId,
@@ -313,8 +314,8 @@ export async function applyAllEmployeeImportBatch(input: {
       updatedAt: new Date().toISOString(),
     })),
     headcountResult: {
-      headcountsUpdated: Number(result.headcounts_updated ?? 0),
-      status: String(result.status ?? "hc_confirmed") as "hc_confirmed",
+      headcountsUpdated: Number(row?.headcounts_updated ?? 0),
+      status: String(row?.status ?? "hc_confirmed") as "hc_confirmed",
     },
   };
 }
