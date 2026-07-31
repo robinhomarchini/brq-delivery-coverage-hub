@@ -5,21 +5,23 @@ Gerado em: 2026-07-28 14:30:00 -03:00
 ## Git
 
 - Branch: `main`.
-- HEAD: `f08bfd6 refactor(dashboard): centralize executive metric calculations`.
+- HEAD: `2203125 refactor(employee-import): validate employee import RPC object boundaries`.
 - Ultimos commits relevantes:
-  - `f08bfd6 refactor(dashboard): centralize executive metric calculations`
-  - `a43e995 feat(observability): instrument target saves and challenge analysis`
-  - `9db627f feat(audit): add traceability for person targets`
+  - `2203125 refactor(employee-import): validate employee import RPC object boundaries`
+  - `7aaa705 feat(database): add typed employee import apply batch RPC`
+  - `5f3870e refactor(repository): validate executive summary payload and wire customer performance v2`
+  - `e09c1cb feat(db): harden dashboard performance RPC contract with typed returns`
 
-## Metric Layer SQL (novo)
+## Metric Layer SQL (novo epic: Database Contract Hardening)
 
-- View: `vw_customer_dashboard_metrics` criada em `20260728143000_replace_dashboard_view_and_rpc.sql`.
-- RPC: `get_executive_dashboard_summary()` estendido em `20260728144000_dashboard_metric_rpc_org_counts.sql` e corrigido em `20260728144500_dashboard_metric_rpc_org_counts_fix.sql`.
-- Metricas: `totalTarget`, `boardTotalTarget`, `hunterTarget`, `farmerRenewalTarget`, `allocatedPeopleTotal`, `peopleDelta`, `achievementPercentage`, `customerCount`, `activePeopleCount`, `directorCount`, `managerCount`.
-- Todos usam `SECURITY INVOKER` e respeitam RLS das tabelas subjacentes.
-- Nenhum indice extra criado (plano `EXPLAIN ANALYZE` nao justifica indexes adicionais; scans sao baratos em volume atual).
-- Nenhum view materializada criada.
-- Nenhuma aplicacao em producao.
+- View: `vw_customer_dashboard_metrics` com `security_invoker = true`, select explicitamente concedido para `authenticated`.
+- RPC `get_executive_dashboard_summary()`: mantida como JSON (justificado como hierarquico); validacao runtime adicionada em `src/lib/repositories/types.ts` via `validateDashboardMetricResult`.
+- RPC `get_dashboard_performance_by_customer`: substituida por `get_dashboard_performance_by_customer_v2` (RETURNS TABLE, `language sql`, SECURITY INVOKER, `search_path = public`); repositório atualizado para consumir v2.
+- RPC `apply_employee_import_batch_v2`: nova migration `20260729241000` criada e aplicada no Supabase; repositório `service.ts` atualizado para consumir a versao tipada.
+- RPCs `apply_employee_import_salary_item`, `confirm_employee_import_headcount`, `get_employee_import_preview_data`: mantidas como JSON (mutacao single-row); validacao runtime adicionada via `validateRpcObject` em `src/server/employee-import/service.ts`.
+- Migration count: 101 local = 101 remoto (alinhado).
+- **Pendencia**: conectividade TLS ao Supabase estava instavel durante a sessao; `npm run db:migrations:check` nao pôde ser reexecutado. Última confirmação: 101 local = 101 remoto.
+- Invocabilidade futura: `get_full_delivery_data` mantida como JSON (14 colecoes heterogeneas atomicas); proximo incremento deve adicionar validacao de contrato na fronteira do repositório.
 
 ## Worktree artefatos pendentes
 

@@ -74,6 +74,39 @@ Gerado em: 2026-07-28 14:30:00 -03:00
     - `get_dashboard_performance_by_customer` retorna campos `snake_case`, que
       sao convertidos e normalizados antes de compor o modelo de dominio/UI.
     - Componentes nao devem conhecer o formato bruto do Postgres.
+    - **Atualizado**: `get_dashboard_performance_by_customer_v2` (RETURNS TABLE)
+      substituiu o contrato JSON para performance por cliente; repositório
+      consome diretamente linhas tipadas.
+    - **Atualizado**: `get_executive_dashboard_summary` mantida como JSON por
+      ser genuinamente hierarquico (summary + financialByCustomer); validacao
+      runtime via `validateDashboardMetricResult` na fronteira do repositorio.
+    - **Atualizado**: `apply_employee_import_batch_v2` adicionada como sucessora
+      tipada (RETURNS TABLE para headcounts_updated, status, salaries_updated);
+      repositório consumer usa v2. A versão JSON original é legada.
+
+### Inventario de contratos de RPC (Database Contract Hardening epic)
+
+| RPC | Tipo de retorno atual | Classificacao | Consumidor | Risco |
+|---|---|---|---|---|
+| `get_dashboard_performance_by_customer` | json | LEGACY_COMPATIBILITY (v2 typed existe) | SupabaseDeliveryRepository | Baixo - v2 esta em producao |
+| `get_dashboard_performance_by_customer_v2` | returns table | TABULAR_TYPED | SupabaseDeliveryRepository | Nenhum |
+| `get_executive_dashboard_summary` | json | HIERARCHICAL_JSON_JUSTIFIED | SupabaseDeliveryRepository | Baixo - validado |
+| `apply_employee_import_batch_v2` | returns table | TABULAR_TYPED (single row) | employee-import/service | Nenhum |
+| `apply_employee_import_batch` | jsonb | LEGACY_COMPATIBILITY (v2 existe) | Nenhum (v2 substituiu) | Baixo |
+| `apply_employee_import_salary_item` | jsonb | LEGACY_COMPATIBILITY (validado) | employee-import/service | Medio - casting removido |
+| `confirm_employee_import_headcount` | jsonb | LEGACY_COMPATIBILITY (validado) | employee-import/service | Medio - casting removido |
+| `get_employee_import_preview_data` | json | HIERARCHICAL_JSON_JUSTIFIED | employee-import/service | Medio - validado |
+| `create_employee_import_batch` | uuid | SCALAR_TYPED | employee-import/service | Nenhum |
+| `get_full_delivery_data` | json | HIERARCHICAL_JSON_JUSTIFIED (14 colecoes) | SupabaseDeliveryRepository | Alto - casting `as never` pendente |
+| `accept_current_app_access` | composite | SCALAR_TYPED (consumido via BFF) | accessRepository | Baixo |
+| `save_person_with_assignments` | void/table | MUTATION_COMMAND | SupabaseDeliveryRepository | Medio |
+| `save_customer_with_managers_and_targets` | table | MUTATION_COMMAND | SupabaseDeliveryRepository | Medio |
+| `remove_person_customer_targets` | table | MUTATION_COMMAND | SupabaseDeliveryRepository | Medio |
+| `save_specialist_hunter_studio_assignments` | table | MUTATION_COMMAND | SupabaseDeliveryRepository | Baixo |
+| `list_app_access` | setof record | MUTATION_COMMAND | accessRepository | Baixo |
+| `upsert_app_access` | table | MUTATION_COMMAND | accessRepository | Baixo |
+| `delete_app_access` | table | MUTATION_COMMAND | accessRepository | Baixo |
+| `apply_employee_salary_import` | jsonb | LEGACY_COMPATIBILITY (legacy? nao tem consumidor TS) | Nenhum identificado | Desconhecido
 
 19. A planilha de funcionarios e uma proposta revisada, nao uma nova fonte de verdade.
     - Pessoas continuam em `people` e salarios mensais correntes em
