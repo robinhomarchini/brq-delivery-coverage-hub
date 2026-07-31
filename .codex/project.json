@@ -6,18 +6,7 @@
   "default_agents": [
     "arquiteto",
     "domain-modeling",
-    "bff-business-rules",
     "executor",
-    "orquestrador-paralelo",
-    "frontend",
-    "crud-ux",
-    "database",
-    "security",
-    "performance-usability",
-    "ux-quality-reviewer",
-    "reuse-componentization-reviewer",
-    "database-performance-reviewer",
-    "deploy",
     "qa",
     "observabilidade",
     "documentador"
@@ -32,33 +21,22 @@
     "C:\\Users\\rmarchini\\OneDrive - BRQ\\Documentos\\OrgBRQDelivery"
   ],
   "important_paths": [
-    "docs/context-strategy.md",
-    "docs/project-memory.md",
-    "docs/business-rules.md",
-    "docs/database.md",
-    "docs/frontend.md",
-    "docs/backend.md",
-    "docs/api.md",
-    "docs/coding-standards.md",
+    "ENGINEERING_STANDARD.md",
+    "AGENTS.md",
+    "docs/project",
+    "specs",
     "src/app",
     "src/components",
-    "src/data",
     "src/lib/repositories",
-    "supabase/migrations",
-    "specs/delivery-coverage-hub",
-    "specs/architecture-hardening",
-    "docs/ARCHITECTURE.md",
-    "docs/SECURITY.md",
-    "docs/PRODUCTION_READINESS.md"
+    "supabase/migrations"
   ],
   "context_policy": {
     "summary_first": true,
     "read_before_source": [
+      "ENGINEERING_STANDARD.md",
       "AGENTS.md",
-      ".squad/config.yaml",
-      ".squad/memory.md",
-      "docs/context-strategy.md",
-      "docs/project-memory.md"
+      "docs/project/PROJECT_OVERVIEW.md",
+      "docs/project/CURRENT_STATE.md"
     ],
     "avoid_loading": [
       "node_modules",
@@ -76,7 +54,7 @@
       "lockfile diffs unless dependency task"
     ],
     "source_loading_rule": "Open only impacted modules after reading the relevant summary docs.",
-    "agent_rule": "Invoke only relevant specialist agents and prevent duplicate repository reads."
+    "agent_rule": "Default to the six base agents; invoke specialists only for impacted layers."
   },
   "routines": {
     "before_change": [
@@ -199,4 +177,3 @@
     "do_not_silently_rewrite_agents": true
   }
 }
-

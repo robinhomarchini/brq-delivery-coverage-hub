@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "validate": "npm run lint && npm run typecheck && npm run test:contracts && npm run test:roles && npm run test:customer-scope && npm run test:reports && npm run test:employee-import",
+    "validate": "npm run lint && npm run typecheck && npm run test:agents && npm run test:contracts && npm run test:roles && npm run test:customer-scope && npm run test:reports && npm run test:employee-import",
     "start": "next start",
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",
@@ -40,6 +40,7 @@
     "ai:context": "tsx .ai/router/context-selector.ts",
     "test:ai-router": "tsx .ai/router/task-router.test.ts",
     "test:roles": "node scripts/verify-role-domain.cjs",
+    "test:agents": "node scripts/verify-agent-instructions.cjs",
     "test:customer-scope": "tsx scripts/verify-customer-target-scope.ts",
     "test:dashboard-metrics": "node scripts/verify-dashboard-metrics.cjs",
     "test:dashboard-performance": "tsx scripts/verify-dashboard-performance-mapping.ts",

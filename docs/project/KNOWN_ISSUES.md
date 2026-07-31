@@ -10,5 +10,8 @@ Atualizado em: 2026-07-31
   única definitiva.
 - A reconciliação remota de migrations depende de autenticação do Supabase CLI
   ou `SUPABASE_DB_URL`.
+- `npm audit` ainda reporta o `sharp < 0.35.0` transitivo do Next 16.2.12. O
+  downgrade automático para Next 14 é incompatível; aguardar correção suportada
+  pelo Next ou validar explicitamente uma atualização de `sharp`.
 - Telas financeiras e exports devem continuar reconciliando Studios contidos e
   o escopo New Logo/Hunter de forma consistente.

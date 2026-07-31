@@ -4,9 +4,15 @@ Este arquivo e o ponto de entrada para qualquer agente de engenharia neste
 repositorio. Antes de alterar codigo, leia a documentacao do projeto e use o
 repositorio como fonte da verdade.
 
+## Norma comum obrigatoria
+
+Leia e siga `ENGINEERING_STANDARD.md`. Ele concentra as regras comuns a Codex,
+Kilo, Claude, Copilot e outras ferramentas. Este arquivo registra somente as
+particularidades do BRQ Delivery Coverage Hub.
+
 ## Leitura por contexto
 
-1. `.github/copilot-instructions.md` - constituicao tecnica do projeto.
+1. `ENGINEERING_STANDARD.md` - norma comum obrigatoria.
 2. `docs/project/PROJECT_OVERVIEW.md` e `CURRENT_STATE.md` - baseline e estado.
 3. Leia apenas os documentos da camada impactada em `docs/project/`.
 4. Leia a spec da capacidade afetada em `specs/` antes de mudar comportamento.

@@ -333,8 +333,8 @@ Security:
 ### Planning and documentation
 
 1. `docs/persistence-contract.md` - create first.
-2. `docs/ARCHITECTURE.md` - update with BFF/command boundary.
-3. `docs/DOMAIN.md` and `docs/business-rules.md` - keep invariants in
+2. `docs/project/ARCHITECTURE.md` - update with BFF/command boundary.
+3. `docs/project/DOMAIN_MODEL.md` and `docs/project/BUSINESS_RULES.md` - keep invariants in
    provider-neutral language.
 4. `docs/runbooks/supabase-migration-history.md` - keep Supabase-specific
    operations isolated as current-provider runbook.

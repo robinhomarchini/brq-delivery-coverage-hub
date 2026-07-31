@@ -12,6 +12,8 @@ Atualizado em: 2026-07-31
   a falha não confirmou drift.
 - Documentação técnica canônica: `docs/project/`.
 - Requisitos ativos: `specs/`.
+- Norma comum para Codex, Kilo, Copilot e Claude: `ENGINEERING_STANDARD.md`,
+  protegida por `npm run test:agents`.
 - Histórico anterior: Git, sem cópias ou archives no working tree.
 
 ## Estado funcional

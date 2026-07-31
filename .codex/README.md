@@ -4,15 +4,12 @@ Esta pasta descreve as personas/agentes que orientam o trabalho neste projeto.
 
 ## Como usar
 
-1. Leia `.codex/project.json` para identificar tipo do projeto, rotinas e agentes padrao.
-2. Leia `docs/context-strategy.md` e `docs/project-memory.md` antes de abrir specs ou codigo.
-3. Leia apenas os agentes relevantes em `.codex/agents/`.
-4. Antes de alterar codigo ou automacao, consulte os agentes de contexto.
-5. Para feature ou bugfix, siga o fluxo: Dominio -> Arquitetura -> Reuso do
-   existente -> Banco/fonte de verdade -> Implementacao -> UX Quality Review -> Reuse Review -> Security/RLS
-   Review -> Database Performance Review -> Code Review -> resposta com evidencia.
-6. Depois de resolver uma situacao importante, registre aprendizados em `.codex/learning-log.md`.
-7. Quando um aprendizado virar regra recorrente, promova para o agente correspondente.
+1. Leia `ENGINEERING_STANDARD.md` e `AGENTS.md`.
+2. Use `.codex/project.json` apenas para roteamento de agentes.
+3. Os agentes padrão são arquiteto, domínio, executor, QA, observabilidade e
+   documentação; invoque especialistas somente quando a camada for impactada.
+4. Use `docs/project/` e a spec correspondente antes do código.
+5. Registre apenas decisões duráveis e aprendizados recorrentes.
 
 ## Regra de ouro
 
@@ -29,10 +26,10 @@ duplicacao real e tiver consumidores concretos.
 
 - Siga `.codexignore` para caches, logs, binarios, outputs e lockfiles.
 - Evite listar recursivamente o repo inteiro. Use `rg` com filtros e leia trechos.
-- Para tarefas comuns, comece por `docs/context-strategy.md`, `docs/project-memory.md`, `.squad/memory.md` e o resumo especifico da camada.
+- Para tarefas comuns, comece por `PROJECT_OVERVIEW.md`, `CURRENT_STATE.md` e o resumo específico da camada.
 - Agentes especialistas nao devem reler as mesmas specs se o resumo da camada ja cobre a decisao.
 
-## Personas padrao
+## Especialistas disponíveis
 
 As personas sao nomes humanos para facilitar a conversa, mas cada agente continua
 independente e util sozinho:
