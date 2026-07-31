@@ -20,6 +20,13 @@ type PersonRow = {
   is_manager: boolean;
 };
 
+function validateRpcObject(data: unknown): Record<string, unknown> {
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    return {};
+  }
+  return data as Record<string, unknown>;
+}
+
 function fromImportPersonRow(row: Record<string, unknown>): PersonRow {
   return {
     id: String(row.id ?? ""),
@@ -50,7 +57,7 @@ export async function buildEmployeeImportPreview(input: {
   const parsed = await parseEmployeeImportWorkbook(input.buffer);
   const { data: previewData, error: previewError } = await input.client.rpc("get_employee_import_preview_data");
   if (previewError) throw new Error("Não foi possível consultar os dados de importação.");
-  const previewPayload = (previewData ?? {}) as Record<string, unknown>;
+  const previewPayload = validateRpcObject(previewData);
   const people = ((previewPayload.people ?? []) as unknown[]).map((row) => fromImportPersonRow(row as never));
   const compensations = ((previewPayload.compensations ?? []) as unknown[]).map((row) => ({ person_id: String((row as { person_id: string }).person_id), annual_salary: (row as { annual_salary: number | null }).annual_salary }));
   const savedMappings = ((previewPayload.managerMappings ?? []) as unknown[]).map((row) => ({ source_key: String((row as { source_key: string }).source_key), source_manager_name: String((row as { source_manager_name: string }).source_manager_name ?? ""), manager_person_id: String((row as { manager_person_id: string }).manager_person_id) }));
@@ -281,7 +288,7 @@ export async function applyEmployeeImportSalaryItem(input: {
     p_person_id: input.personId,
   });
   if (error) throw new Error("Não foi possível atualizar o salário selecionado.");
-  const result = (data ?? {}) as Record<string, unknown>;
+  const result = validateRpcObject(data);
   return {
     personId: String(result.person_id ?? input.personId),
     status: "updated" as const,
@@ -334,8 +341,8 @@ export async function confirmEmployeeImportHeadcount(input: {
       employee_count: mapping.employeeCount,
     })),
   });
-  if (error) throw new Error("Não foi possível confirmar o HC direto.");
-  const result = (data ?? {}) as Record<string, unknown>;
+   if (error) throw new Error("Não foi possível confirmar o HC direto.");
+  const result = validateRpcObject(data);
   return {
     headcountsUpdated: Number(result.headcounts_updated ?? 0),
     status: "hc_confirmed" as const,
