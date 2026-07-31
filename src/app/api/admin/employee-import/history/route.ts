@@ -7,7 +7,7 @@ export async function GET(request: Request) {
     const client = await createEmployeeImportClient(request);
     const { data, error } = await client
       .from("employee_import_batches")
-      .select("id,source_file_name,source_row_count,status,created_at")
+      .select("id,source_file_name,source_row_count:preview_snapshot->>sourceRowCount,status,created_at")
       .order("created_at", { ascending: false })
       .limit(5);
 
@@ -15,7 +15,7 @@ export async function GET(request: Request) {
     const batches = (data ?? []).map((batch) => ({
       id: batch.id,
       sourceFileName: batch.source_file_name,
-      sourceRowCount: batch.source_row_count,
+      sourceRowCount: Number(batch.source_row_count ?? 0),
       status: batch.status,
       createdAt: batch.created_at,
     }));

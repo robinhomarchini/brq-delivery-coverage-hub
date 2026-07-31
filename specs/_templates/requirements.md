@@ -6,5 +6,14 @@
 
 ## Regras de negócio
 
-## Fora de escopo
+## Critérios de aceite
 
+## Fonte de verdade e impactos
+
+- Banco/RLS:
+- Segurança:
+- Consumidores derivados:
+
+## Validação
+
+## Fora de escopo

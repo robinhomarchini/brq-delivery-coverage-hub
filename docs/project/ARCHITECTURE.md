@@ -1,6 +1,6 @@
 # Architecture
 
-Gerado em: 2026-07-28 13:19:26 -03:00
+Baseline atualizado em: 2026-07-31
 
 ## Camadas confirmadas
 
@@ -30,12 +30,6 @@ Gerado em: 2026-07-28 13:19:26 -03:00
 - `OrganizationChart` e a implementacao oficial de organograma; nao foi encontrado `OrganizationChartV2` ativo no inventario de arquivos.
 - Regras financeiras compartilhadas devem ficar em dominio, nao duplicadas em componentes.
 - Telemetria estruturada existe para uma parte das operacoes server-side, mas ainda nao cobre toda a aplicacao.
-
-## Contradicoes encontradas
-
-- `docs/ARCHITECTURE.md` antigo afirma que total financeiro e `Hunter + Renovacao + Areas/Studios`. O codigo atual em `src/lib/customer-target-total.ts`, `src/lib/customers/customer-coverage-view-model.ts` e `src/lib/reports/person-target-official-export.ts` trata Studio como contido nas metas de Hunter/Renovacao, nao como soma adicional.
-- `docs/DOMAIN.md` antigo menciona exclusividade de Hunter por cliente. O codigo e migrations atuais permitem multiplos participantes e tratam Hunter Especializado como relacao adicional em cenarios especificos.
-- `docs/agent-handoff.md` antigo informa worktree limpa, mas a auditoria atual encontrou mudancas staged e unstaged em dashboard metrics.
 
 ## Riscos arquiteturais
 

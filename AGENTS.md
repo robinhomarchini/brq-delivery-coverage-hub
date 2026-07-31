@@ -4,16 +4,16 @@ Este arquivo e o ponto de entrada para qualquer agente de engenharia neste
 repositorio. Antes de alterar codigo, leia a documentacao do projeto e use o
 repositorio como fonte da verdade.
 
-## Ordem obrigatoria de leitura
+## Leitura por contexto
 
 1. `.github/copilot-instructions.md` - constituicao tecnica do projeto.
-2. `docs/project/PROJECT_OVERVIEW.md` - escopo e estado geral.
-3. `docs/project/ARCHITECTURE.md` - camadas, fronteiras e fluxos.
-4. `docs/project/DOMAIN_MODEL.md` e `docs/project/BUSINESS_RULES.md` - dominio e regras confirmadas.
-5. `docs/project/DATABASE.md`, `docs/project/SECURITY.md` e `docs/project/DEPLOYMENT.md` - Supabase, RLS, seguranca e deploy.
-6. `docs/project/CURRENT_STATE.md`, `docs/project/KNOWN_ISSUES.md` e `docs/project/NEXT_STEPS.md` - estado atual e pendencias.
-7. `docs/agent-handoff.md` e `.squad/memory.md` quando estiver retomando trabalho em andamento.
-8. `specs/delivery-coverage-hub/` antes de mudar comportamento de produto.
+2. `docs/project/PROJECT_OVERVIEW.md` e `CURRENT_STATE.md` - baseline e estado.
+3. Leia apenas os documentos da camada impactada em `docs/project/`.
+4. Leia a spec da capacidade afetada em `specs/` antes de mudar comportamento.
+5. Use `docs/agent-handoff.md` somente para trabalho ainda em andamento.
+
+Nao carregue todo o acervo por padrao. O Git preserva o historico; documentos
+ativos devem representar apenas o baseline atual e pendencias reais.
 
 ## Regras permanentes
 

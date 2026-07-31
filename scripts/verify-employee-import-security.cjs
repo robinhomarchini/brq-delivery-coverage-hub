@@ -8,6 +8,7 @@ const read = (...segments) => fs.readFileSync(path.join(root, ...segments), "utf
 const previewRoute = read("src", "app", "api", "admin", "employee-import", "preview", "route.ts");
 const applyRoute = read("src", "app", "api", "admin", "employee-import", "apply", "route.ts");
 const headcountRoute = read("src", "app", "api", "admin", "employee-import", "headcount", "route.ts");
+const historyRoute = read("src", "app", "api", "admin", "employee-import", "history", "route.ts");
 const access = read("src", "server", "auth", "employee-import-access.ts");
 const service = read("src", "server", "employee-import", "service.ts");
 const migration = read("supabase", "migrations", "20260728210000_employee_salary_import.sql");
@@ -17,6 +18,8 @@ const page = read("src", "app", "importacao-funcionarios", "page.tsx");
 assertIncludes(previewRoute, "createEmployeeImportClient(request)", "Preview must enforce employee-import authorization.");
 assertIncludes(applyRoute, "createEmployeeImportClient(request)", "Apply must enforce employee-import authorization.");
 assertIncludes(headcountRoute, "createEmployeeImportClient(request)", "Headcount confirmation must enforce authorization.");
+assertIncludes(historyRoute, "source_row_count:preview_snapshot->>sourceRowCount", "Import history must derive the row count from the persisted snapshot.");
+assertNotIncludes(historyRoute, '.select("id,source_file_name,source_row_count,status,created_at")', "Import history must not query a nonexistent source_row_count column.");
 assertIncludes(access, "can_manage_person_compensation", "Backend must enforce compensation authorization.");
 assertIncludes(service, "create_employee_import_batch", "Batch creation must use a transactional RPC.");
 assertIncludes(service, "sanitizeStorageFileName", "Storage keys must normalize accented workbook names.");

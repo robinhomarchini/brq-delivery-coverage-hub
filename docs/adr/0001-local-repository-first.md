@@ -2,7 +2,7 @@
 
 ## Status
 
-Aceito.
+Superado pelo baseline Supabase descrito em `docs/project/ARCHITECTURE.md`.
 
 ## Decisão
 
@@ -13,4 +13,3 @@ diretamente nenhum cliente de banco.
 
 A demonstração funciona sem infraestrutura e uma integração Supabase futura pode
 ser adicionada como novo adaptador, preservando as telas.
-

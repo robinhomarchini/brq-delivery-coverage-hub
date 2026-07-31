@@ -1,7 +1,7 @@
 # BRQ Delivery Coverage Hub
 
-Aplicação executiva para gestão e visualização da estrutura de Delivery, gestores,
-clientes, assuntos e modelos de atuação.
+Aplicação executiva interna para cobertura de Delivery, clientes, pessoas,
+metas, baselines, relatórios e análises. Next.js 16, React 19, Supabase e Vercel.
 
 ## Executar localmente
 
@@ -12,40 +12,30 @@ npm run dev
 
 Acesse `http://localhost:3000`.
 
-## Validação
+## Desenvolvimento
 
 ```bash
-npm run lint
-npm run typecheck
+npm run dev
+npm run validate
 npm run build
 ```
 
-## Homologação
+Para persistência crítica, execute também `npm run smoke:critical`. Mudanças de
+banco exigem `npm run db:migrations:check`.
+
+## Produção
 
 Versão publicada no Vercel:
 
 - https://brq-delivery-coverage-hub.vercel.app
 
-O acesso é feito por magic link do Supabase Auth e exige e-mail `@brq.com`.
-O Supabase Auth está configurado com esse domínio Vercel como Site URL e Redirect URL,
-mantendo também `localhost` e `127.0.0.1` para testes locais.
-
-A migration `supabase/migrations/20260625190000_brq_homologation_rls.sql`
-permite que validadores internos autenticados com e-mail BRQ leiam e editem os
-dados principais durante a homologação, sem precisar cadastrar cada usuário
-manualmente em uma tabela de permissões.
+O acesso usa Supabase Auth, usuários corporativos e autorização por RLS/RBAC.
 
 ## Arquitetura
 
-O app usa Supabase quando `.env.local` possui as credenciais públicas. Nesse modo,
-o acesso exige autenticação com e-mail `@brq.com` e o banco aplica RLS. Sem
-configuração Supabase, o adaptador local funciona como fallback de desenvolvimento.
+`DeliveryRepository`, BFFs, RPCs e RLS formam a fronteira de persistência.
+Produção nunca usa fallback local. O baseline técnico canônico está em
+`docs/project/`; requisitos ativos ficam em `specs/` e migrations são sempre
+forward-only em `supabase/migrations/`.
 
-O esquema e o hardening estão em `supabase/migrations/`. A migration
-`20260626202500_architecture_hardening_rpc_audit.sql` adiciona RPCs
-transacionais e auditoria nas tabelas normalizadas.
-
-Em produção, a aplicação não deve cair para mock local sem Supabase configurado.
-Consulte `docs/SECURITY.md` e `docs/PRODUCTION_READINESS.md`.
-
-Consulte `docs/ARCHITECTURE.md` e `specs/delivery-coverage-hub/`.
+Comece por `AGENTS.md` e `docs/project/PROJECT_OVERVIEW.md`.

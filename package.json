@@ -1,6 +1,6 @@
 {
   "name": "brq-delivery-coverage-hub",
-  "version": "0.1.0",
+  "version": "0.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -34,7 +34,6 @@
     "ai:env:check": "node scripts/vercel-ai-env.mjs check production",
     "ai:env:sync": "node scripts/vercel-ai-env.mjs sync production",
     "github:checks": "node scripts/github-checks.mjs",
-    "audit:background": "powershell -ExecutionPolicy Bypass -File scripts/audit-background.ps1",
     "maintenance:baseline-snapshots": "node scripts/cleanup-baseline-snapshots.mjs",
     "db:migrations:check": "node scripts/check-supabase-migration-history.mjs",
     "ai:route": "tsx .ai/router/task-router.ts",

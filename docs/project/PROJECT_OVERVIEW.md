@@ -1,13 +1,12 @@
 # Project Overview
 
-Gerado em: 2026-07-28 13:19:26 -03:00
+Baseline atualizado em: 2026-07-31
 
 ## Fatos confirmados
 
 - Repositorio: `robinhomarchini/brq-delivery-coverage-hub`.
 - Raiz local canonica: `C:\Users\rmarchini\projetos\OrgBRQDelivery`.
-- Branch atual inspecionada: `main`.
-- HEAD inspecionado: `6b5bfaf7cce47e0acc9b2de62f3e4f46248ce28a`.
+- Branch canônica: `main`.
 - Aplicacao Next.js/React para gestao executiva de cobertura Delivery, clientes, pessoas, metas, baselines, studios, relatorios e analise de desafio.
 - Stack confirmada em `package.json`: Next `16`, React `19`, TypeScript, Supabase JS, Recharts, Tailwind, Zod, OpenAI, importacao Excel via `read-excel-file`, exportacoes PDF/CSV/Excel.
 - Persistencia e leitura de dominio devem passar pelo contrato `DeliveryRepository` em `src/lib/repositories/types.ts`.

@@ -1,6 +1,6 @@
 # Business Rules
 
-Gerado em: 2026-07-28 13:19:26 -03:00
+Baseline atualizado em: 2026-07-31
 
 Este documento lista regras confirmadas no codigo e no banco. Regras inferidas ou conflitantes estao marcadas.
 

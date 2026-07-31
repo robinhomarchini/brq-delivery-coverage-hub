@@ -1,6 +1,6 @@
 # Security
 
-Gerado em: 2026-07-28 13:19:26 -03:00
+Baseline atualizado em: 2026-07-31
 
 ## Controles confirmados
 

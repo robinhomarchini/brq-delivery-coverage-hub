@@ -42,6 +42,8 @@ output/
 .env*
 !.env.example
 .vercel/
+.vercel-cli/
+.kilo/
 supabase/.temp/
 
 # Generated, compiled or bulky examples

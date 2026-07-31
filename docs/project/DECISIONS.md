@@ -1,6 +1,6 @@
 # Decisions
 
-Gerado em: 2026-07-28 14:30:00 -03:00
+Baseline atualizado em: 2026-07-31
 
 ## Decisoes confirmadas
 
