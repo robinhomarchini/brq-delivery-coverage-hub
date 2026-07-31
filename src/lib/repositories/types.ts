@@ -94,6 +94,84 @@ export interface DashboardMetricResult {
   financialByCustomer: DashboardMetricFinancialByCustomer[];
 }
 
+export const DASHBOARD_METRIC_SUMMARY_FIELDS = [
+  "totalTarget",
+  "boardTotalTarget",
+  "hunterTarget",
+  "farmerRenewalTarget",
+  "allocatedPeopleTotal",
+  "peopleDelta",
+  "achievementPercentage",
+  "customerCount",
+  "activePeopleCount",
+  "directorCount",
+  "managerCount",
+] as const satisfies ReadonlyArray<keyof DashboardMetricSummary>;
+
+export const DASHBOARD_METRIC_FINANCIAL_BY_CUSTOMER_FIELDS = [
+  "customerCluster",
+  "revenueCurrent",
+  "revenueTarget",
+  "hunterRevenue",
+  "deliveryFarmerRevenue",
+] as const satisfies ReadonlyArray<keyof DashboardMetricFinancialByCustomer>;
+
+export function validateDashboardMetricResult(value: unknown): DashboardMetricResult {
+  if (
+    !value ||
+    typeof value !== "object" ||
+    !Array.isArray((value as { financialByCustomer?: unknown[] }).financialByCustomer)
+  ) {
+    throw new Error("Invalid dashboard metric result: expected object with financialByCustomer array");
+  }
+
+  const unsafe = value as Record<string, unknown>;
+  const summary = unsafe.summary;
+
+  if (
+    !summary ||
+    typeof summary !== "object" ||
+    DASHBOARD_METRIC_SUMMARY_FIELDS.some((field) => !(field in summary))
+  ) {
+    throw new Error("Invalid dashboard metric summary: missing required fields");
+  }
+
+  const normalized = {
+    summary: {
+      totalTarget: Number((summary as Record<string, unknown>)["totalTarget"]),
+      boardTotalTarget: Number((summary as Record<string, unknown>)["boardTotalTarget"]),
+      hunterTarget: Number((summary as Record<string, unknown>)["hunterTarget"]),
+      farmerRenewalTarget: Number((summary as Record<string, unknown>)["farmerRenewalTarget"]),
+      allocatedPeopleTotal: Number((summary as Record<string, unknown>)["allocatedPeopleTotal"]),
+      peopleDelta: Number((summary as Record<string, unknown>)["peopleDelta"]),
+      achievementPercentage: Number((summary as Record<string, unknown>)["achievementPercentage"]),
+      customerCount: Number((summary as Record<string, unknown>)["customerCount"]),
+      activePeopleCount: Number((summary as Record<string, unknown>)["activePeopleCount"]),
+      directorCount: Number((summary as Record<string, unknown>)["directorCount"]),
+      managerCount: Number((summary as Record<string, unknown>)["managerCount"]),
+    },
+    financialByCustomer: (unsafe.financialByCustomer as Array<Record<string, unknown>>).map((item) => {
+      if (
+        !item ||
+        typeof item !== "object" ||
+        DASHBOARD_METRIC_FINANCIAL_BY_CUSTOMER_FIELDS.some((field) => !(field in item))
+      ) {
+        throw new Error("Invalid financialByCustomer item: missing required fields");
+      }
+
+      return {
+        customerCluster: String(item.customerCluster),
+        revenueCurrent: Number(item.revenueCurrent ?? 0),
+        revenueTarget: Number(item.revenueTarget ?? 0),
+        hunterRevenue: Number(item.hunterRevenue ?? 0),
+        deliveryFarmerRevenue: Number(item.deliveryFarmerRevenue ?? 0),
+      };
+    }),
+  };
+
+  return normalized;
+}
+
 export interface DashboardSummaryFilters {
   targetYear: number;
   includeNewLogos: boolean;
