@@ -22,6 +22,7 @@ Baseline atualizado em: 2026-07-31
 - Metas por area/studio: `src/app/metas-studios/page.tsx`.
 - Hunters especializados: `src/app/metas-hunters-especializados/page.tsx`.
 - Relatorio de metas e exportacao oficial: `src/app/relatorio-metas/page.tsx`, `src/lib/reports/person-target-official-export.ts`.
+- Relatorio de clientes e responsaveis: `src/app/relatorio-clientes/page.tsx`, `src/lib/reports/customer-responsibility.ts`.
 - Baselines e comparativos: `src/app/baselines/page.tsx`, `src/app/comparativo-baseline/page.tsx`, `src/lib/target-baseline-import.ts`, `src/lib/studio-baseline-import.ts`, `src/lib/studio-curve-baseline-snapshot.ts`.
 - Analise de desafio com IA: `src/app/analise-desafio/page.tsx`, `src/app/api/challenge-analysis/route.ts`, `src/server/ai/challenge-analysis.ts`.
 - Auditoria temporaria de duplicatas: `src/app/auditoria-duplicatas/page.tsx`.

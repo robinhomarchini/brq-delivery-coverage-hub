@@ -4,6 +4,19 @@ Baseline atualizado em: 2026-07-31
 
 ## Decisoes confirmadas
 
+- 2026-10-16: filtros do Relatório de Clientes operam sobre IDs dos vínculos
+  existentes, preservando homônimos. A busca reutiliza `normalizeBusinessName`;
+  os indicadores reutilizam `KpiSummaryCard` e refletem a seleção completa,
+  independente da paginação. Sem novas consultas ou mudanças de autorização.
+- O empacotamento Vercel exclui explicitamente `.vercel-cli` e `.env*`, mantendo
+  runtimes locais fora do upload e utilizando a configuração remota de produção.
+
+- 2026-10-15: o Relatório de Clientes usa somente vínculos operacionais atuais
+  e pessoas ativas, separado da visão financeira de cobertura do Relatório de
+  Metas. Metas/Studios não criam responsabilidade presumida. Os componentes de
+  tabela, ordenação e exportação são reutilizados; a seleção completa alimenta
+  CSV/Excel, enquanto a tela pagina em 50 clientes. Sem mudanças no backend/RLS.
+
 1. `DeliveryRepository` permanece a fronteira principal da aplicacao para persistencia.
    - Fontes: `src/lib/repositories/types.ts`, `src/lib/repositories/provider.ts`.
 

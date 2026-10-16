@@ -1,9 +1,9 @@
 # Next Steps
 
-Atualizado em: 2026-07-31
+Atualizado em: 2026-10-16
 
-1. Reconciliar as 101 migrations locais com o Supabase remoto usando o check
-   versionado e credenciais autorizadas.
+1. Revisar com os donos dos dados os clientes sem responsáveis apontados pelo
+   Relatório de Clientes; corrigir vínculos somente com definição operacional.
 2. Formalizar a semântica mensal/anual de remuneração.
 3. Concluir o saneamento auditado de duplicatas legadas.
 4. Expandir telemetria estruturada para BFFs ainda sem instrumentação.

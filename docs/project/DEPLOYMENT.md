@@ -45,7 +45,16 @@ Nao use `npx vercel` diretamente neste repositorio; os scripts locais isolam cac
 - Segredos reais nao devem entrar em Git nem em documentos.
 - Autenticacao Supabase exige configuracao de ambiente; provider `corporate-sso` existe como reserva, mas nao esta implementado.
 
-## Estado desta auditoria
+## Entrega do Relatório de Clientes
 
-- Nenhum deploy foi executado.
-- Worktree possui alteracoes pendentes em dashboard metrics, portanto nao e uma base pronta para deploy sem validacao.
+- Publicação de 2026-10-16: `dpl_E9wrLaiQpWFurFDoPgCUr7GL2kau`, Vercel `Ready`.
+- Rota: `https://brq-delivery-coverage-hub.vercel.app/relatorio-clientes`.
+- Validate, build, smoke crítico e testes de segurança aprovados na cópia isolada.
+- Histórico de migrations: 101 locais e 101 remotas, sem alteração de schema.
+- Conferência autenticada: 48 clientes; filtros combinados e prévia reconciliados.
+- O pacote exclui `.vercel-cli` e `.env*`; variáveis vêm do ambiente da Vercel.
+- Versão anterior para recuperação operacional, se necessária:
+  `dpl_Gv2H6nLAT4XdNWeXRUPWHWHGFxz2`. Não executar rollback automaticamente.
+- Código do relatório e documentação são versionados separadamente de alterações
+  locais pendentes de login/cadastro. O working tree completo não deve ser
+  publicado indiscriminadamente.
