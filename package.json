@@ -14,7 +14,7 @@
     "test:provider": "node scripts/verify-provider-abstraction.cjs",
     "test:deploy-tooling": "node scripts/verify-deploy-tooling.cjs",
     "test:baselines": "node scripts/verify-baseline-centralization.cjs && tsx scripts/verify-studio-curve-baseline.ts && tsx scripts/verify-studio-baseline-report.ts && tsx scripts/verify-target-baseline-import.ts",
-    "test:reports": "node scripts/verify-report-exports.cjs && node scripts/verify-specialist-hunter-exclusion.cjs && tsx scripts/verify-target-allocation-duplicates.ts",
+    "test:reports": "node scripts/verify-report-exports.cjs && node scripts/verify-specialist-hunter-exclusion.cjs && tsx scripts/verify-target-allocation-duplicates.ts && tsx scripts/verify-customer-responsibility-report.ts",
     "test:currency-input": "tsx scripts/verify-currency-input.ts",
     "test:audit": "node scripts/verify-app-access-audit.cjs && node scripts/verify-person-target-audit.cjs",
     "test:observability": "node scripts/verify-observability.cjs",

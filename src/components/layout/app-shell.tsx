@@ -51,6 +51,7 @@ const navigation = [
   { href: "/metas-studios", label: "Metas por Área/Studio", icon: Layers3 },
   { href: "/metas-hunters-especializados", label: "Metas Hunter Especializado", icon: Target },
   { href: "/relatorio-metas", label: "Relatório de Metas", icon: ClipboardList },
+  { href: "/relatorio-clientes", label: "Relatório de Clientes", icon: ClipboardList },
   { href: "/baselines", label: "Baselines", icon: Files },
   { href: "/comparativo-baseline", label: "Baseline vs Cadastro", icon: FileSearch },
   { href: "/auditoria-duplicatas", label: "Auditoria de Metas", icon: ListChecks, adminOnly: true },
@@ -64,6 +65,7 @@ const navigation = [
 
 const mobileAllowedRoutes = new Set([
   "/",
+  "/relatorio-clientes",
   "/portfolio-clientes",
   "/relatorio-metas",
   "/baselines",

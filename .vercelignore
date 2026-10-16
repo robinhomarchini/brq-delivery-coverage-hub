@@ -1,5 +1,7 @@
 .next
 .vercel/output
+.vercel-cli
+.env*
 .npm-cache
 coverage
 node_modules
