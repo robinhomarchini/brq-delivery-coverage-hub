@@ -6,6 +6,15 @@ Fechar o acesso do Delivery Coverage Hub para usuários corporativos BRQ
 pré-cadastrados, com administração segura de usuários pelo próprio app sem usar
 service role no navegador.
 
+## Login sem bloqueio de sessão
+
+- Eventos de autenticação devem ser entregues fora do callback interno do
+  Supabase, antes de consultar permissões ou encerrar uma sessão rejeitada.
+- O login continua exigindo perfil corporativo ativo validado pela RPC existente.
+- O cancelamento da assinatura deve descartar eventos ainda pendentes.
+- Validar com regressão de ordem dos eventos e cancelamento, lint, tipos,
+  validações do projeto e build. Não há alteração de schema, RLS ou grants.
+
 ## Regras de negócio
 
 - Apenas e-mails normalizados com domínio `@brq.com` podem acessar.

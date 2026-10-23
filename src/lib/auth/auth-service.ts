@@ -80,10 +80,22 @@ export function createSupabaseAuthService(client: SupabaseClient): AuthService {
       return data.session?.access_token ?? null;
     },
     onAuthStateChange(callback) {
+      const pendingEvents = new Set<ReturnType<typeof setTimeout>>();
       const { data } = client.auth.onAuthStateChange((event, session: Session | null) => {
-        callback(event, session?.user ? toAuthenticatedUser(session.user) : null);
+        // Profile RPCs and signOut need the auth lock held by this callback.
+        // Deliver on the next task so subscribers can safely use Supabase.
+        const user = session?.user ? toAuthenticatedUser(session.user) : null;
+        const timer = setTimeout(() => {
+          pendingEvents.delete(timer);
+          callback(event, user);
+        }, 0);
+        pendingEvents.add(timer);
       });
-      return () => data.subscription.unsubscribe();
+      return () => {
+        data.subscription.unsubscribe();
+        pendingEvents.forEach(clearTimeout);
+        pendingEvents.clear();
+      };
     },
     async signInWithPassword(email, password) {
       const { error } = await client.auth.signInWithPassword({
