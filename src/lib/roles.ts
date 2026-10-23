@@ -210,6 +210,14 @@ export function isDirectorOrExecutiveRole(role: RoleType): boolean {
   return isDirectorRole(role) || isExecutiveRole(role);
 }
 
+export function isDirectorAssignmentOption(person: {
+  roleType: RoleType;
+  jobTitle?: string;
+}): boolean {
+  return isDirectorOrExecutiveRole(person.roleType)
+    || /\bdiretor(?:a)?\b/i.test(person.jobTitle?.trim() ?? "");
+}
+
 export function hasDarkCardTheme(role: RoleType): boolean {
   return ROLE_DEFINITIONS[role].hasDarkCardTheme;
 }

@@ -65,6 +65,8 @@ assertIncludes(rolesSource, "export function canAppearInOrganization(role: RoleT
 assertIncludes(rolesSource, "export function isExecutiveRole(role: RoleType): boolean", "roles.ts must export isExecutiveRole.");
 assertIncludes(rolesSource, "export function isDirectorRole(role: RoleType): boolean", "roles.ts must export isDirectorRole.");
 assertIncludes(rolesSource, "export function isDirectorOrExecutiveRole(role: RoleType): boolean", "roles.ts must export isDirectorOrExecutiveRole.");
+assertIncludes(rolesSource, "export function isDirectorAssignmentOption(person:", "roles.ts must export the canonical director assignment predicate.");
+assertIncludes(rolesSource, "/\\bdiretor(?:a)?\\b/i", "Director assignment must recognize director job titles without hardcoded people.");
 assertIncludes(rolesSource, "export function hasDarkCardTheme(role: RoleType): boolean", "roles.ts must export hasDarkCardTheme.");
 assertIncludes(rolesSource, "export function isDeliveryRole(role: RoleType): boolean", "roles.ts must export isDeliveryRole.");
 assertIncludes(rolesSource, "export function isFarmerRole(role: RoleType): boolean", "roles.ts must export isFarmerRole.");

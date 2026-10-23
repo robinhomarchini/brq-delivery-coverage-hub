@@ -67,6 +67,9 @@
   sendo Cliente + Pessoa + Tipo de Meta + Ano nas metas.
 - Os cargos "Diretor Comercial", "Gerente Executivo de Vendas" e "Executivo de
   Negócios" aparecem como sugestões no campo Cargo.
+- O combo Diretor no cadastro de Pessoas deriva suas opções do cadastro
+  canônico e inclui toda pessoa cujo tipo de atuação seja Executivo/Diretor ou
+  cujo Cargo contenha a palavra Diretor/Diretora, sem hardcode de nomes.
 - A edição de pessoa permite vincular um ou mais clientes usando duas listas, com
   itens disponíveis e selecionados, e salva os vínculos ao gravar.
 - Para administradores, a lista de Pessoas mostra indicação de "Usuário do
