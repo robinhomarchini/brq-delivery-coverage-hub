@@ -2,6 +2,11 @@
 
 Baseline atualizado em: 2026-07-31
 
+- 2026-10-23: atualizar Next.js/config de lint juntos dentro do major 16 e
+  corrigir transitivas dentro das faixas existentes. Separar alertas de producao
+  (zerados localmente) dos alertas de ferramentas que exigem migracao principal.
+  Nao aplicar npm audit fix --force nem publicar junto com cadastro WIP.
+
 - 2026-10-23: preservar o trabalho existente de area de atuacao em Pessoas
   como WIP explicito. Nao considerar a capacidade pronta para producao enquanto
   `businessArea` nao atravessar o contrato Supabase de gravacao e leitura.

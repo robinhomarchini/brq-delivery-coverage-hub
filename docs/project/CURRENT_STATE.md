@@ -2,6 +2,19 @@
 
 Atualizado em: 2026-10-23
 
+## Seguranca de dependencias em 2026-10-23
+
+- Next.js e eslint-config-next atualizados para 16.4.2; DOMPurify transitivo
+  atualizado para 3.4.17. Nenhuma nova dependencia direta ou mudanca de banco.
+- `npm audit --omit=dev`: zero alertas. Auditoria completa: nove alertas
+  (sete altos e dois moderados), na cadeia de ferramentas Tailwind/lint.
+  Resolver esses alertas exige avaliar migracoes principais; nao foi usado force.
+- `npm run validate`, `npm run build`, `npm run smoke:critical` e
+  `npm run test:security` passaram. O novo lint aponta quatro avisos de
+  navegacao interna em codigo preexistente, sem erros.
+- Alteracoes locais, sem publicacao. Producao ainda depende de deploy revisado;
+  `businessArea` continua WIP conforme registrado abaixo.
+
 ## Fechamento das alteracoes locais em 2026-10-23
 
 - Autenticacao e cadastro foram organizados em commits separados, preservando
