@@ -2,6 +2,11 @@
 
 Baseline atualizado em: 2026-07-31
 
+- 2026-10-23: preservar o trabalho existente de area de atuacao em Pessoas
+  como WIP explicito. Nao considerar a capacidade pronta para producao enquanto
+  `businessArea` nao atravessar o contrato Supabase de gravacao e leitura.
+  A organizacao de commits nao inclui deploy nem alteracao de schema.
+
 ## Decisoes confirmadas
 
 - 2026-10-16: filtros do Relatório de Clientes operam sobre IDs dos vínculos
@@ -16,6 +21,16 @@ Baseline atualizado em: 2026-07-31
   Metas. Metas/Studios não criam responsabilidade presumida. Os componentes de
   tabela, ordenação e exportação são reutilizados; a seleção completa alimenta
   CSV/Excel, enquanto a tela pagina em 50 clientes. Sem mudanças no backend/RLS.
+
+- 2026-10-15: indisponibilidade de produção foi tratada retomando o projeto
+  Supabase pausado pelo painel administrativo, sem deploy, mudança de schema ou
+  reparo de migrations. Após a retomada: `ACTIVE_HEALTHY`, Auth HTTP 200 e
+  histórico alinhado em 101 migrations locais/remotas. A correção local do
+  adapter de Auth permanece separada da recuperação operacional.
+
+- 2026-10-15: o adapter de Auth adia a entrega dos eventos para a próxima tarefa
+  e cancela entregas pendentes ao remover a assinatura. Isso permite consultar
+  o perfil e executar signOut fora do lock interno do Supabase, sem mudar RBAC.
 
 1. `DeliveryRepository` permanece a fronteira principal da aplicacao para persistencia.
    - Fontes: `src/lib/repositories/types.ts`, `src/lib/repositories/provider.ts`.

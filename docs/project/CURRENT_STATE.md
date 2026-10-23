@@ -1,6 +1,19 @@
 # Current State
 
-Atualizado em: 2026-10-16
+Atualizado em: 2026-10-23
+
+## Fechamento das alteracoes locais em 2026-10-23
+
+- Autenticacao e cadastro foram organizados em commits separados, preservando
+  as alteracoes existentes. Sem deploy ou mudanca no banco.
+- Passaram `npm run validate` (lint, tipos e testes), `npm run build`,
+  `npm run smoke:critical`, `npm run test:security` e `git diff --check`.
+- Cadastro de Pessoas permanece WIP: `businessArea` existe no modelo,
+  validacao, formulario e filtro, mas nao e enviado pela RPC nem recuperado
+  por `fromPersonRow` no adapter Supabase. O campo nao tem persistencia de
+  producao; concluir contrato/backend/schema antes de publicar esta capacidade.
+- Revisao de UX feita no componente, sem verificacao visual no navegador.
+  Nao houve alteracao de RLS, grants, migrations ou consultas.
 
 ## Baseline v0.0.0
 
@@ -37,8 +50,25 @@ Atualizado em: 2026-10-16
   deployment `dpl_Gv2H6nLAT4XdNWeXRUPWHWHGFxz2`, Vercel `Ready`, rota HTTP 200
   e leitura autenticada de 48 clientes confirmada em produção.
 
+- Correção local em 2026-10-15: eventos de autenticação são entregues após o
+  callback interno do Supabase, evitando consultas de perfil sob o lock de Auth.
+  A autorização continua na RPC existente; validação nominal em produção pendente.
+- Incidente de login em 2026-10-15: Vercel confirmou produção `Ready` no commit
+  `6a5471d`; Supabase CLI confirmou o projeto vinculado como `INACTIVE`.
+  O hostname de Auth retornou NXDOMAIN também no resolvedor público Cloudflare.
+  Retomada concluída pelo painel autenticado: CLI confirmou `ACTIVE_HEALTHY`,
+  Auth health/settings retornaram HTTP 200 e o check reconciliou 101 migrations
+  locais com 101 remotas. Sessão administrativa e leitura autenticada foram
+  confirmadas em produção ao validar o novo relatório de clientes.
+  A correção de código continua sem publicação; validação e smoke crítico
+  passaram na worktree isolada `OrgBRQDelivery-login-fix`. O build isolado foi
+  impedido pelo Turbopack rejeitar a junction externa de `node_modules`.
+
 - Produção usa Supabase; fallback local é exclusivo de desenvolvimento.
 - Persistência passa por `DeliveryRepository`, BFF/RPC e RLS.
+- No cadastro de Pessoas, a elegibilidade do combo Diretor é derivada do tipo de
+  atuação Executivo/Diretor ou do Cargo contendo Diretor/Diretora; nomes
+  operacionais não são hardcoded.
 - Dashboard usa RPCs tipadas/validadas na fronteira do repositório.
 - Importação de funcionários persiste lotes, snapshots, estados salariais e HC
   com autorização administrativa e auditoria.
