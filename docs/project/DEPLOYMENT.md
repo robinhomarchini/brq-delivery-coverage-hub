@@ -35,6 +35,24 @@ Nao use `npx vercel` diretamente neste repositorio; os scripts locais isolam cac
 
 ## Supabase
 
+### Rotina diaria de disponibilidade
+
+- Workflow `Supabase Availability` em `.github/workflows/supabase-availability.yml`:
+  diario as 08:17 de Sao Paulo, inclusive fins de semana, e execucao manual.
+- Secrets do repositorio: `SUPABASE_AVAILABILITY_URL` e
+  `SUPABASE_AVAILABILITY_ANON_KEY`, com a mesma URL/chave publica do app.
+- Verifica Auth e uma leitura limitada via PostgREST, respeitando grants/RLS.
+  A negativa PostgreSQL `42501` e esperada para anon e confirma que o banco
+  respondeu; nenhuma permissao deve ser aberta para manter a rotina.
+- Falhas ficam no Actions; acompanhar historico e habilitar notificacoes de
+  falha nas preferencias do GitHub. Nao ha envio automatico para outro canal.
+- Nao garante impedir pausas do plano Free nem retoma projetos ja pausados.
+  GitHub pode atrasar agendas e desativa schedules de repositorios publicos
+  apos 60 dias sem atividade; revisar periodicamente. Pro elimina a pausa
+  por inatividade no Supabase.
+- Abrange somente este projeto. A rotina de migration drift continua separada;
+  falhas no seu secret `SUPABASE_DB_URL` nao impedem a verificacao diaria.
+
 - Comando base aprovado: `npx --cache .npm-cache --yes supabase <command> --linked`.
 - Use `migration list` antes de `db push`.
 - Nao usar `repair`, reset, rollback ou SQL manual sem verificacao e aprovacao explicita.

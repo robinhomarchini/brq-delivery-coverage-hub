@@ -170,6 +170,14 @@ Baseline atualizado em: 2026-07-31
     - HC direto e um atributo importado vigente em `people`, com linhagem de
       lote/data/origem; nao altera automaticamente `people.manager_id`.
 
+23. A disponibilidade do Supabase Free e verificada diariamente no GitHub Actions.
+    - Usar chave anon e preservar grants/RLS; nenhuma abertura de dados,
+      credencial privilegiada ou alteracao de schema para gerar atividade.
+    - Consultar Auth e PostgREST com limite de uma linha, sem registrar corpos.
+      A negativa PostgreSQL `42501` confirma conectividade sem liberar SELECT.
+    - Rotina independente do check de migrations e sem garantia contra pausa
+      automatica do Free; nao substituir por isso a disponibilidade de plano pago.
+
 ## Decisoes pendentes
 
 - Definir formalmente o nome e significado de `PersonCompensation.annualSalary`, pois o calculo atual anualiza o valor multiplicando por 12.

@@ -1,6 +1,33 @@
 # Current State
 
-Atualizado em: 2026-10-23
+Atualizado em: 2026-10-26
+
+## Incidente de autenticacao em 2026-10-26
+
+- Rotina `Supabase Availability` publicada na main remota no commit `0a1b46d`,
+  sem enviar os commits locais de produto. Agenda diaria as 08:17 de Sao Paulo,
+  inclusive fins de semana, com secrets da URL e chave anon existentes.
+- Execucao manual remota `40369310614` concluida com sucesso; workflow ativo.
+  Verifica Auth e resposta do PostgreSQL via PostgREST sem ampliar grants/RLS.
+  A negativa `42501` para anon e esperada e nao expoe dados.
+- `npm run validate`, `npm run build`, `npm run test:security` e diff --check
+  passaram; lint manteve quatro avisos preexistentes, sem erros.
+- Rotina nao garante impedir pausa do Free. GitHub pode desativar schedules
+  de repositorios publicos apos 60 dias sem atividade. Migration drift antigo
+  continua separado: ultimo run observado falhou por connection string invalida.
+
+- Vercel confirmou producao `Ready` no deployment `dpl_E9wrLaiQpWFurFDoPgCUr7GL2kau`;
+  a pagina inicial respondeu HTTP 200.
+- Supabase CLI confirmou o projeto vinculado `INACTIVE`; o hostname de Auth
+  nao resolvia no DNS. Login e recuperacao de senha dependem desse servico.
+- Retomada concluida pelo painel autenticado. Projeto passou por `COMING_UP`
+  e `RESTORING` e voltou a `Healthy`; Auth health e settings responderam HTTP 200.
+- Check de migrations tentou tres vezes e falhou por `ECONNREFUSED` ao criar
+  o login role durante a retomada. Isso nao comprova drift de schema.
+- Check repetido apos a retomada: 101 migrations locais e 101 remotas alinhadas.
+- Sem alteracao de codigo, schema, RLS, credenciais ou deploy. Usuario confirmou
+  que o acesso voltou a funcionar apos a retomada; entrega do email de
+  recuperacao nao foi verificada separadamente.
 
 ## Seguranca de dependencias em 2026-10-23
 
