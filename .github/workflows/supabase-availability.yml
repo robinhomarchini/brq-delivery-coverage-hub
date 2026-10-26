@@ -1,0 +1,61 @@
+name: Supabase Availability
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Daily at 08:17 America/Sao_Paulo (UTC-3), including weekends.
+    - cron: "17 11 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Check Auth and database availability
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check Supabase with existing anonymous permissions
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_AVAILABILITY_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_AVAILABILITY_ANON_KEY }}
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          const { SUPABASE_URL: url, SUPABASE_ANON_KEY: key } = process.env;
+          if (!/^https:\/\/[a-z0-9]+\.supabase\.co$/.test(url ?? '') || !key) {
+            console.error('::error::Configure SUPABASE_AVAILABILITY_URL and SUPABASE_AVAILABILITY_ANON_KEY repository secrets.');
+            process.exit(1);
+          }
+          for (const endpoint of ['/auth/v1/health', '/rest/v1/areas?select=id&limit=1']) {
+            let passed = false;
+            for (let attempt = 0; attempt < 3; attempt++) {
+              try {
+                const response = await fetch(url + endpoint, {
+                  headers: { apikey: key, 'Cache-Control': 'no-cache' },
+                  signal: AbortSignal.timeout(20000),
+                  redirect: 'error',
+                });
+                const body = await response.json();
+                // PostgreSQL 42501 proves database reachability with anon access denied.
+                // Keep current grants/RLS; never grant domain access for this probe.
+                passed = endpoint.startsWith('/auth/')
+                  ? response.status === 200
+                  : response.status === 200 && Array.isArray(body)
+                    || [401, 403].includes(response.status) && body?.code === '42501';
+                if (passed) break;
+              } catch {
+                // Do not print responses, headers, credentials or raw exceptions.
+              }
+              if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 5000));
+            }
+            if (!passed) {
+              console.error('::error::Supabase Auth or database availability check failed after three attempts.');
+              process.exit(1);
+            }
+          }
+          console.log('Auth and database responded; existing anonymous restrictions were preserved.');
+          NODE
