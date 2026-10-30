@@ -17,6 +17,13 @@
 - Alertas que exigem mudanca principal ficam documentados, sem migracao automatica.
 - Cadastro businessArea continua WIP; esta tarefa nao altera sua persistencia.
 
+## Atualizacao de 2026-10-30
+- Auditoria atual detectou GHSA-mrhx-c7xc-m3w5 em Zod anterior a 4.6.6.
+- Atualizar somente Zod dentro do major 4, sem force ou novas dependencias.
+- Aceite: auditoria completa sem alertas, validate/build e smoke/seguranca aprovados.
+- Publicacao no GitHub/CI depende do escopo confirmado nesta rodada; deploy
+  nao deve incluir silenciosamente o cadastro businessArea ainda WIP.
+
 ## Evidencia local
 - Next.js/eslint-config-next 16.4.2 e DOMPurify 3.4.17 instalados.
 - Validacao, build, smoke critico e testes de seguranca aprovados.

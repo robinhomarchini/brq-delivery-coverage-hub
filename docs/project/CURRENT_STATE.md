@@ -2,6 +2,23 @@
 
 Atualizado em: 2026-10-30
 
+## Fechamento de persistencia e release em 2026-10-30
+
+- WIP de `businessArea` concluido: coluna canonica nullable, RPC transacional
+  compativel, adapter de leitura/escrita e opcao Nao informado no formulario.
+  Sem backfill, classificacao presumida, novos indices ou ampliacao de RLS.
+- Hunter pode salvar perfil com classificacao inalterada; RPC e trigger de
+  coluna bloqueiam mudanca direta ou indireta da classificacao.
+- Migration aplicada e historico alinhado em 102 locais/remotas; suite real
+  transacional de 33 verificacoes aprovada, com rollback integral dos fixtures.
+- Zod atualizado para 4.6.7; npm audit completo retornou zero vulnerabilidades.
+- validate (lint, tipos e testes), build, seguranca, performance e smoke critico
+  aprovados; quatro avisos de navegacao preexistentes permanecem sem erros.
+- CI remoto e publicacao Vercel em andamento; evidencias finais serao registradas
+  apos verificacao. Operacao Supabase comprovada em `docs/SUPABASE_ACCESS.md`.
+- Registros datados abaixo sao historicos; o WIP e a contagem anterior foram
+  superados por este fechamento.
+
 ## Fluxo de agentes e contexto em 2026-10-30
 
 - Personas Markdown documentadas como referencias por impacto, sem execucao
@@ -78,9 +95,9 @@ Atualizado em: 2026-10-30
 
 - Branch canônica: `main`.
 - Stack: Next.js 16, React 19, TypeScript, Supabase e Vercel.
-- Banco atual preservado com 101 migrations forward-only.
-- Última reconciliação registrada: 101 migrations locais e 101 remotas.
-- Reconciliação verificada em 2026-10-16 pelo check versionado, sem drift.
+- Banco atual preservado com 102 migrations forward-only.
+- Última reconciliação registrada: 102 migrations locais e 102 remotas.
+- Reconciliação verificada em 2026-10-30 pelo check versionado, sem drift.
 - Documentação técnica canônica: `docs/project/`.
 - Requisitos ativos: `specs/`.
 - Norma comum para Codex, Kilo, Copilot e Claude: `ENGINEERING_STANDARD.md`,

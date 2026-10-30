@@ -10,6 +10,8 @@ Baseline atualizado em: 2026-07-31
 - Tipo canonico de papel: `src/lib/roles.ts`.
 - Persistencia Supabase: tabela `people`, criada e evoluida em `supabase/migrations/20260612173513_flat_sun.sql` e migrations posteriores.
 - Campos relevantes observados: nome, email, papel, status ativo, relacionamento hierarquico, clientes associados.
+- Area de atuacao opcional: `people.business_area` (Vendas, Delivery, Outras ou
+  null). Independente de `area_id`, sem inferencia automatica ou backfill.
 
 ### Cliente
 

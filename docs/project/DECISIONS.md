@@ -2,6 +2,13 @@
 
 Baseline atualizado em: 2026-07-31
 
+- 2026-10-30: concluir area de atuacao com `people.business_area` nullable,
+  vocabulario existente e sem default/backfill. Sobrecarga invoker da RPC delega
+  a assinatura antiga; trigger protege tambem UPDATE direto permitido pela RLS
+  legada de Hunter. Suite transacional de 33 verificacoes aprovada no remoto.
+- 2026-10-30: atualizar Zod para 4.6.7 dentro do major existente. Auditoria
+  completa atual zerada; preservar historico datado dos alertas anteriores.
+
 - 2026-10-30: personas `.codex/agents/*.md` sao referencias por impacto, sem
   registro automatico de subagentes. Contexto automatico deve filtrar arquivos
   antes de le-los, respeitar a raiz e priorizar instrucoes/resumos canonicos.

@@ -30,6 +30,9 @@ Baseline atualizado em: 2026-07-31
 
 - `accept_current_app_access`: resolve permissao atual.
 - `save_person_with_assignments`: salva pessoa com validacoes e escopo.
+- Sobrecarga de 15 parametros salva tambem `business_area` na mesma transacao,
+  preservando a assinatura anterior. Trigger de coluna bloqueia alteracoes por
+  Hunter via UPDATE direto. Migration aditiva de 2026-10-30; sem indice novo.
 - `save_customer_with_managers_and_targets`: salva cliente, gestores e metas.
 - Funcoes de escopo hunter em `20260721103000_hunter_scoped_access.sql`.
 - Funcoes/triggers de auditoria em `20260728113530_add_app_access_domain_audit.sql` e `20260728120500_add_person_target_domain_audit.sql`.
@@ -44,7 +47,8 @@ Baseline atualizado em: 2026-07-31
 
 ## Riscos de consistencia
 
-- Existem mudancas nao commitadas em calculos de dashboard; ainda nao devem ser assumidas como baseline validado.
+- Mudancas em calculos de dashboard exigem reconciliacao com os contratos e
+  relatorios oficiais; nao alterar totais pela classificacao de Pessoas.
 - Pode haver dados legados que passaram a ser invalidos apos triggers de duplicidade. A tela temporaria de auditoria nao substitui migracao/saneamento formal.
 - Relatorios dependem de regras de contencao de Studios; qualquer divergencia entre relatorio, dashboard e tela de cliente gera risco financeiro.
 

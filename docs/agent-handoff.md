@@ -1,25 +1,11 @@
 # Agent handoff
 
-Atualizado em: 2026-07-31
+Atualizado em: 2026-10-30
 
-## Baseline
+## Trabalho em andamento
 
-- Versão: `v0.0.0`.
-- Branch: `main`.
-- Documentação canônica: `docs/project/`.
-- Histórico: Git; handoffs concluídos não permanecem neste arquivo por mais de
-  15 dias.
-
-## Trabalho atual
-
-- Corrigida a consulta de histórico da importação para obter
-  `preview_snapshot.sourceRowCount`.
-- Baseline documental e operacional consolidado.
-- Migrations existentes foram preservadas; nenhum schema ou dado foi alterado.
-
-## Validação pendente
-
-- Reexecutar gates após a limpeza.
-- Autenticar Supabase CLI ou fornecer `SUPABASE_DB_URL` para reconciliar as 101
-  migrations locais com o ambiente remoto.
-- Criar commit, tag `v0.0.0` e push após validação.
+- Fechamento autorizado de Pessoas/businessArea e publicacao em producao.
+- Codigo e banco validados; migration aplicada com 102 locais/remotas alinhadas.
+- Restam acompanhar o CI do novo commit e verificar Vercel Ready e tela real.
+- Fonte canonica de status/evidencias: `docs/project/CURRENT_STATE.md`.
+- Nao retomar antigas pendencias de tag ou reconciliacao de julho; historico no Git.
