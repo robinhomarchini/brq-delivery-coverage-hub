@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "validate": "npm run lint && npm run typecheck && npm run test:auth && npm run test:agents && npm run test:contracts && npm run test:roles && npm run test:customer-scope && npm run test:reports && npm run test:employee-import",
+    "validate": "npm run lint && npm run typecheck && npm run test:auth && npm run test:agents && npm run test:ai-router && npm run test:contracts && npm run test:roles && npm run test:customer-scope && npm run test:reports && npm run test:employee-import",
     "start": "next start",
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
     "typecheck": "tsc --noEmit",

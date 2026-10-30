@@ -13,7 +13,8 @@
   ],
   "entrypoints": {
     "application": "src/app/layout.tsx",
-    "mock_data": "src/data/mockData.ts",
+    "repository_contract": "src/lib/repositories/types.ts",
+    "project_state": "docs/project/CURRENT_STATE.md",
     "feature_spec": "specs/delivery-coverage-hub/requirements.md"
   },
   "canonical_root": "C:\\Users\\rmarchini\\projetos\\OrgBRQDelivery",
@@ -54,7 +55,8 @@
       "lockfile diffs unless dependency task"
     ],
     "source_loading_rule": "Open only impacted modules after reading the relevant summary docs.",
-    "agent_rule": "Default to the six base agents; invoke specialists only for impacted layers."
+    "agent_rule": "Consult only personas relevant to impacted layers; default_agents is a reference catalog, not an execution list.",
+    "delegation_rule": "Markdown personas are reference guidance, not registered native subagents. Delegate only when authorized by the user or applicable instructions; assign ownership and serialize conflicting writes."
   },
   "routines": {
     "before_change": [

@@ -1,38 +1,51 @@
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { lstatSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import path from "node:path";
 import type { ContextOptions, RouteResult } from "./types";
 
 const defaultMaxFiles = 12;
 const excludedDirectories = new Set([".git", ".next", ".npm-cache", ".vercel", "node_modules", ".temp"]);
 const excludedExtensions = new Set([".png", ".jpg", ".jpeg", ".gif", ".webp", ".ico", ".pdf", ".xlsx"]);
+const canonicalFiles = ["ENGINEERING_STANDARD.md", "AGENTS.md", "docs/project/PROJECT_OVERVIEW.md", "docs/project/CURRENT_STATE.md"];
+const memoryFiles = [".ai/memory/project-summary.md", ".ai/memory/stable-facts.md", "docs/project-memory.md"];
+type ContextPolicy = ReturnType<typeof createContextPolicy>;
 
 export function buildContextPackage(options: ContextOptions): Pick<RouteResult, "relevant_files" | "excluded_files" | "stable_context" | "open_questions"> {
-  const rootDir = options.rootDir ?? process.cwd();
-  const maxFiles = options.maxFiles ?? defaultMaxFiles;
+  const rootDir = realpathSync(options.rootDir ?? process.cwd());
+  const requestedLimit = options.maxFiles ?? defaultMaxFiles;
+  const maxFiles = Number.isFinite(requestedLimit) ? Math.max(0, Math.floor(requestedLimit)) : defaultMaxFiles;
   const request = options.request;
-  const allFiles = listProjectFiles(rootDir);
-  const directRefs = extractDirectFileReferences(request).filter((file) => {
-    const absolute = path.join(rootDir, file);
-    return existsSync(absolute) && statSync(absolute).isFile();
+  const policy = createContextPolicy(rootDir);
+  const allFiles = listProjectFiles(rootDir, policy);
+  const directRefs = extractDirectFileReferences(request).flatMap((file) => {
+    const relative = policy.eligible(file);
+    return relative ? [relative] : [];
   });
   const candidates = new Map<string, number>();
 
   for (const file of directRefs) addScore(candidates, file, 100);
   for (const file of allFiles) addScore(candidates, file, scoreFile(file, request));
   for (const file of directRefs) {
-    for (const dependency of resolveImportedDependencies(rootDir, file)) addScore(candidates, dependency, 30);
+    for (const dependency of resolveImportedDependencies(rootDir, file, policy)) addScore(candidates, dependency, 30);
   }
+  canonicalFiles.forEach((file, index) => {
+    if (policy.eligible(file)) candidates.set(file, 1000 - index);
+  });
 
   const relevant = Array.from(candidates.entries())
     .filter(([, score]) => score > 0)
-    .sort((first, second) => second[1] - first[1] || first[0].localeCompare(second[0]))
+    .sort((first, second) => {
+      const firstPriority = canonicalFiles.indexOf(first[0]);
+      const secondPriority = canonicalFiles.indexOf(second[0]);
+      if (firstPriority >= 0 || secondPriority >= 0) return (firstPriority < 0 ? Infinity : firstPriority) - (secondPriority < 0 ? Infinity : secondPriority);
+      return second[1] - first[1] || first[0].localeCompare(second[0]);
+    })
     .slice(0, maxFiles)
     .map(([file]) => file);
 
   return {
     relevant_files: relevant,
     excluded_files: buildExcludedFilesSummary(allFiles, relevant),
-    stable_context: readStableContext(rootDir),
+    stable_context: readStableContext(rootDir, policy, relevant),
     open_questions: buildOpenQuestions(request, relevant),
   };
 }
@@ -51,19 +64,73 @@ export function formatRouteResultAsYaml(result: RouteResult) {
   ].join("\n");
 }
 
-function listProjectFiles(rootDir: string) {
+function createContextPolicy(rootDir: string) {
+  const root = realpathSync(rootDir);
+  function safePath(file: string, directory = false) {
+    const absolute = path.resolve(root, file);
+    const relative = toProjectPath(path.relative(root, absolute));
+    if (!relative || relative === ".." || relative.startsWith("../") || path.isAbsolute(relative)) return undefined;
+    try {
+      let current = root;
+      for (const segment of relative.split("/")) {
+        current = path.join(current, segment);
+        if (lstatSync(current).isSymbolicLink()) return undefined;
+      }
+      const info = statSync(absolute);
+      if (directory ? !info.isDirectory() : !info.isFile() || info.size > 250_000) return undefined;
+      return relative;
+    } catch {
+      return undefined;
+    }
+  }
+  const ignorePath = safePath(".codexignore");
+  const rules = ignorePath ? readFileSync(path.join(root, ignorePath), "utf8").split(/\r?\n/)
+    .map((line) => line.trim()).filter((line) => line && !line.startsWith("#")) : [];
+  function ignored(relative: string, directory: boolean) {
+    const segments = relative.split("/");
+    if (segments.some((segment) => excludedDirectories.has(segment))) return true;
+    const name = segments[segments.length - 1];
+    if ((name.startsWith(".env") && name !== ".env.example") || excludedExtensions.has(path.extname(name).toLowerCase())) return true;
+    let excluded = false;
+    for (const rule of rules) {
+      const negate = rule.startsWith("!");
+      const rawPattern = negate ? rule.slice(1) : rule;
+      const rooted = rawPattern.startsWith("/");
+      const pattern = rawPattern.replace(/^\//, "");
+      const directoryOnly = pattern.endsWith("/");
+      const glob = pattern.replace(/\/$/, "");
+      const candidates = segments.map((_, index) => segments.slice(0, index + 1).join("/"));
+      const matches = candidates.some((candidate, index) => {
+        if (directoryOnly && index === segments.length - 1 && !directory) return false;
+        return path.posix.matchesGlob(rooted || glob.includes("/") ? candidate : candidate.split("/").pop()!, glob);
+      });
+      if (matches) excluded = !negate;
+    }
+    return excluded;
+  }
+  return {
+    eligible(file: string, directory = false) {
+      const relative = safePath(file, directory);
+      if (!relative || ignored(relative, directory)) return undefined;
+      // A direct reference cannot re-include a child of a pruned directory.
+      const parts = relative.split("/");
+      if (parts.slice(0, -1).some((_, index) => ignored(parts.slice(0, index + 1).join("/"), true))) return undefined;
+      return relative;
+    },
+  };
+}
+
+function listProjectFiles(rootDir: string, policy: ContextPolicy) {
   const files: string[] = [];
   function walk(currentDir: string) {
     for (const entry of readdirSync(currentDir, { withFileTypes: true })) {
-      if (excludedDirectories.has(entry.name)) continue;
       const absolute = path.join(currentDir, entry.name);
       const relative = toProjectPath(path.relative(rootDir, absolute));
+      if (!policy.eligible(relative, entry.isDirectory())) continue;
       if (entry.isDirectory()) {
         walk(absolute);
         continue;
       }
-      if (excludedExtensions.has(path.extname(entry.name).toLowerCase())) continue;
-      if (statSync(absolute).size > 250_000) continue;
       files.push(relative);
     }
   }
@@ -95,21 +162,21 @@ function scoreFile(file: string, request: string) {
 }
 
 function extractDirectFileReferences(request: string) {
-  const refs = request.match(/(?:\.?[\w-]+[\\/])+\S+|\b[\w-]+\.(?:ts|tsx|js|cjs|mjs|sql|md|json|yaml|yml)\b/g) ?? [];
+  const refs = request.match(/(?:[A-Za-z]:[\\/]|\/)?(?:\.{1,2}[\\/])?(?:[\w.-]+[\\/])*[\w.-]+\.[A-Za-z0-9]+\b/g) ?? [];
   return refs.map((item) => toProjectPath(item.replace(/[.,;:)]+$/, "").replace(/^\.\//, "")));
 }
 
-function resolveImportedDependencies(rootDir: string, file: string) {
+function resolveImportedDependencies(rootDir: string, file: string, policy: ContextPolicy) {
   const absolute = path.join(rootDir, file);
-  if (!existsSync(absolute) || ![".ts", ".tsx", ".js", ".mjs", ".cjs"].includes(path.extname(file))) return [];
+  if (!policy.eligible(file) || ![".ts", ".tsx", ".js", ".mjs", ".cjs"].includes(path.extname(file))) return [];
   const source = readFileSync(absolute, "utf8").slice(0, 20_000);
-  const imports = Array.from(source.matchAll(/from\s+["']([^"']+)["']|import\s*\(\s*["']([^"']+)["']\s*\)/g))
+  const imports = Array.from(source.matchAll(/from\s+["']([^"']+)["']|import\s*(?:\(\s*)?["']([^"']+)["']/g))
     .map((match) => match[1] ?? match[2])
     .filter((item) => item.startsWith(".") || item.startsWith("@/"));
-  return imports.flatMap((specifier) => resolveSpecifier(rootDir, file, specifier)).slice(0, 4);
+  return imports.flatMap((specifier) => resolveSpecifier(rootDir, file, specifier, policy)).slice(0, 4);
 }
 
-function resolveSpecifier(rootDir: string, fromFile: string, specifier: string) {
+function resolveSpecifier(rootDir: string, fromFile: string, specifier: string, policy: ContextPolicy) {
   const base = specifier.startsWith("@/")
     ? path.join(rootDir, "src", specifier.slice(2))
     : path.join(rootDir, path.dirname(fromFile), specifier);
@@ -122,8 +189,10 @@ function resolveSpecifier(rootDir: string, fromFile: string, specifier: string) 
     path.join(base, "index.tsx"),
   ];
   return candidates
-    .filter((candidate) => existsSync(candidate) && statSync(candidate).isFile())
-    .map((candidate) => toProjectPath(path.relative(rootDir, candidate)));
+    .flatMap((candidate) => {
+      const relative = policy.eligible(candidate);
+      return relative ? [relative] : [];
+    });
 }
 
 function buildExcludedFilesSummary(allFiles: string[], relevant: string[]) {
@@ -134,6 +203,9 @@ function buildExcludedFilesSummary(allFiles: string[], relevant: string[]) {
     ".npm-cache/**",
     ".vercel/**",
     "supabase/.temp/**",
+    ".codexignore rules (including direct references, imports and memories)",
+    ".env* secrets except .env.example",
+    "outside-root paths and symbolic links/junctions",
     "binary/large artifacts",
   ];
   const omittedCount = Math.max(0, allFiles.length - relevant.length);
@@ -141,12 +213,12 @@ function buildExcludedFilesSummary(allFiles: string[], relevant: string[]) {
   return excluded;
 }
 
-function readStableContext(rootDir: string) {
-  const files = [".ai/memory/project-summary.md", ".ai/memory/stable-facts.md", "docs/project-memory.md"];
+function readStableContext(rootDir: string, policy: ContextPolicy, relevant: string[]) {
+  const files = [...canonicalFiles, ...memoryFiles].filter((file) => relevant.includes(file));
   return files
     .map((file) => {
       const absolute = path.join(rootDir, file);
-      if (!existsSync(absolute)) return undefined;
+      if (!policy.eligible(file)) return undefined;
       const heading = readFileSync(absolute, "utf8").split(/\r?\n/).find((line) => line.startsWith("# ")) ?? file;
       return `${file}: ${heading.replace(/^#\s+/, "")}`;
     })

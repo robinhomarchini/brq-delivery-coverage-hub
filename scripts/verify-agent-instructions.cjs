@@ -31,6 +31,25 @@ if (JSON.stringify(codexProject.default_agents) !== JSON.stringify(expectedDefau
   throw new Error(".codex/project.json must keep only the lean default agent set.");
 }
 
+// A routine must never point to a missing persona after renames or removals.
+for (const agent of new Set([
+  ...codexProject.default_agents,
+  ...Object.values(codexProject.routines).flat(),
+])) {
+  if (!/^[a-z][a-z0-9-]*$/.test(agent)) {
+    throw new Error(`Invalid persona identifier: ${agent}`);
+  }
+  if (!fs.existsSync(path.join(root, ".codex", "agents", `${agent}.md`))) {
+    throw new Error(`Missing reference persona: ${agent}`);
+  }
+}
+
+for (const [name, entrypoint] of Object.entries(codexProject.entrypoints)) {
+  if (!fs.existsSync(path.join(root, entrypoint))) {
+    throw new Error(`Missing project entrypoint ${name}: ${entrypoint}`);
+  }
+}
+
 for (const token of ["forward-only", "15 dias", "Git é o histórico", "lint, tipos, testes e build"]) {
   if (!standard.includes(token)) {
     throw new Error(`ENGINEERING_STANDARD.md is missing required rule: ${token}`);

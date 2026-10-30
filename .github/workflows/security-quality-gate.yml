@@ -6,6 +6,13 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   security-checks:
     name: Security Validation
@@ -60,6 +67,7 @@ jobs:
   quality-checks:
     name: Code Quality & Build
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - uses: actions/checkout@v4
@@ -73,6 +81,7 @@ jobs:
       - run: npm run validate
       - run: npm run test:security
       - run: npm run test:performance
+      - run: npm run smoke:critical
       - run: npm run build
 
   summary:
