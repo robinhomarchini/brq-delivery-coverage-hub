@@ -15,8 +15,10 @@ Module._resolveFilename = function resolveProjectAlias(request, parent, isMain, 
 };
 
 const { runLocalDeliveryRepositoryContractTests } = require("../src/lib/repositories/contract-tests/localDeliveryRepository.contract.ts");
+const { runSupabasePersonBusinessAreaContractTests } = require("../src/lib/repositories/contract-tests/supabasePersonBusinessArea.contract.ts");
 
 runLocalDeliveryRepositoryContractTests()
+  .then(runSupabasePersonBusinessAreaContractTests)
   .then(() => {
     console.log("DeliveryRepository contract tests passed.");
   })

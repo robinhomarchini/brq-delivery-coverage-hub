@@ -775,9 +775,10 @@ export function PeopleManagement() {
             <Field label="Área de atuação">
               <Select
                 name="businessArea"
-                defaultValue={editing?.businessArea ?? "Vendas"}
+                defaultValue={editing?.businessArea ?? ""}
                 disabled={hunterScope.enabled}
               >
+                <option value="">Não informado</option>
                 <option value="Vendas">Vendas</option>
                 <option value="Delivery">Delivery</option>
                 <option value="Outras">Outras</option>

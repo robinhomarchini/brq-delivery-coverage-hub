@@ -4,6 +4,7 @@ import {
   type Customer,
   type CustomerTarget,
   type Person,
+  type PersonBusinessArea,
   type PersonCompensation,
   type SpecialistHunterStudioAssignment,
   type StudioTargetAllocation,
@@ -61,6 +62,7 @@ type PersonRow = {
   manager_id: string | null;
   role_type: string;
   area_id: string | null;
+  business_area: PersonBusinessArea | null;
   territory_ids: string[];
   client_ids: string[];
   photo_url: string | null;
@@ -633,6 +635,7 @@ export class SupabaseDeliveryRepository implements DeliveryRepository {
       p_is_manager: person.isManager,
       p_hierarchy_level: person.hierarchyLevel,
       p_customer_ids: person.clientIds,
+      p_business_area: person.businessArea ?? null,
     });
 
     if (!error) {
@@ -1159,6 +1162,7 @@ function toPersonRow(person: Person): PersonRow {
     manager_id: person.managerId ?? null,
     role_type: person.roleType,
     area_id: person.areaId ?? null,
+    business_area: person.businessArea ?? null,
     territory_ids: [],
     client_ids: [],
     photo_url: person.photoUrl ?? null,
@@ -1186,6 +1190,7 @@ function fromPersonRow(row: PersonRow): Person {
     managerId: row.manager_id ?? undefined,
     roleType: row.role_type as RoleType,
     areaId: row.area_id ?? undefined,
+    businessArea: row.business_area ?? undefined,
     clientIds: row.client_ids ?? [],
     photoUrl: row.photo_url ?? undefined,
     notes: row.notes ?? undefined,
