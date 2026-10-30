@@ -50,3 +50,6 @@ Data: 2026-10-30
   aprovada via CLI db query --linked --file, finish(true) e rollback.
 - validate, build, smoke:critical, test:security e test:performance aprovados.
 - Auditoria completa apos Zod 4.6.7: zero vulnerabilidades.
+- Publicado em `dpl_HiFA53CVX17Sswabj9jF7sRvXByk` Ready; CI `41110768806`
+  aprovado. HTTP200 em home/Pessoas/Relatorio de Clientes; formulario autenticado
+  com Nao informado, validacao vazia e cancelamento conferidos sem gravacao real.

@@ -14,8 +14,17 @@ Atualizado em: 2026-10-30
 - Zod atualizado para 4.6.7; npm audit completo retornou zero vulnerabilidades.
 - validate (lint, tipos e testes), build, seguranca, performance e smoke critico
   aprovados; quatro avisos de navegacao preexistentes permanecem sem erros.
-- CI remoto e publicacao Vercel em andamento; evidencias finais serao registradas
-  apos verificacao. Operacao Supabase comprovada em `docs/SUPABASE_ACCESS.md`.
+- CI remoto `41110768806` aprovado para `66b938d`; publicacao Vercel
+  `dpl_HiFA53CVX17Sswabj9jF7sRvXByk` Ready no alias oficial. Rotas `/`,
+  `/pessoas` e `/relatorio-clientes` responderam HTTP 200.
+- Tela autenticada conferida: modal alinhado com scroll interno, area de atuacao
+  Nao informado, bloqueio de formulario vazio e cancelamento sem escrita real.
+  Persistencia/autorizacao cobertas pela suite transacional remota.
+- Pendencia operacional independente: secret GitHub `SUPABASE_DB_URL` do monitor
+  agendado de drift tem connection string invalida. Nao ha senha de banco local
+  para corrigi-lo; nao substituir por token privilegiado nem ampliar grants.
+  A reconciliacao desta entrega foi comprovada pelo CLI, sem drift.
+  Operacao documentada em `docs/SUPABASE_ACCESS.md`.
 - Registros datados abaixo sao historicos; o WIP e a contagem anterior foram
   superados por este fechamento.
 

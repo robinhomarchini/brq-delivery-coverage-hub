@@ -2,6 +2,22 @@
 
 Baseline atualizado em: 2026-07-31
 
+## Publicacao de 2026-10-30
+
+- Fonte publicada: `66b938d`; CI `41110768806` aprovado.
+- Deployment `dpl_HiFA53CVX17Sswabj9jF7sRvXByk`, target production, Ready
+  confirmado por `npm run deploy:inspect:prod` no alias oficial.
+- Migration de business_area aplicada antes do app; 102 locais/remotas alinhadas.
+- 33 testes reais em transacao com rollback aprovados; gates locais, build e
+  auditoria completa (zero vulnerabilidades) aprovados.
+- HTTP 200 em `/`, `/pessoas`, `/relatorio-clientes`; formulario autenticado
+  conferido sem alterar dados operacionais. Nao informado preserva valor ausente.
+- Recuperacao se necessaria: deployment anterior
+  `dpl_E9wrLaiQpWFurFDoPgCUr7GL2kau`; migration aditiva permanece compativel
+  com app anterior. Nao executar rollback automaticamente.
+- Monitor agendado de migration drift depende de corrigir o secret existente
+  `SUPABASE_DB_URL`; nao confundir essa falha de configuracao com schema drift.
+
 ## Ambiente
 
 - Framework: Next.js.

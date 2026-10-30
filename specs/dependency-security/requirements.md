@@ -23,6 +23,8 @@
 - Aceite: auditoria completa sem alertas, validate/build e smoke/seguranca aprovados.
 - Publicacao no GitHub/CI depende do escopo confirmado nesta rodada; deploy
   nao deve incluir silenciosamente o cadastro businessArea ainda WIP.
+- Escopo confirmado pelo usuario: WIP concluido e publicado junto com Zod4.6.7;
+  auditoria completa zerada, gates e CI aprovados em 2026-10-30.
 
 ## Evidencia local
 - Next.js/eslint-config-next 16.4.2 e DOMPurify 3.4.17 instalados.
