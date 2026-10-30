@@ -2,6 +2,12 @@
 
 Baseline atualizado em: 2026-07-31
 
+- 2026-10-30: personas `.codex/agents/*.md` sao referencias por impacto, sem
+  registro automatico de subagentes. Contexto automatico deve filtrar arquivos
+  antes de le-los, respeitar a raiz e priorizar instrucoes/resumos canonicos.
+  Reutilizar validate e workflow existentes para testes do roteador e smoke,
+  com permissoes minimas e cancelamento de builds superados no CI.
+
 - 2026-10-23: atualizar Next.js/config de lint juntos dentro do major 16 e
   corrigir transitivas dentro das faixas existentes. Separar alertas de producao
   (zerados localmente) dos alertas de ferramentas que exigem migracao principal.

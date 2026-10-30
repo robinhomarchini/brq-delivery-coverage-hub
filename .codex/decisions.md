@@ -2,6 +2,18 @@
 
 Use este arquivo para registrar decisoes tecnicas que devem continuar orientando o projeto.
 
+## 2026-10-30 - Personas por impacto e contexto filtrado
+
+- Personas Markdown orientam revisoes no agente atual; nao registram subagentes
+  nativos nem exigem executar o catalogo inteiro. Delegacao depende das
+  instrucoes da sessao, com ownership e sem escritas concorrentes nos mesmos arquivos.
+- Manifesto aponta contrato de repositorio e estado canonico, evitando sugerir
+  mock data como entrada principal do dominio.
+- Seletor automatico aplica exclusoes antes de leituras e prioriza instrucoes e
+  resumos canonicos. Testes do roteador integram o validate; CI inclui smoke critico.
+- Decisoes e aprendizados historicos abaixo devem ser interpretados conforme
+  `docs/project/CURRENT_STATE.md` e instrucoes vigentes, nunca como baseline atual.
+
 ## 2026-06-18 - Criacao do sistema de agentes
 
 O projeto passa a ter uma camada `.codex/` com manifesto, agentes, aprendizados e decisoes.

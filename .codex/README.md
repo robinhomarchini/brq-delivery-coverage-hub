@@ -2,12 +2,19 @@
 
 Esta pasta descreve as personas/agentes que orientam o trabalho neste projeto.
 
+Os arquivos `.codex/agents/*.md` sao personas de referencia, nao subagentes
+nativos registrados. `default_agents` e as rotinas sao catalogos de revisao por
+impacto, nao listas de execucao obrigatoria. O agente atual pode aplicar cada
+checklist diretamente. Delegar apenas com autorizacao do usuario ou das
+instrucoes aplicaveis, atribuindo arquivos e responsabilidades sem sobreposicao.
+Nao ha necessidade de registrar agentes TOML para usar estas personas.
+
 ## Como usar
 
 1. Leia `ENGINEERING_STANDARD.md` e `AGENTS.md`.
 2. Use `.codex/project.json` apenas para roteamento de agentes.
-3. Os agentes padrão são arquiteto, domínio, executor, QA, observabilidade e
-   documentação; invoque especialistas somente quando a camada for impactada.
+3. Consulte apenas as personas aplicaveis; o catalogo base cobre arquitetura,
+   dominio, execucao, QA, observabilidade e documentacao.
 4. Use `docs/project/` e a spec correspondente antes do código.
 5. Registre apenas decisões duráveis e aprendizados recorrentes.
 

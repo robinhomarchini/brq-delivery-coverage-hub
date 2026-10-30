@@ -1,6 +1,25 @@
 # Current State
 
-Atualizado em: 2026-10-26
+Atualizado em: 2026-10-30
+
+## Fluxo de agentes e contexto em 2026-10-30
+
+- Personas Markdown documentadas como referencias por impacto, sem execucao
+  obrigatoria do catalogo ou registro automatico de subagentes nativos.
+- Manifesto aponta contrato de repositorio e estado canonico; teste de agentes
+  verifica existencia das personas das rotinas e dos entrypoints.
+- Seletor local aplica exclusoes a descoberta, referencias, imports e memorias;
+  rejeita caminhos externos, links/junctions e arquivos locais de ambiente.
+  Instrucoes e resumos canonicos precedem fontes dentro do budget configurado.
+- `test:ai-router` integra `validate`; CI inclui smoke critico, permissoes de
+  leitura e cancelamento de execucoes superadas. Sem novas dependencias.
+- Analises independentes de agentes e gate feitas em paralelo; implementacao
+  separada por ownership. Sem alteracao de UI, dominio, banco, Auth ou RLS.
+- Validacao local completa, seguranca, performance e smoke critico aprovados;
+  lint mantem quatro avisos preexistentes. Build de producao aprovado.
+- Politica de contexto nao e parser gitignore completo; limites documentados
+  em `.ai/README.md`. Sem medicao ou alegacao de ganho no runtime da aplicacao.
+- Sem push ou deploy; workflow atualizado ainda requer execucao remota.
 
 ## Incidente de autenticacao em 2026-10-26
 

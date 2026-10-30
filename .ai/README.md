@@ -50,3 +50,24 @@ The first two tasks prompt for the request and print the YAML result in the term
 ## Safety
 
 The local model may only classify and summarize. It must not approve, commit, push, change migrations, change security policies or expose secrets.
+
+## Context selection policy
+
+The selector applies the same eligibility checks to traversal, explicit references,
+imports and stable memories before reading their content. Files outside the project,
+symbolic links/junctions, local `.env*` secrets (except `.env.example`), dependency
+caches and binary/large artifacts cannot enter the automatic package.
+
+Project `.codexignore` rules support blank lines, whole-line comments, ordered `!`
+negation, `/`-rooted paths, trailing `/` directories and native Node glob matching
+(`*`, `**`, `?` and character classes). Patterns without a slash match basenames at
+any depth; paths with a slash are relative to the root. This is a context policy,
+not a complete gitignore parser: escaped comments/spaces and nested ignore files
+are unsupported. Negation cannot re-include descendants of an excluded directory
+unless that directory is also re-included, or override the mandatory safety filters.
+Native glob matching requires Node 22.5 or newer.
+
+`ENGINEERING_STANDARD.md`, `AGENTS.md`, `PROJECT_OVERVIEW.md` and `CURRENT_STATE.md`
+take priority over source files when eligible. Stable-context headings are read only
+for selected files, within the same budget. Negative budgets select zero files;
+fractional budgets are rounded down and non-finite budgets use the default of 12.
