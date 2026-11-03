@@ -19,6 +19,7 @@ export class DeliveryCommandAccessError extends Error {
 
 type DeliveryCommandAccessOptions = {
   allowHunterScopedWrite?: boolean;
+  allowReadOnly?: boolean;
 };
 
 export async function createDeliveryCommandClient(request: Request, options: DeliveryCommandAccessOptions = {}): Promise<{
@@ -54,10 +55,11 @@ export async function createDeliveryCommandClient(request: Request, options: Del
   }
 
   const accessUser = fromAppUserRow(accessData as AppUserRow);
-  const canUseDeliveryCommand = accessUser.role === "editor"
+  const canUseDeliveryCommand = (options.allowReadOnly === true && ["viewer", "hunter_viewer", "editor", "admin"].includes(accessUser.role))
+    || accessUser.role === "editor"
     || accessUser.role === "admin"
     || Boolean(options.allowHunterScopedWrite && accessUser.role === "hunter_viewer");
-  if (!accessUser.active || !canUseDeliveryCommand) {
+  if (!accessUser.active || accessUser.status !== "active" || !canUseDeliveryCommand) {
     throw new DeliveryCommandAccessError("Delivery write access denied.", 403);
   }
 

@@ -41,7 +41,7 @@ export function proxy(request: NextRequest) {
   requestHeaders.set("x-nonce", nonce);
   requestHeaders.set("Content-Security-Policy", contentSecurityPolicy);
 
-  if (request.nextUrl.pathname.startsWith("/api/delivery/")) {
+  if (request.nextUrl.pathname.startsWith("/api/delivery/") || request.nextUrl.pathname.startsWith("/api/integrations/radar/")) {
     const ip = extractClientIp(request);
     const rateLimit = checkRateLimit(`api:${ip}`);
 
