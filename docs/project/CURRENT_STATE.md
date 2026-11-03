@@ -1,6 +1,21 @@
 # Current State
 
-Atualizado em: 2026-10-30
+Atualizado em: 2026-11-03
+
+## Carteiras para o Radar — 2026-11-03
+
+- Catalogo de leitura minimalista em `/api/integrations/radar/catalog`, com
+  consentimento em `/integracoes/radar`. Fonte normalizada de cobertura e
+  especializacoes por Studio/ano; sem copiar cadastro ou valores financeiros.
+- Delegacao opaca de ate uma hora, criptografada com chave exclusiva no
+  servidor. JWT original permanece no Org; permissao e revalidada a cada leitura.
+- Consultas usam o cliente do usuario, preservando RLS e roles viewer/Hunter.
+  Sem service_role, migrations, grants ou alteracao de cadastros.
+- validate, build, seguranca, performance, smoke critico e suite do catalogo
+  aprovados localmente. Quatro avisos de navegacao preexistentes permanecem.
+- Para usar, conectar pelo Radar e autorizar na conta do Org. Conexao em
+  memoria, encerrada no recarregamento; carteira comum e atual, nao historica.
+- Spec: `specs/radar-customer-catalog/requirements.md`.
 
 ## Fechamento de persistencia e release em 2026-10-30
 

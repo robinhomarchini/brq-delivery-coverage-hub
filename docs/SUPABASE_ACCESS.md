@@ -2,6 +2,14 @@
 
 Atualizado em: 2026-10-30
 
+- Inspecao somente leitura em 2026-11-03 comprovada com
+  `npx --cache .npm-cache --yes supabase db query --linked --read-only --file <arquivo>`.
+  Sem `--read-only`, a versao atual bloqueou a consulta em modo agente antes de
+  executar; nao adicionar `--yes` para contornar essa protecao.
+- Catalogo Radar usa as tabelas existentes por sessao do usuario e RLS:
+  48 clientes, 96 vinculos pessoa-cliente e 15 associacoes especializadas na
+  inspecao datada. Sem alteracao de schema, indices, grants ou historico.
+
 - Projeto vinculado: `ttuvykiohikejxioxvhn` (Delivery Coverage Hub).
 - Raiz canonica: `C:\Users\rmarchini\projetos\OrgBRQDelivery`.
 - Caminho comprovado: `npx --cache .npm-cache --yes supabase <comando> --linked`.

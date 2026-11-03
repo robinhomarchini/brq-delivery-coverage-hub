@@ -2,6 +2,13 @@
 
 Baseline atualizado em: 2026-07-31
 
+- 2026-11-03: compartilhar somente projecao cadastral de carteiras com o Radar,
+  autorizada pela sessao do proprio usuario e sujeita a RLS. Delegacao opaca
+  temporaria aceita somente pela API de leitura, sem expor o JWT original ao
+  consumidor. Sem cadastro espelhado, conta tecnica ou chave administrativa.
+  Cobertura comum e atual; especializacoes mantem ano e relacao normalizada
+  com Studio. Nomes iguais sugerem correspondencia confirmavel, nao nova identidade.
+
 - 2026-10-30: concluir area de atuacao com `people.business_area` nullable,
   vocabulario existente e sem default/backfill. Sobrecarga invoker da RPC delega
   a assinatura antiga; trigger protege tambem UPDATE direto permitido pela RLS
