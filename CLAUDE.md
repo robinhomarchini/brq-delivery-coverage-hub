@@ -1,5 +1,7 @@
 # Claude Code
 
+@AGENTS.md
+
 Antes de agir, leia e siga nesta ordem:
 
 1. `ENGINEERING_STANDARD.md` — norma geral obrigatória.
